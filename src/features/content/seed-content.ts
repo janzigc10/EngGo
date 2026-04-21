@@ -1,4 +1,7 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
+import { randomUUID } from "node:crypto";
+
+import type { PrismaClient } from "@prisma/client";
+import { Client } from "pg";
 
 import type { SeedContent } from "@/features/content/seed-content-rules";
 
@@ -9,87 +12,149 @@ const examScopeLabels = {
   postgrad: "考研",
 } as const;
 
-type TransactionClient = Prisma.TransactionClient;
+function getSeedConnectionString() {
+  const connectionString = process.env.DATABASE_URL;
 
-async function seedExamScopes(tx: TransactionClient) {
-  await Promise.all(
-    Object.entries(examScopeLabels).map(([code, label]) =>
-      tx.examScope.upsert({
-        where: { code: code as keyof typeof examScopeLabels },
-        update: { label },
-        create: {
-          code: code as keyof typeof examScopeLabels,
-          label,
-        },
-      }),
-    ),
-  );
+  if (!connectionString) {
+    throw new Error("DATABASE_URL is required to seed content.");
+  }
+
+  return connectionString;
 }
 
-async function resetContentTables(tx: TransactionClient) {
-  await tx.confusionGroupMember.deleteMany();
-  await tx.confusionGroup.deleteMany();
-  await tx.vocabularyAlias.deleteMany();
-  await tx.vocabularyMeaning.deleteMany();
-  await tx.vocabularyEntryScope.deleteMany();
-  await tx.vocabularyEntry.deleteMany();
+async function seedExamScopes(client: Client) {
+  for (const [code, label] of Object.entries(examScopeLabels)) {
+    await client.query(
+      `
+        INSERT INTO "exam_scope" ("code", "label")
+        VALUES ($1::"ExamScopeCode", $2)
+        ON CONFLICT ("code")
+        DO UPDATE SET "label" = EXCLUDED."label"
+      `,
+      [code, label],
+    );
+  }
 }
 
-async function seedEntries(tx: TransactionClient, entries: SeedContent["entries"]) {
+async function resetContentTables(client: Client) {
+  await client.query(`DELETE FROM "confusion_group_member"`);
+  await client.query(`DELETE FROM "confusion_group"`);
+  await client.query(`DELETE FROM "vocabulary_alias"`);
+  await client.query(`DELETE FROM "vocabulary_meaning"`);
+  await client.query(`DELETE FROM "vocabulary_entry_scope"`);
+  await client.query(`DELETE FROM "vocabulary_entry"`);
+}
+
+async function seedEntries(client: Client, entries: SeedContent["entries"]) {
   for (const entry of entries) {
-    await tx.vocabularyEntry.create({
-      data: {
-        id: entry.id,
-        lemma: entry.lemma,
-        pos: entry.pos,
-        examples: entry.examples,
-        collocations: entry.collocations,
-        aliases: {
-          create: entry.aliases.map((alias) => ({ alias })),
-        },
-        meanings: {
-          create: entry.meaningsZh.map((zh) => ({ zh })),
-        },
-        scopes: {
-          create: entry.examScopes.map((scopeCode, index) => ({
-            scopeCode,
-            teachingRank: index + 1,
-          })),
-        },
-      },
-    });
+    await client.query(
+      `
+        INSERT INTO "vocabulary_entry" (
+          "id",
+          "lemma",
+          "pos",
+          "examples",
+          "collocations",
+          "updatedAt"
+        )
+        VALUES ($1, $2, $3::text[], $4::text[], $5::text[], NOW())
+      `,
+      [entry.id, entry.lemma, entry.pos, entry.examples, entry.collocations],
+    );
+
+    for (const alias of entry.aliases) {
+      await client.query(
+        `
+          INSERT INTO "vocabulary_alias" ("id", "entryId", "alias")
+          VALUES ($1, $2, $3)
+        `,
+        [randomUUID(), entry.id, alias],
+      );
+    }
+
+    for (const zh of entry.meaningsZh) {
+      await client.query(
+        `
+          INSERT INTO "vocabulary_meaning" ("id", "entryId", "zh")
+          VALUES ($1, $2, $3)
+        `,
+        [randomUUID(), entry.id, zh],
+      );
+    }
+
+    for (const [index, scopeCode] of entry.examScopes.entries()) {
+      await client.query(
+        `
+          INSERT INTO "vocabulary_entry_scope" ("entryId", "scopeCode", "teachingRank")
+          VALUES ($1, $2::"ExamScopeCode", $3)
+        `,
+        [entry.id, scopeCode, index + 1],
+      );
+    }
   }
 }
 
 async function seedConfusionGroups(
-  tx: TransactionClient,
+  client: Client,
   confusionGroups: SeedContent["confusionGroups"],
 ) {
   for (const group of confusionGroups) {
-    await tx.confusionGroup.create({
-      data: {
-        id: group.id,
-        teachFirstEntryId: group.teachFirst,
-        whyConfusing: group.whyConfusing,
-        commonMisusePoints: group.commonMisusePoints,
-        semanticBoundaryNotes: group.semanticBoundaryNotes,
-        members: {
-          create: group.members.map((entryId, index) => ({
-            entryId,
-            ordinal: index + 1,
-            emphasisNote: group.memberNotes[entryId],
-          })),
-        },
-      },
-    });
+    await client.query(
+      `
+        INSERT INTO "confusion_group" (
+          "id",
+          "teachFirstEntryId",
+          "whyConfusing",
+          "commonMisusePoints",
+          "semanticBoundaryNotes",
+          "updatedAt"
+        )
+        VALUES ($1, $2, $3, $4::text[], $5::text[], NOW())
+      `,
+      [
+        group.id,
+        group.teachFirst,
+        group.whyConfusing,
+        group.commonMisusePoints ?? [],
+        group.semanticBoundaryNotes ?? [],
+      ],
+    );
+
+    for (const [index, entryId] of group.members.entries()) {
+      await client.query(
+        `
+          INSERT INTO "confusion_group_member" (
+            "confusionGroupId",
+            "entryId",
+            "ordinal",
+            "emphasisNote"
+          )
+          VALUES ($1, $2, $3, $4)
+        `,
+        [group.id, entryId, index + 1, group.memberNotes?.[entryId] ?? null],
+      );
+    }
   }
 }
 
-export async function seedContent(client: PrismaClient, seedContent: SeedContent) {
-  await client.$transaction(async (tx) => {
-    await seedExamScopes(tx);
-    await resetContentTables(tx);
-    await seedEntries(tx, seedContent.entries);
-    await seedConfusionGroups(tx, seedContent.confusionGroups);
-  });
+export async function seedContent(_client: PrismaClient, seedContent: SeedContent) {
+  // Prisma adapter transactions are unstable against local Prisma Postgres on Windows,
+  // so seed through a single pg transaction while keeping the public API unchanged.
+  const client = new Client({ connectionString: getSeedConnectionString() });
+
+  await client.connect();
+
+  try {
+    await client.query("BEGIN");
+    await seedExamScopes(client);
+    await resetContentTables(client);
+    await seedEntries(client, seedContent.entries);
+    await seedConfusionGroups(client, seedContent.confusionGroups);
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    await client.end();
+  }
 }

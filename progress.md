@@ -1,59 +1,50 @@
 # EngGo 滚动交接
 
 ## 当前阶段
-已完成 Task 1、Task 2、Task 3、Task 4、Task 5，项目进入“轻量学习骨架与收藏入口”阶段；下一步按 plan 执行 Task 6。
+已完成 Task 1 至 Task 7。项目状态是“chat-first MVP 的实现与验证闭环已跑通，当前进入提交/后续规划阶段”。
 
 ## 本 Session 已完成
-- 完成 Task 1：仓库初始化、聊天主舞台首页外壳、Playwright 基线与首个提交。
-- 完成 Task 2：PostgreSQL / Prisma 内容底座落地。
-  - 建立 `ExamScope`、`VocabularyEntry`、`VocabularyAlias`、`VocabularyMeaning`、`ConfusionGroup`、`ConfusionGroupMember` schema
-  - 落地 `src/lib/db.ts`、content import schema、seed loader、repository 最小接口
-  - 补齐 `data/exam-vocab/seed/` 首版内容：34 条词条、8 组易混词，覆盖高考 / CET-4 / CET-6 / 考研
-  - 生成初始迁移 SQL：`prisma/migrations/20260421060000_init_content/migration.sql`
-  - 因当前 Windows + local Prisma Postgres 环境的 schema-engine 问题，采用 `prisma migrate diff --script` + `prisma db execute --file ...` workaround 应用本地 schema
-  - 增加 seed 内容合同校验与事务回滚测试，修复“检查脚本只打印数量”和“seed 失败会半清空数据库”的风险
-- 完成 Task 3：数据库驱动检索、模糊召回与排序。
-  - 实现 query mode 检测与输入归一化：`meaning_lookup` / `fuzzy_recall` / `direct_compare` / `direct_lookup`
-  - 新增 `pg_trgm` 迁移：`prisma/migrations/20260421070000_enable_pg_trgm/migration.sql`
-  - 实现 alias / lemma trigram 召回、应用层排序、易混组扩展与 direct compare 视图
-  - 为匹配产品预期，补充 `comply` 的中文释义包含“遵从”
-- 完成 Task 4：回答编排层、provider 抽象与聊天 API。
-  - 新增 `.env.example`，补齐 `OPENAI_API_KEY` / `DATABASE_URL` / `DIRECT_URL` / `SENTRY_DSN` 样例
-  - 用 `buildGrounding` 固定“主答案 -> 易混边界 -> 范围提醒 -> 下一步”的回答节奏
-  - 新增 `buildSystemPrompt`、`chat-provider`、`chat-service` 与 `request-id`，让 retrieval grounding 进入模型请求
-  - 落地 `POST /api/chat`：参数校验、调用 retrieval + chat service、缺失 `OPENAI_API_KEY` 时返回明确 `503`
-  - 增加 `src/features/answering/chat-service.test.ts`，先红后绿覆盖 grounding 组织和 provider contract
-- 完成 Task 5：聊天工作台、考试目标持久化与客户端交互。
-  - 新增 `src/features/exam-target/`，落地考试目标枚举、`localStorage` 持久化与订阅式读取
-  - 新增 `src/features/chat/use-chat-session.ts`，把示例提问、输入态、消息线程与 `/api/chat` 请求收敛到统一 session hook
-  - 新增 `src/components/chat/` 与 `src/components/shell/exam-target-switcher.tsx`，首页正式切到可交互的聊天工作台
-  - 补齐 `@testing-library/*` + `jsdom` 测试基建，并新增 `chat-workspace.test.tsx` 覆盖输入填充、答案渲染、错误态脱敏与 exam target 重挂载恢复
-  - 修正前端错误提示，避免把 `OPENAI_API_KEY` 之类的服务端技术细节直接暴露给终端用户
-  - 验证通过：`corepack pnpm test src/components/chat/chat-workspace.test.tsx`、`corepack pnpm exec playwright test tests/e2e/app-shell.spec.ts`
-- `bugs.md` 已同步记录 Prisma 本地环境问题与当前 workaround。
+- 完成 Task 6：接入轻量学习骨架与收藏入口。
+- 新增 `src/features/collections/collection-store.ts`，按考试目标分组持久化收藏词条，并把存储边界收敛为可替换 repository。
+- 在回答卡片新增 `src/components/chat/answer-actions.tsx`，支持“加入收藏”轻动作，成功后就地反馈，不打断聊天主链路。
+- 落地 `/collections`、`/learn`、`/review`、`/progress` 二级页面骨架，并把顶部导航接成可点击入口。
+- 为收藏链路补充脏数据兜底与持久化状态回读，避免旧 localStorage 数据导致收藏崩溃，也避免答案卡片在重挂载后误显示“加入收藏”。
+- 完成 Task 7 Step 1-3：
+  - 新增 `tests/e2e/chat-mvp.spec.ts`，覆盖“切换考试目标 -> 提问 -> 得到主答案 -> 加入收藏 -> 在 `/collections` 看见词条”。
+  - 更新 `package.json`，补齐 `test:e2e`、`db:migrate`、`db:seed`、`verify`，并修正 `test` 脚本以支持按文件运行。
+  - 重写 `README.md`，补上环境变量、首次启动、Prisma migrate / seed、seed 数据格式、`pnpm verify`、部署方式和 Windows + local Prisma Postgres workaround。
+- 修正 `vitest.config.ts`，把 `tests/e2e/**` 排除出 Vitest，避免 `verify` 时把 Playwright spec 当成单元测试执行。
+- 完成 Task 7 Step 4-5：
+  - 将 `src/features/content/seed-content.ts` 改为使用原生 `pg` 单连接事务导入内容，保留回滚语义，同时绕开 Windows + local Prisma Postgres 下 Prisma transaction 不稳定的问题。
+  - 将 `retrieve-candidates.test.ts` 中的 seed 调用改为项目内 `corepack pnpm db:seed`，不再走 `npx pnpm@latest exec prisma db seed`。
+  - 将验证脚本拆成 `test:unit` + `test:integration`；`verify` 改为分阶段执行普通 Vitest、数据库集成测试和 Playwright，避免数据库测试与长生命周期 Vitest 进程互相污染。
+  - 在重建本地 `prisma dev` 实例并重新执行 `pnpm db:migrate` 后，`corepack pnpm verify` 已全绿通过。
+- 通过 subagent 完成 Task 6 主实现、规格审查、代码质量复审；Task 7 的实现也由 subagent 起草，主线程补了脚本/验证层收尾。
 
 ## 当前优先级
-1. 执行 Task 6：接入轻量学习骨架与收藏入口
-2. 让回答卡片出现“加入收藏”动作，但不打断聊天主链路
-3. 补 `/collections`、`/learn`、`/review`、`/progress` 二级页面骨架
+1. 决定当前分支的提交/整理方式，并准备进入下一轮产品或工程计划。
+2. 若继续在本地 Windows + Prisma dev 环境开发，先检查实例健康度；如有陈旧状态，先重建再继续。
+3. 下一阶段优先补齐真实 `OPENAI_API_KEY` 联调、上线前环境变量和后续产品计划。
 
 ## 下一 Session 第一件事
-- 打开 `docs/superpowers/plans/2026-04-21-enggo-chat-mvp.md`，从 Task 6 Step 1 开始，先写 `collection-store` 的失败测试，再接回答卡片操作区和收藏页骨架。
+- 先执行 `corepack pnpm exec prisma dev ls` 或直接用 `pg` 连一次 `DATABASE_URL`，确认 `enggo` 本地库是否健康。
+- 如果库实例又出现 `Connection terminated unexpectedly` / `Server has closed the connection`，先 `prisma dev rm enggo --force` 重建，再执行 `pnpm db:migrate`。
 
 ## 当前阻塞 / 风险
-- 当前机器上的 `prisma migrate dev` / `prisma migrate resolve` 对 local Prisma Postgres 不稳定；后续新增 migration 仍需沿用 `migrate diff` + `db execute` workaround，或切换到标准 PostgreSQL 环境。
+- 本地 `prisma dev` 环境存在两层问题：
+  - 服务器元数据可能损坏，导致 `prisma dev start enggo` 因陈旧 PID 失效，需要 `prisma dev rm enggo --force` 后重建。
+  - 即使代码层已经绕开部分 transaction 问题，只要实例本身进入坏状态，仍会出现 `Connection terminated unexpectedly` / `Server has closed the connection`，需要先重建实例再继续验证。
 - `OPENAI_API_KEY` / `SENTRY_DSN` 尚未配置；当前 `/api/chat` 已对缺失 key 返回明确 `503`，但真实模型联调和上线前验证仍会受阻。
-- `corepack pnpm exec tsc --noEmit` 仍被仓库既有问题拦住，当前看到的是 `seed-content` 相关历史类型错误，不是本轮 `answering` / API 改动直接引入。
+- `corepack pnpm exec tsc --noEmit` 仍被仓库既有 `seed-content` 历史类型错误拦住，不是本轮 Task 6 / Task 7 引入的问题。
 
 ## 最近验证基线
-- `pnpm test src/features/content/content-repository.test.ts`
-- `pnpm test src/features/content/seed-content-rules.test.ts`
-- `pnpm test src/features/content/seed-content.test.ts`
-- `pnpm test src/features/retrieval/retrieve-candidates.test.ts`
-- `pnpm exec tsx scripts/check-seed-content.ts`
-- `pnpm exec prisma db seed`
-- `corepack pnpm test src/features/answering/chat-service.test.ts`
-- `corepack pnpm exec eslint 'src/features/answering/**/*.ts' 'src/app/api/chat/route.ts' 'src/features/observability/request-id.ts' 'src/lib/env.ts'`
+- `corepack pnpm test src/features/collections/collection-store.test.ts`
+- `corepack pnpm test src/components/chat/answer-actions.test.tsx`
 - `corepack pnpm test src/components/chat/chat-workspace.test.tsx`
-- `corepack pnpm exec eslint 'src/components/chat/**/*.tsx' 'src/components/shell/**/*.tsx' 'src/features/chat/**/*.ts' 'src/features/exam-target/**/*.ts' 'src/app/page.tsx' 'vitest.config.ts' 'src/test/setup.ts'`
-- `corepack pnpm exec playwright test tests/e2e/app-shell.spec.ts`
+- `corepack pnpm exec eslint src/features/collections/collection-store.ts src/features/collections/collection-store.test.ts src/components/chat/answer-actions.tsx src/components/chat/answer-actions.test.tsx`
+- `corepack pnpm exec playwright test tests/e2e/collection-flow.spec.ts`
+- `corepack pnpm exec playwright test tests/e2e/chat-mvp.spec.ts`
+- `corepack pnpm db:migrate`
+- `corepack pnpm db:seed`
+- `corepack pnpm verify`
+  - 结果：PASS（前置条件是本地 `prisma dev` 实例先处于健康状态；本次通过前执行过重建）。

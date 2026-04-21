@@ -529,7 +529,7 @@ git commit -m "feat: build chat-first learning workspace"
 - Create: `src/features/collections/collection-store.test.ts`
 - Test: `tests/e2e/collection-flow.spec.ts`
 
-- [ ] **Step 1: 先写收藏流的失败测试**
+- [x] **Step 1: 先写收藏流的失败测试**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -550,7 +550,7 @@ pnpm test src/features/collections/collection-store.test.ts
 
 Expected: FAIL。
 
-- [ ] **Step 2: 实现本地收藏 store 与答案操作区**
+- [x] **Step 2: 实现本地收藏 store 与答案操作区**
 
 Implement:
 - 词条收藏按考试范围分组
@@ -558,7 +558,7 @@ Implement:
 - 收藏动作成功后给轻反馈，不跳离聊天主界面
 - 收藏 API 设计成可替换的数据访问边界，避免未来接数据库时重写调用层
 
-- [ ] **Step 3: 搭二级学习骨架页面**
+- [x] **Step 3: 搭二级学习骨架页面**
 
 Pages:
 - `/collections` 展示收藏词条列表
@@ -566,7 +566,7 @@ Pages:
 - `/review` 展示复习入口占位
 - `/progress` 展示基础计数与阶段说明
 
-- [ ] **Step 4: 跑通收藏流测试**
+- [x] **Step 4: 跑通收藏流测试**
 
 Run:
 ```bash
@@ -576,7 +576,7 @@ pnpm exec playwright test tests/e2e/collection-flow.spec.ts
 
 Expected: PASS。
 
-- [ ] **Step 5: 提交学习骨架入口**
+- [x] **Step 5: 提交学习骨架入口**
 
 Run:
 ```bash
@@ -591,7 +591,7 @@ git commit -m "feat: add lightweight learning backbone pages"
 - Create: `README.md`
 - Modify: `package.json`
 
-- [ ] **Step 1: 写一条 MVP 级别的端到端主流程测试**
+- [x] **Step 1: 写一条 MVP 级别的端到端主流程测试**
 
 ```ts
 import { expect, test } from "@playwright/test";
@@ -616,7 +616,7 @@ pnpm exec playwright test tests/e2e/chat-mvp.spec.ts
 
 Expected: 先 FAIL，等主链路补完后 PASS。
 
-- [ ] **Step 2: 增加统一验证脚本**
+- [x] **Step 2: 增加统一验证脚本**
 
 Update `package.json` scripts:
 ```json
@@ -633,7 +633,7 @@ Update `package.json` scripts:
 }
 ```
 
-- [ ] **Step 3: 写 README，固定本地启动与数据维护方式**
+- [x] **Step 3: 写 README，固定本地启动与数据维护方式**
 
 README must include:
 - 环境要求：Node、pnpm
@@ -644,7 +644,7 @@ README must include:
 - `pnpm verify` 的使用方法
 - 基础部署方式说明
 
-- [ ] **Step 4: 跑完整体验证**
+- [x] **Step 4: 跑完整体验证**
 
 Run:
 ```bash
@@ -656,7 +656,7 @@ Expected:
 - unit tests PASS
 - e2e PASS
 
-- [ ] **Step 5: 提交 MVP 验证闭环**
+- [x] **Step 5: 提交 MVP 验证闭环**
 
 Run:
 ```bash

@@ -22,7 +22,7 @@ describe("detectQueryMode", () => {
 
 describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
   beforeAll(async () => {
-    execSync("npx pnpm@latest exec prisma db seed", {
+    execSync("corepack pnpm db:seed", {
       cwd: process.cwd(),
       stdio: "pipe",
     });

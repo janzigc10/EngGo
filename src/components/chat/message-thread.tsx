@@ -1,3 +1,4 @@
+import { AnswerActions } from "@/components/chat/answer-actions";
 import type { ChatMessage } from "@/features/chat/types";
 
 type MessageThreadProps = {
@@ -74,6 +75,7 @@ export function MessageThread({
                   {message.grounding.followUpPrompt}
                 </p>
               </div>
+              <AnswerActions grounding={message.grounding} />
             </div>
           ) : null}
         </article>
