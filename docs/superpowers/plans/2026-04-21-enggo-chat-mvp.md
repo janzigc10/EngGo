@@ -155,7 +155,7 @@ pnpm exec playwright test tests/e2e/app-shell.spec.ts
 
 Expected: PASS。
 
-- [ ] **Step 5: 提交仓库基础外壳**
+- [x] **Step 5: 提交仓库基础外壳**
 
 Run:
 ```bash
@@ -177,7 +177,7 @@ git commit -m "feat: bootstrap chat-first app shell"
 - Create: `data/exam-vocab/seed/entries.json`
 - Create: `data/exam-vocab/seed/confusion-groups.json`
 
-- [ ] **Step 1: 先写 schema 与 repository 的失败测试**
+- [x] **Step 1: 先写 schema 与 repository 的失败测试**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -208,7 +208,7 @@ pnpm test src/features/content/content-repository.test.ts
 
 Expected: FAIL，因为 schema、Prisma schema 与 repository 尚不存在。
 
-- [ ] **Step 2: 实现 Prisma schema、数据库访问入口与导入 schema**
+- [x] **Step 2: 实现 Prisma schema、数据库访问入口与导入 schema**
 
 Implement:
 - `prisma/schema.prisma` 至少建出 `ExamScope`, `VocabularyEntry`, `VocabularyAlias`, `VocabularyMeaning`, `ConfusionGroup`, `ConfusionGroupMember`
@@ -216,7 +216,7 @@ Implement:
 - `import-schema.ts` 用 Zod 校验 seed 输入
 - repository 先提供查询词条、按考试范围过滤、读取易混组的最小接口
 
-- [ ] **Step 3: 编写最小可用 seed 内容并完成导入脚本**
+- [x] **Step 3: 编写最小可用 seed 内容并完成导入脚本**
 
 Data minimum:
 - 至少 32 个词条
@@ -224,7 +224,7 @@ Data minimum:
 - 四个考试范围都要有覆盖
 - 必须包含 spec 中已出现或与其直接相关的词群：`comply`, `conform`, `defer`, `restrain`, `constrain`, `respect`, `respective`, `respectful`, `respectable`, `institute`, `institution`
 
-- [ ] **Step 4: 生成迁移并跑通 seed 校验**
+- [x] **Step 4: 生成迁移并跑通 seed 校验**
 
 Run:
 ```bash
@@ -234,9 +234,21 @@ pnpm exec prisma db seed
 pnpm test src/features/content/content-repository.test.ts
 ```
 
+Note:
+- 当前 Windows + local Prisma Postgres 环境下，`prisma migrate dev` / `prisma migrate resolve` 会触发 Prisma schema-engine 连接错误。
+- 本仓库已验证可用的临时 workaround：
+```bash
+pnpm exec prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script --output prisma/migrations/20260421060000_init_content/migration.sql
+pnpm exec prisma db execute --file prisma/migrations/20260421060000_init_content/migration.sql
+pnpm exec prisma generate
+pnpm exec tsx scripts/check-seed-content.ts
+pnpm exec prisma db seed
+pnpm test src/features/content/content-repository.test.ts
+```
+
 Expected: PASS；数据库已建表，seed 可导入，错误数据会在本地直接抛出可读报错。
 
-- [ ] **Step 5: 提交数据库与内容导入基线**
+- [x] **Step 5: 提交数据库与内容导入基线**
 
 Run:
 ```bash

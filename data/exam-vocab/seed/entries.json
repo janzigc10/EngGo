@@ -1,0 +1,342 @@
+[
+  {
+    "id": "comply",
+    "lemma": "comply",
+    "aliases": ["comply with"],
+    "pos": ["verb"],
+    "meaningsZh": ["遵守", "依从"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["We must comply with the rules."],
+    "collocations": ["comply with rules"]
+  },
+  {
+    "id": "conform",
+    "lemma": "conform",
+    "aliases": ["conform to"],
+    "pos": ["verb"],
+    "meaningsZh": ["符合", "遵从", "使一致"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["Students often conform to the school dress code."],
+    "collocations": ["conform to standards"]
+  },
+  {
+    "id": "defer",
+    "lemma": "defer",
+    "aliases": ["defer to"],
+    "pos": ["verb"],
+    "meaningsZh": ["听从", "顺从", "推迟"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["I will defer to your judgment on this matter."],
+    "collocations": ["defer to authority"]
+  },
+  {
+    "id": "obey",
+    "lemma": "obey",
+    "aliases": ["obey orders"],
+    "pos": ["verb"],
+    "meaningsZh": ["服从", "遵守"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["Children are expected to obey their parents."],
+    "collocations": ["obey the law"]
+  },
+  {
+    "id": "submit",
+    "lemma": "submit",
+    "aliases": ["submit to"],
+    "pos": ["verb"],
+    "meaningsZh": ["屈从", "提交"],
+    "examScopes": ["gaokao", "cet4", "cet6"],
+    "examples": ["Please submit your application before Friday."],
+    "collocations": ["submit an application"]
+  },
+  {
+    "id": "restrain",
+    "lemma": "restrain",
+    "aliases": ["restrain oneself"],
+    "pos": ["verb"],
+    "meaningsZh": ["抑制", "约束"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["He had to restrain himself from speaking angrily."],
+    "collocations": ["restrain emotions"]
+  },
+  {
+    "id": "constrain",
+    "lemma": "constrain",
+    "aliases": ["constrain growth"],
+    "pos": ["verb"],
+    "meaningsZh": ["限制", "束缚"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["Budget limits may constrain the project's growth."],
+    "collocations": ["constrain development"]
+  },
+  {
+    "id": "curb",
+    "lemma": "curb",
+    "aliases": ["curb inflation"],
+    "pos": ["verb"],
+    "meaningsZh": ["抑制", "遏制"],
+    "examScopes": ["cet4", "cet6", "postgrad"],
+    "examples": ["The government plans to curb rising prices."],
+    "collocations": ["curb inflation"]
+  },
+  {
+    "id": "control",
+    "lemma": "control",
+    "aliases": ["under control"],
+    "pos": ["verb", "noun"],
+    "meaningsZh": ["控制", "管理"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["We should control our spending carefully."],
+    "collocations": ["control the risk"]
+  },
+  {
+    "id": "limit",
+    "lemma": "limit",
+    "aliases": ["limit to"],
+    "pos": ["verb", "noun"],
+    "meaningsZh": ["限制", "局限"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["Try to limit your screen time at night."],
+    "collocations": ["limit access to"]
+  },
+  {
+    "id": "respect",
+    "lemma": "respect",
+    "aliases": ["show respect"],
+    "pos": ["verb", "noun"],
+    "meaningsZh": ["尊重", "敬重"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["We should respect different opinions."],
+    "collocations": ["respect others"]
+  },
+  {
+    "id": "respective",
+    "lemma": "respective",
+    "aliases": ["their respective"],
+    "pos": ["adjective"],
+    "meaningsZh": ["各自的", "分别的"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["The students returned to their respective classrooms."],
+    "collocations": ["respective roles"]
+  },
+  {
+    "id": "respectful",
+    "lemma": "respectful",
+    "aliases": ["respectful tone"],
+    "pos": ["adjective"],
+    "meaningsZh": ["礼貌的", "尊敬的"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": ["Please keep a respectful tone in the discussion."],
+    "collocations": ["respectful behavior"]
+  },
+  {
+    "id": "respectable",
+    "lemma": "respectable",
+    "aliases": ["respectable income"],
+    "pos": ["adjective"],
+    "meaningsZh": ["值得尊敬的", "体面的"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": ["She has a respectable academic record."],
+    "collocations": ["respectable income"]
+  },
+  {
+    "id": "regard",
+    "lemma": "regard",
+    "aliases": ["regard as"],
+    "pos": ["verb", "noun"],
+    "meaningsZh": ["认为", "看待", "尊重"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": ["We regard her as a reliable teammate."],
+    "collocations": ["regard as important"]
+  },
+  {
+    "id": "esteem",
+    "lemma": "esteem",
+    "aliases": ["esteem highly"],
+    "pos": ["verb", "noun"],
+    "meaningsZh": ["尊重", "敬重"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["He is highly esteemed by his colleagues."],
+    "collocations": ["esteem someone highly"]
+  },
+  {
+    "id": "institute",
+    "lemma": "institute",
+    "aliases": ["institute a policy"],
+    "pos": ["verb", "noun"],
+    "meaningsZh": ["设立", "制定", "机构"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["The school will institute a new attendance policy."],
+    "collocations": ["institute reforms"]
+  },
+  {
+    "id": "institution",
+    "lemma": "institution",
+    "aliases": ["public institution"],
+    "pos": ["noun"],
+    "meaningsZh": ["机构", "制度"],
+    "examScopes": ["cet4", "cet6", "postgrad"],
+    "examples": ["The hospital is a trusted public institution."],
+    "collocations": ["financial institution"]
+  },
+  {
+    "id": "establish",
+    "lemma": "establish",
+    "aliases": ["establish relations"],
+    "pos": ["verb"],
+    "meaningsZh": ["建立", "创立"],
+    "examScopes": ["gaokao", "cet4", "cet6"],
+    "examples": ["They established a close working relationship."],
+    "collocations": ["establish a system"]
+  },
+  {
+    "id": "found",
+    "lemma": "found",
+    "aliases": ["found a company"],
+    "pos": ["verb"],
+    "meaningsZh": ["建立", "创办"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["The organization was founded in 1998."],
+    "collocations": ["found a company"]
+  },
+  {
+    "id": "adapt",
+    "lemma": "adapt",
+    "aliases": ["adapt to"],
+    "pos": ["verb"],
+    "meaningsZh": ["适应", "改编"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["It takes time to adapt to a new environment."],
+    "collocations": ["adapt to change"]
+  },
+  {
+    "id": "adjust",
+    "lemma": "adjust",
+    "aliases": ["adjust to"],
+    "pos": ["verb"],
+    "meaningsZh": ["调整", "适应"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["Please adjust the volume before the meeting starts."],
+    "collocations": ["adjust to the situation"]
+  },
+  {
+    "id": "accommodate",
+    "lemma": "accommodate",
+    "aliases": ["accommodate needs"],
+    "pos": ["verb"],
+    "meaningsZh": ["容纳", "适应", "照顾"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": ["The hotel can accommodate up to 300 guests."],
+    "collocations": ["accommodate different needs"]
+  },
+  {
+    "id": "suit",
+    "lemma": "suit",
+    "aliases": ["suit one's needs"],
+    "pos": ["verb"],
+    "meaningsZh": ["适合", "适宜"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["This schedule suits me very well."],
+    "collocations": ["suit the purpose"]
+  },
+  {
+    "id": "affect",
+    "lemma": "affect",
+    "aliases": ["affect health"],
+    "pos": ["verb"],
+    "meaningsZh": ["影响", "感动"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["Sleep loss can affect your concentration."],
+    "collocations": ["affect health"]
+  },
+  {
+    "id": "effect",
+    "lemma": "effect",
+    "aliases": ["take effect"],
+    "pos": ["noun", "verb"],
+    "meaningsZh": ["效果", "影响", "实现"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["The new policy will take effect next month."],
+    "collocations": ["take effect"]
+  },
+  {
+    "id": "influence",
+    "lemma": "influence",
+    "aliases": ["influence opinion"],
+    "pos": ["verb", "noun"],
+    "meaningsZh": ["影响", "左右"],
+    "examScopes": ["gaokao", "cet4", "cet6"],
+    "examples": ["Friends can strongly influence your choices."],
+    "collocations": ["influence public opinion"]
+  },
+  {
+    "id": "impact",
+    "lemma": "impact",
+    "aliases": ["impact on"],
+    "pos": ["verb", "noun"],
+    "meaningsZh": ["影响", "冲击"],
+    "examScopes": ["cet4", "cet6", "postgrad"],
+    "examples": ["The decision will impact many students."],
+    "collocations": ["impact on education"]
+  },
+  {
+    "id": "recommend",
+    "lemma": "recommend",
+    "aliases": ["recommend doing"],
+    "pos": ["verb"],
+    "meaningsZh": ["推荐", "建议"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["I recommend reading this article before class."],
+    "collocations": ["recommend a book"]
+  },
+  {
+    "id": "suggest",
+    "lemma": "suggest",
+    "aliases": ["suggest doing"],
+    "pos": ["verb"],
+    "meaningsZh": ["建议", "暗示"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["Can you suggest a better title for the essay?"],
+    "collocations": ["suggest a plan"]
+  },
+  {
+    "id": "propose",
+    "lemma": "propose",
+    "aliases": ["propose a plan"],
+    "pos": ["verb"],
+    "meaningsZh": ["提议", "建议"],
+    "examScopes": ["cet4", "cet6", "postgrad"],
+    "examples": ["She will propose a new solution at the meeting."],
+    "collocations": ["propose a change"]
+  },
+  {
+    "id": "require",
+    "lemma": "require",
+    "aliases": ["require sb to do"],
+    "pos": ["verb"],
+    "meaningsZh": ["要求", "需要"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["The course requires careful preparation."],
+    "collocations": ["require attention"]
+  },
+  {
+    "id": "demand",
+    "lemma": "demand",
+    "aliases": ["demand that"],
+    "pos": ["verb", "noun"],
+    "meaningsZh": ["要求", "需求"],
+    "examScopes": ["gaokao", "cet4", "cet6"],
+    "examples": ["The teacher demanded a clear explanation."],
+    "collocations": ["demand for skills"]
+  },
+  {
+    "id": "request",
+    "lemma": "request",
+    "aliases": ["make a request"],
+    "pos": ["verb", "noun"],
+    "meaningsZh": ["请求", "要求"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["You can request a copy of the report."],
+    "collocations": ["request permission"]
+  }
+]

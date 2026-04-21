@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ExamScopeCode {
+  gaokao
+  cet4
+  cet6
+  postgrad
+}
+
+model ExamScope {
+  code    ExamScopeCode         @id
+  label   String
+  entries VocabularyEntryScope[]
+
+  @@map("exam_scope")
+}
+
+model VocabularyEntry {
+  id                 String                @id
+  lemma              String
+  pos                String[]
+  examples           String[]
+  collocations       String[]
+  aliases            VocabularyAlias[]
+  meanings           VocabularyMeaning[]
+  scopes             VocabularyEntryScope[]
+  confusionGroups    ConfusionGroupMember[]
+  taughtFirstInGroup ConfusionGroup[]      @relation("TeachFirstEntry")
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  @@index([lemma])
+  @@map("vocabulary_entry")
+}
+
+model VocabularyAlias {
+  id      String          @id @default(cuid())
+  entryId String
+  alias   String
+  entry   VocabularyEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([alias])
+  @@map("vocabulary_alias")
+}
+
+model VocabularyMeaning {
+  id      String          @id @default(cuid())
+  entryId String
+  zh      String
+  entry   VocabularyEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([zh])
+  @@map("vocabulary_meaning")
+}
+
+model VocabularyEntryScope {
+  entryId      String
+  scopeCode    ExamScopeCode
+  teachingRank Int?
+  entry        VocabularyEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  scope        ExamScope       @relation(fields: [scopeCode], references: [code], onDelete: Cascade)
+
+  @@id([entryId, scopeCode])
+  @@map("vocabulary_entry_scope")
+}
+
+model ConfusionGroup {
+  id                    String                @id
+  teachFirstEntryId     String
+  whyConfusing          String
+  commonMisusePoints    String[]
+  semanticBoundaryNotes String[]
+  members               ConfusionGroupMember[]
+  teachFirstEntry       VocabularyEntry       @relation("TeachFirstEntry", fields: [teachFirstEntryId], references: [id], onDelete: Restrict)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@map("confusion_group")
+}
+
+model ConfusionGroupMember {
+  confusionGroupId String
+  entryId          String
+  ordinal          Int
+  emphasisNote     String?
+  confusionGroup   ConfusionGroup   @relation(fields: [confusionGroupId], references: [id], onDelete: Cascade)
+  entry            VocabularyEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@id([confusionGroupId, entryId])
+  @@index([entryId])
+  @@map("confusion_group_member")
+}

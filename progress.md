@@ -1,55 +1,35 @@
 # EngGo 滚动交接
 
 ## 当前阶段
-产品设计与首份 MVP implementation plan 已完成，项目当前进入“按 plan 执行 + 仓库初始化”阶段。
+已完成 Task 1 与 Task 2，项目进入“数据库驱动检索内核”阶段；下一步按 plan 执行 Task 3。
 
 ## 本 Session 已完成
-- 明确产品核心定位：考试范围内的模糊检索与易混词辨析
-- 明确首版考试范围：高考、四级、六级、考研
-- 明确首页形态：聊天主舞台
-- 明确整体产品形态：聊天主舞台 + 学习骨架
-- 完成产品设计 spec：
-  - `docs/superpowers/specs/2026-04-21-exam-english-chat-design.md`
-- 参考 `D:\student_time_plan` 的最新协作文档用法，重构当前项目的协作骨架
-- 完成当前项目的协作文档落盘：
-  - `AGENTS.md`
-  - `context.md`
-  - `progress.md`
-  - `bugs.md`
-- 复查当前 spec、协作文档与目录现状，确认下一步应先产出 MVP implementation plan，而不是直接开始仓库搭建或页面开发
-- 完成首份 MVP implementation plan：
-  - `docs/superpowers/plans/2026-04-21-enggo-chat-mvp.md`
-- 明确首版技术方向不是“前后端立即分离”也不是“本地 JSON 原型栈”，而是：
-  - `Next.js` 单体全栈
-  - `PostgreSQL`
-  - `Prisma`
-  - 结构化检索优先，LLM 编排在后
-- 完成技术架构设计落盘：
-  - `docs/superpowers/specs/2026-04-21-enggo-technical-architecture-design.md`
-- 将 implementation plan 升级为“可部署 MVP”版本，纳入数据库、迁移、seed、`pg_trgm` 与监控入口
+- 完成 Task 1：仓库初始化、聊天主舞台首页外壳、Playwright 基线与首个提交。
+- 完成 Task 2：PostgreSQL / Prisma 内容底座落地。
+  - 建立 `ExamScope`、`VocabularyEntry`、`VocabularyAlias`、`VocabularyMeaning`、`ConfusionGroup`、`ConfusionGroupMember` schema
+  - 落地 `src/lib/db.ts`、content import schema、seed loader、repository 最小接口
+  - 补齐 `data/exam-vocab/seed/` 首版内容：34 条词条、8 组易混词，覆盖高考 / CET-4 / CET-6 / 考研
+  - 生成初始迁移 SQL：`prisma/migrations/20260421060000_init_content/migration.sql`
+  - 因当前 Windows + local Prisma Postgres 环境的 schema-engine 问题，采用 `prisma migrate diff --script` + `prisma db execute --file ...` workaround 应用本地 schema
+  - 增加 seed 内容合同校验与事务回滚测试，修复“检查脚本只打印数量”和“seed 失败会半清空数据库”的风险
+- `bugs.md` 已同步记录 Prisma 本地环境问题与当前 workaround。
 
 ## 当前优先级
-1. 按 implementation plan 执行 Task 1：初始化可部署仓库骨架与聊天主舞台外壳
-2. 执行 Task 2：建立 PostgreSQL schema、迁移与 seed 导入链路
-3. 执行 Task 3：实现数据库驱动的考试范围检索、模糊召回与排序
-4. 继续按 plan 顺序推进聊天 API、前端交互与学习骨架
+1. 执行 Task 3：实现数据库驱动的考试范围检索、模糊召回与排序
+2. 为 `pg_trgm` 设计并落地下一条 migration / workaround
+3. 继续按 plan 推进聊天 API、前端交互与学习骨架
 
 ## 下一 Session 第一件事
-- 打开 `docs/superpowers/plans/2026-04-21-enggo-chat-mvp.md`，从 Task 1 开始逐 step 执行，并在每个 step 完成后立即勾选 checkbox。
+- 打开 `docs/superpowers/plans/2026-04-21-enggo-chat-mvp.md`，从 Task 3 Step 1 开始，先写 retrieval 相关失败测试，再继续实现。
 
 ## 当前阻塞 / 风险
-- 当前目录不是独立 git 仓库，任何正式开发前都需要先解决仓库初始化与忽略策略问题。
-- 当前还没有代码骨架，Task 1 之前无法验证任何真实交互链路。
-- `DATABASE_URL` / `DIRECT_URL` / `OPENAI_API_KEY` 的环境配置会直接影响 Task 2 与 Task 4 的可执行性。
-- 首版 seed 数据量与内容质量会直接影响 Task 3 之后的体验稳定性。
-
-## 待办池
-- 正式仓库初始化
-- `.gitignore` 策略确定
-- PostgreSQL 与部署环境配置落地
-- 初始代码与测试基线建立
+- 当前机器上的 `prisma migrate dev` / `prisma migrate resolve` 对 local Prisma Postgres 不稳定；Task 3 之后如继续新增 migration，仍需沿用 `migrate diff` + `db execute` workaround，或切换到标准 PostgreSQL 环境。
+- `OPENAI_API_KEY` / `SENTRY_DSN` 尚未配置，会影响 Task 4 及上线前验证。
 
 ## 最近验证基线
-- 产品方向已获用户确认
-- 首页交互方向已通过可视化讨论收敛
-- 当前尚无代码级测试基线，需在项目初始化后建立
+- `pnpm test src/features/content/content-repository.test.ts`
+- `pnpm test src/features/content/seed-content-rules.test.ts`
+- `pnpm test src/features/content/seed-content.test.ts`
+- `pnpm exec tsx scripts/check-seed-content.ts`
+- `pnpm exec prisma db seed`
+- 直连查询结果：`exam_scope=4`、`vocabulary_entry=34`、`confusion_group=8`

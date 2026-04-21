@@ -1,0 +1,153 @@
+[
+  {
+    "id": "comply-conform-defer",
+    "members": ["comply", "conform", "defer"],
+    "teachFirst": "comply",
+    "whyConfusing": "这三个词都能表达顺从或按要求行动，但侧重点不同。",
+    "commonMisusePoints": [
+      "容易把 comply with 和 conform to 混用。",
+      "defer to 常误写成表示普通遵守，实际上更偏向听从他人判断。"
+    ],
+    "semanticBoundaryNotes": [
+      "comply 更强调按照要求或规则去做。",
+      "conform 更强调与标准、模式或群体保持一致。",
+      "defer 更强调把决定权让给他人或权威。"
+    ],
+    "memberNotes": {
+      "conform": "常搭配 to，表示与规范或群体一致。",
+      "defer": "常搭配 to，表示顺从、听从或推迟。"
+    }
+  },
+  {
+    "id": "restrain-constrain-curb",
+    "members": ["restrain", "constrain", "curb"],
+    "teachFirst": "restrain",
+    "whyConfusing": "这组三个词都与“限制、抑制”有关，但语义强度和搭配不同。",
+    "commonMisusePoints": [
+      "restrain 常误被理解为一般限制，其实更偏自我克制或外力约束。",
+      "constrain 常被当成 curb 使用，但它更强调外部条件造成的约束。"
+    ],
+    "semanticBoundaryNotes": [
+      "restrain 强调控制冲动、行为或情绪。",
+      "constrain 强调被条件、规则或资源限制。",
+      "curb 强调遏制增长、扩张或不良趋势。"
+    ],
+    "memberNotes": {
+      "curb": "常见于 curb inflation, curb crime 这类表达。"
+    }
+  },
+  {
+    "id": "respect-respective-respectful-respectable",
+    "members": ["respect", "respective", "respectful", "respectable"],
+    "teachFirst": "respect",
+    "whyConfusing": "这些词共享词根，但词性和意思差异很大，考试里很容易误判。",
+    "commonMisusePoints": [
+      "respective 不是表示“尊敬的”，而是“各自的”。",
+      "respectable 不是动词 respect 的派生动作，而是形容词，常表示体面的、值得尊敬的。"
+    ],
+    "semanticBoundaryNotes": [
+      "respect 是动词或名词，核心义是尊重。",
+      "respective 表示分别对应各自的。",
+      "respectful 表示有礼貌、显出尊重。",
+      "respectable 表示体面的、值得尊敬的。"
+    ],
+    "memberNotes": {
+      "respective": "常见搭配 their respective + 名词复数。",
+      "respectful": "常搭配 tone, behavior, manner。",
+      "respectable": "常修饰收入、成绩、名声等。"
+    }
+  },
+  {
+    "id": "institute-institution-establish",
+    "members": ["institute", "institution", "establish"],
+    "teachFirst": "institute",
+    "whyConfusing": "这组都和“设立、建立、机构”有关，形式和词性容易混在一起。",
+    "commonMisusePoints": [
+      "institute 常被误当成 institution 的同义单词直接替换，但它更常作动词。",
+      "institution 是名词，不能直接当作“设立”的动作来用。"
+    ],
+    "semanticBoundaryNotes": [
+      "institute 更强调正式开始实施制度、政策或程序。",
+      "institution 更强调组织、机构或长期形成的制度。",
+      "establish 更宽泛，表示建立、创立、确立。"
+    ],
+    "memberNotes": {
+      "institute": "常见搭配 institute a policy/reform.",
+      "institution": "常见搭配 financial institution, educational institution."
+    }
+  },
+  {
+    "id": "affect-effect-impact",
+    "members": ["affect", "effect", "impact"],
+    "teachFirst": "affect",
+    "whyConfusing": "这三个词都能和“影响”有关，但词性和具体用法差别明显。",
+    "commonMisusePoints": [
+      "affect 是动词，effect 通常是名词，考试里最常混。",
+      "impact 既可作名词也可作动词，但不等于所有场景都能替换 affect。"
+    ],
+    "semanticBoundaryNotes": [
+      "affect 多指对人或事物产生影响。",
+      "effect 多指结果、效果，也可在 take effect 中作动词短语的一部分。",
+      "impact 强调较强的影响、冲击或作用。"
+    ],
+    "memberNotes": {
+      "effect": "常见搭配 take effect, side effect.",
+      "impact": "常见搭配 impact on, have an impact on."
+    }
+  },
+  {
+    "id": "adapt-adjust-accommodate",
+    "members": ["adapt", "adjust", "accommodate"],
+    "teachFirst": "adapt",
+    "whyConfusing": "这组都和“适应、调整、照顾需求”有关，搭配对象很容易混。",
+    "commonMisusePoints": [
+      "adapt to 和 adjust to 常被混用，但前者更强调适应新环境，后者更强调调整以适配。",
+      "accommodate 不是简单的“适应”，还常表示容纳或照顾他人需要。"
+    ],
+    "semanticBoundaryNotes": [
+      "adapt to 强调适应环境或变化。",
+      "adjust to 强调调整自身以匹配某种情况。",
+      "accommodate 强调容纳、满足或照顾需求。"
+    ],
+    "memberNotes": {
+      "accommodate": "常见搭配 accommodate needs, accommodate guests."
+    }
+  },
+  {
+    "id": "recommend-suggest-propose",
+    "members": ["recommend", "suggest", "propose"],
+    "teachFirst": "recommend",
+    "whyConfusing": "这三个词都能表达建议，但语气、正式程度和句法结构不同。",
+    "commonMisusePoints": [
+      "recommend 常可后接 doing 或名词，不等于 propose。",
+      "propose 更正式，常用于提出计划、方案或议题。"
+    ],
+    "semanticBoundaryNotes": [
+      "recommend 更偏向推荐、建议某个对象或做法。",
+      "suggest 更常见于口语和日常写作，语气较柔和。",
+      "propose 更正式，强调提出一个方案或主张。"
+    ],
+    "memberNotes": {
+      "suggest": "常见搭配 suggest doing, suggest that + 从句。",
+      "propose": "常见搭配 propose a plan, propose a change."
+    }
+  },
+  {
+    "id": "require-demand-request",
+    "members": ["require", "demand", "request"],
+    "teachFirst": "require",
+    "whyConfusing": "这三个词都能表示“要求”，但语气强度和使用场景差别很大。",
+    "commonMisusePoints": [
+      "require 表示客观需要或制度要求，不一定带强硬语气。",
+      "demand 语气更强，常带出强烈要求或直接索取。"
+    ],
+    "semanticBoundaryNotes": [
+      "require 更偏中性，表示需要或规定要求。",
+      "demand 更强势，表示强烈要求。",
+      "request 更礼貌，表示请求或提出要求。"
+    ],
+    "memberNotes": {
+      "request": "常见搭配 make a request, request permission."
+    }
+  }
+]
