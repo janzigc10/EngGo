@@ -268,7 +268,7 @@ git commit -m "feat: add postgres content schema and seed flow"
 - Create: `src/features/retrieval/retrieve-candidates.test.ts`
 - Create: `prisma/migrations/<timestamp>_enable_pg_trgm/migration.sql`
 
-- [ ] **Step 1: 先用测试锁定四类输入模式**
+- [x] **Step 1: 先用测试锁定四类输入模式**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -296,14 +296,14 @@ pnpm test src/features/retrieval/retrieve-candidates.test.ts
 
 Expected: FAIL。
 
-- [ ] **Step 2: 实现 query mode 检测与输入归一化**
+- [x] **Step 2: 实现 query mode 检测与输入归一化**
 
 Implement:
 - 中文问法识别
 - `A 和 B 的区别` 之类的比较模式识别
 - 英文片段、空格、大小写归一化
 
-- [ ] **Step 3: 启用 `pg_trgm` 并实现数据库召回**
+- [x] **Step 3: 启用 `pg_trgm` 并实现数据库召回**
 
 Ranking rules:
 - 当前考试范围命中优先级最高
@@ -316,7 +316,7 @@ Implement:
 - retrieval SQL 至少支持 alias / lemma 的 trigram 召回
 - 应用层继续负责最后一层排序和解释原因
 
-- [ ] **Step 4: 补齐检索行为测试**
+- [x] **Step 4: 补齐检索行为测试**
 
 Must cover:
 - 中文含义查到范围内主词
@@ -331,7 +331,7 @@ pnpm test src/features/retrieval/retrieve-candidates.test.ts
 
 Expected: PASS。
 
-- [ ] **Step 5: 提交检索内核**
+- [x] **Step 5: 提交检索内核**
 
 Run:
 ```bash

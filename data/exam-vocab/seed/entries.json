@@ -4,7 +4,7 @@
     "lemma": "comply",
     "aliases": ["comply with"],
     "pos": ["verb"],
-    "meaningsZh": ["遵守", "依从"],
+    "meaningsZh": ["遵从", "遵守", "依从"],
     "examScopes": ["cet6", "postgrad"],
     "examples": ["We must comply with the rules."],
     "collocations": ["comply with rules"]
