@@ -1,6 +1,8 @@
+import { z } from "zod";
+
 type NodeEnv = "development" | "test" | "production";
 
-type ServerEnv = {
+export type ServerEnv = {
   nodeEnv: NodeEnv;
   openAiApiKey?: string;
   databaseUrl?: string;
@@ -8,25 +10,33 @@ type ServerEnv = {
   sentryDsn?: string;
 };
 
-function readOptionalEnv(name: string) {
-  const value = process.env[name]?.trim();
-  return value ? value : undefined;
-}
+const optionalTrimmedString = z
+  .string()
+  .trim()
+  .min(1)
+  .optional()
+  .transform((value) => value ?? undefined);
 
-function readNodeEnv(): NodeEnv {
-  const value = process.env.NODE_ENV;
+const serverEnvSchema = z
+  .object({
+    NODE_ENV: z.enum(["development", "test", "production"]).optional(),
+    OPENAI_API_KEY: optionalTrimmedString,
+    DATABASE_URL: optionalTrimmedString,
+    DIRECT_URL: optionalTrimmedString,
+    SENTRY_DSN: optionalTrimmedString,
+  })
+  .transform((value): ServerEnv => ({
+    nodeEnv: value.NODE_ENV ?? "development",
+    openAiApiKey: value.OPENAI_API_KEY,
+    databaseUrl: value.DATABASE_URL,
+    directUrl: value.DIRECT_URL,
+    sentryDsn: value.SENTRY_DSN,
+  }));
 
-  if (value === "production" || value === "test") {
-    return value;
-  }
-
-  return "development";
-}
-
-export const env: ServerEnv = {
-  nodeEnv: readNodeEnv(),
-  openAiApiKey: readOptionalEnv("OPENAI_API_KEY"),
-  databaseUrl: readOptionalEnv("DATABASE_URL"),
-  directUrl: readOptionalEnv("DIRECT_URL"),
-  sentryDsn: readOptionalEnv("SENTRY_DSN"),
-};
+export const env = serverEnvSchema.parse({
+  NODE_ENV: process.env.NODE_ENV,
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  DATABASE_URL: process.env.DATABASE_URL,
+  DIRECT_URL: process.env.DIRECT_URL,
+  SENTRY_DSN: process.env.SENTRY_DSN,
+});

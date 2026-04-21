@@ -352,7 +352,7 @@ git commit -m "feat: add scoped database retrieval engine"
 - Create: `src/app/api/chat/route.ts`
 - Create: `src/features/observability/request-id.ts`
 
-- [ ] **Step 1: 先写回答结构的失败测试**
+- [x] **Step 1: 先写回答结构的失败测试**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -382,7 +382,7 @@ pnpm test src/features/answering/chat-service.test.ts
 
 Expected: FAIL。
 
-- [ ] **Step 2: 实现环境变量与 provider 抽象**
+- [x] **Step 2: 实现环境变量与 provider 抽象**
 
 Implement:
 - `.env.example` 至少包含 `OPENAI_API_KEY=`, `DATABASE_URL=`, `DIRECT_URL=`, `SENTRY_DSN=`
@@ -390,7 +390,7 @@ Implement:
 - `chat-provider.ts` 暴露统一的 `generateAnswer()` 接口，方便测试时替换 fake provider
 - `request-id.ts` 生成每次模型请求的关联 ID
 
-- [ ] **Step 3: 实现 grounding、系统提示词与 chat service**
+- [x] **Step 3: 实现 grounding、系统提示词与 chat service**
 
 Prompt contract must enforce:
 - 先回答当前考试范围内的主答案
@@ -399,7 +399,7 @@ Prompt contract must enforce:
 - 最后给一个自然的下一步追问
 - retrieval 结果必须作为 grounding 输入，而不是让模型自由找词
 
-- [ ] **Step 4: 暴露 `POST /api/chat`**
+- [x] **Step 4: 暴露 `POST /api/chat`**
 
 Request body:
 ```ts
@@ -416,7 +416,7 @@ Behavior:
 - `OPENAI_API_KEY` 缺失时返回明确的 503 JSON 错误，而不是静默失败
 - 响应里要保留 request id，便于排查线上调用
 
-- [ ] **Step 5: 运行服务层测试**
+- [x] **Step 5: 运行服务层测试**
 
 Run:
 ```bash
