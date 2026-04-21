@@ -1,7 +1,7 @@
 # EngGo 滚动交接
 
 ## 当前阶段
-已完成 Task 1、Task 2、Task 3、Task 4，项目进入“聊天工作台、考试目标持久化与客户端交互”阶段；下一步按 plan 执行 Task 5。
+已完成 Task 1、Task 2、Task 3、Task 4、Task 5，项目进入“轻量学习骨架与收藏入口”阶段；下一步按 plan 执行 Task 6。
 
 ## 本 Session 已完成
 - 完成 Task 1：仓库初始化、聊天主舞台首页外壳、Playwright 基线与首个提交。
@@ -23,15 +23,22 @@
   - 新增 `buildSystemPrompt`、`chat-provider`、`chat-service` 与 `request-id`，让 retrieval grounding 进入模型请求
   - 落地 `POST /api/chat`：参数校验、调用 retrieval + chat service、缺失 `OPENAI_API_KEY` 时返回明确 `503`
   - 增加 `src/features/answering/chat-service.test.ts`，先红后绿覆盖 grounding 组织和 provider contract
+- 完成 Task 5：聊天工作台、考试目标持久化与客户端交互。
+  - 新增 `src/features/exam-target/`，落地考试目标枚举、`localStorage` 持久化与订阅式读取
+  - 新增 `src/features/chat/use-chat-session.ts`，把示例提问、输入态、消息线程与 `/api/chat` 请求收敛到统一 session hook
+  - 新增 `src/components/chat/` 与 `src/components/shell/exam-target-switcher.tsx`，首页正式切到可交互的聊天工作台
+  - 补齐 `@testing-library/*` + `jsdom` 测试基建，并新增 `chat-workspace.test.tsx` 覆盖输入填充、答案渲染、错误态脱敏与 exam target 重挂载恢复
+  - 修正前端错误提示，避免把 `OPENAI_API_KEY` 之类的服务端技术细节直接暴露给终端用户
+  - 验证通过：`corepack pnpm test src/components/chat/chat-workspace.test.tsx`、`corepack pnpm exec playwright test tests/e2e/app-shell.spec.ts`
 - `bugs.md` 已同步记录 Prisma 本地环境问题与当前 workaround。
 
 ## 当前优先级
-1. 执行 Task 5：实现聊天工作台、考试目标持久化与客户端交互
-2. 把首页空壳接到 `/api/chat`，保持“聊天主舞台”而不是结果页
-3. 为后续 Task 6 的收藏入口预留回答卡片操作区
+1. 执行 Task 6：接入轻量学习骨架与收藏入口
+2. 让回答卡片出现“加入收藏”动作，但不打断聊天主链路
+3. 补 `/collections`、`/learn`、`/review`、`/progress` 二级页面骨架
 
 ## 下一 Session 第一件事
-- 打开 `docs/superpowers/plans/2026-04-21-enggo-chat-mvp.md`，从 Task 5 Step 1 开始，先写 `ChatWorkspace` 的失败测试，再接考试目标持久化和 `/api/chat` 客户端调用。
+- 打开 `docs/superpowers/plans/2026-04-21-enggo-chat-mvp.md`，从 Task 6 Step 1 开始，先写 `collection-store` 的失败测试，再接回答卡片操作区和收藏页骨架。
 
 ## 当前阻塞 / 风险
 - 当前机器上的 `prisma migrate dev` / `prisma migrate resolve` 对 local Prisma Postgres 不稳定；后续新增 migration 仍需沿用 `migrate diff` + `db execute` workaround，或切换到标准 PostgreSQL 环境。
@@ -47,3 +54,6 @@
 - `pnpm exec prisma db seed`
 - `corepack pnpm test src/features/answering/chat-service.test.ts`
 - `corepack pnpm exec eslint 'src/features/answering/**/*.ts' 'src/app/api/chat/route.ts' 'src/features/observability/request-id.ts' 'src/lib/env.ts'`
+- `corepack pnpm test src/components/chat/chat-workspace.test.tsx`
+- `corepack pnpm exec eslint 'src/components/chat/**/*.tsx' 'src/components/shell/**/*.tsx' 'src/features/chat/**/*.ts' 'src/features/exam-target/**/*.ts' 'src/app/page.tsx' 'vitest.config.ts' 'src/test/setup.ts'`
+- `corepack pnpm exec playwright test tests/e2e/app-shell.spec.ts`

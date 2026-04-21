@@ -425,7 +425,7 @@ pnpm test src/features/answering/chat-service.test.ts
 
 Expected: PASS。
 
-- [ ] **Step 6: 提交聊天服务层**
+- [x] **Step 6: 提交聊天服务层**
 
 Run:
 ```bash
@@ -447,7 +447,7 @@ git commit -m "feat: add chat response orchestration"
 - Create: `src/components/chat/example-prompts.tsx`
 - Create: `src/components/chat/chat-workspace.test.tsx`
 
-- [ ] **Step 1: 先写客户端交互的失败测试**
+- [x] **Step 1: 先写客户端交互的失败测试**
 
 ```tsx
 import { render, screen } from "@testing-library/react";
@@ -472,7 +472,7 @@ pnpm test src/components/chat/chat-workspace.test.tsx
 
 Expected: FAIL。
 
-- [ ] **Step 2: 实现考试目标枚举与本地持久化**
+- [x] **Step 2: 实现考试目标枚举与本地持久化**
 
 Implement:
 - `activeExamTarget` 默认值与可选值
@@ -480,7 +480,7 @@ Implement:
 - 首次加载时恢复上次选择
 - 明确访客态边界，后续如果补登录可替换持久化实现而不重写 UI 组件
 
-- [ ] **Step 3: 实现聊天工作台组件**
+- [x] **Step 3: 实现聊天工作台组件**
 
 UI acceptance:
 - 页面视觉中心必须是聊天线程与输入区
@@ -488,7 +488,7 @@ UI acceptance:
 - 示例提问不超过 4 个
 - 未回复时不能先展开大块结果列表
 
-- [ ] **Step 4: 接上 `/api/chat` 并渲染答案**
+- [x] **Step 4: 接上 `/api/chat` 并渲染答案**
 
 Behavior:
 - 发送时显示加载态
@@ -496,7 +496,7 @@ Behavior:
 - 服务端报错时显示可恢复错误提示
 - 调试信息不直接暴露技术细节给终端用户
 
-- [ ] **Step 5: 跑通组件测试与手动冒烟**
+- [x] **Step 5: 跑通组件测试与手动冒烟**
 
 Run:
 ```bash
@@ -509,7 +509,7 @@ Manual check:
 - 能点击示例提问发起一次对话
 - 页面仍然保持“聊天主舞台”而不是结果页
 
-- [ ] **Step 6: 提交前端聊天主链路**
+- [x] **Step 6: 提交前端聊天主链路**
 
 Run:
 ```bash
