@@ -1,41 +1,62 @@
 # EngGo 已知问题与环境坑
 
 ## 当前确认问题
-- 当前 Windows 环境下，`Prisma 7.7.0 + local Prisma Postgres (prisma dev)` 的 schema-engine 命令不稳定：
-  - `pnpm exec prisma migrate dev --name init_content` 会报 `P1017 Server has closed the connection`
-  - `pnpm exec prisma migrate resolve --applied ...` 会报 `unexpected message from server` 或 `prepared statement already exists`
-  - 当前仓库里的 `pnpm db:seed` 已切到原生 `pg` 单连接事务，健康实例下可以稳定导入；但 Prisma 自己的 schema-engine / transaction 相关命令仍可能掉线
-  - 当前项目 workaround：先用 `prisma migrate diff --script` 生成 `prisma/migrations/.../migration.sql`，再用 `prisma db execute --file ...` 应用到本地开发库
-- 当前 Windows + local Prisma Postgres 实例在进入坏状态后，连原生 `pg` 的 `SELECT 1` 也可能报 `Connection terminated unexpectedly` / `read ECONNRESET`：
-  - `prisma dev ls` 仍可能显示 `running`，但并不代表 TCP 连接健康
-  - 当前恢复路径仍然是 `prisma dev rm enggo --force` 后按原端口重建，再重新执行 `pnpm db:migrate`
-- 数据库集成测试不适合继续和普通 Vitest 用例放在同一个长生命周期进程里执行：
-  - 当前项目 workaround 是把 `verify` 拆成 `test:unit` + `test:integration` + `test:e2e`
-  - `test:integration` 中的数据库测试按文件单独启动进程，可以避免本地 Prisma dev 实例在长进程里更容易掉线
-- 某些终端直接读取中文 Markdown 会出现乱码显示；文件内容本身未损坏，必要时用编辑器确认。
-- `rg.exe` 在当前环境可能不可用或报 `Access is denied`，检索时需要准备 PowerShell 回退方案。
+- Windows + `Prisma 7.7.0 + local Prisma Postgres (prisma dev)` 仍不稳定：
+  - `prisma migrate dev` / `prisma migrate resolve` 可能报 `P1017`、`unexpected message from server`、`prepared statement already exists`
+  - 本地实例一旦进入坏状态，连原生 `pg` 的 `SELECT 1` 也可能报 `Connection terminated unexpectedly` / `read ECONNRESET`
+  - `prisma dev ls` 显示 `running` 不代表 TCP 连接一定健康
+  - `corepack pnpm exec prisma dev ls` / `corepack pnpm exec prisma dev ...` 在本机还可能报 `%TEMP%\\@prisma\\cli-dev@latest-*` 的 `EPERM, Permission denied`
+- 当前可复用的恢复路径仍是：
+  - 若 `corepack pnpm exec prisma dev ...` 命中上面的 `EPERM`，改用仓库内 Prisma 二进制：
+    - `node_modules\.bin\prisma.CMD dev rm default --force`
+    - `node_modules\.bin\prisma.CMD dev -n default -d -p 51213 -P 51214 --shadow-db-port 51215`
+  - 然后重新执行 `corepack pnpm db:migrate`、`corepack pnpm db:seed`
+  - 若 `corepack pnpm db:seed` 首次报 `Received unexpected commandComplete message from backend`，先确认 `vocabulary_entry` / `confusion_group` 计数仍是 `0 / 0`，再重试一次
+- 本地 Prisma adapter 在开发联调时容易把连接打坏：
+  - 当前仓库 workaround 是把 `src/lib/db.ts` 中的非生产连接池收紧到 `max=1`
+  - 这能降低连续 `/api/chat` 请求时的掉线概率，但不是根治
+- 中文释义检索原先那条 Prisma relation-filter 查询在本地环境会直接打挂连接：
+  - 当前仓库 workaround 已改成“原生 `pg` 查 `vocabulary_meaning` -> Prisma 按 id 回表”
+  - 后续如果再改 meaning lookup，优先沿用这条两段式路径，不要再切回原查询
+- MiniMax OpenAI 兼容接口在长时间批量联调下会返回 429：
+  - 单条和小批量联调可用
+  - 连续跑 27 条 full batch eval 时，可能在中后段进入限流窗口
+  - 当前 `scripts/run-chat-batch-eval.ts` 已加退避重试，但如果限流窗口过长，整轮验收仍会变慢甚至超时
+- Playwright bundled Chromium 的历史缺失问题本 session 已变化：
+  - `corepack pnpm exec playwright install --dry-run chromium` 显示 `chromium` 与 `chromium_headless_shell` install location 已存在
+  - 这说明“缺少 bundled Chromium 二进制”不再是本 session 的直接 blocker
+  - 本 session 未重新跑默认 `corepack pnpm test:e2e`，因此默认链路是否已恢复仍待单独复核
+
+## 当前产品侧残留
+- 本轮已锁定“低置信度宁可 no-match 不硬猜”，因此两类常见拼错目前仍会被挡掉：
+  - `有个像 reqeust 的词`
+  - `有个像 recomand 的词`
+- 这不是回归 bug，而是当前阈值策略的副作用；如果后续决定支持这类 typo，需要单独设计更保守的 typo 识别策略，避免重新引入知识库外误召回。
+- 当前实现距离用户真正要的“模糊搜索”还有一层明确缺口：
+  - 用户要的代表性效果是：
+    - `re+con 的词根有什么词`
+    - `resent 和 recent 那么像的词要例举出来并且区分`
+    - `跟 recent 很像的词有哪些`
+  - 当前 retrieval 还没有专门的“形近词簇”或“词根 / 碎片”检索模式
+  - 当前 `fuzzy_recall` 本质上还是单个英文词的稳定候选选择；像 `re+con` 这种 fragment / 多片段输入会落到 `low_confidence` 或 `no_match`
+  - 当前也没有对应的数据层来显式表达 `recent / resent` 这类“为什么像、怎么区分、容易看错成什么”
+- 结论：
+  - 下一步不建议先盲目扩库
+  - 应先补“形近词簇检索 + 区分”，再评估词根 / 碎片检索，最后再做大规模扩库压测
 
 ## 已处理
-- 项目已经完成独立 git 初始化，不再有“落到 C:\ 根 git”的问题。
-- `.gitignore` 基础策略已经落地。
-- Task 1 聊天主舞台外壳已完成并提交。
+- `retrieveCandidates -> buildGrounding -> chatService` 的 no-match 闭环已落地，库外 meaning / fuzzy / compare 不再硬猜。
+- 多词 compare、group compare、`哪个` 句式 compare 已支持。
+- no-match UI 已避免空白主答案卡片。
 
 ## 后续关注
-- 正式部署前，需要在标准 PostgreSQL 环境里重新验证常规 Prisma migration 流程。
-- Task 4 开始前，需要补齐 `OPENAI_API_KEY`；上线前还要补 `SENTRY_DSN` 等环境变量。
+- 正式部署前，仍需要在标准 PostgreSQL 环境里重跑 migration / seed / 验证闭环，不要把本地 Prisma dev 的稳定性结论直接外推到正式环境。
+- 若还要继续跑真实模型 batch eval，建议：
+  - 先确认 provider 限流窗口恢复
+  - 按小批次运行，不要一口气压满 27 条
+  - 把 429 当成外部验收限制，而不是 retrieval/grounding 回归
 
 ## 不要重复走的失败路径
-- 不要在没有 implementation plan 的情况下直接开始大规模搭项目。
-- 不要把首页做回“搜索结果页”或“词书首页”。
-- 不要把 `.superpowers/brainstorm/` 里的探索页面误当成正式前端实现。
-- 不要在未确认设计变更时直接改实现；先记录问题，再决定是否调整 spec / plan。
-
-## 本 Session 新确认
-- 当前本地 `prisma dev` 服务器的状态元数据可能损坏：
-  - `prisma dev ls` 会显示 `enggo` 仍然存在，但 `start` 可能因为陈旧 PID 失败
-  - 可用的恢复路径是先 `prisma dev rm enggo --force`，再用原端口重建：`prisma dev -n enggo -d -p 51213 -P 51214 --shadow-db-port 51215`
-  - 重建后需要重新执行 `pnpm db:migrate` 和 `pnpm db:seed`
-- `pnpm verify` 已在当前仓库通过，但前提是：
-  - 先保证本地 `prisma dev` 实例健康；如实例已坏，需要先重建
-  - 使用当前仓库里的分阶段验证脚本，而不是把数据库集成测试继续塞回同一个 `vitest run`
-- 正式部署前，仍建议在标准 PostgreSQL 环境里复跑一次迁移与验证闭环；那会比本地 Prisma dev 更接近真实部署环境。
+- 不要在本地 `prisma dev` 已经不健康时继续跑 retrieval / API 验证；先重建实例。
+- 不要把本轮已经锁定的 no-match 闸门又放宽回“弱相关也先答一个像样答案”。
+- 不要因为 MiniMax 429 就误判检索逻辑回退；先看 HTTP 状态和 `providerRequestId` / `error`。
