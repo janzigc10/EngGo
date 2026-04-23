@@ -13,8 +13,11 @@ function createMeaningLookupResult(): RetrievalResult {
       queryMode: "meaning_lookup",
       englishTerms: [],
       meaningHint: "遵从",
-      compareTerms: null,
+      compareTerms: [],
+      groupSeedTerm: null,
     },
+    resolution: "resolved",
+    noMatchReason: null,
     comparisonView: null,
     candidates: [
       {
@@ -48,6 +51,40 @@ function createMeaningLookupResult(): RetrievalResult {
         score: 5,
       },
     ],
+    mainAnswer: [
+      {
+        entryId: "comply",
+        lemma: "comply",
+        meaningsZh: ["遵从，依从"],
+        matchedAlias: "comply with",
+        scopeCodes: ["cet6", "postgrad"],
+        inScope: true,
+        reason: "in-scope main answer",
+        score: 10,
+      },
+    ],
+    confusionBoundary: [
+      {
+        entryId: "conform",
+        lemma: "conform",
+        meaningsZh: ["遵照，一致"],
+        matchedAlias: "conform to",
+        scopeCodes: ["cet6"],
+        inScope: true,
+        reason: "nearby confusion",
+        score: 8,
+      },
+      {
+        entryId: "abide",
+        lemma: "abide",
+        meaningsZh: ["遵守"],
+        matchedAlias: "abide by",
+        scopeCodes: ["postgrad"],
+        inScope: false,
+        reason: "useful but out of scope",
+        score: 5,
+      },
+    ],
   };
 }
 
@@ -56,7 +93,11 @@ describe("buildGrounding", () => {
     const grounding = buildGrounding({
       activeExamTarget: "cet6",
       query: "遵从怎么说",
-      candidates: createMeaningLookupResult().candidates,
+      queryMode: "meaning_lookup",
+      resolution: "resolved",
+      noMatchReason: null,
+      mainAnswer: createMeaningLookupResult().mainAnswer,
+      confusionBoundary: createMeaningLookupResult().confusionBoundary,
       comparisonView: null,
     });
 
@@ -109,5 +150,55 @@ describe("createChatService", () => {
     expect(providerCalls[0]?.systemPrompt).toContain("主答案");
     expect(providerCalls[0]?.systemPrompt).toContain("易混边界");
     expect(providerCalls[0]?.history).toHaveLength(1);
+  });
+
+  it("short-circuits provider calls for no-match grounding", async () => {
+    let providerCalled = false;
+
+    const service = createChatService({
+      provider: {
+        async generateAnswer() {
+          providerCalled = true;
+
+          return {
+            answer: "should not be used",
+            providerRequestId: "resp_unused",
+          };
+        },
+      },
+      createRequestId: () => "req_no_match_123",
+    });
+
+    const result = await service.answer({
+      activeExamTarget: "cet6",
+      query: "recent 这个词什么意思",
+      history: [],
+      retrievalResult: {
+        queryMode: "fuzzy_recall",
+        normalizedQuery: {
+          raw: "recent 这个词什么意思",
+          normalizedText: "recent 这个词什么意思",
+          queryMode: "fuzzy_recall",
+          englishTerms: ["recent"],
+          meaningHint: "recent",
+          compareTerms: [],
+          groupSeedTerm: null,
+        },
+        resolution: "no_match",
+        noMatchReason: "out_of_kb",
+        comparisonView: null,
+        candidates: [],
+        mainAnswer: [],
+        confusionBoundary: [],
+      },
+    });
+
+    expect(providerCalled).toBe(false);
+    expect(result.requestId).toBe("req_no_match_123");
+    expect(result.providerRequestId).toBeNull();
+    expect(result.grounding.resolution).toBe("no_match");
+    expect(result.grounding.noMatchReason).toBe("out_of_kb");
+    expect(result.answer).toContain("这次先不硬猜");
+    expect(result.grounding.followUpPrompt).toContain("中文义项");
   });
 });

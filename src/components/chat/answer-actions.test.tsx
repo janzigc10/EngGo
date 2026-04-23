@@ -32,6 +32,8 @@ describe("AnswerActions", () => {
           activeExamTargetLabel: "CET-6",
           query: "遵从怎么说",
           queryMode: "meaning_lookup",
+          resolution: "resolved",
+          noMatchReason: null,
           mainAnswer: [
             {
               entryId: "comply",

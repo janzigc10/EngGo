@@ -6,13 +6,25 @@ export type QueryMode =
   | "direct_compare"
   | "direct_lookup";
 
+export type RetrievalResolution = "resolved" | "no_match";
+
+export type NoMatchReason = "low_confidence" | "out_of_kb";
+
+export type CandidateProvenance =
+  | "exact_lemma"
+  | "exact_alias"
+  | "fuzzy_text"
+  | "meaning_match"
+  | "confusion_group";
+
 export type NormalizedQuery = {
   raw: string;
   normalizedText: string;
   queryMode: QueryMode;
   englishTerms: string[];
   meaningHint: string;
-  compareTerms: [string, string] | null;
+  compareTerms: string[];
+  groupSeedTerm: string | null;
 };
 
 export type RetrievalCandidate = {
@@ -43,7 +55,11 @@ export type ComparisonView = {
 export type RetrievalResult = {
   queryMode: QueryMode;
   normalizedQuery: NormalizedQuery;
+  resolution: RetrievalResolution;
+  noMatchReason: NoMatchReason | null;
   candidates: RetrievalCandidate[];
+  mainAnswer: RetrievalCandidate[];
+  confusionBoundary: RetrievalCandidate[];
   comparisonView: ComparisonView | null;
 };
 
@@ -53,9 +69,17 @@ export type RankableCandidate = {
   meaningsZh: string[];
   matchedAlias: string | null;
   scopeCodes: ExamScopeCode[];
+  confusionGroupIds: string[];
   exactLemma: boolean;
   exactAlias: boolean;
   textScore: number;
   meaningMatch: boolean;
   fromConfusionGroup: boolean;
+  provenance: CandidateProvenance[];
+};
+
+export type RankedCandidate = RankableCandidate & {
+  inScope: boolean;
+  reason: string;
+  score: number;
 };

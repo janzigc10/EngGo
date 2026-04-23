@@ -16,6 +16,8 @@ export type EnglishCandidateRow = {
   aliasWordSimilarity: number;
 };
 
+const minimumFuzzySimilarity = 0.45;
+
 export async function findEnglishCandidateRows(
   activeExamTarget: ExamScopeCode,
   needle: string,
@@ -60,11 +62,11 @@ export async function findEnglishCandidateRows(
       OR GREATEST(
         similarity(ve.lemma, ${needle}),
         word_similarity(${needle}, ve.lemma)
-      ) >= 0.28
+      ) >= ${minimumFuzzySimilarity}
       OR COALESCE(best_alias.alias = ${needle}, false)
       OR COALESCE(best_alias.alias ILIKE ${likePattern}, false)
       OR COALESCE(best_alias.alias % ${needle}, false)
-      OR COALESCE(best_alias.alias_word_similarity, 0) >= 0.28
+      OR COALESCE(best_alias.alias_word_similarity, 0) >= ${minimumFuzzySimilarity}
     GROUP BY
       ve.id,
       ve.lemma,

@@ -1,7 +1,9 @@
 import type { ExamScopeCode } from "@/features/content/import-types";
 import type {
   ComparisonView,
+  NoMatchReason,
   QueryMode,
+  RetrievalResolution,
   RetrievalCandidate,
 } from "@/features/retrieval/types";
 
@@ -17,6 +19,8 @@ export type AnswerGrounding = {
   activeExamTargetLabel: string;
   query: string;
   queryMode: QueryMode;
+  resolution: RetrievalResolution;
+  noMatchReason: NoMatchReason | null;
   mainAnswer: RetrievalCandidate[];
   confusionBoundary: RetrievalCandidate[];
   scopeReminder: string;
@@ -27,16 +31,26 @@ export type AnswerGrounding = {
 type BuildGroundingInput = {
   activeExamTarget: ExamScopeCode;
   query: string;
-  queryMode?: QueryMode;
-  candidates: RetrievalCandidate[];
+  queryMode: QueryMode;
+  resolution: RetrievalResolution;
+  noMatchReason: NoMatchReason | null;
+  mainAnswer: RetrievalCandidate[];
+  confusionBoundary: RetrievalCandidate[];
   comparisonView: ComparisonView | null;
 };
 
 function buildScopeReminder(
   activeExamTarget: ExamScopeCode,
-  outOfScopeCandidates: RetrievalCandidate[],
+  selectedCandidates: RetrievalCandidate[],
+  resolution: RetrievalResolution,
 ) {
   const activeExamTargetLabel = examTargetLabels[activeExamTarget];
+
+  if (resolution === "no_match") {
+    return `这次我会继续优先按 ${activeExamTargetLabel} 范围帮你缩小候选，不随意扩到范围外。`;
+  }
+
+  const outOfScopeCandidates = selectedCandidates.filter((candidate) => !candidate.inScope);
 
   if (outOfScopeCandidates.length === 0) {
     return `这次回答已优先锁定在 ${activeExamTargetLabel} 范围内，后续我也会继续按这个范围帮你筛词。`;
@@ -51,9 +65,14 @@ function buildScopeReminder(
 }
 
 function buildFollowUpPrompt(
+  resolution: RetrievalResolution,
   mainAnswer: RetrievalCandidate[],
   confusionBoundary: RetrievalCandidate[],
 ) {
+  if (resolution === "no_match") {
+    return "如果你愿意，可以再告诉我中文义项、词首或词尾，或者你容易和哪个词搞混。";
+  }
+
   const wordGroup = [...mainAnswer, ...confusionBoundary]
     .slice(0, 3)
     .map((candidate) => candidate.lemma);
@@ -66,28 +85,27 @@ function buildFollowUpPrompt(
 }
 
 export function buildGrounding(input: BuildGroundingInput): AnswerGrounding {
-  const inScopeCandidates = input.candidates.filter((candidate) => candidate.inScope);
-  const outOfScopeCandidates = input.candidates.filter((candidate) => !candidate.inScope);
-  const orderedMainAnswers =
-    inScopeCandidates.length > 0 ? inScopeCandidates : input.candidates;
-  const mainAnswer = orderedMainAnswers.slice(
-    0,
-    input.queryMode === "direct_compare" ? 2 : 1,
-  );
-  const mainAnswerIds = new Set(mainAnswer.map((candidate) => candidate.entryId));
-  const confusionBoundary = input.candidates
-    .filter((candidate) => !mainAnswerIds.has(candidate.entryId))
-    .slice(0, 3);
+  const selectedCandidates = [...input.mainAnswer, ...input.confusionBoundary];
 
   return {
     activeExamTarget: input.activeExamTarget,
     activeExamTargetLabel: examTargetLabels[input.activeExamTarget],
     query: input.query,
-    queryMode: input.queryMode ?? "direct_lookup",
-    mainAnswer,
-    confusionBoundary,
-    scopeReminder: buildScopeReminder(input.activeExamTarget, outOfScopeCandidates),
-    followUpPrompt: buildFollowUpPrompt(mainAnswer, confusionBoundary),
+    queryMode: input.queryMode,
+    resolution: input.resolution,
+    noMatchReason: input.noMatchReason,
+    mainAnswer: input.mainAnswer,
+    confusionBoundary: input.confusionBoundary,
+    scopeReminder: buildScopeReminder(
+      input.activeExamTarget,
+      selectedCandidates,
+      input.resolution,
+    ),
+    followUpPrompt: buildFollowUpPrompt(
+      input.resolution,
+      input.mainAnswer,
+      input.confusionBoundary,
+    ),
     comparisonView: input.comparisonView,
   };
 }

@@ -52,6 +52,8 @@ describe("ChatWorkspace", () => {
           activeExamTargetLabel: "CET-6",
           query: "遵从怎么说",
           queryMode: "meaning_lookup",
+          resolution: "resolved",
+          noMatchReason: null,
           mainAnswer: [
             {
               entryId: "comply",
@@ -103,6 +105,45 @@ describe("ChatWorkspace", () => {
     expect(await screen.findByText(/comply with/i)).toBeInTheDocument();
     expect(screen.getByText("conform")).toBeInTheDocument();
     expect(screen.getByText(/下一步/)).toBeInTheDocument();
+  });
+
+  it("renders a no-match assistant card without an empty main-answer section", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer:
+          "当前考试范围内未能稳定定位到你说的词，为避免答错对象，这次先不硬猜。你可以再告诉我它的中文意思、词首或词尾，或者你容易把它和哪个词搞混。",
+        requestId: "req_test_no_match",
+        providerRequestId: null,
+        grounding: {
+          activeExamTarget: "cet6",
+          activeExamTargetLabel: "CET-6",
+          query: "recent 这个词什么意思",
+          queryMode: "fuzzy_recall",
+          resolution: "no_match",
+          noMatchReason: "out_of_kb",
+          mainAnswer: [],
+          confusionBoundary: [],
+          scopeReminder: "这次我会继续优先按 CET-6 范围帮你缩小候选，不随意扩到范围外。",
+          followUpPrompt:
+            "如果你愿意，可以再告诉我中文义项、词首或词尾，或者你容易和哪个词搞混。",
+          comparisonView: null,
+        },
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "recent 这个词什么意思");
+    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+
+    expect(await screen.findByText(/这次先不硬猜/)).toBeInTheDocument();
+    expect(screen.getByText("暂未稳定命中")).toBeInTheDocument();
+    expect(screen.queryByText("主答案")).not.toBeInTheDocument();
+    expect(screen.queryByText(/加入收藏/i)).not.toBeInTheDocument();
   });
 
   it("shows a recoverable user-facing error without leaking server details", async () => {

@@ -47,26 +47,39 @@ export function MessageThread({
           <p className="whitespace-pre-wrap text-sm leading-7">{message.content}</p>
           {message.role === "assistant" && message.grounding ? (
             <div className="mt-4 space-y-3 rounded-[1.25rem] border border-slate-100 bg-slate-50 p-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  主答案
-                </p>
-                <p className="mt-1 text-sm text-slate-700">
-                  {message.grounding.mainAnswer.map((item) => item.lemma).join(" / ")}
-                </p>
-              </div>
-              {message.grounding.confusionBoundary.length > 0 ? (
+              {message.grounding.resolution === "no_match" ? (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    易混边界
+                    暂未稳定命中
                   </p>
                   <p className="mt-1 text-sm text-slate-700">
-                    {message.grounding.confusionBoundary
-                      .map((item) => item.lemma)
-                      .join(" / ")}
+                    当前考试范围内暂时还没能稳定定位到对应词条，我先不硬猜，避免答错对象。
                   </p>
                 </div>
-              ) : null}
+              ) : (
+                <>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                      主答案
+                    </p>
+                    <p className="mt-1 text-sm text-slate-700">
+                      {message.grounding.mainAnswer.map((item) => item.lemma).join(" / ")}
+                    </p>
+                  </div>
+                  {message.grounding.confusionBoundary.length > 0 ? (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        易混边界
+                      </p>
+                      <p className="mt-1 text-sm text-slate-700">
+                        {message.grounding.confusionBoundary
+                          .map((item) => item.lemma)
+                          .join(" / ")}
+                      </p>
+                    </div>
+                  ) : null}
+                </>
+              )}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                   下一步

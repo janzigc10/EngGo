@@ -6,7 +6,6 @@ import { ChatProviderError } from "@/features/answering/chat-provider";
 import { examScopeCodes } from "@/features/content/import-types";
 import { createRequestId } from "@/features/observability/request-id";
 import { retrieveCandidates } from "@/features/retrieval/retrieve-candidates";
-import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
 
@@ -47,24 +46,6 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!env.openAiApiKey) {
-    return NextResponse.json(
-      {
-        error: {
-          code: "openai_unavailable",
-          message: "OPENAI_API_KEY is not configured on the server.",
-        },
-        requestId,
-      },
-      {
-        status: 503,
-        headers: {
-          "x-request-id": requestId,
-        },
-      },
-    );
-  }
-
   try {
     const retrievalResult = await retrieveCandidates({
       activeExamTarget: parsedRequest.data.activeExamTarget,
@@ -84,9 +65,28 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof ChatProviderError && error.status === 503) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "openai_unavailable",
+            message: "OPENAI_API_KEY is not configured on the server.",
+          },
+          requestId,
+          providerRequestId: error.providerRequestId,
+        },
+        {
+          status: 503,
+          headers: {
+            "x-request-id": requestId,
+          },
+        },
+      );
+    }
+
     const providerRequestId =
       error instanceof ChatProviderError ? error.providerRequestId : null;
-    const status = error instanceof ChatProviderError ? 502 : 500;
+    const status = error instanceof ChatProviderError ? error.status : 500;
 
     return NextResponse.json(
       {

@@ -1,26 +1,60 @@
 import type { NormalizedQuery, QueryMode } from "@/features/retrieval/types";
 
 const englishTokenPattern = /[a-z]+(?:[-'][a-z]+)*/gi;
-const comparisonPattern =
-  /([a-z]+(?:[-'][a-z]+)?)\s*(?:和|跟|与|vs\.?|versus)\s*([a-z]+(?:[-'][a-z]+)?)(?:\s*的?(?:区别|差别|不同))?/i;
+const compareCuePattern =
+  /(区别|差别|不同|怎么区分|怎么分|搞混|分不清|哪个|哪一个|还是|vs\.?|versus|\bor\b)/i;
+const groupComparePattern =
+  /([a-z]+(?:[-'][a-z]+)?)\s*(?:那组词|这一组词|这组词|这一组|这组).*(?:区别|差别|不同|怎么区分|怎么分)/i;
 const meaningNoisePattern = /(怎么说|什么意思|是什么|啥意思|英文|英语|单词|有个|像|的词)/g;
 
 function normalizeAscii(text: string) {
-  return text.trim().replace(/\s+/g, " ").toLowerCase();
+  return text
+    .trim()
+    .replace(/[，、/]/g, " ")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
 }
 
 function extractEnglishTerms(normalizedText: string) {
   return normalizedText.match(englishTokenPattern) ?? [];
 }
 
-function extractComparisonTerms(normalizedText: string): [string, string] | null {
-  const match = normalizedText.match(comparisonPattern);
+function uniqueTerms(terms: string[]) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const term of terms) {
+    if (seen.has(term)) {
+      continue;
+    }
+
+    seen.add(term);
+    result.push(term);
+  }
+
+  return result;
+}
+
+function containsCompareCue(normalizedText: string) {
+  return compareCuePattern.test(normalizedText);
+}
+
+function extractComparisonTerms(normalizedText: string): string[] {
+  if (!containsCompareCue(normalizedText)) {
+    return [];
+  }
+
+  return uniqueTerms(extractEnglishTerms(normalizedText)).slice(0, 4);
+}
+
+function extractGroupSeedTerm(normalizedText: string) {
+  const match = normalizedText.match(groupComparePattern);
 
   if (!match) {
     return null;
   }
 
-  return [match[1].toLowerCase(), match[2].toLowerCase()];
+  return match[1].toLowerCase();
 }
 
 function hasChinese(text: string) {
@@ -30,17 +64,19 @@ function hasChinese(text: string) {
 export function analyzeQuery(query: string): {
   normalizedText: string;
   englishTerms: string[];
-  compareTerms: [string, string] | null;
+  compareTerms: string[];
+  groupSeedTerm: string | null;
   queryMode: QueryMode;
 } {
   const normalizedText = normalizeAscii(query);
   const compareTerms = extractComparisonTerms(normalizedText);
-  const englishTerms = extractEnglishTerms(normalizedText);
+  const englishTerms = uniqueTerms(extractEnglishTerms(normalizedText));
+  const groupSeedTerm = extractGroupSeedTerm(normalizedText);
   const containsChinese = hasChinese(normalizedText);
 
   let queryMode: QueryMode = "meaning_lookup";
 
-  if (compareTerms) {
+  if (groupSeedTerm || compareTerms.length >= 2) {
     queryMode = "direct_compare";
   } else if (englishTerms.length > 0 && !containsChinese) {
     queryMode = "direct_lookup";
@@ -52,6 +88,7 @@ export function analyzeQuery(query: string): {
     normalizedText,
     englishTerms,
     compareTerms,
+    groupSeedTerm,
     queryMode,
   };
 }
@@ -61,7 +98,8 @@ function buildMeaningHint(normalizedText: string) {
 }
 
 export function normalizeQuery(query: string): NormalizedQuery {
-  const { normalizedText, englishTerms, compareTerms, queryMode } = analyzeQuery(query);
+  const { normalizedText, englishTerms, compareTerms, groupSeedTerm, queryMode } =
+    analyzeQuery(query);
 
   return {
     raw: query,
@@ -69,6 +107,7 @@ export function normalizeQuery(query: string): NormalizedQuery {
     queryMode,
     englishTerms,
     compareTerms,
+    groupSeedTerm,
     meaningHint: buildMeaningHint(normalizedText),
   };
 }

@@ -39,9 +39,29 @@ type OpenAiResponsesApiPayload = {
   };
 };
 
+type OpenAiChatCompletionChoice = {
+  message?: {
+    content?:
+      | string
+      | Array<{
+          type?: string;
+          text?: string;
+        }>;
+  };
+};
+
+type OpenAiChatCompletionPayload = {
+  id?: string;
+  choices?: OpenAiChatCompletionChoice[];
+  error?: {
+    message?: string;
+  };
+};
+
 type CreateOpenAiChatProviderOptions = {
   apiKey?: string;
   model?: string;
+  baseUrl?: string;
   endpoint?: string;
   fetchImpl?: typeof fetch;
 };
@@ -58,6 +78,10 @@ export class ChatProviderError extends Error {
   }
 }
 
+function trimTrailingSlashes(value: string) {
+  return value.replace(/\/+$/, "");
+}
+
 function buildUserMessage(input: GenerateAnswerInput) {
   return [
     `用户当前问题：${input.query}`,
@@ -67,30 +91,129 @@ function buildUserMessage(input: GenerateAnswerInput) {
   ].join("\n");
 }
 
-function extractOutputText(payload: OpenAiResponsesApiPayload) {
-  const text = (payload.output ?? [])
+function stripThinkingContent(value: string) {
+  return value.replace(/<think>[\s\S]*?<\/think>\s*/g, "").trim();
+}
+
+function extractResponsesOutputText(payload: OpenAiResponsesApiPayload) {
+  return (payload.output ?? [])
     .flatMap((item) => item.content ?? [])
     .filter((item) => item.type === "output_text" && typeof item.text === "string")
     .map((item) => item.text?.trim() ?? "")
     .filter(Boolean)
     .join("\n")
     .trim();
+}
 
-  return text;
+function extractChatCompletionText(payload: OpenAiChatCompletionPayload) {
+  const content = payload.choices?.[0]?.message?.content;
+
+  if (typeof content === "string") {
+    return stripThinkingContent(content);
+  }
+
+  if (!Array.isArray(content)) {
+    return "";
+  }
+
+  return content
+    .filter((item) => item.type === "text" && typeof item.text === "string")
+    .map((item) => item.text?.trim() ?? "")
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+}
+
+async function readJsonPayload<T extends { error?: { message?: string } }>(response: Response) {
+  const text = await response.text();
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return {
+      error: {
+        message: text.trim() || `Request failed with status ${response.status}.`,
+      },
+    } as T;
+  }
+}
+
+function isChatCompletionsEndpoint(endpoint: string) {
+  return /\/chat\/completions\/?$/i.test(endpoint);
 }
 
 export function createOpenAiChatProvider(
   options: CreateOpenAiChatProviderOptions = {},
 ): ChatProvider {
   const apiKey = options.apiKey ?? env.openAiApiKey;
-  const model = options.model ?? "gpt-5.4";
-  const endpoint = options.endpoint ?? "https://api.openai.com/v1/responses";
+  const baseUrl = options.baseUrl ?? env.openAiBaseUrl;
+  const model = options.model ?? env.openAiModel ?? "gpt-5.4";
+  const endpoint =
+    options.endpoint ??
+    (baseUrl
+      ? `${trimTrailingSlashes(baseUrl)}/chat/completions`
+      : "https://api.openai.com/v1/responses");
   const fetchImpl = options.fetchImpl ?? fetch;
 
   return {
     async generateAnswer(input) {
       if (!apiKey) {
         throw new ChatProviderError("OPENAI_API_KEY is not configured.", 503);
+      }
+
+      if (isChatCompletionsEndpoint(endpoint)) {
+        const response = await fetchImpl(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+            "X-Client-Request-Id": input.requestId,
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              {
+                role: "system",
+                content: input.systemPrompt,
+              },
+              ...input.history.map((message) => ({
+                role: message.role,
+                content: message.content,
+              })),
+              {
+                role: "user",
+                content: buildUserMessage(input),
+              },
+            ],
+          }),
+        });
+        const providerRequestId =
+          response.headers.get("x-request-id") ?? response.headers.get("openai-request-id");
+        const payload = await readJsonPayload<OpenAiChatCompletionPayload>(response);
+
+        if (!response.ok) {
+          throw new ChatProviderError(
+            payload.error?.message ??
+              `OpenAI Chat Completions request failed with status ${response.status}.`,
+            response.status,
+            providerRequestId ?? payload.id ?? null,
+          );
+        }
+
+        const answer = extractChatCompletionText(payload);
+
+        if (!answer) {
+          throw new ChatProviderError(
+            "OpenAI Chat Completions returned no text output.",
+            502,
+            providerRequestId ?? payload.id ?? null,
+          );
+        }
+
+        return {
+          answer,
+          providerRequestId: providerRequestId ?? payload.id ?? null,
+        };
       }
 
       const response = await fetchImpl(endpoint, {
@@ -119,7 +242,7 @@ export function createOpenAiChatProvider(
 
       const providerRequestId =
         response.headers.get("x-request-id") ?? response.headers.get("openai-request-id");
-      const payload = (await response.json()) as OpenAiResponsesApiPayload;
+      const payload = await readJsonPayload<OpenAiResponsesApiPayload>(response);
 
       if (!response.ok) {
         throw new ChatProviderError(
@@ -130,7 +253,7 @@ export function createOpenAiChatProvider(
         );
       }
 
-      const answer = extractOutputText(payload);
+      const answer = extractResponsesOutputText(payload);
 
       if (!answer) {
         throw new ChatProviderError(

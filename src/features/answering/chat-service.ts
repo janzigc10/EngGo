@@ -32,6 +32,10 @@ type CreateChatServiceOptions = {
   createRequestId?: () => string;
 };
 
+function buildNoMatchAnswer() {
+  return "当前考试范围内未能稳定定位到你说的词，为避免答错对象，这次先不硬猜。你可以再告诉我它的中文意思、词首或词尾，或者你容易把它和哪个词搞混。";
+}
+
 export function createChatService(options: CreateChatServiceOptions = {}) {
   const provider = options.provider ?? createOpenAiChatProvider();
   const createRequestIdImpl = options.createRequestId ?? createRequestId;
@@ -43,9 +47,22 @@ export function createChatService(options: CreateChatServiceOptions = {}) {
         activeExamTarget: input.activeExamTarget,
         query: input.query,
         queryMode: input.retrievalResult.queryMode,
-        candidates: input.retrievalResult.candidates,
+        resolution: input.retrievalResult.resolution,
+        noMatchReason: input.retrievalResult.noMatchReason,
+        mainAnswer: input.retrievalResult.mainAnswer,
+        confusionBoundary: input.retrievalResult.confusionBoundary,
         comparisonView: input.retrievalResult.comparisonView,
       });
+
+      if (grounding.resolution === "no_match") {
+        return {
+          answer: buildNoMatchAnswer(),
+          grounding,
+          requestId,
+          providerRequestId: null,
+        };
+      }
+
       const systemPrompt = buildSystemPrompt(grounding);
       const result = await provider.generateAnswer({
         query: input.query,

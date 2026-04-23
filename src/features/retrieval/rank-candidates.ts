@@ -1,13 +1,12 @@
 import type { ExamScopeCode } from "@/features/content/import-types";
 import type {
   RankableCandidate,
-  RetrievalCandidate,
+  RankedCandidate,
 } from "@/features/retrieval/types";
 
 function buildReason(
   activeExamTarget: ExamScopeCode,
   candidate: RankableCandidate,
-  inScopeLeadersExist: boolean,
 ) {
   const reasons: string[] = [];
   const inScope = candidate.scopeCodes.includes(activeExamTarget);
@@ -30,7 +29,7 @@ function buildReason(
     reasons.push("来自同一易混词组");
   }
 
-  if (inScope && inScopeLeadersExist) {
+  if (inScope) {
     reasons.unshift("当前考试范围命中");
   }
 
@@ -70,42 +69,22 @@ export function rankCandidates(
   activeExamTarget: ExamScopeCode,
   candidates: RankableCandidate[],
 ) {
-  const withScores = candidates.map((candidate) => {
-    const inScope = candidate.scopeCodes.includes(activeExamTarget);
+  return candidates
+    .map<RankedCandidate>((candidate) => {
+      const inScope = candidate.scopeCodes.includes(activeExamTarget);
 
-    return {
-      ...candidate,
-      inScope,
-      score: computeScore(activeExamTarget, candidate),
-    };
-  });
-
-  const inScopeLeadersExist = withScores.some(
-    (candidate) =>
-      candidate.inScope &&
-      (candidate.meaningMatch ||
-        candidate.exactLemma ||
-        candidate.exactAlias ||
-        candidate.textScore >= 0.3),
-  );
-
-  return withScores
-    .filter((candidate) => !inScopeLeadersExist || candidate.inScope || candidate.score >= 120)
+      return {
+        ...candidate,
+        inScope,
+        reason: buildReason(activeExamTarget, candidate),
+        score: computeScore(activeExamTarget, candidate),
+      };
+    })
     .sort((left, right) => {
       if (right.score !== left.score) {
         return right.score - left.score;
       }
 
       return left.lemma.localeCompare(right.lemma);
-    })
-    .map<RetrievalCandidate>((candidate) => ({
-      entryId: candidate.entryId,
-      lemma: candidate.lemma,
-      meaningsZh: candidate.meaningsZh,
-      matchedAlias: candidate.matchedAlias,
-      scopeCodes: candidate.scopeCodes,
-      inScope: candidate.inScope,
-      reason: buildReason(activeExamTarget, candidate, inScopeLeadersExist),
-      score: candidate.score,
-    }));
+    });
 }

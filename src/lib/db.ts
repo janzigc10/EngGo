@@ -7,12 +7,17 @@ const globalForPrisma = globalThis as {
 
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL;
+  const isProduction = process.env.NODE_ENV === "production";
 
   if (!connectionString) {
     throw new Error("DATABASE_URL is required to create the Prisma client.");
   }
 
-  const adapter = new PrismaPg({ connectionString });
+  const adapter = new PrismaPg({
+    connectionString,
+    allowExitOnIdle: !isProduction,
+    max: isProduction ? 10 : 1,
+  });
 
   return new PrismaClient({
     adapter,
