@@ -19,6 +19,18 @@
 - 词根家族地图：用户有词根/前缀/碎片，需要结构化展开和优先级。
 
 ## 本 Session 已完成
+- 2026-04-24 固化 DeepSeek flash 为长期真实 provider smoke：
+  - 本地 `.env` 已写入 DeepSeek provider 三件套：
+    - `OPENAI_API_KEY`：已配置，文件被 `.gitignore` 忽略，不提交。
+    - `OPENAI_BASE_URL=https://api.deepseek.com/v1`
+    - `OPENAI_MODEL=deepseek-v4-flash`
+  - [`.env.example`](/C:/Users/Chen/Desktop/EngGo/.env.example) 已保留非敏感默认值：
+    - `OPENAI_BASE_URL=https://api.deepseek.com/v1`
+    - `OPENAI_MODEL=deepseek-v4-flash`
+    - `OPENAI_API_KEY` 仍为空，由本地 `.env` 提供。
+  - 验证方式：不再临时注入 `OPENAI_*` 环境变量，直接启动 `corepack pnpm dev`，再跑 `corepack pnpm eval:answer-style:provider`。
+  - 验证结果：5 pass / 4 manual / 0 fail，说明以后本地真实 provider smoke 可直接使用 DeepSeek flash；输出保存在 [test-results/deepseek-env-default-smoke.txt](/C:/Users/Chen/Desktop/EngGo/test-results/deepseek-env-default-smoke.txt)。
+
 - 2026-04-24 处理“牵强字母口诀”反馈：
   - 用户指出 `文具 = stationery（e 联想 envelope）` 太突兀，不应输出这类不必要口诀。
   - 根因确认：
