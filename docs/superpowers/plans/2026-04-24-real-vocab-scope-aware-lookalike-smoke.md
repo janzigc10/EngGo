@@ -117,6 +117,19 @@ The first real-smoke run should not be random. It should be a structured middle-
 
 If the source vocabulary files are not present, stop at Task 2 and record the blocker in `progress.md`. Do not invent "real" entries to make tests pass.
 
+### 2026-04-24 Source Pivot
+
+The first pass hit the original blocker at Task 2 Step 3 because no source files were present in the repository. The revised route is:
+
+- use source-checkable official lemma manifests first, not commercial word-book content
+- start with a smaller source-backed smoke slice to unblock loader/seed validation
+- back `gaokao`, `cet4`, and `cet6` from:
+  - 教育部《普通高中英语课程标准（2017年版2020年修订）》附录 2 词汇表
+  - 中国教育考试网《全国大学英语四、六级考试大纲（2016年修订版）》词表
+- keep `postgrad` out of `real-smoke` until an entry-level, source-checkable postgrad vocabulary file is available
+
+This means Task 2 Step 4 now expects source-backed `gaokao`, `cet4`, and `cet6` coverage for the first smoke slice. Full 300-800 word coverage and `postgrad` scope remain gated follow-up work, not a reason to fabricate entries in this step.
+
 ### Task 1: Add Explicit Dataset Loading Without Changing The Default Seed
 
 **Files:**
@@ -272,7 +285,7 @@ If source files are not available, stop here and update `progress.md` with:
 Blocked: real vocabulary source files are not present; do not fabricate entries.
 ```
 
-- [ ] **Step 4: Validate normalized content**
+- [x] **Step 4: Validate normalized content**
 
 Run:
 
@@ -280,9 +293,9 @@ Run:
 corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke
 ```
 
-Expected: PASS with non-zero entry count and all four scopes represented.
+Expected: PASS with non-zero entry count and source-backed `gaokao`, `cet4`, and `cet6` scopes represented. `postgrad` remains intentionally absent until a source-checkable postgrad vocabulary file is available.
 
-- [ ] **Step 5: Seed the real-smoke dataset serially**
+- [x] **Step 5: Seed the real-smoke dataset serially**
 
 Run:
 
@@ -308,7 +321,7 @@ Do not run this in parallel with any eval or `verify` command.
 - Modify: `src/features/retrieval/retrieve-candidates.test.ts`
 - Modify: `src/features/answering/build-grounding.ts`
 
-- [ ] **Step 1: Write failing retrieval tests for active-scope differences**
+- [x] **Step 1: Write failing retrieval tests for active-scope differences**
 
 Add tests that seed or fixture data can prove:
 
@@ -330,7 +343,7 @@ Add a second scope test from the real-smoke `lookalike-smoke-cases.json` that ex
 
 Expected before implementation: FAIL if no curated `confusion_group` exists for the source word or if the handler returns out-of-scope candidates.
 
-- [ ] **Step 2: Add focused SQL for in-scope lookalikes**
+- [x] **Step 2: Add focused SQL for in-scope lookalikes**
 
 In `src/features/retrieval/retrieval-sql.ts`, add a helper like:
 
@@ -353,7 +366,7 @@ This helper should:
 - include lookalikes above a conservative similarity threshold
 - return enough rows for 2-6 candidates, not a long list
 
-- [ ] **Step 3: Implement dynamic fallback in `handleShapeNeighborSearch`**
+- [x] **Step 3: Implement dynamic fallback in `handleShapeNeighborSearch`**
 
 Keep current curated group behavior first. If no `bestGroup` exists, use the new SQL helper:
 
@@ -374,7 +387,7 @@ Return `resolved` with:
 - `comparisonView`: `null`
 - all selected candidates containing `meaningsZh`
 
-- [ ] **Step 4: Treat resolved shape-neighbor as `confusion_untangle`**
+- [x] **Step 4: Treat resolved shape-neighbor as `confusion_untangle`**
 
 In `build-grounding.ts`, change `deriveAnswerStyle` so resolved `shape_neighbor_search` can still use `confusion_untangle` without a curated `comparisonView`.
 
@@ -388,7 +401,7 @@ if (queryMode === "shape_neighbor_search") {
 
 Keep `root_family_summary` first.
 
-- [ ] **Step 5: Run retrieval tests to green**
+- [x] **Step 5: Run retrieval tests to green**
 
 Run:
 
@@ -407,7 +420,7 @@ Expected: all pass.
 - Modify: `scripts/run-answer-style-eval.ts`
 - Modify: `scripts/lib/answer-style-provider-smoke.ts`
 
-- [ ] **Step 1: Write failing prompt tests for the new structure**
+- [x] **Step 1: Write failing prompt tests for the new structure**
 
 Update prompt tests to assert the `confusion_untangle` prompt contains:
 
@@ -423,7 +436,7 @@ Remove expectations that require `"先问一句"` as the central structure.
 
 Expected before implementation: FAIL because the prompt still uses the old structure.
 
-- [ ] **Step 2: Implement the new `confusion_untangle` prompt**
+- [x] **Step 2: Implement the new `confusion_untangle` prompt**
 
 Replace the old three-part structure with:
 
@@ -441,7 +454,7 @@ Keep the guardrail:
 不要使用 e= envelope 这类牵强字母口诀；优先用语义、词性、搭配和场景做边界。
 ```
 
-- [ ] **Step 3: Update deterministic eval snippets**
+- [x] **Step 3: Update deterministic eval snippets**
 
 In `scripts/run-answer-style-eval.ts`, change expected prompt snippets for confusion cases from:
 
@@ -455,7 +468,7 @@ to:
 ["范围内相似词", "词义速览", "做题抓手"]
 ```
 
-- [ ] **Step 4: Update provider smoke manual checks**
+- [x] **Step 4: Update provider smoke manual checks**
 
 In `scripts/lib/answer-style-provider-smoke.ts`, update `confusion_untangle` manual checks so they ask:
 
@@ -464,7 +477,7 @@ In `scripts/lib/answer-style-provider-smoke.ts`, update `confusion_untangle` man
 - did it prioritize the 2 most confusing words instead of spreading evenly?
 - did it provide one concrete exam cue?
 
-- [ ] **Step 5: Run answer style checks**
+- [x] **Step 5: Run answer style checks**
 
 Run:
 
@@ -482,7 +495,7 @@ Expected: all pass.
 - Create: `scripts/run-real-vocab-lookalike-smoke.ts`
 - Modify: `package.json`
 
-- [ ] **Step 1: Write the runner against `lookalike-smoke-cases.json`**
+- [x] **Step 1: Write the runner against `lookalike-smoke-cases.json`**
 
 Each smoke case should include:
 
@@ -510,7 +523,7 @@ The runner should assert:
 - every selected candidate has at least one Chinese meaning
 - candidate count is between `minCandidates` and `maxCandidates`
 
-- [ ] **Step 2: Add summary output**
+- [x] **Step 2: Add summary output**
 
 Print one line per case:
 
@@ -531,7 +544,7 @@ Then print:
 
 Exit with code `1` if any case fails.
 
-- [ ] **Step 3: Add package script**
+- [x] **Step 3: Add package script**
 
 In `package.json`, add:
 
@@ -539,7 +552,7 @@ In `package.json`, add:
 "eval:lookalike:real-smoke": "tsx scripts/run-real-vocab-lookalike-smoke.ts --dataset real-smoke"
 ```
 
-- [ ] **Step 4: Run the real-smoke eval serially**
+- [x] **Step 4: Run the real-smoke eval serially**
 
 Run:
 
@@ -561,7 +574,7 @@ Expected:
 - Modify: `progress.md`
 - Optional modify: `bugs.md`
 
-- [ ] **Step 1: Run local deterministic checks serially**
+- [x] **Step 1: Run local deterministic checks serially**
 
 Run:
 
@@ -577,7 +590,7 @@ corepack pnpm eval:lookalike:real-smoke
 
 Expected: all pass.
 
-- [ ] **Step 2: Run lint on touched files**
+- [x] **Step 2: Run lint on touched files**
 
 Run:
 
@@ -609,7 +622,7 @@ Expected:
 
 Stop the dev server after the smoke run.
 
-- [ ] **Step 4: Update handoff docs**
+- [x] **Step 4: Update handoff docs**
 
 Update `progress.md` with:
 

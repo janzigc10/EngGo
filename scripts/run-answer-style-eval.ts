@@ -45,7 +45,7 @@ const cases: EvalCase[] = [
     expectedQueryMode: "direct_compare",
     expectedResolution: "resolved",
     expectedAnswerStyle: "confusion_untangle",
-    expectedPromptIncludes: ["先问一句", "题里抓"],
+    expectedPromptIncludes: ["范围内相似词", "词义速览", "做题抓手"],
     expectedGroundingIncludes: ["stationary", "stationery"],
   },
   {
@@ -55,7 +55,7 @@ const cases: EvalCase[] = [
     expectedQueryMode: "direct_compare",
     expectedResolution: "resolved",
     expectedAnswerStyle: "confusion_untangle",
-    expectedPromptIncludes: ["先问一句", "题里抓"],
+    expectedPromptIncludes: ["范围内相似词", "词义速览", "做题抓手"],
     expectedGroundingIncludes: ["access", "assess", "excess"],
   },
   {
@@ -65,7 +65,7 @@ const cases: EvalCase[] = [
     expectedQueryMode: "direct_compare",
     expectedResolution: "resolved",
     expectedAnswerStyle: "confusion_untangle",
-    expectedPromptIncludes: ["先问一句", "题里抓"],
+    expectedPromptIncludes: ["范围内相似词", "词义速览", "做题抓手"],
     expectedGroundingIncludes: ["comply", "conform", "defer"],
   },
   {
@@ -75,7 +75,7 @@ const cases: EvalCase[] = [
     expectedQueryMode: "direct_compare",
     expectedResolution: "resolved",
     expectedAnswerStyle: "confusion_untangle",
-    expectedPromptIncludes: ["先问一句", "题里抓"],
+    expectedPromptIncludes: ["范围内相似词", "词义速览", "做题抓手"],
     expectedGroundingIncludes: ["respect", "respective", "respectful", "respectable"],
   },
   {

@@ -239,6 +239,19 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     expect(result.comparisonView?.whyConfusing).toBeTruthy();
   });
 
+  it("prefers spelling-neighbor groups over semantic groups for shape searches", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "gaokao",
+      query: "容易把 adapt 看错成什么",
+    });
+
+    expect(result.queryMode).toBe("shape_neighbor_search");
+    expect(result.resolution).toBe("resolved");
+    expect(result.mainAnswer.map((candidate) => candidate.lemma)).toEqual(["adapt", "adopt"]);
+    expect(result.mainAnswer.map((candidate) => candidate.lemma)).not.toContain("accommodate");
+    expect(result.comparisonView?.id).toBe("adapt-adopt");
+  });
+
   it("resolves quiet 和 quite 的区别 as a confusion comparison", async () => {
     const result = await retrieveCandidates({
       activeExamTarget: "cet4",
@@ -304,6 +317,38 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     );
     expect(result.comparisonView?.id).toBe("breath-breathe");
     expect(result.comparisonView?.semanticBoundaryNotes.length).toBeGreaterThan(0);
+  });
+
+  it("falls back to dynamic in-scope lookalikes when no curated group exists", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "跟 statue 很像的词有哪些",
+    });
+
+    expect(result.queryMode).toBe("shape_neighbor_search");
+    expect(result.resolution).toBe("resolved");
+    expect(result.mainAnswer.map((candidate) => candidate.lemma)).toEqual(
+      expect.arrayContaining(["statue", "status", "statute"]),
+    );
+    expect(result.mainAnswer.every((candidate) => candidate.inScope)).toBe(true);
+    expect(result.mainAnswer.every((candidate) => candidate.meaningsZh.length > 0)).toBe(true);
+    expect(result.comparisonView).toBeNull();
+  });
+
+  it("keeps dynamic lookalikes inside the active exam scope", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "gaokao",
+      query: "跟 statue 很像的词有哪些",
+    });
+
+    expect(result.queryMode).toBe("shape_neighbor_search");
+    expect(result.resolution).toBe("resolved");
+    expect(result.mainAnswer.map((candidate) => candidate.lemma)).toEqual(
+      expect.arrayContaining(["statue", "state"]),
+    );
+    expect(result.mainAnswer.map((candidate) => candidate.lemma)).not.toContain("status");
+    expect(result.mainAnswer.map((candidate) => candidate.lemma)).not.toContain("statute");
+    expect(result.mainAnswer.every((candidate) => candidate.inScope)).toBe(true);
   });
 
   it("resolves stitute as a minimal root family summary", async () => {

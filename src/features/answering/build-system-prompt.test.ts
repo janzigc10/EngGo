@@ -127,20 +127,27 @@ describe("buildSystemPrompt", () => {
 
     const prompt = buildSystemPrompt(grounding);
 
-    expect(prompt).toContain("先问一句");
-    expect(prompt).toContain("2-4 个分流项");
-    expect(prompt).toContain("题里抓");
+    expect(prompt).toContain("当前考试范围");
+    expect(prompt).toContain("范围内相似词");
+    expect(prompt).toContain("词义速览");
+    expect(prompt).toContain("重点区分");
+    expect(prompt).toContain("做题抓手");
+    expect(prompt).toContain("每个词必须带中文核心义");
+    expect(prompt).toContain("先列范围内召回到的相似词");
+    expect(prompt).toContain("优先区分最容易混的 2 个");
     expect(prompt).toContain("不要把回答写成泛泛词典百科");
     expect(prompt).toContain("总长度控制在 260 个汉字以内");
-    expect(prompt).toContain("最多 3 段");
+    expect(prompt).toContain("最多 4 段");
     expect(prompt).toContain("每个词只给一行边界");
-    expect(prompt).toContain("只输出这 3 段");
+    expect(prompt).toContain("只输出这 4 段");
     expect(prompt).toContain("禁止例句、长列表和补充扩展");
     expect(prompt).toContain("短答示例");
-    expect(prompt).toContain("为什么会混：stationary / stationery 只差 a/e");
-    expect(prompt).toContain("题里抓：文具=stationery");
+    expect(prompt).toContain("范围内相似词：stationary / stationery");
+    expect(prompt).toContain("词义速览：stationary=静止的；stationery=文具");
+    expect(prompt).toContain("做题抓手：文具=stationery");
     expect(prompt).toContain("超过 2 个词时，用公式行压缩");
     expect(prompt).toContain("不要使用 e= envelope 这类牵强字母口诀");
+    expect(prompt).not.toContain("必须出现“先问一句”");
     expect(prompt).not.toContain("e 可联想 envelope");
     expect(prompt).not.toContain("a 可联想 stay");
     expect(prompt).toContain("不要再套用通用四段标题");

@@ -7,7 +7,10 @@ import type { ExamScopeCode } from "@/features/content/import-types";
 import { normalizeQuery } from "@/features/retrieval/normalize-query";
 import { findRootFamilyPrototype } from "@/features/retrieval/root-family-prototypes";
 import { rankCandidates } from "@/features/retrieval/rank-candidates";
-import { findEnglishCandidateRows } from "@/features/retrieval/retrieval-sql";
+import {
+  findEnglishCandidateRows,
+  findInScopeLookalikeRows,
+} from "@/features/retrieval/retrieval-sql";
 import type {
   ComparisonView,
   NoMatchReason,
@@ -414,6 +417,44 @@ async function findEnglishRankedCandidates(
   );
 }
 
+async function findDynamicLookalikeRankedCandidates(
+  activeExamTarget: ExamScopeCode,
+  needle: string,
+) {
+  const rawRows = await findInScopeLookalikeRows(activeExamTarget, needle);
+  const primaryEntries = await findEntriesByIds(rawRows.map((row) => row.entryId));
+  const rawRowMap = new Map(rawRows.map((row) => [row.entryId, row]));
+
+  return rankCandidates(
+    activeExamTarget,
+    primaryEntries
+      .filter((entry) => entry.meanings.length > 0)
+      .map((entry) => {
+        const row = rawRowMap.get(entry.id);
+        const textScore = Math.max(
+          row?.lemmaSimilarity ?? 0,
+          row?.lemmaWordSimilarity ?? 0,
+        );
+
+        return toRankableCandidate(entry, {
+          exactLemma: row?.exactLemma ?? false,
+          textScore,
+          provenance: uniqueValues(
+            [
+              row?.exactLemma ? "exact_lemma" : null,
+              textScore > 0 ? "fuzzy_text" : null,
+            ].filter(
+              (
+                provenance,
+              ): provenance is NonNullable<RankableCandidate["provenance"][number]> =>
+                Boolean(provenance),
+            ),
+          ),
+        });
+      }),
+  );
+}
+
 async function findMeaningRankedCandidates(
   activeExamTarget: ExamScopeCode,
   meaningKeyword: string,
@@ -514,6 +555,105 @@ function sortGroupsForEntry(
 
       return left.id.localeCompare(right.id);
     });
+}
+
+function characterBigrams(value: string) {
+  const normalized = value.toLowerCase();
+
+  if (normalized.length < 2) {
+    return [normalized];
+  }
+
+  return Array.from({ length: normalized.length - 1 }, (_, index) =>
+    normalized.slice(index, index + 2),
+  );
+}
+
+function diceCoefficient(left: string, right: string) {
+  if (left === right) {
+    return 1;
+  }
+
+  const leftBigrams = characterBigrams(left);
+  const rightBigrams = characterBigrams(right);
+  const rightCounts = new Map<string, number>();
+
+  for (const bigram of rightBigrams) {
+    rightCounts.set(bigram, (rightCounts.get(bigram) ?? 0) + 1);
+  }
+
+  const matches = leftBigrams.reduce((total, bigram) => {
+    const count = rightCounts.get(bigram) ?? 0;
+
+    if (count === 0) {
+      return total;
+    }
+
+    rightCounts.set(bigram, count - 1);
+    return total + 1;
+  }, 0);
+
+  return (2 * matches) / (leftBigrams.length + rightBigrams.length);
+}
+
+function scoreLookalikeGroup(
+  activeExamTarget: ExamScopeCode,
+  seedEntryId: string,
+  seedLemma: string,
+  group: Awaited<ReturnType<typeof findConfusionGroupsForEntryIds>>[number],
+) {
+  const otherMembers = group.members.filter((member) => member.entryId !== seedEntryId);
+  const bestLemmaSimilarity = Math.max(
+    ...otherMembers.map((member) => diceCoefficient(seedLemma, member.entry.lemma)),
+    0,
+  );
+  const inScopeCount = group.members.filter((member) =>
+    member.entry.scopes.some((scope) => scope.scopeCode === activeExamTarget),
+  ).length;
+
+  return {
+    bestLemmaSimilarity,
+    inScopeCount,
+    memberCount: group.members.length,
+  };
+}
+
+function pickBestLookalikeGroup(
+  activeExamTarget: ExamScopeCode,
+  seedEntryId: string,
+  seedLemma: string,
+  groups: Awaited<ReturnType<typeof findConfusionGroupsForEntryIds>>,
+) {
+  return groups
+    .filter((group) => group.members.some((member) => member.entryId === seedEntryId))
+    .sort((left, right) => {
+      const leftScore = scoreLookalikeGroup(
+        activeExamTarget,
+        seedEntryId,
+        seedLemma,
+        left,
+      );
+      const rightScore = scoreLookalikeGroup(
+        activeExamTarget,
+        seedEntryId,
+        seedLemma,
+        right,
+      );
+
+      if (rightScore.bestLemmaSimilarity !== leftScore.bestLemmaSimilarity) {
+        return rightScore.bestLemmaSimilarity - leftScore.bestLemmaSimilarity;
+      }
+
+      if (rightScore.inScopeCount !== leftScore.inScopeCount) {
+        return rightScore.inScopeCount - leftScore.inScopeCount;
+      }
+
+      if (leftScore.memberCount !== rightScore.memberCount) {
+        return leftScore.memberCount - rightScore.memberCount;
+      }
+
+      return left.id.localeCompare(right.id);
+    })[0] ?? null;
 }
 
 function pickBestGroupForEntry(
@@ -780,14 +920,37 @@ async function handleShapeNeighborSearch(
   }
 
   const confusionGroups = await findConfusionGroupsForEntryIds([seedResolution.candidate.entryId]);
-  const bestGroup = pickBestGroupForEntry(
+  const bestGroup = pickBestLookalikeGroup(
     input.activeExamTarget,
     seedResolution.candidate.entryId,
+    seedResolution.candidate.lemma,
     confusionGroups,
   );
 
   if (!bestGroup) {
-    return createNoMatchResult(normalizedQuery, seedResolution.candidates, "low_confidence");
+    const dynamicLookalikes = await findDynamicLookalikeRankedCandidates(
+      input.activeExamTarget,
+      normalizedQuery.englishTerms[0],
+    );
+    const inScopeLookalikes = dynamicLookalikes.filter(
+      (candidate) => candidate.inScope && candidate.meaningsZh.length > 0,
+    );
+
+    if (inScopeLookalikes.length < 2) {
+      return createNoMatchResult(
+        normalizedQuery,
+        uniqueRankedCandidates([...seedResolution.candidates, ...dynamicLookalikes]),
+        "low_confidence",
+      );
+    }
+
+    return createResolvedResult(
+      normalizedQuery,
+      inScopeLookalikes,
+      inScopeLookalikes.slice(0, 6).map(toRetrievalCandidate),
+      [],
+      null,
+    );
   }
 
   return createResolvedResult(

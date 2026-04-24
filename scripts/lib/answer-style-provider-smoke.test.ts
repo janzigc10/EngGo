@@ -55,7 +55,7 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
     expect(verdict.autoVerdict).toBe("pass");
     expect(verdict.hardFailures).toHaveLength(0);
     expect(verdict.manualChecks).toEqual(
-      expect.arrayContaining(["检查回答是否先给判断入口，而不是先铺词典解释"]),
+      expect.arrayContaining(["检查回答是否列出当前考试范围内召回到的相似词"]),
     );
     expect(verdict.manualFlags).toEqual([]);
   });

@@ -30,11 +30,13 @@
   - Windows PowerShell `Invoke-RestMethod` / `Invoke-WebRequest` 直接发送中文 JSON 到本地 `/api/chat` 时可能出现中文乱码，导致 query mode 误判；真实中文 smoke 优先用 Node `fetch` 或现有 TypeScript runner。
   - few-shot 已能把 DeepSeek 回答压到更像 EngGo，但仍有多词/词根 case 轻微超过当前 smoke 的严格字数阈值；这更像验收阈值与真实可读性之间的取舍，不宜继续只靠 prompt 无限压缩。
 - 已移除 `stationary/stationery` 的 `e -> envelope` / `a -> stay` 牵强字母口诀；后续新增 confusion groups 时不要把绕一层的字母联想写入 `memberNotes`，优先写真实搭配、词性、场景边界。
-- 真实词库来源是当前产品/内容侧主要 blocker：
+- 真实词库来源仍是当前产品/内容侧主要 blocker，但高考 / 四级 / 六级的首批 source-backed smoke 入口已解除：
   - 商业词书（星火、红宝书、新东方等）的完整释义、例句、辨析、助记、章节编排和品牌名不能直接抠进仓库；若要直接使用，需走正版授权。
   - 官方大纲更适合做 `lemma + examScopes` 的范围来源，不等于可直接得到 EngGo 需要的中文核心义、易混关系和做题抓手。
   - 已确认高中课标词汇表不标注词性和中文释义；后续 `meaningsZh` 应由 EngGo 自建/生成后人工审核。
-  - 下一轮不要把“找完整词书”作为唯一解法；优先做中等规模 dev real-smoke 数据集，先验证检索链路。
+  - 2026-04-24 已从教育部高中课标和中国教育考试网 CET 大纲提取 source lemma manifests，并用 86-entry `real-smoke` slice 解开 loader/seed blocker。
+  - `postgrad` 仍缺 entry-level 可机读官方词表；在没有可确认来源前，不要给 `real-smoke` 条目补 `postgrad` scope。
+  - 下一轮不要把“找完整词书”作为唯一解法；优先用现有 source-backed `real-smoke` slice 验证 scope-aware lookalike retrieval，再扩到中等规模 dev 数据集。
 - Playwright bundled Chromium 的历史缺失问题本 session 已变化：
   - `corepack pnpm exec playwright install --dry-run chromium` 显示 `chromium` 与 `chromium_headless_shell` install location 已存在
   - 这说明“缺少 bundled Chromium 二进制”不再是本 session 的直接 blocker

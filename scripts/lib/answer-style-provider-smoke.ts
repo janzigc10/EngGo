@@ -53,8 +53,10 @@ export type ProviderSmokeSummary = {
 };
 
 const DEFAULT_CONFUSION_MANUAL_CHECKS = [
-  "检查回答是否先给判断入口，而不是先铺词典解释",
-  "检查回答是否像 EngGo 的分流讲解，而不是泛泛罗列近义词",
+  "检查回答是否列出当前考试范围内召回到的相似词",
+  "检查回答是否给每个列出的词都配中文核心义",
+  "检查回答是否优先区分最容易混的 2 个，而不是平均铺开",
+  "检查回答是否给出一个具体做题抓手",
 ];
 
 const DEFAULT_ROOT_MANUAL_CHECKS = [

@@ -16,7 +16,16 @@ export type EnglishCandidateRow = {
   aliasWordSimilarity: number;
 };
 
+export type InScopeLookalikeRow = {
+  entryId: string;
+  lemma: string;
+  exactLemma: boolean;
+  lemmaSimilarity: number;
+  lemmaWordSimilarity: number;
+};
+
 const minimumFuzzySimilarity = 0.45;
+const minimumLookalikeSimilarity = 0.45;
 
 export async function findEnglishCandidateRows(
   activeExamTarget: ExamScopeCode,
@@ -86,5 +95,39 @@ export async function findEnglishCandidateRows(
       ) DESC,
       ve.lemma ASC
     LIMIT 8
+  `);
+}
+
+export async function findInScopeLookalikeRows(
+  activeExamTarget: ExamScopeCode,
+  needle: string,
+  limit = 8,
+) {
+  return db.$queryRaw<InScopeLookalikeRow[]>(Prisma.sql`
+    SELECT
+      ve.id AS "entryId",
+      ve.lemma,
+      ve.lemma = ${needle} AS "exactLemma",
+      similarity(ve.lemma, ${needle}) AS "lemmaSimilarity",
+      word_similarity(${needle}, ve.lemma) AS "lemmaWordSimilarity"
+    FROM "vocabulary_entry" ve
+    INNER JOIN "vocabulary_entry_scope" ves
+      ON ves."entryId" = ve.id
+      AND ves."scopeCode"::text = ${activeExamTarget}
+    WHERE
+      ve.lemma = ${needle}
+      OR GREATEST(
+        similarity(ve.lemma, ${needle}),
+        word_similarity(${needle}, ve.lemma)
+      ) >= ${minimumLookalikeSimilarity}
+    ORDER BY
+      "exactLemma" DESC,
+      GREATEST(
+        similarity(ve.lemma, ${needle}),
+        word_similarity(${needle}, ve.lemma)
+      ) DESC,
+      LENGTH(ve.lemma) ASC,
+      ve.lemma ASC
+    LIMIT ${limit}
   `);
 }

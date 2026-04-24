@@ -106,6 +106,42 @@ describe("buildGrounding", () => {
     expect(grounding.scopeReminder).toContain("abide");
     expect(grounding.followUpPrompt.length).toBeGreaterThan(0);
   });
+
+  it("uses confusion_untangle for resolved shape-neighbor recall without a curated group", () => {
+    const grounding = buildGrounding({
+      activeExamTarget: "cet6",
+      query: "跟 statue 很像的词有哪些",
+      queryMode: "shape_neighbor_search",
+      resolution: "resolved",
+      noMatchReason: null,
+      comparisonView: null,
+      mainAnswer: [
+        {
+          entryId: "statue",
+          lemma: "statue",
+          meaningsZh: ["雕像"],
+          matchedAlias: null,
+          scopeCodes: ["gaokao", "cet4", "cet6"],
+          inScope: true,
+          reason: "当前考试范围命中，英文形近召回",
+          score: 100,
+        },
+        {
+          entryId: "statute",
+          lemma: "statute",
+          meaningsZh: ["法令"],
+          matchedAlias: null,
+          scopeCodes: ["cet6"],
+          inScope: true,
+          reason: "当前考试范围命中，英文形近召回",
+          score: 90,
+        },
+      ],
+      confusionBoundary: [],
+    });
+
+    expect(grounding.answerStyle).toBe("confusion_untangle");
+  });
 });
 
 describe("createChatService", () => {

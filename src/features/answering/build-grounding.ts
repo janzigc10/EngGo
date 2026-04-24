@@ -52,6 +52,10 @@ function deriveAnswerStyle(
     return "root_family_summary";
   }
 
+  if (queryMode === "shape_neighbor_search") {
+    return "confusion_untangle";
+  }
+
   if (comparisonView) {
     return "confusion_untangle";
   }
