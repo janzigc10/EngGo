@@ -70,7 +70,7 @@
 - 能解释“为什么会混”
 - 能给出最核心的区分点
 
-- [ ] Step 2: 明确 retrieval 新模式与返回结构
+- [x] Step 2: 明确 retrieval 新模式与返回结构
 
 建议新增一类检索模式，暂名：
 
@@ -82,7 +82,7 @@
 - 它和 `direct_compare` / `fuzzy_recall` 的边界
 - 返回结构是否需要新增“相近词簇”字段，避免强塞进现有 `mainAnswer/confusionBoundary`
 
-- [ ] Step 3: 补最小数据模型与 seed 数据
+- [x] Step 3: 补最小数据模型与 seed 数据
 
 至少补一层“形近关系”数据，而不只依赖 trigram 相似度：
 
@@ -98,7 +98,7 @@
 - `quite / quiet`
 - `affect / effect`
 
-- [ ] Step 4: 实现 retrieval 侧的形近词簇召回
+- [x] Step 4: 实现 retrieval 侧的形近词簇召回
 
 目标：
 
@@ -107,7 +107,7 @@
 - 若命中显式人工关系，优先使用人工关系
 - trigram / word_similarity 作为补充召回，而不是唯一真相源
 
-- [ ] Step 5: 接入回答编排层与前端展示
+- [x] Step 5: 接入回答编排层与前端展示
 
 回答节奏建议：
 
@@ -117,7 +117,7 @@
 
 前端不要退化成纯搜索列表，但应允许一条回答里自然展示多个形近候选。
 
-- [ ] Step 6: 验证形近词簇能力后，再评估扩库压测
+- [x] Step 6: 验证形近词簇能力后，再评估扩库压测
 
 形近词簇稳定后，再进入下一轮：
 
@@ -125,6 +125,14 @@
 - 加入更多高混淆词族
 - 跑 retrieval-only 和 chat-level 两套评测
 - 观察误召回、漏召回、no-match 准确率和延迟
+
+本轮结论：
+
+- 新增 `corepack pnpm eval:shape`，用 9 个小样本同时覆盖 retrieval-only 与本地 fake-provider chat-level 检查。
+- 当前 seed 规模是 39 entries / 11 confusion groups。
+- 小样本评测通过：9 passed / 0 failed，平均耗时约 100~140ms。
+- 暂不直接扩到 300~500 词条；下一轮先补 30~50 个精选形近词族，再跑同一评测与 full chat batch。
+- `re+con` / `re...ct` 这类词根和碎片输入仍保持 deferred，不和本轮扩库混做。
 
 ## Deferred
 

@@ -4,10 +4,11 @@ import { Client } from "pg";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { db } from "@/lib/db";
-import { loadSeedContent } from "@/features/content/load-seed-content";
 import { seedContent } from "@/features/content/seed-content";
+import type { SeedContent } from "@/features/content/seed-content-rules";
 
 const sentinelEntryId = "sentinel-rollback-check";
+const validRollbackEntryId = "rollback-valid-entry";
 
 describe.skipIf(!process.env.DATABASE_URL)("seedContent", () => {
   afterEach(async () => {
@@ -50,18 +51,28 @@ describe.skipIf(!process.env.DATABASE_URL)("seedContent", () => {
       },
     });
 
-    const seedData = await loadSeedContent();
     const brokenSeedData = {
-      ...seedData,
-      confusionGroups: seedData.confusionGroups.map((group, index) =>
-        index === 0
-          ? {
-              ...group,
-              members: [...group.members, "missing-entry"],
-            }
-          : group,
-      ),
-    };
+      entries: [
+        {
+          id: validRollbackEntryId,
+          lemma: validRollbackEntryId,
+          aliases: [],
+          pos: ["noun"],
+          meaningsZh: ["事务回滚测试词条"],
+          examScopes: ["cet6"],
+          examples: [],
+          collocations: [],
+        },
+      ],
+      confusionGroups: [
+        {
+          id: "broken-rollback-group",
+          members: [validRollbackEntryId, "missing-entry"],
+          teachFirst: validRollbackEntryId,
+          whyConfusing: "This group intentionally references a missing entry.",
+        },
+      ],
+    } satisfies SeedContent;
 
     await expect(seedContent(db, brokenSeedData)).rejects.toThrow();
 

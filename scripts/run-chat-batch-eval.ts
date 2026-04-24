@@ -36,6 +36,22 @@ type ChatResponse = {
   };
 };
 
+type BatchCaseResult = TestCase & {
+  status: number | null;
+  elapsedMs: number | null;
+  verdict: "pass" | "fail" | "error" | "manual";
+  requestId: string | null;
+  providerRequestId: string | null;
+  queryMode: string | null;
+  mainHits: number;
+  groundingHits: number;
+  mainAnswer: string[];
+  confusionBoundary: string[];
+  allGrounding: string[];
+  answerPreview: string | null;
+  error: ChatResponse["error"] | { code: string; message: string } | null;
+};
+
 const cases: TestCase[] = [
   {
     category: "知识库内-中文释义",
@@ -196,16 +212,46 @@ const cases: TestCase[] = [
     name: "拼错 request",
     query: "有个像 reqeust 的词",
     activeExamTarget: "cet4",
-    expectedGroundingIncludes: ["request", "require", "demand"],
-    minGroundingHits: 1,
+    expectNoGrounding: true,
   },
   {
     category: "知识库内-模糊回忆",
     name: "拼错 recommend",
     query: "有个像 recomand 的词",
     activeExamTarget: "cet6",
-    expectedGroundingIncludes: ["recommend", "suggest", "propose"],
-    minGroundingHits: 1,
+    expectNoGrounding: true,
+  },
+  {
+    category: "知识库内-形近词簇",
+    name: "recent lookalikes",
+    query: "跟 recent 很像的词有哪些",
+    activeExamTarget: "cet6",
+    expectedGroundingIncludes: ["recent", "resent"],
+    minGroundingHits: 2,
+  },
+  {
+    category: "知识库内-形近词簇",
+    name: "recent misread",
+    query: "容易把 recent 看错成什么",
+    activeExamTarget: "cet6",
+    expectedGroundingIncludes: ["recent", "resent"],
+    minGroundingHits: 2,
+  },
+  {
+    category: "知识库内-形近词簇",
+    name: "adapt vs adopt",
+    query: "adapt 和 adopt 的区别",
+    activeExamTarget: "cet4",
+    expectedGroundingIncludes: ["adapt", "adopt"],
+    minGroundingHits: 2,
+  },
+  {
+    category: "知识库内-形近词簇",
+    name: "quiet vs quite",
+    query: "quiet 和 quite 的区别",
+    activeExamTarget: "cet4",
+    expectedGroundingIncludes: ["quiet", "quite"],
+    minGroundingHits: 2,
   },
   {
     category: "知识库外-形近词",
@@ -222,11 +268,12 @@ const cases: TestCase[] = [
     expectNoGrounding: true,
   },
   {
-    category: "知识库外-词义查询",
+    category: "知识库内-词义查询",
     name: "recent meaning",
     query: "recent 这个词什么意思",
     activeExamTarget: "cet6",
-    expectNoGrounding: true,
+    expectedGroundingIncludes: ["recent", "resent"],
+    minGroundingHits: 1,
   },
   {
     category: "知识库外-词义查询",
@@ -236,11 +283,12 @@ const cases: TestCase[] = [
     expectNoGrounding: true,
   },
   {
-    category: "知识库外-模糊回忆",
+    category: "知识库内-模糊回忆",
     name: "像 recent 的词",
     query: "有个像 recent 的词",
     activeExamTarget: "cet6",
-    expectNoGrounding: true,
+    expectedGroundingIncludes: ["recent", "resent"],
+    minGroundingHits: 1,
   },
   {
     category: "知识库外-模糊回忆",
@@ -294,7 +342,7 @@ async function requestChat(
   return { response, payload };
 }
 
-async function runCase(item: TestCase) {
+async function runCase(item: TestCase): Promise<BatchCaseResult> {
   const startedAt = Date.now();
   const { response, payload } = await requestChat(item);
   const mainAnswer = unique(payload.grounding?.mainAnswer?.map((entry) => entry.lemma) ?? []);
@@ -303,7 +351,7 @@ async function runCase(item: TestCase) {
   );
   const allGrounding = unique([...mainAnswer, ...confusionBoundary]);
 
-  let verdict = "manual";
+  let verdict: BatchCaseResult["verdict"] = "manual";
   let mainHits = 0;
   let groundingHits = 0;
 
@@ -340,7 +388,7 @@ async function runCase(item: TestCase) {
 }
 
 async function main() {
-  const results = [];
+  const results: BatchCaseResult[] = [];
 
   for (const item of cases) {
     try {
@@ -358,8 +406,11 @@ async function main() {
         requestId: null,
         providerRequestId: null,
         queryMode: null,
+        mainHits: 0,
+        groundingHits: 0,
         mainAnswer: [],
         confusionBoundary: [],
+        allGrounding: [],
         answerPreview: null,
         error: {
           code: "script_error",

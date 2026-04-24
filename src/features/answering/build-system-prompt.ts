@@ -2,7 +2,9 @@ import type { AnswerGrounding } from "@/features/answering/build-grounding";
 
 export function buildSystemPrompt(grounding: AnswerGrounding) {
   const comparisonModeInstruction = grounding.comparisonView
-    ? "当前问题已经命中易混词对比视图，优先用并列对比方式组织回答。"
+    ? grounding.queryMode === "shape_neighbor_search"
+      ? "当前问题已经命中形近词簇检索，优先先列出这组相近词，再说明为什么容易看错以及怎么区分。"
+      : "当前问题已经命中易混词对比视图，优先用并列对比方式组织回答。"
     : "当前问题优先先给主答案，再补充易混边界。";
 
   return [

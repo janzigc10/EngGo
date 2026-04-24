@@ -6,6 +6,9 @@ const compareCuePattern =
 const groupComparePattern =
   /([a-z]+(?:[-'][a-z]+)?)\s*(?:那组词|这一组词|这组词|这一组|这组).*(?:区别|差别|不同|怎么区分|怎么分)/i;
 const meaningNoisePattern = /(怎么说|什么意思|是什么|啥意思|英文|英语|单词|有个|像|的词)/g;
+const shapeNeighborCuePattern =
+  /(很像|形近|长得像|看错|看成|容易把|容易.*混|拼写.{0,4}(像|近|相似))/i;
+const shapeNeighborListPattern = /(哪些|什么|哪几个|列举|举例|有什么)/i;
 
 function normalizeAscii(text: string) {
   return text
@@ -61,6 +64,14 @@ function hasChinese(text: string) {
   return /[\u3400-\u9fff]/.test(text);
 }
 
+function containsShapeNeighborCue(normalizedText: string) {
+  if (!shapeNeighborCuePattern.test(normalizedText)) {
+    return false;
+  }
+
+  return shapeNeighborListPattern.test(normalizedText) || /(看错|看成|形近)/i.test(normalizedText);
+}
+
 export function analyzeQuery(query: string): {
   normalizedText: string;
   englishTerms: string[];
@@ -78,6 +89,8 @@ export function analyzeQuery(query: string): {
 
   if (groupSeedTerm || compareTerms.length >= 2) {
     queryMode = "direct_compare";
+  } else if (englishTerms.length === 1 && containsShapeNeighborCue(normalizedText)) {
+    queryMode = "shape_neighbor_search";
   } else if (englishTerms.length > 0 && !containsChinese) {
     queryMode = "direct_lookup";
   } else if (englishTerms.length > 0) {

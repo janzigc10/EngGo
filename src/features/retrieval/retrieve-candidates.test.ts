@@ -129,7 +129,7 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
   it("returns no-match for out-of-kb word meaning lookup", async () => {
     const result = await retrieveCandidates({
       activeExamTarget: "cet6",
-      query: "recent 这个词什么意思",
+      query: "zzzzword 这个词什么意思",
     });
 
     expect(result.resolution).toBe("no_match");
@@ -140,7 +140,7 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
   it("returns no-match for out-of-kb fuzzy recall", async () => {
     const result = await retrieveCandidates({
       activeExamTarget: "cet6",
-      query: "有个像 recent 的词",
+      query: "有个像 zzzzword 的词",
     });
 
     expect(result.resolution).toBe("no_match");
@@ -151,7 +151,7 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
   it("returns no-match for out-of-kb comparison", async () => {
     const result = await retrieveCandidates({
       activeExamTarget: "cet6",
-      query: "recent 和 consent 的区别",
+      query: "zzzzword 和 qqqqword 的区别",
     });
 
     expect(result.queryMode).toBe("direct_compare");
@@ -235,6 +235,41 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     expect(result.comparisonView?.members.map((member) => member.lemma)).toEqual(
       expect.arrayContaining(["quiet", "quite"]),
     );
+    expect(result.comparisonView?.semanticBoundaryNotes.length).toBeGreaterThan(0);
+  });
+
+  it("resolves access assess excess as a P0 shape-neighbor comparison group", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "access assess excess 怎么区分",
+    });
+
+    expect(result.queryMode).toBe("direct_compare");
+    expect(result.resolution).toBe("resolved");
+    expect(result.mainAnswer.map((candidate) => candidate.lemma)).toEqual([
+      "access",
+      "assess",
+      "excess",
+    ]);
+    expect(result.comparisonView?.id).toBe("access-assess-excess");
+    expect(result.comparisonView?.members.map((member) => member.lemma)).toEqual(
+      expect.arrayContaining(["access", "assess", "excess"]),
+    );
+    expect(result.comparisonView?.whyConfusing).toBeTruthy();
+  });
+
+  it("returns a lookalike cluster for breath", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet4",
+      query: "跟 breath 很像的词有哪些",
+    });
+
+    expect(result.queryMode).toBe("shape_neighbor_search");
+    expect(result.resolution).toBe("resolved");
+    expect(result.mainAnswer.map((candidate) => candidate.lemma)).toEqual(
+      expect.arrayContaining(["breath", "breathe"]),
+    );
+    expect(result.comparisonView?.id).toBe("breath-breathe");
     expect(result.comparisonView?.semanticBoundaryNotes.length).toBeGreaterThan(0);
   });
 

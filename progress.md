@@ -1,144 +1,125 @@
 # EngGo 滚动交接
 
 ## 当前阶段
-已完成 Task 1 至 Task 7，并已激活 fuzzy retrieval follow-up plan。当前完成 Step 1“形近词簇失败测试锁定”，停在 Step 2 入口。
+已完成 Task 1 至 Task 7、fuzzy retrieval follow-up plan Step 1-6，以及形近词簇 P0 seed 扩样本首轮。当前形近词簇能力已经从 3 个新组扩到 P0 全部 20 组，并通过 retrieval / eval / verify 验证。
+
+下一阶段不建议先继续堆词库；优先把 EngGo 的“解混淆语言”和回答风格定下来。新的路线文档已落盘：
+
+- [docs/superpowers/plans/2026-04-23-enggo-confusion-taxonomy-roadmap.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-enggo-confusion-taxonomy-roadmap.md)
+- [docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md)
+
+核心判断：EngGo 至少要区分两条完全不同的主线：
+
+- 易混解团：用户脑子里混着几个词，需要判断入口和做题分流。
+- 词根家族地图：用户有词根/前缀/碎片，需要结构化展开和优先级。
 
 ## 本 Session 已完成
-- 激活 [docs/superpowers/plans/2026-04-23-enggo-fuzzy-retrieval-followup.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-enggo-fuzzy-retrieval-followup.md)，并将 Step 1 勾选完成：
-  - 当前工作树里已存在 `src/features/retrieval/retrieve-candidates.test.ts` 的 shape-neighbor 失败测试草稿
-  - 本 session 复跑并确认其失败形态已收敛到真实产品缺口，而不是环境噪音
-- 先按文档要求做了环境健康检查并恢复本地库：
-  - 用原生 `pg` 直连 `DATABASE_URL`，确认最初是 `ECONNREFUSED`，原因是 `default` 的 `prisma dev` 实例未运行
-  - `corepack pnpm exec prisma dev ls` 在本机命中 `%TEMP%\\@prisma\\cli-dev@latest-*` 的 `EPERM`
-  - 改用 `node_modules\.bin\prisma.CMD dev rm default --force` + `node_modules\.bin\prisma.CMD dev -n default -d -p 51213 -P 51214 --shadow-db-port 51215` 重建实例后，`SELECT 1` 恢复通过
-- 重建库后重新建立测试基线：
-  - `corepack pnpm db:migrate` 通过
-  - `corepack pnpm db:seed` 首次报 `Received unexpected commandComplete message from backend`，确认 `vocabulary_entry/confusion_group` 计数仍为 `0 / 0` 后重试一次成功
-- 复核 Playwright 安装状态：
-  - `corepack pnpm exec playwright install --dry-run chromium` 显示 `chromium` 与 `chromium_headless_shell` install location 已存在
-  - 因此上个 session 里“缺少 bundled Chromium 二进制”的结论不再适用于本 session
-- 执行 `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts`，拿到新的 Step 1 失败基线：
-  - 总结果：`17 passed / 7 failed`
-  - 失败 1~2：`detectQueryMode("跟 recent 很像的词有哪些")`、`detectQueryMode("容易把 recent 看错成什么")` 仍返回 `fuzzy_recall`，没有进入 `shape_neighbor_search`
-  - 失败 3~4：`跟 recent 很像的词有哪些`、`容易把 recent 看错成什么` 仍按旧模式处理，无法返回词簇
-  - 失败 5~7：`recent/resent`、`adapt/adopt`、`quiet/quite` 三组形近词比较仍返回 `no_match`
-- 明确了用户对下一阶段产品方向的纠偏：
-  - 用户要的核心不是“标准查词 + 标准答案”，而是真正的模糊搜索
-  - 代表性目标例子：
-    - `re+con 的词根有什么词`
-    - `resent 和 recent 那么像的词要例举出来并且区分`
-    - `跟 recent 很像的词有哪些`
-  - 这意味着当前版本虽然在“少乱猜、对比更稳”上有进步，但还没有真正打到用户想要的核心价值
-- 对照 spec 与当前实现后确认：
-  - spec 已要求 retrieval 支持 `misspellings`、`root or fragment input`、`natural-language descriptions of half-remembered words`
-  - 当前实现主要还是 `meaning_lookup / direct_lookup / fuzzy_recall / direct_compare`
-  - 当前 fuzzy retrieval 本质上仍是“单个英文词的稳定候选选择”，不是“形近词簇 / 碎片 / 词根”的模糊联想检索
-  - `fuzzy_recall` 现在只接受单个英文 token；像 `re+con` 这种多片段输入会直接落到 `low_confidence/no_match`
-- 为下一个 session 新增一份候选 follow-up plan：
-  - [docs/superpowers/plans/2026-04-23-enggo-fuzzy-retrieval-followup.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-enggo-fuzzy-retrieval-followup.md)
-  - 核心结论：不要先盲目扩词库，先做“形近词簇检索 + 区分”，再评估扩库压测
-- 复核当前活跃 implementation plan：`docs/superpowers/plans/2026-04-21-enggo-chat-mvp.md` 的 Task 1 ~ Task 7 已全部勾选完成，当前没有 plan 内遗留的未勾选 step。
-- 执行 `corepack pnpm verify` 复核当前版本验证状态：
-  - `lint` 通过
-  - `test:unit` 通过：`7 files / 17 tests passed`
-  - `test:integration` 通过：`2 files / 18 tests passed`
-  - `test:e2e` 未通过：3 条 Playwright 用例均因本机缺少 Chromium 可执行文件而在启动阶段失败，不是业务断言失败
-- 追加核查 Playwright 浏览器安装问题：
-  - Playwright 官方 CDN 可访问，当前版本 `chrome-win64.zip` / `chrome-headless-shell-win64.zip` 的 HEAD 请求均返回 `200`
-  - 常见国内镜像 `https://npmmirror.com/mirrors/playwright` 对当前 `cft` 路径返回 `404`，单纯切镜像不能解决本轮问题
-  - 直接用 Playwright 拉起本机已安装的 `msedge` 成功，因此改用临时 Edge 配置复跑 E2E
-- 执行 `corepack pnpm exec playwright test --config playwright.msedge.config.ts`：
-  - `tests/e2e/app-shell.spec.ts` 通过
-  - `tests/e2e/chat-mvp.spec.ts` 通过
-  - `tests/e2e/collection-flow.spec.ts` 通过
-  - 结果：`3 passed`
-- 落地“Retrieval 闸门收紧与硬空结果保护”首轮实现，覆盖：
-  - `NormalizedQuery.compareTerms` 从二元组改为 `string[]`
-  - 新增 `groupSeedTerm`
-  - 新增 `resolution: "resolved" | "no_match"` 与 `noMatchReason`
-  - compare / group compare / direct lookup / fuzzy recall 统一走“两段式”检索：先选 `mainAnswer`，再决定是否扩 `confusionBoundary`
-- `normalize-query.ts` 已支持：
-  - 多词 compare：`a 和 b 的区别`、`a、b、c 怎么区分`、`a b c 的区别`
-  - group compare：`respect 那组词怎么分`
-  - “哪个”句式 compare：`affect 和 effect 哪个是动词`
-- `retrieve-candidates.ts` 已按 plan 收紧：
-  - 英文 fuzzy 阈值固定为 `direct_lookup: 0.62 / 0.08`、`fuzzy_recall: 0.68 / 0.12`
-  - compare 命中不足 2 个时直接 `no_match`
-  - `confusionBoundary` 只从单个显式 `confusionGroup` 扩，不再全局 top-N 拼接
-  - 库外 meaning / fuzzy / compare 都会硬空结果，不再硬猜
-- `build-grounding.ts`、`chat-service.ts`、`/api/chat` 已完成 no-match 闭环：
-  - `buildGrounding` 不再自己从候选里切 top-N
-  - `createChatService` 在 `no_match` 时直接返回固定中文兜底，不调用 LLM
-  - `/api/chat` 对 no-match 维持 HTTP 200
-- `message-thread.tsx` 已补空结果展示：
-  - no-match 时不渲染空白主答案区块
-  - `AnswerActions` 继续在 `mainAnswer.length === 0` 时隐藏
-- 为绕开本地 Windows + Prisma dev 的已知不稳定点，中文释义检索改成“原生 `pg` 查 meaning entryId + Prisma 按 id 回表”，不再走那条会打挂连接的 Prisma relation-filter 查询。
-- `src/lib/db.ts` 已把非生产环境 Prisma pg adapter 连接池收紧为 `max=1`，并启用 `allowExitOnIdle`，用于降低本地顺序联调时的连接崩坏概率。
-- `scripts/run-chat-batch-eval.ts` 已补两项韧性：
-  - 不再把缺少 `grounding` 的错误响应直接算成脚本崩溃
-  - 对 429 增加退避重试
+- 本次接力先复跑健康基线：
+  - `corepack pnpm exec prisma dev ls`：`enggo` running
+  - `corepack pnpm exec tsx scripts/check-seed-content.ts`：82 entries / 31 confusion groups
+  - `corepack pnpm eval:shape`：34 passed / 0 failed，平均耗时约 131ms
+- 已按 `2026-04-23-enggo-confusion-taxonomy-roadmap.md` 创建正式 implementation plan：
+  - [docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md)
+  - 第一阶段限定为 answer style / query mode / minimal root prototype / deterministic eval
+  - 明确不新增 root 数据表、不扩 P1 seed、不放宽 `reqeust` / `recomand` typo 闸门
+- 已阅读相关代码入口并把计划落到具体文件：
+  - `src/features/answering/build-system-prompt.ts`
+  - `src/features/answering/build-grounding.ts`
+  - `src/features/answering/chat-service.ts`
+  - `src/features/retrieval/normalize-query.ts`
+  - `src/features/retrieval/retrieve-candidates.ts`
+  - `scripts/run-shape-neighbor-eval.ts`
+- 按交接先复跑基线：
+  - `corepack pnpm exec prisma dev ls`：`enggo` running
+  - `corepack pnpm db:seed`：成功
+  - `corepack pnpm eval:shape`：初始基线 9 passed / 0 failed
+- 创建下一轮 implementation plan：
+  - [docs/superpowers/plans/2026-04-23-shape-neighbor-p0-seed-expansion.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-shape-neighbor-p0-seed-expansion.md)
+  - 选择候选池 P0 全部 20 组入 seed，P1 暂不碰
+- 按 TDD 红灯先加覆盖：
+  - `scripts/run-shape-neighbor-eval.ts` 新增 25 个 P0 case：5 个 shape-neighbor list/misread case + 20 个 direct compare case
+  - `src/features/retrieval/retrieve-candidates.test.ts` 新增 2 个 P0 集成测试：`access / assess / excess` 和 `breath / breathe`
+  - 加 seed 前验证红灯：`eval:shape` 9 passed / 25 failed；retrieval test 24 passed / 2 failed，失败原因均为缺 seed grounding / comparisonView
+- 完成 P0 seed 扩样本：
+  - `data/exam-vocab/seed/entries.json` 新增 43 个词条
+  - `data/exam-vocab/seed/confusion-groups.json` 新增 20 个 P0 confusion groups
+  - 当前 seed 规模：82 entries / 31 confusion groups
+  - 覆盖范围仍包含 gaokao / cet4 / cet6 / postgrad
+- 修复扩样本后暴露的测试性能问题：
+  - `corepack pnpm verify` 首次在 `src/features/content/seed-content.test.ts` 超时失败
+  - 根因：该测试原本加载完整 seed 作为 broken fixture，P0 扩样本后执行时间超过 Vitest 默认 5s
+  - 修复：改成最小 broken seed fixture，不再依赖完整 seed 数据量
+  - 默认超时下该测试从 5s timeout 降到约 0.8s 通过
+- 更新并勾选 P0 implementation plan 的已完成步骤。
+- 结合真实 MiniMax smoke 和 DeepSeek 分享内容，整理下一阶段路线：
+  - DeepSeek 的 `stitute` / `tempt` / `re- + con- 同根` 词根地图有参考价值，但太容易发散。
+  - EngGo 应吸收“构词故事”和“不要硬凑规律”，同时收束成考试导向的结构化地图。
+  - 明确新增混淆 taxonomy：形近解团、词根地图、中文同义分流、词性派生树、搭配锁、前缀方向图、发音近似、碎片召回、场景错配、逻辑关系。
 
 ## 当前结果
-- 产品方向判断：
-  - 这轮代码已经把“不要乱猜”做得比第一版明显更稳
-  - 但从用户刚补充的目标看，当前版本仍更像“收紧后的考试词问答器”，还不是“真正的模糊搜索器”
-  - 下一阶段最值得优先验证的不是继续抛光旧例子，而是能否真正处理 `recent/resent` 这类形近词簇问题
-- 当前验证状态（本 session 最新复核）：
-  - retrieval follow-up 的最新基线是 `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts` -> `17 passed / 7 failed`
-  - 这 7 个失败全部聚焦 shape-neighbor 能力缺口，不再掺杂空库/缺表问题
-  - 旧的“`retrieve-candidates.test.ts` 全绿 / 29 passed”结论已过时，因为同文件现在已纳入 Step 1 的失败测试
-- Playwright 环境状态：
-  - `corepack pnpm exec playwright install --dry-run chromium` 已显示 bundled Chromium 安装位存在
-  - 默认 `corepack pnpm test:e2e` 是否恢复，本 session 未复跑；旧的“因为缺少 `chromium_headless_shell` 无法启动”需要视作历史结论
-- 定向 lint 已通过：
-  - `corepack pnpm exec eslint src/features/retrieval src/features/answering src/app/api/chat/route.ts src/components/chat/message-thread.tsx src/components/chat/chat-workspace.test.tsx src/components/chat/answer-actions.test.tsx src/lib/db.ts`
-- 本地真实 `/api/chat` 已手工确认通过的代表性 case：
-  - `遵从怎么说` -> `comply` + `conform/defer`
-  - `restrain 和 constrain 的区别` -> compare resolved
-  - `comply、conform、defer 怎么区分` -> 三词 compare resolved
-  - `respect、respective、respectful、respectable 怎么区分` -> 四词 compare resolved
-  - `recent 这个词什么意思` -> `no_match`
-- 当前全量 27 条 batch eval 仍未拿到稳定最终结论：
-  - 产品逻辑层面，库外 no-match 与多词 compare 已明显稳定
-  - `scripts/run-chat-batch-eval.ts` 已补 429 退避重试与错误响应保护
-  - 但长时间连续调用 MiniMax 兼容接口时仍会触发 429，导致 full batch 可能被外部限流拖慢或超时
+- 形近词簇 seed 从 39 entries / 11 groups 扩到 82 entries / 31 groups。
+- P0 新增组：
+  - `access / assess / excess`
+  - `advice / advise`
+  - `accept / except`
+  - `aboard / abroad`
+  - `angel / angle / ankle`
+  - `assure / ensure / insure`
+  - `complement / compliment`
+  - `principal / principle`
+  - `personal / personnel`
+  - `economic / economical`
+  - `conscious / conscience`
+  - `precede / proceed`
+  - `perspective / prospective`
+  - `historic / historical`
+  - `sensible / sensitive`
+  - `considerable / considerate`
+  - `stationary / stationery`
+  - `device / devise`
+  - `loose / lose`
+  - `breath / breathe`
+- 当前形近词簇闭环仍复用现有数据结构：query mode -> `confusion_group` -> retrieval result -> grounding/prompt -> UI 多主答案展示。
+- 未新增表、未新增 `kind` 字段、未改变 UI 结构。
 
 ## 剩余关注点
-1. 当前严格阈值下，`reqeust` / `recomand` 这类常见拼错仍会走 `no_match`。这符合本轮“宁可空结果也不硬猜”的方向，但如果产品要支持这类 typo，需要单独设计更保守的 typo 策略。
-2. 若下个 session 要继续跑全量 batch eval，先确认 MiniMax 限流窗口恢复；必要时拆小批次跑，不要连续轰 27 条。
-3. 本地继续开发前，仍要先做 `prisma dev` 健康检查；一旦出现 `Connection terminated unexpectedly` / `ECONNRESET`，先重建实例再验证。
-4. 默认 `pnpm test:e2e` / `pnpm verify` 是否已恢复，本 session 未复跑；至少 `corepack pnpm exec playwright install --dry-run chromium` 已显示 bundled Chromium 安装位存在，因此旧的“缺少浏览器二进制”结论需要作废。
-5. 当前最核心的产品缺口不是词库数量，而是 retrieval 还没有支持用户真正想要的两类问法：
-  - 形近词簇检索：`recent / resent` 这种“列举并区分”
-  - 词根 / 碎片检索：`re+con` 这种 fragment 输入
-6. 在这两类模糊检索模式没做出来前，直接大规模扩库更可能放大误召回和 `no_match`，不建议作为下一刀。
+1. `EngGo Answer Style + Root Family Map` implementation plan 已创建；下一步按该 plan 从 Task 1 Step 1 开始，不要先继续 P1 扩样本。
+2. 词根 / 碎片检索仍未实现，`re+con`、`re...ct` 这类输入仍是 deferred；但路线已明确为 `root_family_summary` 主线。
+3. `reqeust` / `recomand` 这类 typo 仍需要单独设计，不能简单放宽当前低置信度闸门。
+4. 真实 MiniMax `/anthropic/v1/messages` 已通过临时命令跑通；key 未写入文件。正式接入前建议补 Anthropic-compatible provider adapter。
+5. Windows + local Prisma Postgres (`prisma dev`) 仍不稳定；本 session 真实模型 smoke 前曾触发 `Connection terminated unexpectedly`，已按 `bugs.md` 路径重建并恢复。
+6. `corepack pnpm exec tsc --noEmit` 本 session 未重跑；此前已知仍失败，剩余是既有工程债，不属于本轮 P0 shape-neighbor 回归。
 
 ## 下一 Session 第一件事
-- 先从 `src/features/retrieval/retrieve-candidates.test.ts` 已锁定的 7 个 failing tests 开始，不要并行推进扩库、batch eval 或 fragment retrieval。
-- 执行 follow-up plan 的 Step 2：
-  - 明确 `shape_neighbor_search` 的触发条件
-  - 定义它与 `direct_compare` / `fuzzy_recall` 的边界
-  - 决定是否继续复用 `mainAnswer/confusionBoundary/comparisonView`，还是新增专用返回结构
-- 执行 follow-up plan 的 Step 3：
-  - 先补 `recent/resent`、`adapt/adopt`、`quiet/quite` 的最小数据表达
-  - 再决定 `affect/effect` 是否纳入同一批 shape-neighbor seed
-- 如果本地 `prisma dev` 再掉线，优先按 `bugs.md` 里记录的仓库内 Prisma 二进制恢复路径重建，再重跑 `db:migrate` / `db:seed`
+- 先读并严格执行：
+  - [docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md)
+- 从 `Task 1: Add Answer Style Contract And Prompt Guardrails` 的 `Step 1` 开始，先写 failing prompt tests。
+- 每完成一个 step，立即把 plan 中对应 `- [ ]` 改成 `- [x]`。
+- 执行时保持串行验证；不要并行跑 `verify`、`eval:shape`、`eval:answer-style` 这类会访问 Prisma dev 或完整链路的命令。
+- 本阶段仍不新建 root 数据表，不扩 P1 seed，不放宽 typo 闸门。
 
 ## 当前阻塞 / 风险
-- follow-up plan 已进入 Step 2 入口，但当前仍被 `retrieve-candidates.test.ts` 的 7 个 shape-neighbor failing tests 卡住；在它们转绿前不应进入下一条产品 task。
-- Windows + local Prisma Postgres (`prisma dev`) 仍然不是稳定环境；虽然当前代码已经避开最容易打挂的查询，并把连接池收紧到 1，但根因不在本轮范围内。
-- MiniMax 兼容接口在长时间批量联调下会返回 429；这会影响全量 eval 的稳定性，但不代表检索/grounding 逻辑回退。
+- 当前没有 shape-neighbor 测试阻塞。
+- 不建议本地并行跑 `verify` 和 `eval:shape` 这类会访问 Prisma dev 的命令。
+- 真实模型 batch eval 仍受 provider key、dev server、MiniMax 429 影响。
+- 若下一轮继续扩 seed，`seed-content.test.ts` 已改为最小 fixture，应不再随 seed 规模线性变慢；若再次超时，先按 `bugs.md` 的 Prisma dev 健康检查路径排查。
 
 ## 最近验证基线
-- `node_modules\.bin\prisma.CMD dev rm default --force`
-- `node_modules\.bin\prisma.CMD dev -n default -d -p 51213 -P 51214 --shadow-db-port 51215`
-- `corepack pnpm db:migrate`
+- `corepack pnpm exec prisma dev ls`
+  - 当前状态：`enggo` running
 - `corepack pnpm db:seed`
-- `corepack pnpm exec playwright install --dry-run chromium`
+  - 当前状态：通过
+- `corepack pnpm exec tsx scripts/check-seed-content.ts`
+  - 当前状态：82 entries / 31 confusion groups
+- `corepack pnpm eval:shape`
+  - 当前状态：34 passed / 0 failed，平均耗时约 131ms
+- `corepack pnpm test src/features/content/seed-content.test.ts`
+  - 当前状态：1 passed / 1 passed
 - `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts`
-  - 当前状态：`17 passed / 7 failed`，失败点全部集中在 Step 1 新锁定的 shape-neighbor case
-- `corepack pnpm exec tsx scripts/run-chat-batch-eval.ts`
-  - 当前状态：脚本已能正确处理 429 与错误响应，但 full batch 仍受 provider 限流影响，未拿到稳定终局分数
-- `corepack pnpm exec eslint src/features/retrieval src/features/answering src/app/api/chat/route.ts src/components/chat/message-thread.tsx src/components/chat/chat-workspace.test.tsx src/components/chat/answer-actions.test.tsx src/lib/db.ts`
-- 手工请求 `/api/chat` 验证上述代表性 resolved / no-match case
+  - 当前状态：26 passed / 26 passed
+- `corepack pnpm exec eslint scripts/run-shape-neighbor-eval.ts src/features/retrieval/retrieve-candidates.test.ts`
+  - 当前状态：通过
+- `corepack pnpm verify`
+  - 当前状态：通过（lint、unit、integration、默认 Chromium E2E 均通过）
+- `corepack pnpm exec tsc --noEmit`
+  - 当前状态：本 session 未重跑；此前已知失败，集中在既有测试 fixture 类型收窄、`use-chat-session` 响应联合类型、`pg` ESM 声明缺失和其连带 row 隐式 any

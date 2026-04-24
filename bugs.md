@@ -8,13 +8,15 @@
   - `corepack pnpm exec prisma dev ls` / `corepack pnpm exec prisma dev ...` 在本机还可能报 `%TEMP%\\@prisma\\cli-dev@latest-*` 的 `EPERM, Permission denied`
 - 当前可复用的恢复路径仍是：
   - 若 `corepack pnpm exec prisma dev ...` 命中上面的 `EPERM`，改用仓库内 Prisma 二进制：
-    - `node_modules\.bin\prisma.CMD dev rm default --force`
-    - `node_modules\.bin\prisma.CMD dev -n default -d -p 51213 -P 51214 --shadow-db-port 51215`
+    - 当前 `.env` 指向的实例名是 `enggo`
+    - 如需重建：`node_modules\.bin\prisma.CMD dev rm enggo --force`
+    - 如需启动：`node_modules\.bin\prisma.CMD dev -n enggo -d -p 51213 -P 51214 --shadow-db-port 51215`
   - 然后重新执行 `corepack pnpm db:migrate`、`corepack pnpm db:seed`
   - 若 `corepack pnpm db:seed` 首次报 `Received unexpected commandComplete message from backend`，先确认 `vocabulary_entry` / `confusion_group` 计数仍是 `0 / 0`，再重试一次
 - 本地 Prisma adapter 在开发联调时容易把连接打坏：
   - 当前仓库 workaround 是把 `src/lib/db.ts` 中的非生产连接池收紧到 `max=1`
   - 这能降低连续 `/api/chat` 请求时的掉线概率，但不是根治
+  - 不要把 `corepack pnpm verify` 与 `corepack pnpm eval:shape` 这类会访问本地库的命令并行跑；本 session 并行跑过一次后，`prisma dev ls` 仍显示 running，但原生 `pg SELECT 1` 已报 `Connection terminated unexpectedly`
 - 中文释义检索原先那条 Prisma relation-filter 查询在本地环境会直接打挂连接：
   - 当前仓库 workaround 已改成“原生 `pg` 查 `vocabulary_meaning` -> Prisma 按 id 回表”
   - 后续如果再改 meaning lookup，优先沿用这条两段式路径，不要再切回原查询
@@ -25,29 +27,35 @@
 - Playwright bundled Chromium 的历史缺失问题本 session 已变化：
   - `corepack pnpm exec playwright install --dry-run chromium` 显示 `chromium` 与 `chromium_headless_shell` install location 已存在
   - 这说明“缺少 bundled Chromium 二进制”不再是本 session 的直接 blocker
-  - 本 session 未重新跑默认 `corepack pnpm test:e2e`，因此默认链路是否已恢复仍待单独复核
+  - 本 session 已通过默认 `corepack pnpm verify` 复跑 Chromium E2E，默认链路已恢复
+- `corepack pnpm exec tsc --noEmit` 仍失败，不属于当前 shape-neighbor 断言回归：
+  - `scripts/run-chat-batch-eval.ts` 的 `results` 隐式 `any[]` 已在 Step 6 中修掉
+  - 部分测试 fixture 的 `activeExamTarget` / `examScopes` 被 TypeScript 推宽为 `string`
+  - `src/features/chat/use-chat-session.ts` 的 API 成功/错误响应联合类型还需要收窄
+  - `pg` ESM 入口仍缺少当前解析路径下的声明文件
+  - `retrieve-candidates.ts` 中 `row` 的隐式 any 是 `pg` 声明缺失的连带症状
+  - 后续如果要把 `tsc --noEmit` 纳入 `verify`，需要单独清这批工程债
 
 ## 当前产品侧残留
 - 本轮已锁定“低置信度宁可 no-match 不硬猜”，因此两类常见拼错目前仍会被挡掉：
   - `有个像 reqeust 的词`
   - `有个像 recomand 的词`
 - 这不是回归 bug，而是当前阈值策略的副作用；如果后续决定支持这类 typo，需要单独设计更保守的 typo 识别策略，避免重新引入知识库外误召回。
-- 当前实现距离用户真正要的“模糊搜索”还有一层明确缺口：
-  - 用户要的代表性效果是：
-    - `re+con 的词根有什么词`
-    - `resent 和 recent 那么像的词要例举出来并且区分`
-    - `跟 recent 很像的词有哪些`
-  - 当前 retrieval 还没有专门的“形近词簇”或“词根 / 碎片”检索模式
-  - 当前 `fuzzy_recall` 本质上还是单个英文词的稳定候选选择；像 `re+con` 这种 fragment / 多片段输入会落到 `low_confidence` 或 `no_match`
-  - 当前也没有对应的数据层来显式表达 `recent / resent` 这类“为什么像、怎么区分、容易看错成什么”
+- 当前实现距离用户真正要的“模糊搜索”仍有残留缺口：
+  - 已补首批形近词簇检索：`跟 recent 很像的词有哪些`、`容易把 recent 看错成什么`、`recent/resent`、`adapt/adopt`、`quiet/quite`
+  - 词根 / 碎片检索仍未实现：`re+con 的词根有什么词`、`con 开头、re 相关的词`、`re...ct 这种词`
+  - 当前 `fuzzy_recall` 对 fragment / 多片段输入仍会落到 `low_confidence` 或 `no_match`
 - 结论：
-  - 下一步不建议先盲目扩库
-  - 应先补“形近词簇检索 + 区分”，再评估词根 / 碎片检索，最后再做大规模扩库压测
+  - 形近词簇小样本已通过 `corepack pnpm eval:shape`
+  - 下一步建议先补 30-50 个精选形近词族，再评估是否扩到 300-500 词
+  - 词根 / 碎片检索应作为形近词簇扩样本后的下一轮能力，不要和大规模扩库混在一起做
 
 ## 已处理
 - `retrieveCandidates -> buildGrounding -> chatService` 的 no-match 闭环已落地，库外 meaning / fuzzy / compare 不再硬猜。
 - 多词 compare、group compare、`哪个` 句式 compare 已支持。
 - no-match UI 已避免空白主答案卡片。
+- 首批形近词簇检索已支持，并复用现有 `confusion_group` 表达 why-confusing / boundary notes。
+- `corepack pnpm eval:shape` 已作为 Step 6 小样本评测入口，覆盖 retrieval-only 与 fake-provider chat-level 编排。
 
 ## 后续关注
 - 正式部署前，仍需要在标准 PostgreSQL 环境里重跑 migration / seed / 验证闭环，不要把本地 Prisma dev 的稳定性结论直接外推到正式环境。

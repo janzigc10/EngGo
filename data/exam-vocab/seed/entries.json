@@ -140,6 +140,26 @@
     "collocations": ["respectable income"]
   },
   {
+    "id": "recent",
+    "lemma": "recent",
+    "aliases": ["recent years"],
+    "pos": ["adjective"],
+    "meaningsZh": ["最近的", "近来的"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": ["Recent studies show a clear change in reading habits."],
+    "collocations": ["recent years", "recent studies"]
+  },
+  {
+    "id": "resent",
+    "lemma": "resent",
+    "aliases": ["resent criticism"],
+    "pos": ["verb"],
+    "meaningsZh": ["怨恨", "愤慨", "对……感到不满"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["She did not resent the criticism because it was fair."],
+    "collocations": ["resent criticism", "resent being ignored"]
+  },
+  {
     "id": "regard",
     "lemma": "regard",
     "aliases": ["regard as"],
@@ -208,6 +228,16 @@
     "examScopes": ["gaokao", "cet4"],
     "examples": ["It takes time to adapt to a new environment."],
     "collocations": ["adapt to change"]
+  },
+  {
+    "id": "adopt",
+    "lemma": "adopt",
+    "aliases": ["adopt a policy"],
+    "pos": ["verb"],
+    "meaningsZh": ["采纳", "采用", "收养"],
+    "examScopes": ["gaokao", "cet4", "cet6"],
+    "examples": ["The school will adopt a new policy next term."],
+    "collocations": ["adopt a policy", "adopt a child"]
   },
   {
     "id": "adjust",
@@ -338,5 +368,455 @@
     "examScopes": ["gaokao", "cet4"],
     "examples": ["You can request a copy of the report."],
     "collocations": ["request permission"]
+  },
+  {
+    "id": "quiet",
+    "lemma": "quiet",
+    "aliases": ["keep quiet"],
+    "pos": ["adjective", "noun"],
+    "meaningsZh": ["安静的", "安静", "平静的"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["Please keep quiet while others are reading."],
+    "collocations": ["keep quiet", "a quiet room"]
+  },
+  {
+    "id": "quite",
+    "lemma": "quite",
+    "aliases": ["quite good"],
+    "pos": ["adverb"],
+    "meaningsZh": ["相当", "很", "完全"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["The question is quite difficult for beginners."],
+    "collocations": ["quite good", "quite different"]
+  },
+  {
+    "id": "access",
+    "lemma": "access",
+    "aliases": ["have access to"],
+    "pos": ["noun", "verb"],
+    "meaningsZh": ["进入权", "使用权", "访问"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": ["Students have access to the online library."],
+    "collocations": ["access to information", "have access to"]
+  },
+  {
+    "id": "assess",
+    "lemma": "assess",
+    "aliases": ["assess the risk"],
+    "pos": ["verb"],
+    "meaningsZh": ["评估", "评价"],
+    "examScopes": ["cet4", "cet6", "postgrad"],
+    "examples": ["The teacher will assess each student's progress."],
+    "collocations": ["assess the impact", "assess the risk"]
+  },
+  {
+    "id": "excess",
+    "lemma": "excess",
+    "aliases": ["in excess of"],
+    "pos": ["noun", "adjective"],
+    "meaningsZh": ["过量", "过度的", "超过"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": ["Excess sugar may harm your health."],
+    "collocations": ["excess weight", "in excess of"]
+  },
+  {
+    "id": "advice",
+    "lemma": "advice",
+    "aliases": ["a piece of advice"],
+    "pos": ["noun"],
+    "meaningsZh": ["建议", "忠告"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["Her advice helped me prepare for the exam."],
+    "collocations": ["give advice", "a piece of advice"]
+  },
+  {
+    "id": "advise",
+    "lemma": "advise",
+    "aliases": ["advise sb to do"],
+    "pos": ["verb"],
+    "meaningsZh": ["建议", "劝告"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["The doctor advised him to rest for a few days."],
+    "collocations": ["advise someone to do", "strongly advise"]
+  },
+  {
+    "id": "accept",
+    "lemma": "accept",
+    "aliases": ["accept an offer"],
+    "pos": ["verb"],
+    "meaningsZh": ["接受", "承认"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["She accepted the invitation with pleasure."],
+    "collocations": ["accept an offer", "accept responsibility"]
+  },
+  {
+    "id": "except",
+    "lemma": "except",
+    "aliases": ["except for"],
+    "pos": ["preposition", "conjunction"],
+    "meaningsZh": ["除……之外"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["Everyone passed the test except Tom."],
+    "collocations": ["except for", "all except"]
+  },
+  {
+    "id": "aboard",
+    "lemma": "aboard",
+    "aliases": ["go aboard"],
+    "pos": ["adverb", "preposition"],
+    "meaningsZh": ["在船上", "在飞机上", "上交通工具"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["Passengers are already aboard the plane."],
+    "collocations": ["go aboard", "aboard the ship"]
+  },
+  {
+    "id": "abroad",
+    "lemma": "abroad",
+    "aliases": ["study abroad"],
+    "pos": ["adverb"],
+    "meaningsZh": ["在国外", "到国外"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["Many students hope to study abroad."],
+    "collocations": ["study abroad", "go abroad"]
+  },
+  {
+    "id": "angel",
+    "lemma": "angel",
+    "aliases": ["guardian angel"],
+    "pos": ["noun"],
+    "meaningsZh": ["天使"],
+    "examScopes": ["gaokao"],
+    "examples": ["The child in the story is described as an angel."],
+    "collocations": ["guardian angel"]
+  },
+  {
+    "id": "angle",
+    "lemma": "angle",
+    "aliases": ["right angle"],
+    "pos": ["noun"],
+    "meaningsZh": ["角", "角度", "观点"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["Try to look at the problem from another angle."],
+    "collocations": ["right angle", "from another angle"]
+  },
+  {
+    "id": "ankle",
+    "lemma": "ankle",
+    "aliases": ["sprained ankle"],
+    "pos": ["noun"],
+    "meaningsZh": ["脚踝"],
+    "examScopes": ["gaokao"],
+    "examples": ["He hurt his ankle during the match."],
+    "collocations": ["sprained ankle", "hurt one's ankle"]
+  },
+  {
+    "id": "assure",
+    "lemma": "assure",
+    "aliases": ["assure sb that"],
+    "pos": ["verb"],
+    "meaningsZh": ["向……保证", "使安心"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": ["The guide assured us that the road was safe."],
+    "collocations": ["assure someone that", "assure someone of"]
+  },
+  {
+    "id": "ensure",
+    "lemma": "ensure",
+    "aliases": ["ensure safety"],
+    "pos": ["verb"],
+    "meaningsZh": ["确保", "保证"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": ["Clear rules help ensure fair competition."],
+    "collocations": ["ensure safety", "ensure success"]
+  },
+  {
+    "id": "insure",
+    "lemma": "insure",
+    "aliases": ["insure against"],
+    "pos": ["verb"],
+    "meaningsZh": ["给……保险", "投保"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["The company insured the building against fire."],
+    "collocations": ["insure against loss", "insure a car"]
+  },
+  {
+    "id": "complement",
+    "lemma": "complement",
+    "aliases": ["complement each other"],
+    "pos": ["verb", "noun"],
+    "meaningsZh": ["补充", "补足物", "相配"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["The two skills complement each other well."],
+    "collocations": ["complement each other", "perfect complement"]
+  },
+  {
+    "id": "compliment",
+    "lemma": "compliment",
+    "aliases": ["pay a compliment"],
+    "pos": ["noun", "verb"],
+    "meaningsZh": ["称赞", "赞美"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": ["She received a compliment on her clear speech."],
+    "collocations": ["pay a compliment", "compliment someone on"]
+  },
+  {
+    "id": "principal",
+    "lemma": "principal",
+    "aliases": ["school principal"],
+    "pos": ["noun", "adjective"],
+    "meaningsZh": ["校长", "负责人", "主要的"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["The principal reason for the change was safety."],
+    "collocations": ["school principal", "principal reason"]
+  },
+  {
+    "id": "principle",
+    "lemma": "principle",
+    "aliases": ["basic principle"],
+    "pos": ["noun"],
+    "meaningsZh": ["原则", "原理"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["Honesty is a basic principle in academic work."],
+    "collocations": ["basic principle", "in principle"]
+  },
+  {
+    "id": "personal",
+    "lemma": "personal",
+    "aliases": ["personal information"],
+    "pos": ["adjective"],
+    "meaningsZh": ["个人的", "私人的"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": ["Do not share personal information online."],
+    "collocations": ["personal information", "personal experience"]
+  },
+  {
+    "id": "personnel",
+    "lemma": "personnel",
+    "aliases": ["personnel department"],
+    "pos": ["noun"],
+    "meaningsZh": ["人员", "人事部门"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["The personnel department handles training records."],
+    "collocations": ["personnel department", "medical personnel"]
+  },
+  {
+    "id": "economic",
+    "lemma": "economic",
+    "aliases": ["economic growth"],
+    "pos": ["adjective"],
+    "meaningsZh": ["经济的", "经济学的"],
+    "examScopes": ["cet4", "cet6", "postgrad"],
+    "examples": ["Economic growth slowed during the winter."],
+    "collocations": ["economic growth", "economic policy"]
+  },
+  {
+    "id": "economical",
+    "lemma": "economical",
+    "aliases": ["economical car"],
+    "pos": ["adjective"],
+    "meaningsZh": ["节约的", "经济实惠的"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": ["This small car is economical to run."],
+    "collocations": ["economical use", "economical car"]
+  },
+  {
+    "id": "conscious",
+    "lemma": "conscious",
+    "aliases": ["be conscious of"],
+    "pos": ["adjective"],
+    "meaningsZh": ["有意识的", "意识到的"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["She was conscious of the need to save time."],
+    "collocations": ["be conscious of", "conscious effort"]
+  },
+  {
+    "id": "conscience",
+    "lemma": "conscience",
+    "aliases": ["guilty conscience"],
+    "pos": ["noun"],
+    "meaningsZh": ["良心", "良知"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["His conscience would not allow him to lie."],
+    "collocations": ["guilty conscience", "clear conscience"]
+  },
+  {
+    "id": "precede",
+    "lemma": "precede",
+    "aliases": ["precede the meeting"],
+    "pos": ["verb"],
+    "meaningsZh": ["在……之前", "先于"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["A short introduction will precede the lecture."],
+    "collocations": ["precede the event", "precede the meeting"]
+  },
+  {
+    "id": "proceed",
+    "lemma": "proceed",
+    "aliases": ["proceed with"],
+    "pos": ["verb"],
+    "meaningsZh": ["继续", "进行", "前进"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["The team decided to proceed with the plan."],
+    "collocations": ["proceed with a plan", "proceed to"]
+  },
+  {
+    "id": "perspective",
+    "lemma": "perspective",
+    "aliases": ["from a perspective"],
+    "pos": ["noun"],
+    "meaningsZh": ["视角", "观点", "透视法"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["The article offers a different perspective on education."],
+    "collocations": ["from a perspective", "global perspective"]
+  },
+  {
+    "id": "prospective",
+    "lemma": "prospective",
+    "aliases": ["prospective students"],
+    "pos": ["adjective"],
+    "meaningsZh": ["未来的", "预期的", "可能的"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["The university invited prospective students to visit."],
+    "collocations": ["prospective students", "prospective buyers"]
+  },
+  {
+    "id": "historic",
+    "lemma": "historic",
+    "aliases": ["historic event"],
+    "pos": ["adjective"],
+    "meaningsZh": ["有历史意义的"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["The agreement was a historic moment for the country."],
+    "collocations": ["historic event", "historic moment"]
+  },
+  {
+    "id": "historical",
+    "lemma": "historical",
+    "aliases": ["historical research"],
+    "pos": ["adjective"],
+    "meaningsZh": ["历史的", "与历史有关的"],
+    "examScopes": ["cet4", "cet6", "postgrad"],
+    "examples": ["The museum displays many historical documents."],
+    "collocations": ["historical research", "historical record"]
+  },
+  {
+    "id": "sensible",
+    "lemma": "sensible",
+    "aliases": ["sensible choice"],
+    "pos": ["adjective"],
+    "meaningsZh": ["明智的", "合理的"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["It is sensible to check your answers twice."],
+    "collocations": ["sensible choice", "sensible advice"]
+  },
+  {
+    "id": "sensitive",
+    "lemma": "sensitive",
+    "aliases": ["be sensitive to"],
+    "pos": ["adjective"],
+    "meaningsZh": ["敏感的", "体贴的"],
+    "examScopes": ["gaokao", "cet4", "cet6"],
+    "examples": ["Some people are sensitive to sudden noise."],
+    "collocations": ["sensitive to criticism", "sensitive issue"]
+  },
+  {
+    "id": "considerable",
+    "lemma": "considerable",
+    "aliases": ["considerable amount"],
+    "pos": ["adjective"],
+    "meaningsZh": ["相当大的", "重要的"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": ["The project requires considerable time and money."],
+    "collocations": ["considerable amount", "considerable effort"]
+  },
+  {
+    "id": "considerate",
+    "lemma": "considerate",
+    "aliases": ["considerate of"],
+    "pos": ["adjective"],
+    "meaningsZh": ["体贴的", "考虑周到的"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": ["It was considerate of you to call before visiting."],
+    "collocations": ["considerate of others", "considerate behavior"]
+  },
+  {
+    "id": "stationary",
+    "lemma": "stationary",
+    "aliases": ["remain stationary"],
+    "pos": ["adjective"],
+    "meaningsZh": ["静止的", "不动的"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["The car remained stationary at the traffic light."],
+    "collocations": ["remain stationary", "stationary object"]
+  },
+  {
+    "id": "stationery",
+    "lemma": "stationery",
+    "aliases": ["stationery store"],
+    "pos": ["noun"],
+    "meaningsZh": ["文具"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["She bought paper and pens from a stationery store."],
+    "collocations": ["stationery store", "office stationery"]
+  },
+  {
+    "id": "device",
+    "lemma": "device",
+    "aliases": ["electronic device"],
+    "pos": ["noun"],
+    "meaningsZh": ["装置", "设备", "方法"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": ["This device can measure air quality."],
+    "collocations": ["electronic device", "medical device"]
+  },
+  {
+    "id": "devise",
+    "lemma": "devise",
+    "aliases": ["devise a plan"],
+    "pos": ["verb"],
+    "meaningsZh": ["设计", "想出", "发明"],
+    "examScopes": ["cet6", "postgrad"],
+    "examples": ["They devised a new method for saving water."],
+    "collocations": ["devise a plan", "devise a method"]
+  },
+  {
+    "id": "loose",
+    "lemma": "loose",
+    "aliases": ["loose clothes"],
+    "pos": ["adjective"],
+    "meaningsZh": ["松的", "宽松的"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["The screw is loose and needs tightening."],
+    "collocations": ["loose clothes", "loose connection"]
+  },
+  {
+    "id": "lose",
+    "lemma": "lose",
+    "aliases": ["lose weight"],
+    "pos": ["verb"],
+    "meaningsZh": ["失去", "输掉", "迷失"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["Do not lose your ticket before entering the station."],
+    "collocations": ["lose weight", "lose a chance"]
+  },
+  {
+    "id": "breath",
+    "lemma": "breath",
+    "aliases": ["take a breath"],
+    "pos": ["noun"],
+    "meaningsZh": ["呼吸", "一口气"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["Take a deep breath before you answer."],
+    "collocations": ["take a breath", "hold one's breath"]
+  },
+  {
+    "id": "breathe",
+    "lemma": "breathe",
+    "aliases": ["breathe deeply"],
+    "pos": ["verb"],
+    "meaningsZh": ["呼吸"],
+    "examScopes": ["gaokao", "cet4"],
+    "examples": ["It is easier to breathe in clean air."],
+    "collocations": ["breathe deeply", "breathe in"]
   }
 ]

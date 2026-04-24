@@ -15,6 +15,7 @@
     "test:e2e": "playwright test",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "eval:shape": "tsx scripts/run-shape-neighbor-eval.ts",
     "verify": "corepack pnpm lint && corepack pnpm test:unit && corepack pnpm test:integration && corepack pnpm test:e2e"
   },
   "prisma": {

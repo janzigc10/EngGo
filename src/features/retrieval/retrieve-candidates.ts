@@ -697,6 +697,47 @@ async function handleGroupCompare(
   );
 }
 
+async function handleShapeNeighborSearch(
+  input: RetrieveCandidatesInput,
+  normalizedQuery: ReturnType<typeof normalizeQuery>,
+) {
+  if (normalizedQuery.englishTerms.length !== 1) {
+    return createNoMatchResult(normalizedQuery, [], "low_confidence");
+  }
+
+  const seedResolution = await resolveEnglishTerm(
+    input.activeExamTarget,
+    normalizedQuery.englishTerms[0],
+  );
+
+  if (!seedResolution.candidate) {
+    return createNoMatchResult(
+      normalizedQuery,
+      seedResolution.candidates,
+      seedResolution.noMatchReason,
+    );
+  }
+
+  const confusionGroups = await findConfusionGroupsForEntryIds([seedResolution.candidate.entryId]);
+  const bestGroup = pickBestGroupForEntry(
+    input.activeExamTarget,
+    seedResolution.candidate.entryId,
+    confusionGroups,
+  );
+
+  if (!bestGroup) {
+    return createNoMatchResult(normalizedQuery, seedResolution.candidates, "low_confidence");
+  }
+
+  return createResolvedResult(
+    normalizedQuery,
+    seedResolution.candidates,
+    buildOrderedGroupMembers(input.activeExamTarget, bestGroup, seedResolution.candidates),
+    [],
+    buildComparisonView(input.activeExamTarget, bestGroup),
+  );
+}
+
 async function handleDirectCompare(
   input: RetrieveCandidatesInput,
   normalizedQuery: ReturnType<typeof normalizeQuery>,
@@ -792,6 +833,10 @@ export async function retrieveCandidates(input: RetrieveCandidatesInput) {
 
   if (normalizedQuery.queryMode === "direct_compare") {
     return handleDirectCompare(input, normalizedQuery);
+  }
+
+  if (normalizedQuery.queryMode === "shape_neighbor_search") {
+    return handleShapeNeighborSearch(input, normalizedQuery);
   }
 
   if (normalizedQuery.queryMode === "meaning_lookup") {

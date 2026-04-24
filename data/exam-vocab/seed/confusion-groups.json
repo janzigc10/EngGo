@@ -58,6 +58,24 @@
     }
   },
   {
+    "id": "recent-resent",
+    "members": ["recent", "resent"],
+    "teachFirst": "recent",
+    "whyConfusing": "recent 和 resent 只差一个字母，但词性和意思完全不同，阅读时很容易把 c 看成 s。",
+    "commonMisusePoints": [
+      "recent 是形容词，表示最近的、近来的，不表示情绪。",
+      "resent 是动词，表示怨恨、对某事不满，不能修饰时间。"
+    ],
+    "semanticBoundaryNotes": [
+      "recent 看时间线，常搭配 years, studies, events。",
+      "resent 看情绪态度，常接名词或动名词，表示不满或怨恨。"
+    ],
+    "memberNotes": {
+      "recent": "把 c 记成 current/recent 的时间线。",
+      "resent": "把 s 记成 sentiment 的情绪线。"
+    }
+  },
+  {
     "id": "institute-institution-establish",
     "members": ["institute", "institution", "establish"],
     "teachFirst": "institute",
@@ -114,6 +132,42 @@
     }
   },
   {
+    "id": "adapt-adopt",
+    "members": ["adapt", "adopt"],
+    "teachFirst": "adapt",
+    "whyConfusing": "adapt 和 adopt 拼写接近，都常作动词，但中间元音不同会带来完全不同的动作方向。",
+    "commonMisusePoints": [
+      "adapt to 表示适应环境或变化，不表示采纳政策。",
+      "adopt 表示采纳、采用或收养，不接 to 表示适应。"
+    ],
+    "semanticBoundaryNotes": [
+      "adapt 强调自己调整以适应外部环境。",
+      "adopt 强调主动采用某个方法、政策或身份关系。"
+    ],
+    "memberNotes": {
+      "adapt": "常见搭配 adapt to change/environment。",
+      "adopt": "常见搭配 adopt a policy / adopt a child。"
+    }
+  },
+  {
+    "id": "quiet-quite",
+    "members": ["quiet", "quite"],
+    "teachFirst": "quiet",
+    "whyConfusing": "quiet 和 quite 字母几乎一样，只是 e 的位置不同，但词性和句子功能不同。",
+    "commonMisusePoints": [
+      "quiet 是形容词或名词，表示安静。",
+      "quite 是副词，表示相当、很或完全，不能当作“安静的”。"
+    ],
+    "semanticBoundaryNotes": [
+      "quiet 描述人、地方或状态是否安静。",
+      "quite 修饰形容词或副词，表示程度。"
+    ],
+    "memberNotes": {
+      "quiet": "常见搭配 keep quiet / a quiet room。",
+      "quite": "常见搭配 quite good / quite different。"
+    }
+  },
+  {
     "id": "recommend-suggest-propose",
     "members": ["recommend", "suggest", "propose"],
     "teachFirst": "recommend",
@@ -148,6 +202,371 @@
     ],
     "memberNotes": {
       "request": "常见搭配 make a request, request permission."
+    }
+  },
+  {
+    "id": "access-assess-excess",
+    "members": ["access", "assess", "excess"],
+    "teachFirst": "access",
+    "whyConfusing": "access、assess 和 excess 拼写高度接近，只换开头或中间字母就会变成完全不同的词。",
+    "commonMisusePoints": [
+      "access 常被误看成 assess，但 access 说的是进入或使用权。",
+      "excess 不是动词评估，而是过量或多余。"
+    ],
+    "semanticBoundaryNotes": [
+      "access 关注能不能进入、使用或获取。",
+      "assess 关注评估价值、风险或影响。",
+      "excess 关注数量超过需要。"
+    ],
+    "memberNotes": {
+      "access": "常见搭配 have access to。",
+      "assess": "常见搭配 assess the risk / assess the impact。",
+      "excess": "常见搭配 excess weight / in excess of。"
+    }
+  },
+  {
+    "id": "advice-advise",
+    "members": ["advice", "advise"],
+    "teachFirst": "advice",
+    "whyConfusing": "advice 和 advise 只差 c/s，中文都可对应“建议”，但词性不同。",
+    "commonMisusePoints": [
+      "advice 是不可数名词，不能直接说 an advice。",
+      "advise 是动词，常接人或从句。"
+    ],
+    "semanticBoundaryNotes": [
+      "advice 是给出的建议或忠告。",
+      "advise 是提出建议或劝告这个动作。"
+    ],
+    "memberNotes": {
+      "advice": "常见表达 a piece of advice。",
+      "advise": "常见搭配 advise someone to do。"
+    }
+  },
+  {
+    "id": "accept-except",
+    "members": ["accept", "except"],
+    "teachFirst": "accept",
+    "whyConfusing": "accept 和 except 读写都接近，但一个表示接受，一个表示排除。",
+    "commonMisusePoints": [
+      "accept 不能表示“除了”。",
+      "except for 不能表示接受邀请或观点。"
+    ],
+    "semanticBoundaryNotes": [
+      "accept 强调接纳、同意或承认。",
+      "except 强调把某人或某物排除在外。"
+    ],
+    "memberNotes": {
+      "accept": "常见搭配 accept an offer / accept responsibility。",
+      "except": "常见搭配 except for。"
+    }
+  },
+  {
+    "id": "aboard-abroad",
+    "members": ["aboard", "abroad"],
+    "teachFirst": "abroad",
+    "whyConfusing": "aboard 和 abroad 字母顺序接近，容易把交通工具场景和国外场景看混。",
+    "commonMisusePoints": [
+      "aboard 不表示出国。",
+      "abroad 不表示在船上或飞机上。"
+    ],
+    "semanticBoundaryNotes": [
+      "aboard 强调在交通工具上或上交通工具。",
+      "abroad 强调在国外或到国外。"
+    ],
+    "memberNotes": {
+      "aboard": "记 aboard the plane / ship。",
+      "abroad": "记 study abroad / go abroad。"
+    }
+  },
+  {
+    "id": "angel-angle-ankle",
+    "members": ["angel", "angle", "ankle"],
+    "teachFirst": "angle",
+    "whyConfusing": "angel、angle 和 ankle 都是五六个字母的短词，字母位置变化会造成完全不同的意思。",
+    "commonMisusePoints": [
+      "angle 是角度，不是天使。",
+      "ankle 是身体部位，不要和 angle 的字母顺序混。"
+    ],
+    "semanticBoundaryNotes": [
+      "angel 是天使。",
+      "angle 是角或角度，也可表示看问题的角度。",
+      "ankle 是脚踝。"
+    ],
+    "memberNotes": {
+      "angle": "常见搭配 from another angle。",
+      "ankle": "常见搭配 hurt one's ankle。"
+    }
+  },
+  {
+    "id": "assure-ensure-insure",
+    "members": ["assure", "ensure", "insure"],
+    "teachFirst": "ensure",
+    "whyConfusing": "assure、ensure 和 insure 都接近“保证”，但对象和场景不同。",
+    "commonMisusePoints": [
+      "assure 常接人，表示让某人放心。",
+      "insure 主要用于保险语境，不是普通“确保”。"
+    ],
+    "semanticBoundaryNotes": [
+      "assure 强调向某人保证、使某人安心。",
+      "ensure 强调确保某事发生或结果成立。",
+      "insure 强调给人或物投保。"
+    ],
+    "memberNotes": {
+      "assure": "常见搭配 assure someone that。",
+      "ensure": "常见搭配 ensure safety / ensure success。",
+      "insure": "常见搭配 insure against loss。"
+    }
+  },
+  {
+    "id": "complement-compliment",
+    "members": ["complement", "compliment"],
+    "teachFirst": "complement",
+    "whyConfusing": "complement 和 compliment 只差一个字母，写作中很容易把补充和称赞混在一起。",
+    "commonMisusePoints": [
+      "complement 不是称赞，而是补足或相配。",
+      "compliment 不是补充物，而是赞美。"
+    ],
+    "semanticBoundaryNotes": [
+      "complement 强调补充、补足或彼此相配。",
+      "compliment 强调称赞、赞美。"
+    ],
+    "memberNotes": {
+      "complement": "常见搭配 complement each other。",
+      "compliment": "常见搭配 pay a compliment。"
+    }
+  },
+  {
+    "id": "principal-principle",
+    "members": ["principal", "principle"],
+    "teachFirst": "principle",
+    "whyConfusing": "principal 和 principle 发音接近、拼写接近，但一个可指人或主要的，一个是原则。",
+    "commonMisusePoints": [
+      "principal 可表示校长或主要的，不表示原则。",
+      "principle 不能表示学校负责人。"
+    ],
+    "semanticBoundaryNotes": [
+      "principal 是校长、负责人，或形容词“主要的”。",
+      "principle 是原则、原理或准则。"
+    ],
+    "memberNotes": {
+      "principal": "常见搭配 school principal / principal reason。",
+      "principle": "常见搭配 basic principle / in principle。"
+    }
+  },
+  {
+    "id": "personal-personnel",
+    "members": ["personal", "personnel"],
+    "teachFirst": "personal",
+    "whyConfusing": "personal 和 personnel 词形接近，都和人有关，但词性和使用场景不同。",
+    "commonMisusePoints": [
+      "personal 是形容词，表示个人的或私人的。",
+      "personnel 是名词，表示人员或人事部门。"
+    ],
+    "semanticBoundaryNotes": [
+      "personal 修饰信息、经历、观点等个人相关内容。",
+      "personnel 指组织中的工作人员或人事部门。"
+    ],
+    "memberNotes": {
+      "personal": "常见搭配 personal information。",
+      "personnel": "常见搭配 personnel department。"
+    }
+  },
+  {
+    "id": "economic-economical",
+    "members": ["economic", "economical"],
+    "teachFirst": "economic",
+    "whyConfusing": "economic 和 economical 同根形近，但一个说经济领域，一个说节约实惠。",
+    "commonMisusePoints": [
+      "economic policy 不能写成 economical policy。",
+      "economical car 表示省钱，不是“经济学的车”。"
+    ],
+    "semanticBoundaryNotes": [
+      "economic 表示与经济、经济学或经济活动有关。",
+      "economical 表示节约的、省钱的、经济实惠的。"
+    ],
+    "memberNotes": {
+      "economic": "常见搭配 economic growth / economic policy。",
+      "economical": "常见搭配 economical use / economical car。"
+    }
+  },
+  {
+    "id": "conscious-conscience",
+    "members": ["conscious", "conscience"],
+    "teachFirst": "conscious",
+    "whyConfusing": "conscious 和 conscience 开头和主体字母接近，但词性和意义差异很大。",
+    "commonMisusePoints": [
+      "conscious 是形容词，表示有意识或意识到。",
+      "conscience 是名词，表示良心或良知。"
+    ],
+    "semanticBoundaryNotes": [
+      "conscious 关注意识状态或是否觉察到。",
+      "conscience 关注道德判断和良心。"
+    ],
+    "memberNotes": {
+      "conscious": "常见搭配 be conscious of。",
+      "conscience": "常见搭配 guilty conscience / clear conscience。"
+    }
+  },
+  {
+    "id": "precede-proceed",
+    "members": ["precede", "proceed"],
+    "teachFirst": "proceed",
+    "whyConfusing": "precede 和 proceed 中间字母接近，但一个说先后顺序，一个说继续进行。",
+    "commonMisusePoints": [
+      "precede 不表示继续执行计划。",
+      "proceed 不表示排在某事之前。"
+    ],
+    "semanticBoundaryNotes": [
+      "precede 强调在时间、顺序或位置上先于。",
+      "proceed 强调继续、进行或前往下一步。"
+    ],
+    "memberNotes": {
+      "precede": "常见搭配 precede the event。",
+      "proceed": "常见搭配 proceed with a plan。"
+    }
+  },
+  {
+    "id": "perspective-prospective",
+    "members": ["perspective", "prospective"],
+    "teachFirst": "perspective",
+    "whyConfusing": "perspective 和 prospective 都是长词，开头和结尾相近，阅读中容易误扫。",
+    "commonMisusePoints": [
+      "perspective 是名词，表示视角或观点。",
+      "prospective 是形容词，表示未来的、可能的。"
+    ],
+    "semanticBoundaryNotes": [
+      "perspective 关注看问题的角度。",
+      "prospective 关注未来可能成为或发生的对象。"
+    ],
+    "memberNotes": {
+      "perspective": "常见搭配 from a perspective。",
+      "prospective": "常见搭配 prospective students / buyers。"
+    }
+  },
+  {
+    "id": "historic-historical",
+    "members": ["historic", "historical"],
+    "teachFirst": "historical",
+    "whyConfusing": "historic 和 historical 同根形近，都和历史有关，但修饰重点不同。",
+    "commonMisusePoints": [
+      "historic 强调有历史意义，不等于所有“历史相关”。",
+      "historical 强调与历史有关，不一定重要。"
+    ],
+    "semanticBoundaryNotes": [
+      "historic 表示有重大历史意义的。",
+      "historical 表示历史上的、与历史研究或记录有关的。"
+    ],
+    "memberNotes": {
+      "historic": "常见搭配 historic event / moment。",
+      "historical": "常见搭配 historical research / record。"
+    }
+  },
+  {
+    "id": "sensible-sensitive",
+    "members": ["sensible", "sensitive"],
+    "teachFirst": "sensible",
+    "whyConfusing": "sensible 和 sensitive 开头和后缀相近，中文都容易联想到“感”，但含义不同。",
+    "commonMisusePoints": [
+      "sensible 表示明智合理，不表示敏感。",
+      "sensitive 表示敏感或体贴，不表示理智。"
+    ],
+    "semanticBoundaryNotes": [
+      "sensible 评价判断或做法是否明智。",
+      "sensitive 评价人、话题或反应是否敏感。"
+    ],
+    "memberNotes": {
+      "sensible": "常见搭配 sensible choice / advice。",
+      "sensitive": "常见搭配 sensitive to criticism / sensitive issue。"
+    }
+  },
+  {
+    "id": "considerable-considerate",
+    "members": ["considerable", "considerate"],
+    "teachFirst": "considerable",
+    "whyConfusing": "considerable 和 considerate 同根形近，后缀差异决定了数量意义和性格评价。",
+    "commonMisusePoints": [
+      "considerable 表示数量或程度大，不表示体贴。",
+      "considerate 表示体贴周到，不表示相当大的。"
+    ],
+    "semanticBoundaryNotes": [
+      "considerable 修饰数量、影响、努力等，表示相当大的。",
+      "considerate 修饰人或行为，表示体贴的。"
+    ],
+    "memberNotes": {
+      "considerable": "常见搭配 considerable amount / effort。",
+      "considerate": "常见搭配 considerate of others。"
+    }
+  },
+  {
+    "id": "stationary-stationery",
+    "members": ["stationary", "stationery"],
+    "teachFirst": "stationary",
+    "whyConfusing": "stationary 和 stationery 只差 a/e，是经典形近拼写混淆。",
+    "commonMisusePoints": [
+      "stationary 是形容词，表示静止的。",
+      "stationery 是名词，表示文具。"
+    ],
+    "semanticBoundaryNotes": [
+      "stationary 描述物体或状态不动。",
+      "stationery 指纸、笔等文具用品。"
+    ],
+    "memberNotes": {
+      "stationary": "a 可联想 stay，表示不动。",
+      "stationery": "e 可联想 envelope，表示文具。"
+    }
+  },
+  {
+    "id": "device-devise",
+    "members": ["device", "devise"],
+    "teachFirst": "device",
+    "whyConfusing": "device 和 devise 只差 c/s，但一个是名词，一个是动词。",
+    "commonMisusePoints": [
+      "device 表示设备或方法，不能直接当“设计”动作。",
+      "devise 表示想出或设计，不能表示具体设备。"
+    ],
+    "semanticBoundaryNotes": [
+      "device 是装置、设备或方法。",
+      "devise 是设计、想出或发明一个办法。"
+    ],
+    "memberNotes": {
+      "device": "常见搭配 electronic device。",
+      "devise": "常见搭配 devise a plan / method。"
+    }
+  },
+  {
+    "id": "loose-lose",
+    "members": ["loose", "lose"],
+    "teachFirst": "lose",
+    "whyConfusing": "loose 和 lose 只差一个 o，拼写和读音都容易混。",
+    "commonMisusePoints": [
+      "loose 是形容词，表示松的。",
+      "lose 是动词，表示失去或输掉。"
+    ],
+    "semanticBoundaryNotes": [
+      "loose 描述物体松、不紧或宽松。",
+      "lose 描述失去、遗失或失败。"
+    ],
+    "memberNotes": {
+      "loose": "双 o 可以联想松开得更宽。",
+      "lose": "常见搭配 lose weight / lose a chance。"
+    }
+  },
+  {
+    "id": "breath-breathe",
+    "members": ["breath", "breathe"],
+    "teachFirst": "breath",
+    "whyConfusing": "breath 和 breathe 只差末尾 e，但词性和读音都不同。",
+    "commonMisusePoints": [
+      "breath 是名词，表示一口气或呼吸。",
+      "breathe 是动词，表示呼吸这个动作。"
+    ],
+    "semanticBoundaryNotes": [
+      "breath 是名词，常见 take a breath。",
+      "breathe 是动词，常见 breathe deeply。"
+    ],
+    "memberNotes": {
+      "breath": "短一些，记作名词“一口气”。",
+      "breathe": "末尾 e 拉长，记作动词“呼吸”。"
     }
   }
 ]

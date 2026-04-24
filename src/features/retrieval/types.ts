@@ -3,6 +3,7 @@ import type { ExamScopeCode } from "@/features/content/import-types";
 export type QueryMode =
   | "meaning_lookup"
   | "fuzzy_recall"
+  | "shape_neighbor_search"
   | "direct_compare"
   | "direct_lookup";
 
