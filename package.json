@@ -15,6 +15,7 @@
     "test:e2e": "playwright test",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "db:seed:real-smoke": "tsx prisma/seed.ts --dataset real-smoke",
     "eval:shape": "tsx scripts/run-shape-neighbor-eval.ts",
     "eval:answer-style": "tsx scripts/run-answer-style-eval.ts",
     "eval:answer-style:provider": "tsx scripts/run-answer-style-provider-smoke.ts",

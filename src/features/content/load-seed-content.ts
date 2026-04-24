@@ -27,8 +27,16 @@ function ensureMembersExist(entryIds: string[], confusionGroupMembers: string[])
   }
 }
 
-export async function loadSeedContent() {
-  const seedDir = path.join(process.cwd(), "data", "exam-vocab", "seed");
+export type LoadVocabContentOptions = {
+  datasetName?: string;
+  baseDir?: string;
+};
+
+export async function loadVocabContent({
+  datasetName = "seed",
+  baseDir = path.join(process.cwd(), "data", "exam-vocab"),
+}: LoadVocabContentOptions = {}) {
+  const seedDir = path.join(baseDir, datasetName);
   const [entriesRaw, confusionGroupsRaw] = await Promise.all([
     readFile(path.join(seedDir, "entries.json"), "utf8"),
     readFile(path.join(seedDir, "confusion-groups.json"), "utf8"),
@@ -55,13 +63,16 @@ export async function loadSeedContent() {
     }
   }
 
-  assertSeedContentRequirements({
-    entries,
-    confusionGroups,
-  });
-
   return {
     entries,
     confusionGroups,
   };
+}
+
+export async function loadSeedContent() {
+  const seedContent = await loadVocabContent();
+
+  assertSeedContentRequirements(seedContent);
+
+  return seedContent;
 }

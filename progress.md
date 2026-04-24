@@ -6,12 +6,12 @@
 - `confusion_untangle`：形近词、易混词对比、group compare 统一进入“先问一句 / 分流 / 题里抓”的回答风格
 - `root_family_summary`：先用最小原型闭环支撑 `stitute` / `tempt` 两族，保持保守范围
 
-下一阶段不建议先继续堆词库；优先把 EngGo 的“解混淆语言”和回答风格定下来。新的路线文档已落盘：
+上一轮真实 provider smoke 已经跑通，EngGo 的“解混淆语言”和回答风格进入可验证状态；下一阶段可以转向真实词库接入 smoke，但仍应先小批量受控接入，不要一次性全量灌库。新的路线文档已落盘：
 
 - [docs/superpowers/plans/2026-04-23-enggo-confusion-taxonomy-roadmap.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-enggo-confusion-taxonomy-roadmap.md)
 - [docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md)
 
-当前下一刀已确定：先做“小批次真实 provider 的 answer-style smoke”，先验证真实模型输出是否真的像 EngGo，再决定是否扩第二批 root prototype。
+当前下一刀已从“小批次真实 provider 的 answer-style smoke”推进到“真实词库接入 smoke”：先用高考 / 四级 / 六级 / 考研真实词库小批量验证导入、scope 合并、检索命中和回答风格，再决定是否扩全量或补第二批 root prototype。
 
 核心判断：EngGo 至少要区分两条完全不同的主线：
 
@@ -19,6 +19,70 @@
 - 词根家族地图：用户有词根/前缀/碎片，需要结构化展开和优先级。
 
 ## 本 Session 已完成
+- 2026-04-24 追查词库来源路线并形成下一轮判断：
+  - 已明确不建议在当前开发阶段直接全量接入商业词书内容；星火、红宝书、新东方等词书若要使用完整释义、例句、辨析、助记或品牌名，正路是正版授权。
+  - 已确认官方/准官方来源能解决一部分“考试范围”问题：
+    - 高考/高中：教育部《普通高中英语课程标准（2017年版2020年修订）》附录词汇表，提供约 3000 个词，但不标注词性和中文释义。
+    - 四级/六级：中国教育考试网 CET 考试大纲页列出《全国大学英语四、六级考试大纲（2016年修订版）》，大纲含四、六级考试词表。
+    - 考研：教育考试院/高教社考试大纲确认英语大纲附录含词汇表，约 5500 词，但公开可机读入口仍需下一轮继续处理。
+  - 当前产品判断：官方大纲适合做 `lemma + examScopes` 的范围来源；`meaningsZh`、易混关系、做题抓手仍应由 EngGo 自建/生成后人工审核，不复制商业词书文案。
+  - 下一轮建议不要做全量接入；先把当前 plan 调整为“中等规模 dev real-smoke 数据集”：
+    - 目标规模：约 300-800 个词，覆盖高考 / 四级 / 六级 / 考研。
+    - 核心验证：30-50 组易混/形近 smoke cases。
+    - 入库字段：英文词、考试范围、1 个中文核心义、可选 collocation、sourceRefs。
+    - 暂不接入商业书完整释义、例句、辨析、助记和章节编排。
+
+- 2026-04-24 执行最新 `real-vocab scope-aware lookalike smoke` plan 至真实词库源文件 blocker：
+  - 已完成 [docs/superpowers/plans/2026-04-24-real-vocab-scope-aware-lookalike-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-real-vocab-scope-aware-lookalike-smoke.md) Task 1 全部 Step 1-6，并在 plan 中勾选。
+  - Task 1 新增通用数据集加载入口：
+    - [src/features/content/load-seed-content.ts](/C:/Users/Chen/Desktop/EngGo/src/features/content/load-seed-content.ts) 新增 `loadVocabContent({ datasetName, baseDir })`。
+    - `loadSeedContent()` 继续保留默认 seed 专属 `assertSeedContentRequirements` 门槛。
+    - [prisma/seed.ts](/C:/Users/Chen/Desktop/EngGo/prisma/seed.ts) 支持 `--dataset <name>`；无参数时仍走 `loadSeedContent()`，显式 dataset 才走通用 loader。
+    - [package.json](/C:/Users/Chen/Desktop/EngGo/package.json) 新增 `db:seed:real-smoke`，未改变 `db:seed`。
+    - 新增测试：[src/features/content/load-seed-content.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/content/load-seed-content.test.ts)、[src/features/content/seed-cli.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/content/seed-cli.test.ts)。
+  - 已完成 Task 2 Step 1-3，并在 plan 中勾选；Task 2 Step 4-5 与后续 Task 3+ 因真实源文件缺失暂停。
+  - Task 2 新增：
+    - [data/exam-vocab/real-smoke/README.md](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/README.md)：记录 source contract，明确禁止手编真实词条。
+    - [scripts/check-vocab-content.ts](/C:/Users/Chen/Desktop/EngGo/scripts/check-vocab-content.ts)：dataset-aware 文件级 checker，复用 `loadVocabContent` / `summarizeSeedContent`，不触碰 Prisma。
+    - [scripts/check-vocab-content.test.ts](/C:/Users/Chen/Desktop/EngGo/scripts/check-vocab-content.test.ts)：覆盖成功路径、`--dataset` 缺值、未知 flag fail-fast、稳定错误输出。
+  - 已由 subagent 只读侦察确认：仓库内没有可确认来源的高考 / 四级 / 六级 / 考研真实词库源文件；`data/exam-vocab/real-smoke/` 当前只应有 README，不应创建 `entries.json`、`confusion-groups.json`、`lookalike-smoke-cases.json`。
+  - 本轮明确 blocker：
+    - `Blocked: real vocabulary source files are not present in the repository; do not fabricate entries. Need confirmed-source Gaokao/CET4/CET6/Postgrad vocabulary files or explicit source documents before normalizing data/exam-vocab/real-smoke/entries.json, confusion-groups.json, or lookalike-smoke-cases.json.`
+  - 本轮 fresh verification：
+    - `corepack pnpm test src/features/content/load-seed-content.test.ts src/features/content/seed-cli.test.ts src/features/content/seed-content-rules.test.ts scripts/check-vocab-content.test.ts`：4 files / 15 tests passed。
+    - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset seed`：`Vocab content valid: 82 entries, 31 confusion groups, scopes=gaokao, cet4, cet6, postgrad.`
+    - `corepack pnpm exec eslint src/features/content/load-seed-content.ts src/features/content/load-seed-content.test.ts src/features/content/seed-cli.test.ts prisma/seed.ts scripts/check-vocab-content.ts scripts/check-vocab-content.test.ts`：通过。
+    - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke`：预期失败，`ENOENT ... data\exam-vocab\real-smoke\entries.json`，证明当前停在真实源文件 blocker，而不是代码回归。
+
+- 2026-04-24 清理旧下一步并落盘真实词库 smoke plan：
+  - 已确认当前旧 implementation plans 均已执行完成；文档中的未勾选项只剩格式说明，不是漏做 task。
+  - 已把 `progress.md` 的“下一 Session 第一件事”从旧的真实 provider smoke 清理为新路线。
+  - 新 plan 已落盘：[docs/superpowers/plans/2026-04-24-real-vocab-scope-aware-lookalike-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-real-vocab-scope-aware-lookalike-smoke.md)
+  - 新 plan 核心顺序：显式 real-smoke 数据集加载 -> 真实词库源文件校验 -> scope-aware 动态形近召回 -> 新版 `confusion_untangle` 结构 -> deterministic smoke -> 可选 provider smoke。
+  - 明确 blocker：没有可确认来源的真实词库文件时，不能编造“真实词条”；只能先完成 loader/runner，并在 Task 2 停下记录 blocker。
+
+- 2026-04-24 复跑上一轮 few-shot / provider 改动效果：
+  - 工作区干净；`.env` 中 provider 三件套已存在，未打印敏感值。
+  - 串行预检：
+    - `corepack pnpm exec prisma dev ls`：`enggo` running
+    - `corepack pnpm eval:answer-style`：8 pass / 0 fail，平均 109ms
+    - `corepack pnpm eval:shape`：34 pass / 0 fail，平均 126ms
+  - 启动本地 `corepack pnpm dev` 后复跑 `corepack pnpm eval:answer-style:provider`，可见输出结果：
+    - 4 pass / 5 manual / 0 fail
+    - resolved 7 / no_match 2
+    - providerCalled 7 / providerSkipped 2 / providerUnknown 0
+    - avgElapsedMs 5185 / maxElapsedMs 8562
+  - manual 案例：
+    - `stationary/stationery`：239 chars vs 220
+    - `access/assess/excess`：270 chars vs 260
+    - `comply/conform/defer`：324 chars vs 260
+    - `respect/respective/respectful/respectable`：273 chars vs 260
+    - `stitute`：347 chars vs 260
+  - 结论：
+    - hard grounding、no-match guard、provider skip 都稳定，没有 hard fail。
+    - few-shot 对回答形态有效：真实输出基本都按“为什么会混 / 先问一句 / 题里抓”或“碎片判断 / 家族地图 / 优先背 / 谨慎提醒”组织。
+    - 剩余问题集中在多词组和 `stitute` 偏长；下一刀不建议继续无限压 prompt，应优先做真实词库接入 smoke，同时保留“必要时校准 `maxAnswerChars` 或强化多词公式行”的后续选项。
+
 - 2026-04-24 固化 DeepSeek flash 为长期真实 provider smoke：
   - 本地 `.env` 已写入 DeepSeek provider 三件套：
     - `OPENAI_API_KEY`：已配置，文件被 `.gitignore` 忽略，不提交。
@@ -333,24 +397,36 @@
 6. `corepack pnpm exec tsc --noEmit` 这轮仍未重跑；此前已知失败，属于既有工程债，不纳入本轮完成标准。
 
 ## 下一 Session 第一件事
-- 先读并确认：
+- 当前旧 plan 已执行完成；不要再从以下 plan 的 Task 1 重开：
   - [docs/superpowers/plans/2026-04-24-enggo-answer-style-real-provider-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-enggo-answer-style-real-provider-smoke.md)
   - [docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md)
-  - 该 plan 现在已经执行完成；下轮不要再从 Task 1 重开。
-- 下一刀不要再二选一摇摆；先按新 plan 做真实 provider smoke：
-  - 用真实 provider 做 8-10 条 answer-style smoke，检查 `confusion_untangle` / `root_family_summary` / guarded `no_match` 输出是否真的像 EngGo
-  - 只有 smoke 结果稳定后，再决定是补 prompt guardrail、补 provider adapter，还是扩第二批 root prototype
+- 最新 plan 已推进到 Task 2 Step 3 blocker；不要再从 Task 1 重开：
+  - [docs/superpowers/plans/2026-04-24-real-vocab-scope-aware-lookalike-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-real-vocab-scope-aware-lookalike-smoke.md)
+  - 已完成：Task 1 全部 Step 1-6；Task 2 Step 1-3。
+  - 下一刀第一件事：把计划从“等待完整真实词库源文件”调整为“构建中等规模 dev real-smoke 数据集”，优先用官方大纲做 `lemma + examScopes` 范围来源，再自建短中文核心义和易混 smoke cases。
+  - 推荐不要全量接入；先做 300-800 个词、30-50 组易混/形近 smoke cases，验证 scope-aware lookalike retrieval 后再扩。
+  - 如果仍没有可确认来源，继续停在 blocker；不要编造“真实词条”，不要抠商业词书完整释义/例句/辨析，也不要进入全量灌库。
 - 若继续本地验证，先检查 `corepack pnpm exec prisma dev ls`；一旦出现 backend protocol error，直接按 `bugs.md` 的 `enggo` 重建路径恢复。
-- 继续保持串行验证；不要并行跑 `verify`、`eval:shape`、`eval:answer-style`、`eval:answer-style:provider`。
+- 继续保持串行验证；不要并行跑 `verify`、`eval:shape`、`eval:answer-style`、`eval:lookalike:real-smoke`、`eval:answer-style:provider`。
 
 ## 当前阻塞 / 风险
+- `real-smoke` 当前被真实词库源文件阻塞：仓库没有可确认来源的高考 / 四级 / 六级 / 考研词库源文件；不要创建伪造的 `entries.json` / `confusion-groups.json` / `lookalike-smoke-cases.json`。
 - 当前没有 shape-neighbor 测试阻塞。
 - 不建议本地并行跑 `verify` 和 `eval:shape` 这类会访问 Prisma dev 的命令。
+- 真实词库 smoke 的直接前置条件是有可确认来源的高考 / 四级 / 六级 / 考研词库文件；没有源文件时只能先完成 loader/runner，不能伪造真实数据。
 - 真实模型 batch eval 仍受 provider key、dev server、MiniMax 429 影响。
 - 2026-04-24 追加探测：用户提供的临时 MiniMax key 未写入仓库文件；直接探测 `https://api.minimaxi.com/v1/chat/completions` 与 `https://api.minimaxi.com/anthropic/v1/messages`，两把临时 key 均返回 `429 usage limit exceeded (2056)`；其中第一把对 `https://api.minimax.io/v1/chat/completions` 返回 `401`，说明 key 更像是 `api.minimaxi.com` 区域 key，但额度/限额不可用。本轮未继续跑 9 条真实 provider smoke，避免无效消耗限流窗口。
 - 若下一轮继续扩 seed，`seed-content.test.ts` 已改为最小 fixture，应不再随 seed 规模线性变慢；若再次超时，先按 `bugs.md` 的 Prisma dev 健康检查路径排查。
 
 ## 最近验证基线
+- `corepack pnpm test src/features/content/load-seed-content.test.ts src/features/content/seed-cli.test.ts src/features/content/seed-content-rules.test.ts scripts/check-vocab-content.test.ts`
+  - 当前状态：4 files / 15 tests passed
+- `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset seed`
+  - 当前状态：82 entries / 31 confusion groups / scopes=gaokao, cet4, cet6, postgrad
+- `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke`
+  - 当前状态：预期失败，缺少 `data/exam-vocab/real-smoke/entries.json`，真实源文件 blocker 未解除
+- `corepack pnpm exec eslint src/features/content/load-seed-content.ts src/features/content/load-seed-content.test.ts src/features/content/seed-cli.test.ts prisma/seed.ts scripts/check-vocab-content.ts scripts/check-vocab-content.test.ts`
+  - 当前状态：通过
 - `corepack pnpm exec prisma dev ls`
   - 当前状态：`enggo` running
 - `corepack pnpm db:seed`
