@@ -41,6 +41,22 @@ describe("detectQueryMode", () => {
   it("detects misread-neighbor intent", () => {
     expect(detectQueryMode("容易把 recent 看错成什么")).toBe("shape_neighbor_search");
   });
+
+  it("detects root fragment summary intent", () => {
+    expect(detectQueryMode("stitute 是什么")).toBe("root_family_summary");
+  });
+
+  it("detects root family study intent", () => {
+    expect(detectQueryMode("tempt 这一族怎么记")).toBe("root_family_summary");
+  });
+
+  it("detects prefix combination root intent", () => {
+    expect(detectQueryMode("re+con 的词根有什么词")).toBe("root_family_summary");
+  });
+
+  it("detects fragment pattern root intent", () => {
+    expect(detectQueryMode("re...ct 这种词")).toBe("root_family_summary");
+  });
 });
 
 describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
@@ -271,6 +287,29 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     );
     expect(result.comparisonView?.id).toBe("breath-breathe");
     expect(result.comparisonView?.semanticBoundaryNotes.length).toBeGreaterThan(0);
+  });
+
+  it("resolves stitute as a minimal root family summary", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "stitute 是什么",
+    });
+
+    expect(result.queryMode).toBe("root_family_summary");
+    expect(result.resolution).toBe("resolved");
+    expect(result.rootFamilyView?.id).toBe("root-stitute");
+    expect(result.rootFamilyView?.members.map((member) => member.lemma)).toContain("institute");
+  });
+
+  it("keeps unsupported root combinations as no-match", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "re+con 的词根有什么词",
+    });
+
+    expect(result.queryMode).toBe("root_family_summary");
+    expect(result.resolution).toBe("no_match");
+    expect(result.rootFamilyView).toBeNull();
   });
 
   it("keeps exact compare terms without forcing a confusion boundary", async () => {

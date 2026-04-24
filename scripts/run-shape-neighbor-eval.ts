@@ -339,7 +339,7 @@ const cases: EvalCase[] = [
     name: "fragment input remains deferred",
     query: "re+con 的词根有什么词",
     activeExamTarget: "cet6",
-    expectedQueryMode: "fuzzy_recall",
+    expectedQueryMode: "root_family_summary",
     expectedResolution: "no_match",
   },
 ];

@@ -80,7 +80,7 @@ Do not:
 - Modify: `src/features/answering/build-system-prompt.test.ts`
 - Modify: `src/features/answering/chat-service.test.ts`
 
-- [ ] **Step 1: Write failing prompt tests for confusion untangle style**
+- [x] **Step 1: Write failing prompt tests for confusion untangle style**
 
 Add a `comparisonView` fixture in `src/features/answering/build-system-prompt.test.ts` for `stationary / stationery`.
 
@@ -95,7 +95,7 @@ expect(prompt).toContain("不要把回答写成泛泛词典百科");
 
 Expected before implementation: FAIL because the prompt only says "并列对比方式组织回答" or "形近词簇".
 
-- [ ] **Step 2: Write failing prompt tests for root-family style**
+- [x] **Step 2: Write failing prompt tests for root-family style**
 
 Add a `rootFamilyView` fixture for `stitute` and assert:
 
@@ -109,7 +109,7 @@ expect(prompt).toContain("不要硬凑");
 
 Expected before implementation: FAIL because `AnswerGrounding` has no `rootFamilyView` or `answerStyle`.
 
-- [ ] **Step 3: Run the failing prompt test**
+- [x] **Step 3: Run the failing prompt test**
 
 Run:
 
@@ -119,7 +119,7 @@ corepack pnpm test src/features/answering/build-system-prompt.test.ts
 
 Expected: FAIL for missing style-specific prompt content or missing type fields.
 
-- [ ] **Step 4: Add answer-style types and grounding derivation**
+- [x] **Step 4: Add answer-style types and grounding derivation**
 
 In `src/features/retrieval/types.ts`, add:
 
@@ -143,7 +143,7 @@ Derive the style in `buildGrounding`:
 - `comparisonView !== null` -> `confusion_untangle`
 - otherwise -> `standard_lookup`
 
-- [ ] **Step 5: Implement style-specific prompt sections**
+- [x] **Step 5: Implement style-specific prompt sections**
 
 In `build-system-prompt.ts`, keep the current global rules, then append one style section:
 
@@ -167,7 +167,7 @@ Keep this instruction:
 必须严格依赖 grounding，不要自由补充未检索到的新词作为主答案。
 ```
 
-- [ ] **Step 6: Run prompt tests to green**
+- [x] **Step 6: Run prompt tests to green**
 
 Run:
 
@@ -185,7 +185,7 @@ Expected: both pass.
 - Modify: `src/features/retrieval/normalize-query.ts`
 - Modify: `src/features/retrieval/retrieve-candidates.test.ts`
 
-- [ ] **Step 1: Add failing query-mode tests**
+- [x] **Step 1: Add failing query-mode tests**
 
 Add tests under `describe("detectQueryMode")`:
 
@@ -204,7 +204,7 @@ expect(detectQueryMode("跟 recent 很像的词有哪些")).toBe("shape_neighbor
 expect(detectQueryMode("access assess excess 怎么区分")).toBe("direct_compare");
 ```
 
-- [ ] **Step 2: Run the failing query-mode tests**
+- [x] **Step 2: Run the failing query-mode tests**
 
 Run:
 
@@ -214,7 +214,7 @@ corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts
 
 Expected: FAIL because root-family inputs still resolve as `fuzzy_recall`.
 
-- [ ] **Step 3: Implement conservative root intent detection**
+- [x] **Step 3: Implement conservative root intent detection**
 
 Add root cue detection in `normalize-query.ts`.
 
@@ -235,7 +235,7 @@ Ordering must stay:
 
 Do not classify plain `comply with` or `recent` as root-family input.
 
-- [ ] **Step 4: Run query-mode tests to green**
+- [x] **Step 4: Run query-mode tests to green**
 
 Run:
 
@@ -257,7 +257,7 @@ Expected: query-mode tests pass. Retrieval integration tests may still fail unti
 - Modify: `src/features/answering/chat-service.ts`
 - Modify: `src/features/answering/chat-service.test.ts`
 
-- [ ] **Step 1: Add failing prototype and retrieval tests**
+- [x] **Step 1: Add failing prototype and retrieval tests**
 
 Prototype tests:
 
@@ -291,7 +291,7 @@ expect(unsupported.rootFamilyView).toBeNull();
 
 Expected before implementation: FAIL for missing files/types/handler.
 
-- [ ] **Step 2: Define first-phase root-family view types**
+- [x] **Step 2: Define first-phase root-family view types**
 
 In `src/features/retrieval/types.ts`, add:
 
@@ -322,7 +322,7 @@ export type RootFamilyView = {
 
 Add `rootFamilyView: RootFamilyView | null` to `RetrievalResult` and `AnswerGrounding`.
 
-- [ ] **Step 3: Create tiny curated root prototypes**
+- [x] **Step 3: Create tiny curated root prototypes**
 
 Create `src/features/retrieval/root-family-prototypes.ts`.
 
@@ -344,7 +344,7 @@ Initial prototypes:
 
 Important: this file is a first-phase grounding prototype, not the long-term source of truth.
 
-- [ ] **Step 4: Implement `handleRootFamilySummary`**
+- [x] **Step 4: Implement `handleRootFamilySummary`**
 
 In `retrieve-candidates.ts`:
 
@@ -360,7 +360,7 @@ In `retrieve-candidates.ts`:
 
 Do not force missing prototype members into `RetrievalCandidate`; they belong only inside `rootFamilyView`.
 
-- [ ] **Step 5: Make root no-match answer specific**
+- [x] **Step 5: Make root no-match answer specific**
 
 Update `chat-service.ts` so `root_family_summary` no-match says, in Chinese, that EngGo will not hard-fit unsupported roots/prefix combinations yet.
 
@@ -370,7 +370,7 @@ Example intent:
 这类词根/前缀组合我还没有稳定 grounding。为避免硬凑规律，这次先不展开。你可以给一个完整单词、一个更明确的词根片段，或者问某一族（如 stitute / tempt）。
 ```
 
-- [ ] **Step 6: Run prototype and retrieval tests to green**
+- [x] **Step 6: Run prototype and retrieval tests to green**
 
 Run:
 
@@ -389,7 +389,7 @@ Expected: all pass.
 - Modify: `package.json`
 - Optional modify: `scripts/run-chat-batch-eval.ts` only if sharing tiny helpers is cleaner than duplication.
 
-- [ ] **Step 1: Create failing eval script cases**
+- [x] **Step 1: Create failing eval script cases**
 
 Create `scripts/run-answer-style-eval.ts` with local fake-provider checks similar to `scripts/run-shape-neighbor-eval.ts`.
 
@@ -413,7 +413,7 @@ Each case should assert:
 - expected prompt snippets for resolved style cases
 - provider is not called for no-match cases
 
-- [ ] **Step 2: Add package script**
+- [x] **Step 2: Add package script**
 
 In `package.json`:
 
@@ -421,7 +421,7 @@ In `package.json`:
 "eval:answer-style": "tsx scripts/run-answer-style-eval.ts"
 ```
 
-- [ ] **Step 3: Run the eval red/green loop**
+- [x] **Step 3: Run the eval red/green loop**
 
 Run:
 
@@ -433,7 +433,7 @@ Expected before previous tasks are complete: FAIL.
 
 Expected after Tasks 1-3: PASS with a JSON summary similar to shape eval.
 
-- [ ] **Step 4: Keep real-provider smoke optional**
+- [x] **Step 4: Keep real-provider smoke optional**
 
 Do not require MiniMax/OpenAI keys for this eval.
 
@@ -446,7 +446,7 @@ If a real-provider smoke is needed later, add an explicit flag or separate scrip
 - Optional modify: `bugs.md` only for newly confirmed issues.
 - Modify: `docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md`
 
-- [ ] **Step 1: Run targeted verification serially**
+- [x] **Step 1: Run targeted verification serially**
 
 Run:
 
@@ -461,7 +461,7 @@ corepack pnpm eval:shape
 
 Expected: all pass. Do not proceed if any test fails.
 
-- [ ] **Step 2: Run lint on touched files**
+- [x] **Step 2: Run lint on touched files**
 
 Run:
 
@@ -471,7 +471,7 @@ corepack pnpm exec eslint src/features/answering/build-grounding.ts src/features
 
 Expected: no lint errors.
 
-- [ ] **Step 3: Run full verify only after targeted checks pass**
+- [x] **Step 3: Run full verify only after targeted checks pass**
 
 Run:
 
@@ -483,13 +483,13 @@ Expected: pass.
 
 Do not run `verify` in parallel with `eval:shape` or `eval:answer-style`.
 
-- [ ] **Step 4: Record known TypeScript status**
+- [x] **Step 4: Record known TypeScript status**
 
 Do not add `corepack pnpm exec tsc --noEmit` to this plan's pass/fail gate. It is already documented as a separate existing engineering-debt bucket in `bugs.md`.
 
 If you run it anyway, record the outcome separately and do not block this plan on pre-existing errors.
 
-- [ ] **Step 5: Update progress handoff**
+- [x] **Step 5: Update progress handoff**
 
 Update `progress.md` with:
 
@@ -499,7 +499,7 @@ Update `progress.md` with:
 - whether `re+con`, `re...ct`, and broad typo support remain deferred
 - next recommended step after this plan
 
-- [ ] **Step 6: Mark this plan as complete task-by-task**
+- [x] **Step 6: Mark this plan as complete task-by-task**
 
 As each step finishes, immediately change its checkbox from `- [ ]` to `- [x]`.
 

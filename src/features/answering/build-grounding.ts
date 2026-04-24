@@ -1,8 +1,10 @@
 import type { ExamScopeCode } from "@/features/content/import-types";
 import type {
+  AnswerStyle,
   ComparisonView,
   NoMatchReason,
   QueryMode,
+  RootFamilyView,
   RetrievalResolution,
   RetrievalCandidate,
 } from "@/features/retrieval/types";
@@ -19,6 +21,7 @@ export type AnswerGrounding = {
   activeExamTargetLabel: string;
   query: string;
   queryMode: QueryMode;
+  answerStyle: AnswerStyle;
   resolution: RetrievalResolution;
   noMatchReason: NoMatchReason | null;
   mainAnswer: RetrievalCandidate[];
@@ -26,6 +29,7 @@ export type AnswerGrounding = {
   scopeReminder: string;
   followUpPrompt: string;
   comparisonView: ComparisonView | null;
+  rootFamilyView: RootFamilyView | null;
 };
 
 type BuildGroundingInput = {
@@ -37,7 +41,23 @@ type BuildGroundingInput = {
   mainAnswer: RetrievalCandidate[];
   confusionBoundary: RetrievalCandidate[];
   comparisonView: ComparisonView | null;
+  rootFamilyView?: RootFamilyView | null;
 };
+
+function deriveAnswerStyle(
+  queryMode: QueryMode,
+  comparisonView: ComparisonView | null,
+): AnswerStyle {
+  if (queryMode === "root_family_summary") {
+    return "root_family_summary";
+  }
+
+  if (comparisonView) {
+    return "confusion_untangle";
+  }
+
+  return "standard_lookup";
+}
 
 function buildScopeReminder(
   activeExamTarget: ExamScopeCode,
@@ -92,6 +112,7 @@ export function buildGrounding(input: BuildGroundingInput): AnswerGrounding {
     activeExamTargetLabel: examTargetLabels[input.activeExamTarget],
     query: input.query,
     queryMode: input.queryMode,
+    answerStyle: deriveAnswerStyle(input.queryMode, input.comparisonView),
     resolution: input.resolution,
     noMatchReason: input.noMatchReason,
     mainAnswer: input.mainAnswer,
@@ -107,5 +128,6 @@ export function buildGrounding(input: BuildGroundingInput): AnswerGrounding {
       input.confusionBoundary,
     ),
     comparisonView: input.comparisonView,
+    rootFamilyView: input.rootFamilyView ?? null,
   };
 }

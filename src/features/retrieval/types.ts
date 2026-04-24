@@ -4,8 +4,37 @@ export type QueryMode =
   | "meaning_lookup"
   | "fuzzy_recall"
   | "shape_neighbor_search"
+  | "root_family_summary"
   | "direct_compare"
   | "direct_lookup";
+
+export type AnswerStyle =
+  | "standard_lookup"
+  | "confusion_untangle"
+  | "root_family_summary";
+
+export type RootFamilyPriority =
+  | "must_memorize"
+  | "recognize"
+  | "low_priority";
+
+export type RootFamilyView = {
+  id: string;
+  fragment: string;
+  coreImage: string;
+  note: string;
+  caution: string;
+  members: Array<{
+    lemma: string;
+    prefix: string | null;
+    prefixDirection: string;
+    actionStory: string;
+    modernMeaningZh: string;
+    priority: RootFamilyPriority;
+    entryId: string | null;
+    inScope: boolean;
+  }>;
+};
 
 export type RetrievalResolution = "resolved" | "no_match";
 
@@ -62,6 +91,7 @@ export type RetrievalResult = {
   mainAnswer: RetrievalCandidate[];
   confusionBoundary: RetrievalCandidate[];
   comparisonView: ComparisonView | null;
+  rootFamilyView?: RootFamilyView | null;
 };
 
 export type RankableCandidate = {

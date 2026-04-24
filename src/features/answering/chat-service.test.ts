@@ -201,4 +201,54 @@ describe("createChatService", () => {
     expect(result.answer).toContain("这次先不硬猜");
     expect(result.grounding.followUpPrompt).toContain("中文义项");
   });
+
+  it("returns a root-specific no-match answer for unsupported root queries", async () => {
+    let providerCalled = false;
+
+    const service = createChatService({
+      provider: {
+        async generateAnswer() {
+          providerCalled = true;
+
+          return {
+            answer: "should not be used",
+            providerRequestId: "resp_unused",
+          };
+        },
+      },
+      createRequestId: () => "req_root_no_match_123",
+    });
+
+    const result = await service.answer({
+      activeExamTarget: "cet6",
+      query: "re+con 的词根有什么词",
+      history: [],
+      retrievalResult: {
+        queryMode: "root_family_summary",
+        normalizedQuery: {
+          raw: "re+con 的词根有什么词",
+          normalizedText: "re+con 的词根有什么词",
+          queryMode: "root_family_summary",
+          englishTerms: ["re", "con"],
+          meaningHint: "re+con",
+          compareTerms: [],
+          groupSeedTerm: null,
+        },
+        resolution: "no_match",
+        noMatchReason: "low_confidence",
+        comparisonView: null,
+        rootFamilyView: null,
+        candidates: [],
+        mainAnswer: [],
+        confusionBoundary: [],
+      },
+    });
+
+    expect(providerCalled).toBe(false);
+    expect(result.requestId).toBe("req_root_no_match_123");
+    expect(result.providerRequestId).toBeNull();
+    expect(result.grounding.queryMode).toBe("root_family_summary");
+    expect(result.answer).toContain("不硬凑规律");
+    expect(result.answer).toContain("词根/前缀组合");
+  });
 });

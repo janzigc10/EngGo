@@ -9,6 +9,10 @@ const meaningNoisePattern = /(怎么说|什么意思|是什么|啥意思|英文|
 const shapeNeighborCuePattern =
   /(很像|形近|长得像|看错|看成|容易把|容易.*混|拼写.{0,4}(像|近|相似))/i;
 const shapeNeighborListPattern = /(哪些|什么|哪几个|列举|举例|有什么)/i;
+const rootCuePattern = /(词根|前缀|后缀|同根|这一族|家族|派生|构词|组合)/i;
+const rootFragmentPattern = /[a-z]+\+[a-z]+|[a-z]+\.\.\.[a-z]+|-[a-z]+/i;
+const exactFragmentQuestionPattern = /^([a-z]{4,10})\s*(?:是(什么|啥)|什么意思)$/i;
+const standaloneRootFragments = new Set(["stitute"]);
 
 function normalizeAscii(text: string) {
   return text
@@ -72,6 +76,20 @@ function containsShapeNeighborCue(normalizedText: string) {
   return shapeNeighborListPattern.test(normalizedText) || /(看错|看成|形近)/i.test(normalizedText);
 }
 
+function containsRootFamilyCue(normalizedText: string) {
+  if (rootCuePattern.test(normalizedText) || rootFragmentPattern.test(normalizedText)) {
+    return true;
+  }
+
+  const fragmentQuestionMatch = normalizedText.match(exactFragmentQuestionPattern);
+
+  if (!fragmentQuestionMatch) {
+    return false;
+  }
+
+  return standaloneRootFragments.has(fragmentQuestionMatch[1].toLowerCase());
+}
+
 export function analyzeQuery(query: string): {
   normalizedText: string;
   englishTerms: string[];
@@ -91,6 +109,8 @@ export function analyzeQuery(query: string): {
     queryMode = "direct_compare";
   } else if (englishTerms.length === 1 && containsShapeNeighborCue(normalizedText)) {
     queryMode = "shape_neighbor_search";
+  } else if (englishTerms.length > 0 && containsRootFamilyCue(normalizedText)) {
+    queryMode = "root_family_summary";
   } else if (englishTerms.length > 0 && !containsChinese) {
     queryMode = "direct_lookup";
   } else if (englishTerms.length > 0) {

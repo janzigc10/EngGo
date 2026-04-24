@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import type { ExamScopeCode } from "@/features/content/import-types";
 import { normalizeQuery } from "@/features/retrieval/normalize-query";
+import { findRootFamilyPrototype } from "@/features/retrieval/root-family-prototypes";
 import { rankCandidates } from "@/features/retrieval/rank-candidates";
 import { findEnglishCandidateRows } from "@/features/retrieval/retrieval-sql";
 import type {
@@ -14,6 +15,7 @@ import type {
   RankedCandidate,
   RetrievalCandidate,
   RetrievalResult,
+  RootFamilyView,
 } from "@/features/retrieval/types";
 
 const directLookupThreshold = {
@@ -170,6 +172,23 @@ async function findEntriesByIds(entryIds: string[]) {
     .filter((entry): entry is RetrievalEntryRecord => Boolean(entry));
 }
 
+async function findEntriesByLemmas(lemmas: string[]) {
+  if (lemmas.length === 0) {
+    return [];
+  }
+
+  const entries = await db.vocabularyEntry.findMany({
+    where: { lemma: { in: lemmas } },
+    include: retrievalEntryInclude,
+  });
+
+  const entryMap = new Map(entries.map((entry) => [entry.lemma, entry]));
+
+  return lemmas
+    .map((lemma) => entryMap.get(lemma))
+    .filter((entry): entry is RetrievalEntryRecord => Boolean(entry));
+}
+
 async function findConfusionGroupsForEntryIds(entryIds: string[]) {
   if (entryIds.length === 0) {
     return [];
@@ -224,6 +243,7 @@ function createNoMatchResult(
   normalizedQuery: ReturnType<typeof normalizeQuery>,
   candidates: RankedCandidate[],
   noMatchReason: NoMatchReason,
+  rootFamilyView: RootFamilyView | null = null,
 ): RetrievalResult {
   return {
     queryMode: normalizedQuery.queryMode,
@@ -234,6 +254,7 @@ function createNoMatchResult(
     mainAnswer: [],
     confusionBoundary: [],
     comparisonView: null,
+    rootFamilyView,
   };
 }
 
@@ -243,6 +264,7 @@ function createResolvedResult(
   mainAnswer: RetrievalCandidate[],
   confusionBoundary: RetrievalCandidate[],
   comparisonView: ComparisonView | null,
+  rootFamilyView: RootFamilyView | null = null,
 ): RetrievalResult {
   return {
     queryMode: normalizedQuery.queryMode,
@@ -253,11 +275,50 @@ function createResolvedResult(
     mainAnswer,
     confusionBoundary,
     comparisonView,
+    rootFamilyView,
   };
 }
 
 function shareConfusionGroup(left: RankedCandidate, right: RankedCandidate) {
   return left.confusionGroupIds.some((groupId) => right.confusionGroupIds.includes(groupId));
+}
+
+function createRootFamilyRankedCandidate(
+  activeExamTarget: ExamScopeCode,
+  entry: RetrievalEntryRecord,
+): RankedCandidate {
+  const inScope = entry.scopes.some((scope) => scope.scopeCode === activeExamTarget);
+
+  return {
+    ...toRankableCandidate(entry),
+    inScope,
+    reason: inScope ? "当前考试范围命中，来自词根家族原型" : "来自词根家族原型",
+    score: inScope ? 30 : 8,
+  };
+}
+
+function hydrateRootFamilyView(
+  activeExamTarget: ExamScopeCode,
+  prototype: RootFamilyView,
+  entries: RetrievalEntryRecord[],
+) {
+  const entryMap = new Map(entries.map((entry) => [entry.lemma, entry]));
+
+  return {
+    ...prototype,
+    members: prototype.members.map((member) => {
+      const entry = entryMap.get(member.lemma);
+      const inScope = entry
+        ? entry.scopes.some((scope) => scope.scopeCode === activeExamTarget)
+        : false;
+
+      return {
+        ...member,
+        entryId: entry?.id ?? null,
+        inScope,
+      };
+    }),
+  };
 }
 
 function selectStableEnglishCandidate(
@@ -738,6 +799,32 @@ async function handleShapeNeighborSearch(
   );
 }
 
+async function handleRootFamilySummary(
+  input: RetrieveCandidatesInput,
+  normalizedQuery: ReturnType<typeof normalizeQuery>,
+) {
+  const prototype = findRootFamilyPrototype(normalizedQuery.normalizedText);
+
+  if (!prototype) {
+    return createNoMatchResult(normalizedQuery, [], "low_confidence", null);
+  }
+
+  const entries = await findEntriesByLemmas(prototype.members.map((member) => member.lemma));
+  const rootFamilyView = hydrateRootFamilyView(input.activeExamTarget, prototype, entries);
+  const rankedCandidates = entries.map((entry) =>
+    createRootFamilyRankedCandidate(input.activeExamTarget, entry),
+  );
+
+  return createResolvedResult(
+    normalizedQuery,
+    rankedCandidates,
+    rankedCandidates.map(toRetrievalCandidate),
+    [],
+    null,
+    rootFamilyView,
+  );
+}
+
 async function handleDirectCompare(
   input: RetrieveCandidatesInput,
   normalizedQuery: ReturnType<typeof normalizeQuery>,
@@ -837,6 +924,10 @@ export async function retrieveCandidates(input: RetrieveCandidatesInput) {
 
   if (normalizedQuery.queryMode === "shape_neighbor_search") {
     return handleShapeNeighborSearch(input, normalizedQuery);
+  }
+
+  if (normalizedQuery.queryMode === "root_family_summary") {
+    return handleRootFamilySummary(input, normalizedQuery);
   }
 
   if (normalizedQuery.queryMode === "meaning_lookup") {
