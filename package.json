@@ -17,6 +17,7 @@
     "db:seed": "prisma db seed",
     "eval:shape": "tsx scripts/run-shape-neighbor-eval.ts",
     "eval:answer-style": "tsx scripts/run-answer-style-eval.ts",
+    "eval:answer-style:provider": "tsx scripts/run-answer-style-provider-smoke.ts",
     "verify": "corepack pnpm lint && corepack pnpm test:unit && corepack pnpm test:integration && corepack pnpm test:e2e"
   },
   "prisma": {

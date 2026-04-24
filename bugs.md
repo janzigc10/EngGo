@@ -24,6 +24,12 @@
   - 单条和小批量联调可用
   - 连续跑 27 条 full batch eval 时，可能在中后段进入限流窗口
   - 当前 `scripts/run-chat-batch-eval.ts` 已加退避重试，但如果限流窗口过长，整轮验收仍会变慢甚至超时
+- 2026-04-24 追加确认：两把临时 key 对 `api.minimaxi.com` 的 OpenAI-compatible 与 Anthropic-compatible 文本接口均返回 `429 usage limit exceeded (2056)`，即使单条最小请求也不可用；第一把对 `api.minimax.io` 返回 `401`。后续真实 provider smoke 需要先更换/恢复可用额度 key，再启动本地 app 跑完整小批次。
+- DeepSeek flash 真实 provider smoke 已能跑通，但有两个本地联调坑：
+  - `deepseek-v4-flash` 部分回答会超过 15s；`scripts/run-answer-style-provider-smoke.ts` 已把默认 timeout 提高到 45s，并支持 `ENGGO_PROVIDER_SMOKE_TIMEOUT_MS` 覆盖。继续使用 DeepSeek 时不要再按旧 15s 判断 hard fail。
+  - Windows PowerShell `Invoke-RestMethod` / `Invoke-WebRequest` 直接发送中文 JSON 到本地 `/api/chat` 时可能出现中文乱码，导致 query mode 误判；真实中文 smoke 优先用 Node `fetch` 或现有 TypeScript runner。
+  - few-shot 已能把 DeepSeek 回答压到更像 EngGo，但仍有多词/词根 case 轻微超过当前 smoke 的严格字数阈值；这更像验收阈值与真实可读性之间的取舍，不宜继续只靠 prompt 无限压缩。
+- 已移除 `stationary/stationery` 的 `e -> envelope` / `a -> stay` 牵强字母口诀；后续新增 confusion groups 时不要把绕一层的字母联想写入 `memberNotes`，优先写真实搭配、词性、场景边界。
 - Playwright bundled Chromium 的历史缺失问题本 session 已变化：
   - `corepack pnpm exec playwright install --dry-run chromium` 显示 `chromium` 与 `chromium_headless_shell` install location 已存在
   - 这说明“缺少 bundled Chromium 二进制”不再是本 session 的直接 blocker

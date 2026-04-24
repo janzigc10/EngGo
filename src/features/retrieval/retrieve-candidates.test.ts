@@ -274,6 +274,23 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     expect(result.comparisonView?.whyConfusing).toBeTruthy();
   });
 
+  it("does not surface contrived letter mnemonics for stationary stationery", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet4",
+      query: "stationary 和 stationery 哪个是文具",
+    });
+
+    const notes = result.comparisonView?.members
+      .map((member) => member.emphasisNote ?? "")
+      .join("\n") ?? "";
+
+    expect(result.comparisonView?.id).toBe("stationary-stationery");
+    expect(notes).not.toContain("envelope");
+    expect(notes).not.toContain("stay");
+    expect(notes).toContain("remain stationary");
+    expect(notes).toContain("stationery store");
+  });
+
   it("returns a lookalike cluster for breath", async () => {
     const result = await retrieveCandidates({
       activeExamTarget: "cet4",

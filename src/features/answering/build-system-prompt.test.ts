@@ -111,14 +111,14 @@ describe("buildSystemPrompt", () => {
             entryId: "stationary",
             lemma: "stationary",
             meaningsZh: ["静止的"],
-            emphasisNote: "a 可联想 stay，表示不动。",
+            emphasisNote: "常见搭配 remain stationary，表示保持静止。",
             inScope: true,
           },
           {
             entryId: "stationery",
             lemma: "stationery",
             meaningsZh: ["文具"],
-            emphasisNote: "e 可联想 envelope，表示文具。",
+            emphasisNote: "常见搭配 stationery store，表示文具店。",
             inScope: true,
           },
         ],
@@ -131,6 +131,19 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("2-4 个分流项");
     expect(prompt).toContain("题里抓");
     expect(prompt).toContain("不要把回答写成泛泛词典百科");
+    expect(prompt).toContain("总长度控制在 260 个汉字以内");
+    expect(prompt).toContain("最多 3 段");
+    expect(prompt).toContain("每个词只给一行边界");
+    expect(prompt).toContain("只输出这 3 段");
+    expect(prompt).toContain("禁止例句、长列表和补充扩展");
+    expect(prompt).toContain("短答示例");
+    expect(prompt).toContain("为什么会混：stationary / stationery 只差 a/e");
+    expect(prompt).toContain("题里抓：文具=stationery");
+    expect(prompt).toContain("超过 2 个词时，用公式行压缩");
+    expect(prompt).toContain("不要使用 e= envelope 这类牵强字母口诀");
+    expect(prompt).not.toContain("e 可联想 envelope");
+    expect(prompt).not.toContain("a 可联想 stay");
+    expect(prompt).toContain("不要再套用通用四段标题");
   });
 
   it("guides root-family answers as a structured map", () => {
@@ -216,5 +229,15 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("优先背");
     expect(prompt).toContain("不成立");
     expect(prompt).toContain("不要硬凑");
+    expect(prompt).toContain("总长度控制在 280 个汉字以内");
+    expect(prompt).toContain("最多 4 段");
+    expect(prompt).toContain("不要写成长讲义");
+    expect(prompt).toContain("只输出这 4 段");
+    expect(prompt).toContain("禁止例句、词源长故事和完整列表");
+    expect(prompt).toContain("短答示例");
+    expect(prompt).toContain("碎片判断：stitute 不是完整单词");
+    expect(prompt).toContain("优先背：institute / institution");
+    expect(prompt).toContain("优先背最多 2 个");
+    expect(prompt).toContain("不要再套用通用四段标题");
   });
 });

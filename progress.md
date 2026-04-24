@@ -19,6 +19,176 @@
 - 词根家族地图：用户有词根/前缀/碎片，需要结构化展开和优先级。
 
 ## 本 Session 已完成
+- 2026-04-24 处理“牵强字母口诀”反馈：
+  - 用户指出 `文具 = stationery（e 联想 envelope）` 太突兀，不应输出这类不必要口诀。
+  - 根因确认：
+    - `data/exam-vocab/seed/confusion-groups.json` 的 `stationary-stationery.memberNotes` 里原本有 `a 可联想 stay` / `e 可联想 envelope`。
+    - `src/features/answering/build-system-prompt.test.ts` fixture 里也复制了这类 emphasis note。
+    - 模型不是凭空发明，而是 grounding 把这些 note 带给了 provider。
+  - 修改：
+    - `stationary` note 改为 `常见搭配 remain stationary，表示保持静止。`
+    - `stationery` note 改为 `常见搭配 stationery store，表示文具店。`
+    - `confusion_untangle` prompt 新增 guardrail：不要使用 `e= envelope` 这类牵强字母口诀，优先用语义、词性、搭配和场景做边界。
+    - 新增 retrieval 测试，锁定 `stationary/stationery` 不再暴露 `envelope` / `stay` note。
+  - 已执行 `corepack pnpm db:seed`，把 seed 变更灌回本地 Prisma dev 数据库。
+  - 验证：
+    - `corepack pnpm test src/features/answering/build-system-prompt.test.ts`：3 passed / 3 passed
+    - `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts`：33 passed / 33 passed
+    - `corepack pnpm eval:answer-style`：8 passed / 0 failed
+    - `corepack pnpm eval:shape`：34 passed / 0 failed
+    - `corepack pnpm exec eslint src/features/answering/build-system-prompt.ts src/features/answering/build-system-prompt.test.ts src/features/retrieval/retrieve-candidates.test.ts`：通过
+  - DeepSeek flash 单例验证：
+    - 问法：`stationary 和 stationery 哪个是文具`
+    - 输出不再包含 `envelope` 或 `stay`
+    - 当前回答：`为什么会混：stationary 和 stationery 只差 a/e，是经典形近拼写混淆。... 题里抓：stationary 搭配 remain；stationery 搭配 store。核心边界：stationary 是形容词表静止；stationery 是名词表文具。`
+    - 结果文件：[test-results/deepseek-stationery-no-mnemonic.json](/C:/Users/Chen/Desktop/EngGo/test-results/deepseek-stationery-no-mnemonic.json)
+
+- 2026-04-24 追加完成 few-shot 短答压缩：
+  - 在 [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts) 为两条真实回答主线加入短答 few-shot：
+    - `confusion_untangle` 示例固定为“为什么会混 / 先问一句 / 题里抓”三段。
+    - `root_family_summary` 示例固定为“碎片判断 / 家族地图 / 优先背 / 谨慎提醒”四段。
+    - 追加“超过 2 个词时，用公式行压缩”和“优先背最多 2 个”的约束，避免 DeepSeek 展开成长列表。
+  - TDD 红灯已确认：
+    - `corepack pnpm test src/features/answering/build-system-prompt.test.ts` 先因缺少 `短答示例` 失败。
+    - 追加公式化压缩约束时，该测试也先因缺少对应约束失败。
+  - 修改后验证：
+    - `corepack pnpm test src/features/answering/build-system-prompt.test.ts`：3 passed / 3 passed
+    - `corepack pnpm eval:answer-style`：8 passed / 0 failed
+    - `corepack pnpm test scripts/run-answer-style-provider-smoke.test.ts`：6 passed / 6 passed
+    - `corepack pnpm exec eslint src/features/answering/build-system-prompt.ts src/features/answering/build-system-prompt.test.ts`：通过
+  - 使用 DeepSeek flash 临时环境重跑真实 provider smoke：
+    - few-shot v1：4 pass / 5 manual / 0 fail，输出保存在 [test-results/deepseek-provider-smoke-fewshot.txt](/C:/Users/Chen/Desktop/EngGo/test-results/deepseek-provider-smoke-fewshot.txt)
+    - few-shot v2：4 pass / 5 manual / 0 fail，输出保存在 [test-results/deepseek-provider-smoke-fewshot-v2.txt](/C:/Users/Chen/Desktop/EngGo/test-results/deepseek-provider-smoke-fewshot-v2.txt)
+  - 当前判断：
+    - few-shot 明显改善了回答形态：`stationary/stationery`、`recent/resent`、`tempt` 等已接近或进入 pass。
+    - 剩余 manual 大多是轻微超当前严格字数阈值，例如 `stationary/stationery` 221 chars vs 220、`access/assess/excess` 270 vs 260。
+    - 不建议继续无限压 prompt；下一刀更适合重新校准 smoke 的 `maxAnswerChars`，或接受“稍长但仍像学生答疑”的真实输出。
+
+- 2026-04-24 追加完成真实 provider smoke 第一轮 prompt tuning：
+  - 修改 [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts)：
+    - `confusion_untangle` / `root_family_summary` 不再套用通用“主答案 / 易混边界 / 范围提醒 / 下一步”四段标题。
+    - `confusion_untangle` 明确要求总长度 260 汉字以内、最多 3 段、只输出“为什么会混 / 先问一句 / 题里抓”，禁止例句、长列表和补充扩展。
+    - `root_family_summary` 明确要求总长度 280 汉字以内、最多 4 段、只输出“碎片判断 / 家族地图 / 优先背 / 谨慎提醒”，禁止词源长故事和完整列表。
+  - 修改 [scripts/run-answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-provider-smoke.ts)：
+    - 默认请求超时从 15s 提高到 45s。
+    - 新增 `ENGGO_PROVIDER_SMOKE_TIMEOUT_MS` 覆盖入口。
+  - 新增/更新测试覆盖：
+    - [src/features/answering/build-system-prompt.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.test.ts)
+    - [scripts/run-answer-style-provider-smoke.test.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-provider-smoke.test.ts)
+  - TDD 红灯已确认：
+    - `corepack pnpm test src/features/answering/build-system-prompt.test.ts`：先因缺少限长/短段约束失败。
+    - `corepack pnpm test scripts/run-answer-style-provider-smoke.test.ts`：先因缺少 `resolveRequestTimeoutMs` 失败。
+  - 修改后验证：
+    - `corepack pnpm test src/features/answering/build-system-prompt.test.ts`：3 passed / 3 passed
+    - `corepack pnpm test scripts/run-answer-style-provider-smoke.test.ts`：6 passed / 6 passed
+    - `corepack pnpm eval:answer-style`：8 passed / 0 failed
+    - `corepack pnpm exec eslint src/features/answering/build-system-prompt.ts src/features/answering/build-system-prompt.test.ts scripts/run-answer-style-provider-smoke.ts scripts/run-answer-style-provider-smoke.test.ts`：通过
+  - 使用 DeepSeek flash 临时环境重跑真实 provider smoke：
+    - 第一刀后：2 pass / 5 manual / 2 fail；2 fail 均为旧 15s timeout。
+    - 改 runner 默认 45s 后：2 pass / 7 manual / 0 fail。
+    - 第二刀进一步收紧 prompt 后：3 pass / 6 manual / 0 fail，输出保存在 [test-results/deepseek-provider-smoke-after-prompt-v2.txt](/C:/Users/Chen/Desktop/EngGo/test-results/deepseek-provider-smoke-after-prompt-v2.txt)。
+  - 当前结论：
+    - 超时 hard fail 已解决；DeepSeek flash 对 9 条 provider smoke 能稳定跑完。
+    - prompt tuning 已明显缩短回答，但 DeepSeek 仍会在多数 resolved case 超过当前严格 `maxAnswerChars`，下一刀可二选一：继续压 prompt，或把 smoke 的长度阈值调整到更符合真实学生问答可读性的范围。
+
+- 2026-04-24 追加完成 DeepSeek flash 真实 provider smoke：
+  - 用户提供 DeepSeek 临时 key；本轮仅作为临时进程环境变量使用，未写入 `.env`、未写入仓库文件。
+  - 最小探测结果：
+    - `OPENAI_BASE_URL=https://api.deepseek.com/v1`
+    - `OPENAI_MODEL=deepseek-v4-flash`
+    - `deepseek-v4-flash`：`/chat/completions` 返回 200
+    - `DeepSeek-V4-Flash`：返回 400 `Model Not Exist`
+    - `deepseek-chat`：可用，但实际返回模型仍是 `deepseek-v4-flash`
+  - 串行 preflight：
+    - `corepack pnpm exec prisma dev ls`：`enggo` running
+    - `corepack pnpm eval:answer-style`：8 passed / 0 failed
+  - 使用现有 `corepack pnpm eval:answer-style:provider` 跑完整 9 条时，DeepSeek 链路已接通，但 runner 默认 15s timeout 偏紧：
+    - summary：2 pass / 5 manual / 2 fail
+    - 2 个 fail 均为 `request timed out after 15000ms`，不是 provider HTTP 错误或 grounding drift
+    - 5 个 manual 主要为回答超长，说明 DeepSeek 输出偏“讲义型”
+  - 改用 Node `fetch` 直接对本地 `/api/chat` 发 UTF-8 学生提问，并将单条超时放宽到 90s，结果写入 [test-results/deepseek-answer-style-smoke-node.json](/C:/Users/Chen/Desktop/EngGo/test-results/deepseek-answer-style-smoke-node.json)
+  - UTF-8 直连 9 条结果：
+    - `stationary 和 stationery 哪个是文具` -> `direct_compare/resolved/confusion_untangle`，provider called，757 chars
+    - `access assess excess 怎么区分` -> `direct_compare/resolved/confusion_untangle`，provider called，925 chars
+    - `跟 recent 很像的词有哪些` -> `shape_neighbor_search/resolved/confusion_untangle`，provider called，1205 chars
+    - `comply conform defer 怎么区分` -> `direct_compare/resolved/confusion_untangle`，provider called，609 chars
+    - `respect 那组词怎么分` -> `direct_compare/resolved/confusion_untangle`，provider called，1080 chars
+    - `stitute 是什么` -> `root_family_summary/resolved/root_family_summary`，provider called，1879 chars
+    - `tempt 这一族怎么记` -> `root_family_summary/resolved/root_family_summary`，provider called，1246 chars
+    - `re+con 的词根有什么词` -> `root_family_summary/no_match/root_family_summary`，provider skipped，87 chars
+    - `有个像 reqeust 的词` -> `fuzzy_recall/no_match/standard_lookup`，provider skipped，68 chars
+  - 结论：
+    - DeepSeek flash 可以作为真实 provider 跑通 EngGo 的 retrieval -> grounding -> prompt -> answer 主链路。
+    - 当前 hard grounding 目标全部命中；真正的产品问题是回答太长，下一刀优先做 prompt guardrail tuning，让 `confusion_untangle` 和 `root_family_summary` 更短、更像学生问答，而不是长讲义。
+    - 如果继续使用 `eval:answer-style:provider`，建议先把 runner timeout 做成可配置或提高到 45s，避免把 DeepSeek 慢响应误判为 hard fail。
+
+- 完成 `2026-04-24-enggo-answer-style-real-provider-smoke.md` Task 1：
+  - 新增 [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts)
+  - 新增 [scripts/lib/answer-style-provider-smoke.test.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.test.ts)
+  - `vitest.config.ts` 现已纳入 `scripts/**/*.test.ts(x)`，计划命令可以直接命中新测试
+  - smoke 纯库现已覆盖：
+    - 9 条 provider smoke case 定义
+    - `queryMode` / `resolution` / `answerStyle` / `expectedGroundingIncludes` / `expectedRootFamilyViewId` drift fail
+    - `rootFamilyView.members` 聚合路径
+    - `status=200 + error` hard-fail
+    - `resolved` 必须有 `providerRequestId`
+    - `no_match` 必须无 `providerRequestId` 且 answer 非空
+    - `manualChecks` 与 `manualFlags` 分离
+- 本轮已实际验过 Task 1 的正式命令：
+  - `corepack pnpm test scripts/lib/answer-style-provider-smoke.test.ts`
+  - 当前状态：15 passed / 15 passed
+- 当前正在进入 Task 2：
+  - 目标是新增 `scripts/run-answer-style-provider-smoke.ts` 和 `eval:answer-style:provider`
+  - 继续保持串行，不把真实 provider smoke 接进 `verify`
+- 完成 `2026-04-24-enggo-answer-style-real-provider-smoke.md` Task 2：
+  - 新增 [scripts/run-answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-provider-smoke.ts)
+  - 新增 [scripts/run-answer-style-provider-smoke.test.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-provider-smoke.test.ts)
+  - `package.json` 新增 `eval:answer-style:provider`
+  - runner 现已具备：
+    - 严格串行请求本地 `/api/chat`
+    - 复用 smoke library case / evaluator / summary
+    - 默认 `ENGGO_CHAT_BASE_URL || http://127.0.0.1:3000`
+    - 429 最多 2 次保守重试
+    - 单条请求超时保护，避免整轮挂死
+    - `providerCalled / providerSkipped / providerUnknown` 分桶，避免把 provider 失败误记成 skip
+    - 一行简洁输出 + `manual/fail` 详细展开 + summary `nextStep`
+- 本轮已实际验过 Task 2 的本地命令：
+  - `corepack pnpm test scripts/run-answer-style-provider-smoke.test.ts`
+  - 当前状态：4 passed / 4 passed
+  - `corepack pnpm test scripts/lib/answer-style-provider-smoke.test.ts`
+  - 当前状态：15 passed / 15 passed
+  - `corepack pnpm exec eslint scripts/run-answer-style-provider-smoke.ts scripts/run-answer-style-provider-smoke.test.ts`
+  - 当前状态：通过
+  - `corepack pnpm exec tsx --eval "(async () => { await import('./scripts/run-answer-style-provider-smoke.ts'); })()"`
+  - 当前状态：通过
+- Task 3 预检现状：
+  - `corepack pnpm exec prisma dev ls`：`enggo` running
+  - `.env`：`OPENAI_API_KEY / OPENAI_BASE_URL / OPENAI_MODEL` 均未配置
+  - 当前进程环境：`OPENAI_API_KEY / OPENAI_BASE_URL / OPENAI_MODEL` 也均未配置
+  - `http://127.0.0.1:3000`：本轮已临时启动并验证可访问，跑完 smoke 后已关闭
+  - 当前 blocker：要继续真实 provider smoke，必须先补 provider 环境变量
+- 本轮已实际执行 Task 3：
+  - `corepack pnpm exec prisma dev ls`
+  - 当前状态：`enggo` running
+  - `corepack pnpm eval:answer-style`
+  - 当前状态：8 passed / 0 failed
+  - 启动本地 app 后验证 `http://127.0.0.1:3000`
+  - 当前状态：200，可访问；跑完 smoke 后已手动关闭
+  - `corepack pnpm eval:answer-style:provider`
+  - 当前状态：2 pass / 0 manual / 7 fail
+  - fail 原因已明确收敛为同一外部 blocker：服务端返回 `503`，错误信息为 `OPENAI_API_KEY is not configured on the server.`
+  - 当前 summary：
+    - `resolved`: 0
+    - `no_match`: 2
+    - `providerCalled`: 0
+    - `providerSkipped`: 2
+    - `providerUnknown`: 7
+    - `nextStep`: 先处理 hard fail，再决定是否继续真实 smoke
+- Task 3 结论：
+  - 真实 smoke runner 本身已能跑通并输出稳定 summary
+  - 当前不能据此判断真实 provider 的回答风格，因为 provider 根本没有被调用成功
+  - 下一步不是调 retrieval / prompt，而是先把 provider 环境配好，再重跑 `corepack pnpm eval:answer-style:provider`
+
 - 重新阅读并确认当前阶段入口文档与相关计划：
   - `progress.md`
   - `bugs.md`
@@ -165,6 +335,7 @@
 - 当前没有 shape-neighbor 测试阻塞。
 - 不建议本地并行跑 `verify` 和 `eval:shape` 这类会访问 Prisma dev 的命令。
 - 真实模型 batch eval 仍受 provider key、dev server、MiniMax 429 影响。
+- 2026-04-24 追加探测：用户提供的临时 MiniMax key 未写入仓库文件；直接探测 `https://api.minimaxi.com/v1/chat/completions` 与 `https://api.minimaxi.com/anthropic/v1/messages`，两把临时 key 均返回 `429 usage limit exceeded (2056)`；其中第一把对 `https://api.minimax.io/v1/chat/completions` 返回 `401`，说明 key 更像是 `api.minimaxi.com` 区域 key，但额度/限额不可用。本轮未继续跑 9 条真实 provider smoke，避免无效消耗限流窗口。
 - 若下一轮继续扩 seed，`seed-content.test.ts` 已改为最小 fixture，应不再随 seed 规模线性变慢；若再次超时，先按 `bugs.md` 的 Prisma dev 健康检查路径排查。
 
 ## 最近验证基线

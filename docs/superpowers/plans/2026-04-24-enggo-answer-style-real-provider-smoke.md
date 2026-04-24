@@ -84,7 +84,7 @@ Use three review lanes:
 - Create: `scripts/lib/answer-style-provider-smoke.ts`
 - Create: `scripts/lib/answer-style-provider-smoke.test.ts`
 
-- [ ] **Step 1: Write failing tests for the bounded smoke set**
+- [x] **Step 1: Write failing tests for the bounded smoke set**
 
 Add a test that locks the case list and expectations:
 
@@ -113,7 +113,7 @@ it("defines the bounded answer-style smoke set", () => {
 
 Expected before implementation: FAIL because the helper module does not exist.
 
-- [ ] **Step 2: Write failing tests for hard-fail and manual-review rules**
+- [x] **Step 2: Write failing tests for hard-fail and manual-review rules**
 
 Add tests for:
 
@@ -158,7 +158,7 @@ expect(verdict.hardFailures).toContain(
 
 Expected before implementation: FAIL because the evaluator does not exist.
 
-- [ ] **Step 3: Run the failing smoke-library tests**
+- [x] **Step 3: Run the failing smoke-library tests**
 
 Run:
 
@@ -168,7 +168,7 @@ corepack pnpm test scripts/lib/answer-style-provider-smoke.test.ts
 
 Expected: FAIL for missing module/exports.
 
-- [ ] **Step 4: Implement the pure smoke-eval library**
+- [x] **Step 4: Implement the pure smoke-eval library**
 
 In `scripts/lib/answer-style-provider-smoke.ts`, add:
 
@@ -221,7 +221,7 @@ Hard-fail checks should cover:
 
 Manual-review notes should stay separate from hard failures.
 
-- [ ] **Step 5: Run the smoke-library tests to green**
+- [x] **Step 5: Run the smoke-library tests to green**
 
 Run:
 
@@ -238,7 +238,7 @@ Expected: PASS.
 - Modify: `package.json`
 - Optional modify: `scripts/run-chat-batch-eval.ts`
 
-- [ ] **Step 1: Extend the smoke-library test with summary coverage**
+- [x] **Step 1: Extend the smoke-library test with summary coverage**
 
 Add one more test:
 
@@ -259,7 +259,7 @@ expect(summary).toEqual({
 
 Expected before implementation: FAIL until the summary helper exists.
 
-- [ ] **Step 2: Run the failing smoke-library test again**
+- [x] **Step 2: Run the failing smoke-library test again**
 
 Run:
 
@@ -269,7 +269,7 @@ corepack pnpm test scripts/lib/answer-style-provider-smoke.test.ts
 
 Expected: FAIL if the summary helper is still missing or incomplete.
 
-- [ ] **Step 3: Implement the runner against local `/api/chat`**
+- [x] **Step 3: Implement the runner against local `/api/chat`**
 
 Create `scripts/run-answer-style-provider-smoke.ts` as a thin CLI wrapper:
 
@@ -307,7 +307,7 @@ The runner should:
 - show `providerRequestId`
 - exit with code `1` only when hard fails exist
 
-- [ ] **Step 4: Add the package script**
+- [x] **Step 4: Add the package script**
 
 In `package.json`, add:
 
@@ -315,7 +315,7 @@ In `package.json`, add:
 "eval:answer-style:provider": "tsx scripts/run-answer-style-provider-smoke.ts"
 ```
 
-- [ ] **Step 5: Run smoke-library tests to green after runner wiring**
+- [x] **Step 5: Run smoke-library tests to green after runner wiring**
 
 Run:
 
@@ -331,7 +331,7 @@ Expected: PASS.
 - Modify: `progress.md`
 - Optional modify: `bugs.md`
 
-- [ ] **Step 1: Run serial preflight checks before touching the real provider**
+- [x] **Step 1: Run serial preflight checks before touching the real provider**
 
 Run:
 
@@ -347,7 +347,7 @@ Expected:
 
 Do not proceed if these fail.
 
-- [ ] **Step 2: Start the local app and confirm the chat endpoint is reachable**
+- [x] **Step 2: Start the local app and confirm the chat endpoint is reachable**
 
 In a separate shell:
 
@@ -363,7 +363,7 @@ Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000
 
 Expected: the local app responds and `/api/chat` is ready to accept requests.
 
-- [ ] **Step 3: Run the real-provider smoke serially**
+- [x] **Step 3: Run the real-provider smoke serially**
 
 Run:
 
@@ -379,7 +379,7 @@ Expected:
 
 This command is allowed to take longer than local fake eval because of real-provider latency and bounded 429 backoff.
 
-- [ ] **Step 4: Review the manual-review flags and answer previews**
+- [x] **Step 4: Review the manual-review flags and answer previews**
 
 For each `manual` case, answer these questions:
 
@@ -390,7 +390,7 @@ For each `manual` case, answer these questions:
 
 If multiple cases miss the same style requirement, record that as the next prompt-tuning target instead of immediately changing retrieval/data.
 
-- [ ] **Step 5: Record the smoke outcome in handoff docs**
+- [x] **Step 5: Record the smoke outcome in handoff docs**
 
 Update `progress.md` with:
 
@@ -415,7 +415,7 @@ Only update `bugs.md` if the smoke confirms a stable, repeatable issue such as:
 - Modify: `progress.md`
 - Optional modify: `bugs.md`
 
-- [ ] **Step 1: Do not add this smoke run to `verify`**
+- [x] **Step 1: Do not add this smoke run to `verify`**
 
 Keep:
 
@@ -425,7 +425,7 @@ Keep:
 
 Expected: external-provider smoke remains an explicit operator command, not a default gate.
 
-- [ ] **Step 2: Keep verification serial**
+- [x] **Step 2: Keep verification serial**
 
 Do not run these in parallel:
 
@@ -438,7 +438,7 @@ corepack pnpm eval:answer-style:provider
 
 Expected: no new Prisma dev instability caused by parallel local-db access.
 
-- [ ] **Step 3: Mark this plan step-by-step during execution**
+- [x] **Step 3: Mark this plan step-by-step during execution**
 
 As each step finishes, immediately change its checkbox from `- [ ]` to `- [x]`.
 
