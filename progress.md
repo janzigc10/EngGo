@@ -19,6 +19,29 @@
 - 词根家族地图：用户有词根/前缀/碎片，需要结构化展开和优先级。
 
 ## 本 Session 已完成
+- 2026-04-25 根据用户对上一轮 smoke 的产品评价，收口派生词族与 root 回答：
+  - 设计判断落盘：派生词族（如 `respect / respective / respectful / respectable`）不再作为 `confusion_untangle` 的代表 case；它属于后续 learning backbone / word-family memory map，只有用户明确问具体边界（如 `respectful / respectable`）时才进入局部易混辨析。已更新 [docs/superpowers/specs/2026-04-21-exam-english-chat-design.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/specs/2026-04-21-exam-english-chat-design.md) 与 [docs/superpowers/specs/2026-04-25-confusion-cluster-layering-design.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/specs/2026-04-25-confusion-cluster-layering-design.md)。
+  - 数据层把 `respect-respective-respectful-respectable` 从默认易混代表改为 `labels=["root_family"]`、`purposes=["memory_map"]`，保留词族关系，但不把它作为 `confusion_untangle` smoke 验收样本。
+  - [src/features/answering/build-grounding.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-grounding.ts) 新增分流：`memory_map` 且不含 `confusion_untangle` 的组不再派发到 `confusion_untangle`；完整词族卡留给后续学习流能力。
+  - [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts) 收口 `root_family_summary`：从 4 段改为 3 段（碎片判断 / 家族地图 / 优先背），不再要求可见“谨慎提醒”，不主动点名未召回低频或范围外分支；当片段本身也是成员词时，必须说明它也是完整单词。
+  - [src/features/answering/chat-service.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/chat-service.ts) 的 root no-match 文案去掉“为避免不硬凑规律”式内部防御话术，改成“还没有稳定收录成词族”。
+  - provider smoke 默认集从 14 条调为 13 条，移除 `confusion: respect family`；`scripts/run-answer-style-eval.ts` 也移除该易混代表 case，deterministic eval 当前为 12 条。
+  - 验证：先看到 root prompt / memory_map 分流 / provider smoke case 的红灯；修复后 `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts src/features/answering/chat-service.test.ts src/features/answering/build-system-prompt.test.ts scripts/lib/answer-style-provider-smoke.test.ts scripts/run-answer-style-provider-smoke.test.ts` -> 5 files / 81 tests passed；`corepack pnpm eval:answer-style` -> 12/12 pass；`check-vocab-content --dataset real-smoke --min-entries 400 --require-source-lemmas` -> 409 entries / 34 groups；focused eslint 通过。
+  - 真实 provider smoke 复跑：`corepack pnpm eval:answer-style:provider` -> total 13 / pass 9 / manual 4 / fail 0；`root_family_summary` count 3 / average 166 / p90 217 / warnings 0；`tempt` 输出已承认“既是完整单词‘引诱’，也是这一族的构词核心”。剩余 manual 全在 `confusion_untangle`，说明下一刀应继续压缩真正易混辨析模板。
+- 2026-04-25 将 provider smoke 从“只看单条字数阈值”升级为按回答类型统计长度分布：
+  - [scripts/run-answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-provider-smoke.ts) 的单条输出新增 `chars=实际/预算`，真实 smoke 时可以直接看到某条回答是轻微超长还是明显失控。
+  - `RunnerSummary` 新增 `answerLengthByStyle`，按 `answerStyle` 聚合 `count / min / max / average / p50 / p90 / warnings`；后续大规模词库 smoke 可以先看各类型长度分布，而不是把固定字数当唯一质量标准。
+  - 保留现有 `maxAnswerChars` 作为 warning/manual 入口：超长仍进入人工复核，但不会变成 hard fail，符合本轮对 `expression_recall` 的判断。
+  - 红绿验证：先补 [scripts/run-answer-style-provider-smoke.test.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-provider-smoke.test.ts) 断言 `chars=实际/预算` 和 `answerLengthByStyle`，旧实现按预期失败；实现后 `corepack pnpm test scripts/run-answer-style-provider-smoke.test.ts` -> 7/7 pass。
+  - 收口验证：`corepack pnpm test scripts/lib/answer-style-provider-smoke.test.ts scripts/run-answer-style-provider-smoke.test.ts` -> 2 files / 23 tests passed；focused eslint 通过；`git diff --check` 仅有 Windows LF/CRLF 提示。
+- 2026-04-25 用真实 provider 复跑 answer-style smoke，验证新长度仪表盘：
+  - 临时启动 Next dev server 后运行 `corepack pnpm eval:answer-style:provider`，结果 total 14 / pass 9 / manual 5 / fail 0；resolved 12；no_match 2；providerCalled 12；providerSkipped 2；avgElapsedMs 4994；maxElapsedMs 14775。
+  - `answerLengthByStyle` 显示真正容易超预算的是 `confusion_untangle`：count 5 / average 309 / p50 305 / p90 443 / warnings 4；其中 `respect` 四词组最高 443/260。
+  - `expression_recall` 本轮非常稳：count 5 / average 257 / p90 290 / warnings 0，说明把阈值放宽到 400 是合理的，不应继续压缩这一类回答。
+  - `root_family_summary`：count 3 / average 195 / p90 272 / warnings 1；`root: stitute` 轻微超长 272/260。
+  - `standard_lookup` 本轮 no-match 输出 68/220，无长度风险。
+  - 内容风险仍复现：`tempt 这一族怎么记` 仍把 `tempt` 说成“不是完整单词”，该项已在 [bugs.md](/C:/Users/Chen/Desktop/EngGo/bugs.md) 记录，后续应优先做 root prompt guardrail。
+  - 下一刀建议：不要继续调 `expression_recall` 字数；优先收紧 `confusion_untangle` 的重复铺陈，尤其 3-4 词组的“范围内相似词 / 词义速览 / 重点区分 / 做题抓手”要更像压缩卡片。
 - 2026-04-25 收口上一轮剩余真实 provider smoke，并补上中文表达召回观察：
   - 已把 [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts) 的默认 provider smoke 从旧 9 条扩到 14 条，新增 5 条 `expression_recall` case：`遵从怎么说`、`影响怎么说`、`适应怎么说`、`建议怎么说`、`要求怎么说`，并补 `comparisonView` / labels / purposes 断言。
   - 首轮真实 smoke 排除旧 Next dev server 后暴露两个真实检索问题：`建议怎么说` 被 `advice` 抢成 `standard_lookup`，`要求怎么说` 被 `claim` 抢成 `standard_lookup`。

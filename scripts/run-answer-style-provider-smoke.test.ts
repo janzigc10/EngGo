@@ -20,6 +20,8 @@ describe("formatAnswerStyleProviderSmokeLine", () => {
       answerStyle: "confusion_untangle",
       providerRequestId: "resp_123",
       elapsedMs: 187,
+      answerChars: 23,
+      maxAnswerChars: 220,
       groundingSummary: "stationary/stationery",
       answerPreview: "先问一句：你这里说的是文具还是静止不动？",
       autoVerdict: "pass",
@@ -34,6 +36,7 @@ describe("formatAnswerStyleProviderSmokeLine", () => {
     expect(line).toContain("direct_compare/resolved/confusion_untangle");
     expect(line).toContain("provider=resp_123");
     expect(line).toContain("elapsed=187ms");
+    expect(line).toContain("chars=23/220");
     expect(line).toContain("grounding=stationary/stationery");
     expect(line).toContain("answer=先问一句：你这里说的是文具还是静止不动？");
   });
@@ -177,6 +180,16 @@ describe("runAnswerStyleProviderSmoke", () => {
       maxElapsedMs: 4550,
       nextStep: expect.any(String),
     });
+    expect(result.summary.answerLengthByStyle).toMatchObject({
+      confusion_untangle: {
+        count: 1,
+        warnings: 0,
+      },
+      root_family_summary: {
+        count: 1,
+        warnings: 0,
+      },
+    });
     expect(result.results[0]?.providerRequestId).toBe("resp_stationery");
     expect(result.results[1]?.providerRequestId).toBeNull();
     expect(events).toEqual([
@@ -223,6 +236,17 @@ describe("runAnswerStyleProviderSmoke", () => {
       providerCalled: 0,
       providerSkipped: 0,
       providerUnknown: 1,
+      answerLengthByStyle: {
+        missing: {
+          count: 1,
+          min: 0,
+          max: 0,
+          average: 0,
+          p50: 0,
+          p90: 0,
+          warnings: 0,
+        },
+      },
     });
     expect(result.results[0]?.autoVerdict).toBe("fail");
     expect(result.results[0]?.errorMessage).toContain("timed out");
@@ -277,6 +301,81 @@ describe("runAnswerStyleProviderSmoke", () => {
       providerCalled: 1,
       providerSkipped: 0,
       providerUnknown: 0,
+    });
+  });
+
+  it("summarizes answer length distribution by answer style", async () => {
+    const transport: ChatSmokeTransport = vi.fn(async ({ item }) => ({
+      status: 200,
+      payload: {
+        answer: item.name === "expression: short" ? "short" : "this answer is long",
+        requestId: `req_${item.name}`,
+        providerRequestId: `resp_${item.name}`,
+        grounding: {
+          queryMode: "meaning_lookup",
+          resolution: "resolved",
+          answerStyle: "expression_recall",
+          comparisonView: {
+            id: "recommend-suggest-propose",
+            labels: ["meaning_near"],
+            purposes: ["expression_recall"],
+            members: [
+              { lemma: "recommend" },
+              { lemma: "suggest" },
+              { lemma: "propose" },
+            ],
+          },
+        },
+      },
+    }));
+
+    const result = await runAnswerStyleProviderSmoke({
+      cases: [
+        {
+          name: "expression: short",
+          query: "建议怎么说",
+          activeExamTarget: "cet6",
+          expectedQueryMode: "meaning_lookup",
+          expectedResolution: "resolved",
+          expectedAnswerStyle: "expression_recall",
+          expectedComparisonViewId: "recommend-suggest-propose",
+          expectedGroundingIncludes: ["recommend", "suggest", "propose"],
+          maxAnswerChars: 12,
+          manualChecks: ["check expression structure"],
+        },
+        {
+          name: "expression: long",
+          query: "建议怎么说",
+          activeExamTarget: "cet6",
+          expectedQueryMode: "meaning_lookup",
+          expectedResolution: "resolved",
+          expectedAnswerStyle: "expression_recall",
+          expectedComparisonViewId: "recommend-suggest-propose",
+          expectedGroundingIncludes: ["recommend", "suggest", "propose"],
+          maxAnswerChars: 12,
+          manualChecks: ["check expression structure"],
+        },
+      ],
+      requestChat: transport,
+    });
+
+    expect(result.results.map((item) => item.answerChars)).toEqual([5, 19]);
+    expect(result.summary).toMatchObject({
+      total: 2,
+      pass: 1,
+      manual: 1,
+      fail: 0,
+      answerLengthByStyle: {
+        expression_recall: {
+          count: 2,
+          min: 5,
+          max: 19,
+          average: 12,
+          p50: 5,
+          p90: 19,
+          warnings: 1,
+        },
+      },
     });
   });
 });

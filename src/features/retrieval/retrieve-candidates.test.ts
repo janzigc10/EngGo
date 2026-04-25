@@ -203,7 +203,7 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     );
   });
 
-  it("expands a group compare query into the whole confusion group", async () => {
+  it("keeps derived-family group queries available as memory maps", async () => {
     const result = await retrieveCandidates({
       activeExamTarget: "cet4",
       query: "respect 那组词怎么分",
@@ -219,7 +219,7 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     expect(result.confusionBoundary).toHaveLength(0);
   });
 
-  it("surfaces root-family cluster metadata for existing derived groups", async () => {
+  it("surfaces memory-map metadata for existing derived groups", async () => {
     const result = await retrieveCandidates({
       activeExamTarget: "cet4",
       query: "respect 那组词怎么分",
@@ -227,9 +227,9 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
 
     expect(result.resolution).toBe("resolved");
     expect(result.comparisonView?.id).toBe("respect-respective-respectful-respectable");
-    expect(result.comparisonView?.labels).toEqual(
-      expect.arrayContaining(["root_family", "shape_like"]),
-    );
+    expect(result.comparisonView?.labels).toEqual(expect.arrayContaining(["root_family"]));
+    expect(result.comparisonView?.labels).not.toContain("shape_like");
+    expect(result.comparisonView?.purposes).toEqual(["memory_map"]);
     expect(result.comparisonView?.anchorPattern).toBe("respect");
   });
 

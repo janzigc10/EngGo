@@ -72,7 +72,8 @@ const DEFAULT_CONFUSION_MANUAL_CHECKS = [
 
 const DEFAULT_ROOT_MANUAL_CHECKS = [
   "检查回答是否先讲碎片能抓什么，不要把词根硬讲成万能规则",
-  "检查回答是否带出前缀方向、优先级和谨慎提醒",
+  "检查回答是否带出前缀方向和优先级",
+  "检查回答是否没有把内部防御性提醒写成正文",
 ];
 
 const DEFAULT_EXPRESSION_MANUAL_CHECKS = [
@@ -213,22 +214,6 @@ export function buildAnswerStyleProviderSmokeCases(): ProviderSmokeCase[] {
       expectedResolution: "resolved",
       expectedAnswerStyle: "confusion_untangle",
       expectedGroundingIncludes: ["comply", "conform", "defer"],
-      maxAnswerChars: 260,
-      manualChecks: DEFAULT_CONFUSION_MANUAL_CHECKS,
-    }),
-    createCase({
-      name: "confusion: respect family",
-      query: "respect 那组词怎么分",
-      activeExamTarget: "cet4",
-      expectedQueryMode: "direct_compare",
-      expectedResolution: "resolved",
-      expectedAnswerStyle: "confusion_untangle",
-      expectedGroundingIncludes: [
-        "respect",
-        "respective",
-        "respectful",
-        "respectable",
-      ],
       maxAnswerChars: 260,
       manualChecks: DEFAULT_CONFUSION_MANUAL_CHECKS,
     }),

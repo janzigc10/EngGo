@@ -71,8 +71,8 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
     return [
       "本风格优先于通用回答顺序，不要再套用通用四段标题。",
       "当前问题属于词根家族地图，必须明确写出“词根家族地图”。",
-      "总长度控制在 280 个汉字以内，最多 4 段，不要写成长讲义。",
-      "只输出这 4 段：碎片判断、家族地图、优先背、谨慎提醒。",
+      "总长度控制在 280 个汉字以内，最多 3 段，不要写成长讲义。",
+      "只输出这 3 段：碎片判断、家族地图、优先背。",
       "禁止例句、词源长故事和完整列表；每个成员只写“词 -> 现代义”一小句。",
       "优先背最多 2 个；其他成员只用“眼熟即可/不硬背”一句带过。",
       [
@@ -80,12 +80,12 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
         "碎片判断：stitute 不是完整单词，是“放置/建立”的构词部件。",
         "家族地图：in- 放进去 -> institute 设立/机构；con- 放一起 -> constitute 构成。",
         "优先背：institute / institution；constitute 眼熟即可。",
-        "谨慎提醒：不是所有前缀组合都成立，不要硬凑。",
       ].join("\n"),
       "先解释这个碎片是不是完整单词，还是构词部件。",
+      "如果用户问到的片段本身也是成员词，必须说明它也是完整单词，再说明它也可作为构词碎片。",
       "必须按“前缀方向 -> 动作故事 -> 现代义”展开。",
       "必须写出“优先背”一段，只列最多 2 个最高优先级成员。",
-      "只用一句话明确指出不成立、低频或不建议背的分支，不要硬凑。",
+      "不要主动点名未召回的低频或范围外分支；内部保持保守即可，不要把防御性提醒写成正文。",
     ].join("\n");
   }
 
@@ -150,9 +150,12 @@ export function buildSystemPrompt(grounding: AnswerGrounding) {
     || grounding.answerStyle === "expression_recall"
     || grounding.answerStyle === "standard_lookup";
 
-  const scopeReminderLine = grounding.answerStyle === "standard_lookup"
-    ? `范围提醒素材（只可自然并入一句话，不要照抄这个标签）：${grounding.scopeReminder}`
-    : `建议的范围提醒：${grounding.scopeReminder}`;
+  const scopeReminderLine =
+    grounding.answerStyle === "standard_lookup"
+      ? `范围提醒素材（只可自然并入一句话，不要照抄这个标签）：${grounding.scopeReminder}`
+      : grounding.answerStyle === "root_family_summary"
+        ? `范围边界素材（内部参考，不要照抄这个标签，也不要主动展开范围外词）：${grounding.scopeReminder}`
+        : `建议的范围提醒：${grounding.scopeReminder}`;
 
   const lines = [
     "你是 EngGo 的考试英语老师助手。",
@@ -173,7 +176,10 @@ export function buildSystemPrompt(grounding: AnswerGrounding) {
     scopeReminderLine,
   ];
 
-  if (grounding.answerStyle !== "standard_lookup") {
+  if (
+    grounding.answerStyle !== "standard_lookup"
+    && grounding.answerStyle !== "root_family_summary"
+  ) {
     lines.push(`建议的下一步追问：${grounding.followUpPrompt}`);
   }
 

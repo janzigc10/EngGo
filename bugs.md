@@ -61,10 +61,10 @@
   - 当前 `fuzzy_recall` 对 fragment / 多片段输入仍会落到 `low_confidence` 或 `no_match`
 - 2026-04-25 真实 provider cluster smoke 暴露两个产品侧 prompt 残留：
   - `academic 是什么意思` 这类 `standard_lookup` 曾会输出例句、分隔线和较长模板，并在下一步建议里主动扩出未召回的 `scholarly / educational`；本轮已先收紧普通查词 prompt，禁止例句、未召回扩词和主动下一步追问，后续可再用真实 provider 复验输出是否稳定。
-  - `stitute 是什么` 的 `root_family_summary` 会在谨慎提醒里点名低优先级、范围外的 `restitute / prostitute`；如果产品希望考试范围更收束，后续应让 root summary 只泛称“低频/范围外分支”或只列 in-scope 成员。
+  - `stitute 是什么` 的 `root_family_summary` 曾会在谨慎提醒里点名低优先级、范围外的 `restitute / prostitute`；2026-04-25 已收口：root summary 不再要求可见“谨慎提醒”，也不主动点名未召回低频/范围外分支。
 - 2026-04-25 追加真实 provider expression smoke 时复现 `root_family_summary` 表达残留：
-  - `tempt 这一族怎么记` 的真实 provider 输出仍可能写成“tempt 不是完整单词，是构词部件”；这与数据事实冲突，因为 `tempt` 本身就是完整单词。
-  - 这不是检索失败，grounding 已命中 `root-tempt`；后续应在 root prompt 或 grounding 展示里强约束“当碎片本身也是 in-scope lemma 时，必须先说明它也是完整单词”。
+  - `tempt 这一族怎么记` 的真实 provider 输出曾可能写成“tempt 不是完整单词，是构词部件”；这与数据事实冲突，因为 `tempt` 本身就是完整单词。
+  - 2026-04-25 已加 root prompt guardrail：当片段本身也是成员词时，必须说明它也是完整单词，再说明也可作为构词碎片；同日真实 provider smoke 复跑中 `tempt` 输出为“既是完整单词‘引诱’，也是这一族的构词核心”。
 - 结论：
   - 形近词簇小样本已通过 `corepack pnpm eval:shape`
   - `standard_lookup` prompt 残留已先在本轮收紧；下一步可用小批真实 provider smoke 复验普通查词输出是否稳定

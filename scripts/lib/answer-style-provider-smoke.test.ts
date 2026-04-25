@@ -41,13 +41,13 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
       "expression: recommend suggest propose",
       "expression: require demand request",
       "confusion: comply conform defer",
-      "confusion: respect family",
       "root: stitute",
       "root: tempt",
       "root: unsupported combination",
       "typo: reqeust still no-match",
     ]);
-    expect(cases).toHaveLength(14);
+    expect(cases).toHaveLength(13);
+    expect(cases.map((item) => item.name)).not.toContain("confusion: respect family");
     expect(cases.every((item) => item.manualChecks.length > 0)).toBe(true);
   });
 
@@ -90,7 +90,7 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
   });
 
   it("fails when a no_match case still returns providerRequestId", () => {
-    const noMatchCase = buildAnswerStyleProviderSmokeCases()[12];
+    const noMatchCase = buildAnswerStyleProviderSmokeCases()[11];
     const verdict = evaluateAnswerStyleProviderSmoke(noMatchCase, {
       status: 200,
       providerRequestId: "resp_should_not_exist",
@@ -109,7 +109,7 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
   });
 
   it("fails when a no_match case returns an empty answer", () => {
-    const noMatchCase = buildAnswerStyleProviderSmokeCases()[12];
+    const noMatchCase = buildAnswerStyleProviderSmokeCases()[11];
     const verdict = evaluateAnswerStyleProviderSmoke(noMatchCase, {
       status: 200,
       providerRequestId: null,
@@ -205,7 +205,7 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
         answer: "先抓 stitute 这个碎片，再看常见前缀方向。",
       } satisfies ProviderSmokePayload,
       expectedFailure: "rootFamilyView expected root-stitute, received root-wrong",
-      caseIndex: 10,
+      caseIndex: 9,
     },
   ])("fails on $label", ({ payload, expectedFailure, caseIndex }) => {
     const caseDef = buildAnswerStyleProviderSmokeCases()[caseIndex];
@@ -216,7 +216,7 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
   });
 
   it("collects rootFamilyView members into grounding lemma checks", () => {
-    const caseDef = buildAnswerStyleProviderSmokeCases()[10];
+    const caseDef = buildAnswerStyleProviderSmokeCases()[9];
     const verdict = evaluateAnswerStyleProviderSmoke(caseDef, {
       status: 200,
       providerRequestId: "resp_root_123",
@@ -243,7 +243,7 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
   });
 
   it("fails when no rootFamilyView is expected but the object still exists", () => {
-    const noMatchCase = buildAnswerStyleProviderSmokeCases()[12];
+    const noMatchCase = buildAnswerStyleProviderSmokeCases()[11];
     const verdict = evaluateAnswerStyleProviderSmoke(noMatchCase, {
       status: 200,
       providerRequestId: null,

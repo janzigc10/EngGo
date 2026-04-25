@@ -34,7 +34,7 @@ type CreateChatServiceOptions = {
 
 function buildNoMatchAnswer(grounding: AnswerGrounding) {
   if (grounding.queryMode === "root_family_summary") {
-    return "这类词根/前缀组合我还没有稳定 grounding。为避免不硬凑规律，这次先不展开。你可以给我一个更明确的词根片段，或者直接问某一族（比如 stitute / tempt）。";
+    return "这个词根/前缀组合还没有稳定收录成词族，这次先不展开。你可以给我一个更明确的词根片段，或者直接问某一族（比如 stitute / tempt）。";
   }
 
   return "当前考试范围内未能稳定定位到你说的词，为避免答错对象，这次先不硬猜。你可以再告诉我它的中文意思、词首或词尾，或者你容易把它和哪个词搞混。";

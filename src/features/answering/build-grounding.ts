@@ -63,6 +63,13 @@ function deriveAnswerStyle(
     return "expression_recall";
   }
 
+  if (
+    comparisonView?.purposes?.includes("memory_map")
+    && !comparisonView.purposes.includes("confusion_untangle")
+  ) {
+    return "standard_lookup";
+  }
+
   if (comparisonView) {
     return "confusion_untangle";
   }

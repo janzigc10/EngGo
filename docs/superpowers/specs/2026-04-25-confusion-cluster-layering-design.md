@@ -20,6 +20,13 @@ Students do not confuse words by dictionary category. They confuse words because
 
 EngGo should model those memory relationships explicitly, then let retrieval and answer style use that structure.
 
+One boundary matters after the first provider smoke: derivative word families
+are useful memory assets, but they should not automatically be treated as
+`confusion_untangle`. A family such as `respect / respective / respectful /
+respectable` belongs primarily to the learning backbone and word-family memory
+map. It becomes a confusion answer only when the user asks for a concrete
+boundary, for example `respectful / respectable 怎么区分`.
+
 ## Three-Layer Model
 
 ### 1. Input Layer
@@ -53,6 +60,11 @@ The main unit is a confusion cluster. A cluster may have one or more labels:
 
 Existing shape-like groups remain valid. Root-family groups such as `institute / substitute / constitute` should not live in a separate universe; they are confusion clusters with a `root_family` label.
 
+Derivative families should use the existing purpose layer to avoid over-routing
+them into confused-word teaching. If a group is mainly a word-family memory
+asset, it can keep `root_family` as a label but should use `memory_map` as its
+purpose, not `confusion_untangle`.
+
 ### 3. Answer Layer
 
 This layer answers: how should EngGo explain the result?
@@ -60,8 +72,13 @@ This layer answers: how should EngGo explain the result?
 The current answer styles should remain:
 
 - `standard_lookup`: used for a single entry when no group explanation is needed
-- `confusion_untangle`: used when the answer is a cluster, regardless of whether the cluster is shape-like, root-family, meaning-near, or collocation-based
-- `root_family_summary`: currently useful as a prototype, but should be treated as a specialized rendering of `confusion_untangle`, not a separate long-term product lane
+- `confusion_untangle`: used when the answer is a true confused-word cluster, such as shape-like pairs, meaning-near choices, or collocation boundaries
+- `root_family_summary`: used for root or fragment questions such as `stitute 是什么`; it should render a compact memory map, not a visible guardrail lecture
+
+`memory_map` groups are allowed to exist without entering `confusion_untangle`.
+They preserve learning value for later wordbook and review features while
+keeping the chat answer from forcing every related family into a confused-word
+template.
 
 ## Existing Work Is Preserved
 
@@ -127,6 +144,11 @@ Do not turn EngGo into a static screenshot-style word list. The reference images
 Do not make all fuzzy recall paths equal. Typo correction, Chinese meaning lookup, and collocation lookup are entry points. The product value is the cluster explanation after retrieval.
 
 Do not replace existing answer styles with a new system. The right move is to put current styles into the three-layer model and gradually migrate root-family behavior into cluster-backed explanations.
+
+Do not expose internal defensive instructions as user-facing prose. For root
+family answers, rules such as "do not invent low-frequency out-of-scope
+branches" should stay inside the prompt. The visible answer should simply stop
+at the useful in-scope family map.
 
 ## Next Implementation Direction
 

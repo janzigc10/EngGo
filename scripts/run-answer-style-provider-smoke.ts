@@ -42,9 +42,21 @@ export type RunnerCaseResult = ProviderSmokeResult & {
   providerRequestId: string | null;
   errorCode: string | null;
   elapsedMs: number;
+  answerChars: number;
+  maxAnswerChars: number;
   groundingSummary: string;
   answerPreview: string;
   errorMessage: string | null;
+};
+
+type AnswerLengthStats = {
+  count: number;
+  min: number;
+  max: number;
+  average: number;
+  p50: number;
+  p90: number;
+  warnings: number;
 };
 
 export type RunnerSummary = ReturnType<typeof summarizeAnswerStyleProviderSmoke> & {
@@ -55,6 +67,7 @@ export type RunnerSummary = ReturnType<typeof summarizeAnswerStyleProviderSmoke>
   providerUnknown: number;
   avgElapsedMs: number;
   maxElapsedMs: number;
+  answerLengthByStyle: Record<string, AnswerLengthStats>;
   nextStep: string;
 };
 
@@ -257,6 +270,64 @@ function wasProviderCalled(result: RunnerCaseResult) {
   );
 }
 
+function percentileNearestRank(sortedValues: number[], percentile: number) {
+  if (sortedValues.length === 0) {
+    return 0;
+  }
+
+  const index = Math.min(
+    sortedValues.length - 1,
+    Math.max(0, Math.ceil((percentile / 100) * sortedValues.length) - 1),
+  );
+
+  return sortedValues[index] ?? 0;
+}
+
+function summarizeAnswerLengthsByStyle(
+  results: RunnerCaseResult[],
+): Record<string, AnswerLengthStats> {
+  const buckets = new Map<string, { values: number[]; warnings: number }>();
+
+  for (const result of results) {
+    const key = result.answerStyle ?? "missing";
+    const bucket = buckets.get(key) ?? { values: [], warnings: 0 };
+
+    bucket.values.push(result.answerChars);
+
+    if (
+      result.manualFlags.some((flag) =>
+        flag.startsWith("answer may be too long:")
+      )
+    ) {
+      bucket.warnings += 1;
+    }
+
+    buckets.set(key, bucket);
+  }
+
+  return Object.fromEntries(
+    [...buckets.entries()].map(([style, bucket]) => {
+      const sortedValues = [...bucket.values].sort((a, b) => a - b);
+      const total = sortedValues.reduce((sum, value) => sum + value, 0);
+
+      return [
+        style,
+        {
+          count: sortedValues.length,
+          min: sortedValues[0] ?? 0,
+          max: sortedValues.at(-1) ?? 0,
+          average: sortedValues.length === 0
+            ? 0
+            : Math.round(total / sortedValues.length),
+          p50: percentileNearestRank(sortedValues, 50),
+          p90: percentileNearestRank(sortedValues, 90),
+          warnings: bucket.warnings,
+        },
+      ];
+    }),
+  );
+}
+
 function buildRunnerSummary(results: RunnerCaseResult[]): RunnerSummary {
   const baseSummary = summarizeAnswerStyleProviderSmoke(results);
   const totalElapsedMs = results.reduce((sum, item) => sum + item.elapsedMs, 0);
@@ -274,6 +345,7 @@ function buildRunnerSummary(results: RunnerCaseResult[]): RunnerSummary {
       (max, item) => Math.max(max, item.elapsedMs),
       0,
     ),
+    answerLengthByStyle: summarizeAnswerLengthsByStyle(results),
   };
 
   return {
@@ -289,6 +361,7 @@ export function formatAnswerStyleProviderSmokeLine(result: RunnerCaseResult) {
     `${result.queryMode ?? "missing"}/${result.resolution ?? "missing"}/${result.answerStyle ?? "missing"}`,
     `provider=${result.providerRequestId ?? "-"}`,
     `elapsed=${result.elapsedMs}ms`,
+    `chars=${result.answerChars}/${result.maxAnswerChars}`,
     `grounding=${result.groundingSummary}`,
     `answer=${result.answerPreview}`,
   ].join(" | ");
@@ -364,6 +437,8 @@ export async function runAnswerStyleProviderSmoke(
       providerRequestId: payload.providerRequestId ?? null,
       errorCode: payload.error?.code ?? null,
       elapsedMs: now() - startedAt,
+      answerChars: (payload.answer?.trim() ?? "").length,
+      maxAnswerChars: item.maxAnswerChars,
       groundingSummary: summarizeGrounding(payload),
       answerPreview: normalizeText(payload.answer, 88),
       errorMessage: payload.error?.message ?? null,

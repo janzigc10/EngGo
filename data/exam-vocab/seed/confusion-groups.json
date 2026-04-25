@@ -43,8 +43,10 @@
   {
     "id": "respect-respective-respectful-respectable",
     "members": ["respect", "respective", "respectful", "respectable"],
+    "labels": ["root_family"],
+    "purposes": ["memory_map"],
     "teachFirst": "respect",
-    "whyConfusing": "这些词共享词根，但词性和意思差异很大，考试里很容易误判。",
+    "whyConfusing": "这些词共享核心词 respect，更适合在背单词学习流里作为派生词族一起记。",
     "commonMisusePoints": [
       "respective 不是表示“尊敬的”，而是“各自的”。",
       "respectable 不是动词 respect 的派生动作，而是形容词，常表示体面的、值得尊敬的。"

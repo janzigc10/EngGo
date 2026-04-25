@@ -168,6 +168,43 @@ describe("buildGrounding", () => {
 
     expect(grounding.answerStyle).toBe("confusion_untangle");
   });
+
+  it("does not route memory-map-only derivation groups into confusion_untangle", () => {
+    const grounding = buildGrounding({
+      activeExamTarget: "cet4",
+      query: "respect 那组词怎么分",
+      queryMode: "direct_compare",
+      resolution: "resolved",
+      noMatchReason: null,
+      mainAnswer: [
+        {
+          entryId: "respect",
+          lemma: "respect",
+          meaningsZh: ["尊重"],
+          matchedAlias: null,
+          scopeCodes: ["cet4"],
+          inScope: true,
+          reason: "词族记忆组成员",
+          score: 100,
+        },
+      ],
+      confusionBoundary: [],
+      comparisonView: {
+        id: "respect-respective-respectful-respectable",
+        whyConfusing: "这些词共享核心词 respect，但更适合做派生词族记忆。",
+        labels: ["root_family"],
+        purposes: ["memory_map"],
+        anchorPattern: "respect",
+        quickDistinction: "respect 是核心词，其余是派生词。",
+        examHook: "派生词族留给学习流里的词族卡。",
+        commonMisusePoints: [],
+        semanticBoundaryNotes: [],
+        members: [],
+      },
+    });
+
+    expect(grounding.answerStyle).toBe("standard_lookup");
+  });
 });
 
 describe("createChatService", () => {
@@ -310,7 +347,7 @@ describe("createChatService", () => {
     expect(result.requestId).toBe("req_root_no_match_123");
     expect(result.providerRequestId).toBeNull();
     expect(result.grounding.queryMode).toBe("root_family_summary");
-    expect(result.answer).toContain("不硬凑规律");
+    expect(result.answer).toContain("还没有稳定收录成词族");
     expect(result.answer).toContain("词根/前缀组合");
   });
 });

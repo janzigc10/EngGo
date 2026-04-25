@@ -202,7 +202,16 @@ Typical examples include:
 
 - comply with / conform to / abide by / defer to
 - restrain / constrain
-- respect / respective / respectful / respectable
+- stationary / stationery
+- affect / effect
+
+Derivative word families are related, but they are not the primary example of
+`confusion_untangle`. A group such as `respect / respective / respectful /
+respectable` should usually be treated as a word-family or derivation-memory
+asset for the secondary learning backbone. It may be surfaced in chat when the
+user explicitly asks about the family, but it should not be used as the main
+representative case for confused-word explanation unless the user asks for a
+specific boundary such as `respectful / respectable`.
 
 #### 4. Fuzzy Recall Layer
 

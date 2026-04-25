@@ -91,18 +91,6 @@ const cases: EvalCase[] = [
     expectedGroundingIncludes: ["comply", "conform", "defer"],
   },
   {
-    name: "confusion: respect family",
-    query: "respect 那组词怎么分",
-    activeExamTarget: "cet4",
-    expectedQueryMode: "direct_compare",
-    expectedResolution: "resolved",
-    expectedAnswerStyle: "confusion_untangle",
-    expectedComparisonViewId: "respect-respective-respectful-respectable",
-    expectedComparisonLabels: ["root_family", "shape_like"],
-    expectedPromptIncludes: ["范围内相似词", "词义速览", "做题抓手", "同根"],
-    expectedGroundingIncludes: ["respect", "respective", "respectful", "respectable"],
-  },
-  {
     name: "cluster: stitute direct compare",
     query: "institute substitute constitute 怎么分",
     activeExamTarget: "cet6",
@@ -171,7 +159,7 @@ const cases: EvalCase[] = [
     expectedAnswerStyle: "root_family_summary",
     expectedRootFamilyViewId: "root-tempt",
     expectedComparisonViewId: "root-tempt",
-    expectedPromptIncludes: ["词根家族地图", "不要硬凑"],
+    expectedPromptIncludes: ["词根家族地图", "优先背"],
     expectedGroundingIncludes: ["tempt", "temptation", "attempt", "contempt"],
   },
   {
