@@ -13,6 +13,14 @@ export const confusionClusterLabels = [
 
 export type ConfusionClusterLabel = (typeof confusionClusterLabels)[number];
 
+export const confusionClusterPurposes = [
+  "confusion_untangle",
+  "memory_map",
+  "expression_recall",
+] as const;
+
+export type ConfusionClusterPurpose = (typeof confusionClusterPurposes)[number];
+
 export type VocabularySeedPayload = {
   id: string;
   lemma: string;
@@ -27,6 +35,7 @@ export type VocabularySeedPayload = {
 export type ConfusionGroupSeedPayload = {
   id: string;
   labels: ConfusionClusterLabel[];
+  purposes: ConfusionClusterPurpose[];
   anchorPattern?: string;
   members: string[];
   teachFirst: string;

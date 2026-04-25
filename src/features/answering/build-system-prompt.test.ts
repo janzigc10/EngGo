@@ -280,6 +280,75 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("anchorPattern");
   });
 
+  it("guides expression-recall answers as Chinese-to-English expression expansion", () => {
+    const grounding: AnswerGrounding = {
+      activeExamTarget: "cet6",
+      activeExamTargetLabel: "CET-6",
+      query: "遵从怎么说",
+      queryMode: "meaning_lookup",
+      answerStyle: "expression_recall",
+      resolution: "resolved",
+      noMatchReason: null,
+      mainAnswer: [
+        {
+          entryId: "comply",
+          lemma: "comply",
+          meaningsZh: ["遵从", "依从"],
+          matchedAlias: null,
+          scopeCodes: ["cet6"],
+          inScope: true,
+          reason: "当前考试范围命中，中文释义命中",
+          score: 300,
+        },
+      ],
+      confusionBoundary: [
+        {
+          entryId: "conform",
+          lemma: "conform",
+          meaningsZh: ["符合", "遵照"],
+          matchedAlias: null,
+          scopeCodes: ["cet6"],
+          inScope: true,
+          reason: "当前考试范围命中，来自同一表达召回组",
+          score: 260,
+        },
+        {
+          entryId: "defer",
+          lemma: "defer",
+          meaningsZh: ["听从", "遵从"],
+          matchedAlias: null,
+          scopeCodes: ["cet6"],
+          inScope: true,
+          reason: "当前考试范围命中，来自同一表达召回组",
+          score: 240,
+        },
+      ],
+      scopeReminder: "这次回答已优先锁定在 CET-6 范围内。",
+      followUpPrompt: "我可以继续按作文语境帮你分正式程度。",
+      rootFamilyView: null,
+      comparisonView: {
+        id: "comply-conform-defer",
+        labels: ["meaning_near", "collocation_boundary", "exam_high_value"],
+        purposes: ["expression_recall", "confusion_untangle"],
+        anchorPattern: null,
+        quickDistinction: "comply with rules；conform to standards；defer to authority。",
+        examHook: "写作表达扩展时先给可替换表达，再给搭配边界。",
+        whyConfusing: "这几个词都能靠近“遵从”，但适用语境不同。",
+        commonMisusePoints: [],
+        semanticBoundaryNotes: [],
+        members: [],
+      },
+    };
+
+    const prompt = buildSystemPrompt(grounding);
+
+    expect(prompt).toContain("中文表达召回");
+    expect(prompt).toContain("可替换表达");
+    expect(prompt).toContain("使用边界");
+    expect(prompt).toContain("写作抓手");
+    expect(prompt).toContain("不要把它写成易混词纠错课");
+  });
+
   it("guides root-family answers as a structured map", () => {
     const grounding: AnswerGrounding = {
       activeExamTarget: "cet6",

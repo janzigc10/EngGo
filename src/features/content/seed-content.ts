@@ -108,12 +108,13 @@ async function seedConfusionGroups(
           "commonMisusePoints",
           "semanticBoundaryNotes",
           "labels",
+          "purposes",
           "anchorPattern",
           "quickDistinction",
           "examHook",
           "updatedAt"
         )
-        VALUES ($1, $2, $3, $4::text[], $5::text[], $6::text[], $7, $8, $9, NOW())
+        VALUES ($1, $2, $3, $4::text[], $5::text[], $6::text[], $7::text[], $8, $9, $10, NOW())
       `,
       [
         group.id,
@@ -122,6 +123,7 @@ async function seedConfusionGroups(
         group.commonMisusePoints ?? [],
         group.semanticBoundaryNotes ?? [],
         group.labels ?? [],
+        group.purposes ?? [],
         group.anchorPattern ?? null,
         group.quickDistinction ?? null,
         group.examHook ?? null,

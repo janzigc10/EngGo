@@ -7,6 +7,7 @@ import type { ExamScopeCode } from "../src/features/content/import-types";
 import type {
   AnswerStyle,
   ConfusionClusterLabel,
+  ConfusionClusterPurpose,
   QueryMode,
   RetrievalResolution,
   RetrievalResult,
@@ -22,6 +23,7 @@ type EvalCase = {
   expectedRootFamilyViewId?: string | null;
   expectedComparisonViewId?: string | null;
   expectedComparisonLabels?: ConfusionClusterLabel[];
+  expectedComparisonPurposes?: ConfusionClusterPurpose[];
   expectedPromptIncludes?: string[];
   expectedGroundingIncludes?: string[];
 };
@@ -65,12 +67,26 @@ const cases: EvalCase[] = [
     expectedGroundingIncludes: ["access", "assess", "excess"],
   },
   {
+    name: "expression: comply conform defer",
+    query: "遵从怎么说",
+    activeExamTarget: "cet6",
+    expectedQueryMode: "meaning_lookup",
+    expectedResolution: "resolved",
+    expectedAnswerStyle: "expression_recall",
+    expectedComparisonViewId: "comply-conform-defer",
+    expectedComparisonLabels: ["meaning_near", "collocation_boundary", "exam_high_value"],
+    expectedComparisonPurposes: ["expression_recall"],
+    expectedPromptIncludes: ["中文表达召回", "可替换表达", "使用边界"],
+    expectedGroundingIncludes: ["comply", "conform", "defer"],
+  },
+  {
     name: "confusion: comply conform defer",
     query: "comply conform defer 怎么区分",
     activeExamTarget: "cet6",
     expectedQueryMode: "direct_compare",
     expectedResolution: "resolved",
     expectedAnswerStyle: "confusion_untangle",
+    expectedComparisonViewId: "comply-conform-defer",
     expectedPromptIncludes: ["范围内相似词", "词义速览", "做题抓手"],
     expectedGroundingIncludes: ["comply", "conform", "defer"],
   },
@@ -282,6 +298,12 @@ async function runCase(item: EvalCase): Promise<CaseResult> {
   for (const expectedLabel of item.expectedComparisonLabels ?? []) {
     if (!serviceResult.grounding.comparisonView?.labels.includes(expectedLabel)) {
       failures.push(`comparison labels missing ${expectedLabel}`);
+    }
+  }
+
+  for (const expectedPurpose of item.expectedComparisonPurposes ?? []) {
+    if (!serviceResult.grounding.comparisonView?.purposes.includes(expectedPurpose)) {
+      failures.push(`comparison purposes missing ${expectedPurpose}`);
     }
   }
 

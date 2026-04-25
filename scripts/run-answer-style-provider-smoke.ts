@@ -117,6 +117,7 @@ function summarizeGrounding(payload: ChatApiResponse) {
   const lemmas = unique([
     ...(payload.grounding?.mainAnswer?.map((item) => item.lemma) ?? []),
     ...(payload.grounding?.confusionBoundary?.map((item) => item.lemma) ?? []),
+    ...(payload.grounding?.comparisonView?.members?.map((item) => item.lemma) ?? []),
     ...(payload.grounding?.rootFamilyView?.members?.map((item) => item.lemma) ?? []),
   ]);
 

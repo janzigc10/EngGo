@@ -107,6 +107,32 @@ describe("buildGrounding", () => {
     expect(grounding.followUpPrompt.length).toBeGreaterThan(0);
   });
 
+  it("uses expression_recall for Chinese meaning lookups backed by an expression cluster", () => {
+    const grounding = buildGrounding({
+      activeExamTarget: "cet6",
+      query: "遵从怎么说",
+      queryMode: "meaning_lookup",
+      resolution: "resolved",
+      noMatchReason: null,
+      mainAnswer: createMeaningLookupResult().mainAnswer,
+      confusionBoundary: createMeaningLookupResult().confusionBoundary,
+      comparisonView: {
+        id: "comply-conform-defer",
+        whyConfusing: "这几个词都能靠近“遵从”，但适用语境不同。",
+        labels: ["meaning_near", "collocation_boundary", "exam_high_value"],
+        purposes: ["expression_recall", "confusion_untangle"],
+        anchorPattern: null,
+        quickDistinction: "comply with rules；conform to standards；defer to authority。",
+        examHook: "中文召回时先给可替换表达，再讲搭配边界。",
+        commonMisusePoints: [],
+        semanticBoundaryNotes: [],
+        members: [],
+      },
+    });
+
+    expect(grounding.answerStyle).toBe("expression_recall");
+  });
+
   it("uses confusion_untangle for resolved shape-neighbor recall without a curated group", () => {
     const grounding = buildGrounding({
       activeExamTarget: "cet6",

@@ -89,6 +89,21 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
     ].join("\n");
   }
 
+  if (grounding.answerStyle === "expression_recall") {
+    return [
+      "本风格优先于通用回答顺序，不要再套用通用四段标题。",
+      "当前问题属于中文表达召回：用户先想到中文意思，需要找一组可用英文表达。",
+      buildClusterLabelInstruction(grounding),
+      "总长度控制在 240 个汉字以内，最多 4 段。",
+      "只输出这 4 段：首选表达、可替换表达、使用边界、写作抓手。",
+      "首选表达：先给当前考试范围内最稳的表达，优先带固定搭配。",
+      "可替换表达：只列 grounding 里召回到的词，不要自由补新词。",
+      "使用边界：讲语气、搭配或对象差异；不要把它写成易混词纠错课。",
+      "写作抓手：给一句短策略，帮助用户在作文或翻译里选词。",
+      "禁止例句、长列表、范围外扩展和主动追问。",
+    ].join("\n");
+  }
+
   if (grounding.answerStyle === "confusion_untangle") {
     return [
       "本风格优先于通用回答顺序，不要再套用通用四段标题。",
@@ -132,6 +147,7 @@ export function buildSystemPrompt(grounding: AnswerGrounding) {
   const usesSpecialAnswerStyle =
     grounding.answerStyle === "confusion_untangle"
     || grounding.answerStyle === "root_family_summary"
+    || grounding.answerStyle === "expression_recall"
     || grounding.answerStyle === "standard_lookup";
 
   const scopeReminderLine = grounding.answerStyle === "standard_lookup"

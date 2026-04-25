@@ -600,7 +600,7 @@ corepack pnpm exec eslint src/features/content/load-seed-content.ts src/features
 
 Expected: no lint errors.
 
-- [ ] **Step 3: Run a small provider smoke only after local checks pass**
+- [x] **Step 3: Run a small provider smoke only after local checks pass**
 
 Start the local app:
 

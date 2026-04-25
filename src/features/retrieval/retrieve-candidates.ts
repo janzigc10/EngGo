@@ -6,7 +6,9 @@ import { env } from "@/lib/env";
 import type { ExamScopeCode } from "@/features/content/import-types";
 import {
   confusionClusterLabels,
+  confusionClusterPurposes,
   type ConfusionClusterLabel,
+  type ConfusionClusterPurpose,
 } from "@/features/content/import-types";
 import { normalizeQuery } from "@/features/retrieval/normalize-query";
 import { findRootFamilyPrototype } from "@/features/retrieval/root-family-prototypes";
@@ -89,7 +91,40 @@ type TermResolution = {
   candidates: RankedCandidate[];
 };
 
-type GroupSelectionPolicy = "default" | "ordinary_lookup";
+type GroupSelectionPolicy = "default" | "ordinary_lookup" | "expression_recall";
+
+function shouldUseGroupForOrdinaryLookup(group: ConfusionGroupRecord) {
+  const labels = new Set(group.labels);
+  const purposes = new Set(group.purposes);
+
+  if (
+    purposes.has("expression_recall")
+    && !labels.has("shape_like")
+    && !labels.has("root_family")
+    && !labels.has("prefix_family")
+  ) {
+    return false;
+  }
+
+  if (!labels.has("meaning_near")) {
+    return true;
+  }
+
+  return (
+    labels.has("shape_like")
+    || labels.has("root_family")
+    || labels.has("prefix_family")
+    || labels.has("collocation_boundary")
+    || labels.has("exam_high_value")
+  );
+}
+
+function shouldUseGroupForExpressionRecall(group: ConfusionGroupRecord) {
+  const labels = new Set(group.labels);
+  const purposes = new Set(group.purposes);
+
+  return purposes.has("expression_recall") || labels.has("meaning_near");
+}
 
 function uniqueValues<T>(values: T[]) {
   return [...new Set(values)];
@@ -249,8 +284,13 @@ function buildComparisonView(
   group: ConfusionGroupRecord,
 ): ComparisonView {
   const validLabelSet = new Set(confusionClusterLabels);
+  const validPurposeSet = new Set(confusionClusterPurposes);
   const isConfusionClusterLabel = (label: string): label is ConfusionClusterLabel =>
     validLabelSet.has(label as ConfusionClusterLabel);
+  const isConfusionClusterPurpose = (
+    purpose: string,
+  ): purpose is ConfusionClusterPurpose =>
+    validPurposeSet.has(purpose as ConfusionClusterPurpose);
 
   return {
     id: group.id,
@@ -258,6 +298,7 @@ function buildComparisonView(
     commonMisusePoints: group.commonMisusePoints,
     semanticBoundaryNotes: group.semanticBoundaryNotes,
     labels: group.labels.filter(isConfusionClusterLabel),
+    purposes: group.purposes.filter(isConfusionClusterPurpose),
     anchorPattern: group.anchorPattern ?? null,
     quickDistinction: group.quickDistinction ?? null,
     examHook: group.examHook ?? null,
@@ -554,7 +595,17 @@ function sortGroupsForEntry(
   policy: GroupSelectionPolicy = "default",
 ) {
   return groups
-    .filter((group) => group.members.some((member) => member.entryId === entryId))
+    .filter(
+      (group) =>
+        group.members.some((member) => member.entryId === entryId)
+        && (
+          policy === "ordinary_lookup"
+            ? shouldUseGroupForOrdinaryLookup(group)
+            : policy === "expression_recall"
+              ? shouldUseGroupForExpressionRecall(group)
+              : true
+        ),
+    )
     .sort((left, right) => {
       const leftTeachFirst = left.teachFirstEntryId === entryId ? 1 : 0;
       const rightTeachFirst = right.teachFirstEntryId === entryId ? 1 : 0;
@@ -704,6 +755,92 @@ function pickBestGroupForEntry(
   return sortGroupsForEntry(activeExamTarget, entryId, groups, policy)[0] ?? null;
 }
 
+function pickBestExpressionRecallGroup(
+  activeExamTarget: ExamScopeCode,
+  rankedCandidates: RankedCandidate[],
+  groups: Awaited<ReturnType<typeof findConfusionGroupsForEntryIds>>,
+) {
+  const candidateIndexById = new Map(
+    rankedCandidates.map((candidate, index) => [candidate.entryId, index]),
+  );
+
+  return groups
+    .filter(shouldUseGroupForExpressionRecall)
+    .map((group) => ({
+      group,
+      matchedMembers: group.members.filter((member) =>
+        candidateIndexById.has(member.entryId),
+      ),
+    }))
+    .filter(({ matchedMembers }) => matchedMembers.length >= 2)
+    .sort((left, right) => {
+      const leftHasExpressionPurpose = left.group.purposes.includes("expression_recall");
+      const rightHasExpressionPurpose = right.group.purposes.includes("expression_recall");
+
+      if (leftHasExpressionPurpose !== rightHasExpressionPurpose) {
+        return leftHasExpressionPurpose ? -1 : 1;
+      }
+
+      if (right.matchedMembers.length !== left.matchedMembers.length) {
+        return right.matchedMembers.length - left.matchedMembers.length;
+      }
+
+      const leftTeachFirstRank =
+        candidateIndexById.get(left.group.teachFirstEntryId) ?? Number.MAX_SAFE_INTEGER;
+      const rightTeachFirstRank =
+        candidateIndexById.get(right.group.teachFirstEntryId) ?? Number.MAX_SAFE_INTEGER;
+
+      if (leftTeachFirstRank !== rightTeachFirstRank) {
+        return leftTeachFirstRank - rightTeachFirstRank;
+      }
+
+      const leftInScopeCount = left.group.members.filter((member) =>
+        member.entry.scopes.some((scope) => scope.scopeCode === activeExamTarget),
+      ).length;
+      const rightInScopeCount = right.group.members.filter((member) =>
+        member.entry.scopes.some((scope) => scope.scopeCode === activeExamTarget),
+      ).length;
+
+      if (rightInScopeCount !== leftInScopeCount) {
+        return rightInScopeCount - leftInScopeCount;
+      }
+
+      const leftBestCandidateRank = Math.min(
+        ...left.matchedMembers.map((member) =>
+          candidateIndexById.get(member.entryId) ?? Number.MAX_SAFE_INTEGER
+        ),
+      );
+      const rightBestCandidateRank = Math.min(
+        ...right.matchedMembers.map((member) =>
+          candidateIndexById.get(member.entryId) ?? Number.MAX_SAFE_INTEGER
+        ),
+      );
+
+      if (leftBestCandidateRank !== rightBestCandidateRank) {
+        return leftBestCandidateRank - rightBestCandidateRank;
+      }
+
+      return left.group.id.localeCompare(right.group.id);
+    })[0]?.group ?? null;
+}
+
+function pickExpressionRecallMainCandidate(
+  group: ConfusionGroupRecord,
+  rankedCandidates: RankedCandidate[],
+) {
+  const candidateById = new Map(
+    rankedCandidates.map((candidate) => [candidate.entryId, candidate]),
+  );
+
+  return (
+    candidateById.get(group.teachFirstEntryId)
+    ?? group.members
+      .map((member) => candidateById.get(member.entryId))
+      .find((candidate): candidate is RankedCandidate => Boolean(candidate))
+    ?? null
+  );
+}
+
 function pickSharedGroup(
   activeExamTarget: ExamScopeCode,
   entryIds: string[],
@@ -714,6 +851,13 @@ function pickSharedGroup(
       entryIds.every((entryId) => group.members.some((member) => member.entryId === entryId)),
     )
     .sort((left, right) => {
+      const leftExactMemberCount = left.members.length === entryIds.length ? 1 : 0;
+      const rightExactMemberCount = right.members.length === entryIds.length ? 1 : 0;
+
+      if (rightExactMemberCount !== leftExactMemberCount) {
+        return rightExactMemberCount - leftExactMemberCount;
+      }
+
       const leftTeachFirst = entryIds.includes(left.teachFirstEntryId) ? 1 : 0;
       const rightTeachFirst = entryIds.includes(right.teachFirstEntryId) ? 1 : 0;
 
@@ -799,18 +943,33 @@ async function handleMeaningLookup(
     input.activeExamTarget,
     meaningKeyword,
   );
-  const selectedMainCandidate = rankedCandidates[0];
+
+  if (rankedCandidates.length === 0) {
+    return createNoMatchResult(normalizedQuery, rankedCandidates, "out_of_kb");
+  }
+
+  const confusionGroups = await findConfusionGroupsForEntryIds(
+    rankedCandidates.map((candidate) => candidate.entryId),
+  );
+  const expressionGroup = pickBestExpressionRecallGroup(
+    input.activeExamTarget,
+    rankedCandidates,
+    confusionGroups,
+  );
+  const selectedMainCandidate =
+    expressionGroup
+      ? pickExpressionRecallMainCandidate(expressionGroup, rankedCandidates)
+      : rankedCandidates[0];
 
   if (!selectedMainCandidate) {
     return createNoMatchResult(normalizedQuery, rankedCandidates, "out_of_kb");
   }
 
-  const confusionGroups = await findConfusionGroupsForEntryIds([selectedMainCandidate.entryId]);
-  const bestGroup = pickBestGroupForEntry(
+  const bestGroup = expressionGroup ?? pickBestGroupForEntry(
     input.activeExamTarget,
     selectedMainCandidate.entryId,
     confusionGroups,
-    "ordinary_lookup",
+    "expression_recall",
   );
   const mainAnswer = [toRetrievalCandidate(selectedMainCandidate)];
   const confusionBoundary = bestGroup
@@ -827,7 +986,7 @@ async function handleMeaningLookup(
     rankedCandidates,
     mainAnswer,
     confusionBoundary,
-    null,
+    bestGroup ? buildComparisonView(input.activeExamTarget, bestGroup) : null,
   );
 }
 

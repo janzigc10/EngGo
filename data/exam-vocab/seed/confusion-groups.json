@@ -2,8 +2,10 @@
   {
     "id": "comply-conform-defer",
     "members": ["comply", "conform", "defer"],
+    "labels": ["meaning_near", "collocation_boundary", "exam_high_value"],
+    "purposes": ["expression_recall", "confusion_untangle"],
     "teachFirst": "comply",
-    "whyConfusing": "这三个词都能表达顺从或按要求行动，但侧重点不同。",
+    "whyConfusing": "这三个词都能靠近“遵从、服从、符合”的中文表达，但侧重点和搭配不同。",
     "commonMisusePoints": [
       "容易把 comply with 和 conform to 混用。",
       "defer to 常误写成表示普通遵守，实际上更偏向听从他人判断。"
@@ -11,7 +13,7 @@
     "semanticBoundaryNotes": [
       "comply 更强调按照要求或规则去做。",
       "conform 更强调与标准、模式或群体保持一致。",
-      "defer 更强调把决定权让给他人或权威。"
+      "defer 更强调把判断权让给他人或权威。"
     ],
     "memberNotes": {
       "conform": "常搭配 to，表示与规范或群体一致。",
@@ -21,6 +23,8 @@
   {
     "id": "restrain-constrain-curb",
     "members": ["restrain", "constrain", "curb"],
+    "labels": ["meaning_near"],
+    "purposes": ["expression_recall", "confusion_untangle"],
     "teachFirst": "restrain",
     "whyConfusing": "这组三个词都与“限制、抑制”有关，但语义强度和搭配不同。",
     "commonMisusePoints": [
@@ -94,10 +98,30 @@
     }
   },
   {
+    "id": "affect-effect",
+    "members": ["affect", "effect"],
+    "labels": ["shape_like", "exam_high_value"],
+    "purposes": ["confusion_untangle"],
+    "teachFirst": "affect",
+    "whyConfusing": "affect 和 effect 词形接近，且都能对应“影响”，但词性和句法位置不同。",
+    "commonMisusePoints": [
+      "affect 是动词，effect 通常是名词，考试里最常混。"
+    ],
+    "semanticBoundaryNotes": [
+      "affect 多指对人或事物产生影响。",
+      "effect 多指结果、效果，也可在 take effect 中作动词短语的一部分。"
+    ],
+    "memberNotes": {
+      "effect": "常见搭配 take effect, side effect."
+    }
+  },
+  {
     "id": "affect-effect-impact",
     "members": ["affect", "effect", "impact"],
+    "labels": ["meaning_near", "exam_high_value"],
+    "purposes": ["expression_recall", "confusion_untangle"],
     "teachFirst": "affect",
-    "whyConfusing": "这三个词都能和“影响”有关，但词性和具体用法差别明显。",
+    "whyConfusing": "这三个词都能和“影响”有关，适合中文表达召回时一起比较。",
     "commonMisusePoints": [
       "affect 是动词，effect 通常是名词，考试里最常混。",
       "impact 既可作名词也可作动词，但不等于所有场景都能替换 affect。"
@@ -115,6 +139,8 @@
   {
     "id": "adapt-adjust-accommodate",
     "members": ["adapt", "adjust", "accommodate"],
+    "labels": ["meaning_near"],
+    "purposes": ["expression_recall", "confusion_untangle"],
     "teachFirst": "adapt",
     "whyConfusing": "这组都和“适应、调整、照顾需求”有关，搭配对象很容易混。",
     "commonMisusePoints": [
@@ -169,6 +195,8 @@
   {
     "id": "recommend-suggest-propose",
     "members": ["recommend", "suggest", "propose"],
+    "labels": ["meaning_near"],
+    "purposes": ["expression_recall", "confusion_untangle"],
     "teachFirst": "recommend",
     "whyConfusing": "这三个词都能表达建议，但语气、正式程度和句法结构不同。",
     "commonMisusePoints": [
@@ -188,6 +216,8 @@
   {
     "id": "require-demand-request",
     "members": ["require", "demand", "request"],
+    "labels": ["meaning_near"],
+    "purposes": ["expression_recall", "confusion_untangle"],
     "teachFirst": "require",
     "whyConfusing": "这三个词都能表示“要求”，但语气强度和使用场景差别很大。",
     "commonMisusePoints": [

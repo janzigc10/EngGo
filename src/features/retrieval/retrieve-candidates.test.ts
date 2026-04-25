@@ -70,6 +70,43 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     expect(result.resolution).toBe("resolved");
     expect(result.mainAnswer[0]?.lemma).toBe("comply");
     expect(result.mainAnswer[0]?.inScope).toBe(true);
+    expect(result.comparisonView?.id).toBe("comply-conform-defer");
+    expect(result.comparisonView?.purposes).toContain("expression_recall");
+    expect(
+      [...result.mainAnswer, ...result.confusionBoundary].map((candidate) => candidate.lemma),
+    ).toEqual(expect.arrayContaining(["comply", "conform", "defer"]));
+  });
+
+  it("prefers the expression recall group for Chinese suggestion lookup", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "建议怎么说",
+    });
+
+    expect(result.queryMode).toBe("meaning_lookup");
+    expect(result.resolution).toBe("resolved");
+    expect(result.mainAnswer[0]?.lemma).toBe("recommend");
+    expect(result.comparisonView?.id).toBe("recommend-suggest-propose");
+    expect(result.comparisonView?.purposes).toContain("expression_recall");
+    expect(
+      [...result.mainAnswer, ...result.confusionBoundary].map((candidate) => candidate.lemma),
+    ).toEqual(expect.arrayContaining(["recommend", "suggest", "propose"]));
+  });
+
+  it("prefers the expression recall group for Chinese requirement lookup", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "要求怎么说",
+    });
+
+    expect(result.queryMode).toBe("meaning_lookup");
+    expect(result.resolution).toBe("resolved");
+    expect(result.mainAnswer[0]?.lemma).toBe("require");
+    expect(result.comparisonView?.id).toBe("require-demand-request");
+    expect(result.comparisonView?.purposes).toContain("expression_recall");
+    expect(
+      [...result.mainAnswer, ...result.confusionBoundary].map((candidate) => candidate.lemma),
+    ).toEqual(expect.arrayContaining(["require", "demand", "request"]));
   });
 
   it("keeps incomplete institute recall inside the tight institute/institution boundary", async () => {
@@ -124,6 +161,27 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
       "constrain",
     ]);
     expect(result.confusionBoundary.map((candidate) => candidate.lemma)).toEqual(["curb"]);
+  });
+
+  it("resolves the comply/conform/defer expression group for explicit three-term comparison", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "comply conform defer 怎么区分",
+    });
+
+    expect(result.queryMode).toBe("direct_compare");
+    expect(result.resolution).toBe("resolved");
+    expect(result.comparisonView?.id).toBe("comply-conform-defer");
+    expect(result.comparisonView?.labels).toEqual(
+      expect.arrayContaining(["meaning_near", "collocation_boundary"]),
+    );
+    expect(result.comparisonView?.purposes).toContain("expression_recall");
+    expect(result.mainAnswer.map((candidate) => candidate.lemma)).toEqual([
+      "comply",
+      "conform",
+      "defer",
+    ]);
+    expect(result.confusionBoundary).toHaveLength(0);
   });
 
   it("resolves multi-term direct comparison within the same confusion group", async () => {
@@ -316,6 +374,56 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     expect(result.comparisonView?.id).toBe("adapt-adopt");
   });
 
+  it("keeps expression-recall and pure meaning-near groups out of ordinary lookup boundaries", async () => {
+    const cases = [
+      {
+        query: "recommend 是什么意思",
+        main: "recommend",
+        excludedBoundary: ["suggest", "propose"],
+      },
+      {
+        query: "request 是什么意思",
+        main: "request",
+        excludedBoundary: ["require", "demand"],
+      },
+      {
+        query: "adapt 是什么意思",
+        main: "adapt",
+        excludedBoundary: ["adjust", "accommodate"],
+      },
+      {
+        query: "impact 是什么意思",
+        main: "impact",
+        excludedBoundary: ["affect", "effect"],
+      },
+      {
+        query: "defer 是什么意思",
+        main: "defer",
+        excludedBoundary: ["comply", "conform"],
+      },
+      {
+        query: "curb 是什么意思",
+        main: "curb",
+        excludedBoundary: ["restrain", "constrain"],
+      },
+    ];
+
+    for (const testCase of cases) {
+      const result = await retrieveCandidates({
+        activeExamTarget: "cet6",
+        query: testCase.query,
+      });
+
+      expect(result.resolution).toBe("resolved");
+      expect(result.mainAnswer[0]?.lemma).toBe(testCase.main);
+      const boundaryLemmas = result.confusionBoundary.map((candidate) => candidate.lemma);
+
+      for (const excludedLemma of testCase.excludedBoundary) {
+        expect(boundaryLemmas).not.toContain(excludedLemma);
+      }
+    }
+  });
+
   it("resolves quiet 和 quite 的区别 as a confusion comparison", async () => {
     const result = await retrieveCandidates({
       activeExamTarget: "cet4",
@@ -466,6 +574,7 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
       "affect",
       "effect",
     ]);
-    expect(result.confusionBoundary.map((candidate) => candidate.lemma)).toEqual(["impact"]);
+    expect(result.comparisonView?.id).toBe("affect-effect");
+    expect(result.confusionBoundary.map((candidate) => candidate.lemma)).not.toContain("impact");
   });
 });

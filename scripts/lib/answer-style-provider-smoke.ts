@@ -1,6 +1,8 @@
 import type { ExamScopeCode } from "@/features/content/import-types";
 import type {
   AnswerStyle,
+  ConfusionClusterLabel,
+  ConfusionClusterPurpose,
   QueryMode,
   RetrievalResolution,
 } from "@/features/retrieval/types";
@@ -15,6 +17,9 @@ export type ProviderSmokeCase = {
   expectedGroundingIncludes?: string[];
   forbiddenGroundingIncludes?: string[];
   expectedRootFamilyViewId?: string | null;
+  expectedComparisonViewId?: string | null;
+  expectedComparisonLabels?: ConfusionClusterLabel[];
+  expectedComparisonPurposes?: ConfusionClusterPurpose[];
   maxAnswerChars: number;
   manualChecks: string[];
 };
@@ -32,6 +37,12 @@ export type ProviderSmokePayload = {
     confusionBoundary?: Array<{ lemma?: string }>;
     rootFamilyView?: {
       id?: string;
+      members?: Array<{ lemma?: string }>;
+    } | null;
+    comparisonView?: {
+      id?: string;
+      labels?: ConfusionClusterLabel[];
+      purposes?: ConfusionClusterPurpose[];
       members?: Array<{ lemma?: string }>;
     } | null;
   };
@@ -62,6 +73,13 @@ const DEFAULT_CONFUSION_MANUAL_CHECKS = [
 const DEFAULT_ROOT_MANUAL_CHECKS = [
   "检查回答是否先讲碎片能抓什么，不要把词根硬讲成万能规则",
   "检查回答是否带出前缀方向、优先级和谨慎提醒",
+];
+
+const DEFAULT_EXPRESSION_MANUAL_CHECKS = [
+  "检查回答是否像写作/翻译表达扩展，而不是误写成易混词纠错课",
+  "检查回答是否给出首选表达和可替换表达",
+  "检查回答是否讲清使用边界和常见搭配",
+  "检查回答是否没有主动扩展未召回的新词",
 ];
 
 const DEFAULT_NO_MATCH_MANUAL_CHECKS = [
@@ -112,6 +130,80 @@ export function buildAnswerStyleProviderSmokeCases(): ProviderSmokeCase[] {
       expectedGroundingIncludes: ["recent", "resent"],
       maxAnswerChars: 240,
       manualChecks: DEFAULT_CONFUSION_MANUAL_CHECKS,
+    }),
+    createCase({
+      name: "expression: comply conform defer",
+      query: "遵从怎么说",
+      activeExamTarget: "cet6",
+      expectedQueryMode: "meaning_lookup",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "expression_recall",
+      expectedComparisonViewId: "comply-conform-defer",
+      expectedComparisonLabels: [
+        "meaning_near",
+        "collocation_boundary",
+        "exam_high_value",
+      ],
+      expectedComparisonPurposes: ["expression_recall"],
+      expectedGroundingIncludes: ["comply", "conform", "defer"],
+      maxAnswerChars: 400,
+      manualChecks: DEFAULT_EXPRESSION_MANUAL_CHECKS,
+    }),
+    createCase({
+      name: "expression: affect effect impact",
+      query: "影响怎么说",
+      activeExamTarget: "cet6",
+      expectedQueryMode: "meaning_lookup",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "expression_recall",
+      expectedComparisonViewId: "affect-effect-impact",
+      expectedComparisonLabels: ["meaning_near", "exam_high_value"],
+      expectedComparisonPurposes: ["expression_recall"],
+      expectedGroundingIncludes: ["affect", "effect", "impact"],
+      maxAnswerChars: 400,
+      manualChecks: DEFAULT_EXPRESSION_MANUAL_CHECKS,
+    }),
+    createCase({
+      name: "expression: adapt adjust accommodate",
+      query: "适应怎么说",
+      activeExamTarget: "cet6",
+      expectedQueryMode: "meaning_lookup",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "expression_recall",
+      expectedComparisonViewId: "adapt-adjust-accommodate",
+      expectedComparisonLabels: ["meaning_near"],
+      expectedComparisonPurposes: ["expression_recall"],
+      expectedGroundingIncludes: ["adapt", "adjust", "accommodate"],
+      maxAnswerChars: 400,
+      manualChecks: DEFAULT_EXPRESSION_MANUAL_CHECKS,
+    }),
+    createCase({
+      name: "expression: recommend suggest propose",
+      query: "建议怎么说",
+      activeExamTarget: "cet6",
+      expectedQueryMode: "meaning_lookup",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "expression_recall",
+      expectedComparisonViewId: "recommend-suggest-propose",
+      expectedComparisonLabels: ["meaning_near"],
+      expectedComparisonPurposes: ["expression_recall"],
+      expectedGroundingIncludes: ["recommend", "suggest", "propose"],
+      maxAnswerChars: 400,
+      manualChecks: DEFAULT_EXPRESSION_MANUAL_CHECKS,
+    }),
+    createCase({
+      name: "expression: require demand request",
+      query: "要求怎么说",
+      activeExamTarget: "cet6",
+      expectedQueryMode: "meaning_lookup",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "expression_recall",
+      expectedComparisonViewId: "require-demand-request",
+      expectedComparisonLabels: ["meaning_near"],
+      expectedComparisonPurposes: ["expression_recall"],
+      expectedGroundingIncludes: ["require", "demand", "request"],
+      maxAnswerChars: 400,
+      manualChecks: DEFAULT_EXPRESSION_MANUAL_CHECKS,
     }),
     createCase({
       name: "confusion: comply conform defer",
@@ -195,6 +287,7 @@ function collectGroundingLemmas(payload: ProviderSmokePayload) {
   return unique([
     ...(payload.grounding?.mainAnswer?.map((item) => item.lemma) ?? []),
     ...(payload.grounding?.confusionBoundary?.map((item) => item.lemma) ?? []),
+    ...(payload.grounding?.comparisonView?.members?.map((item) => item.lemma) ?? []),
     ...(payload.grounding?.rootFamilyView?.members?.map((item) => item.lemma) ?? []),
   ]);
 }
@@ -209,6 +302,8 @@ export function evaluateAnswerStyleProviderSmoke(
   const groundingLemmas = collectGroundingLemmas(payload);
   const expectedRootFamilyViewId = caseDef.expectedRootFamilyViewId ?? null;
   const rootFamilyView = payload.grounding?.rootFamilyView;
+  const expectedComparisonViewId = caseDef.expectedComparisonViewId ?? undefined;
+  const comparisonView = payload.grounding?.comparisonView;
 
   if (payload.status !== 200) {
     hardFailures.push(`status expected 200, received ${payload.status}`);
@@ -252,6 +347,29 @@ export function evaluateAnswerStyleProviderSmoke(
     hardFailures.push(
       `rootFamilyView expected ${expectedRootFamilyViewId ?? "null"}, received ${rootFamilyView?.id ?? "null"}`,
     );
+  }
+
+  if (
+    expectedComparisonViewId !== undefined
+    && expectedComparisonViewId !== (comparisonView?.id ?? null)
+  ) {
+    hardFailures.push(
+      `comparisonView expected ${expectedComparisonViewId ?? "null"}, received ${
+        comparisonView?.id ?? "null"
+      }`,
+    );
+  }
+
+  for (const label of caseDef.expectedComparisonLabels ?? []) {
+    if (!comparisonView?.labels?.includes(label)) {
+      hardFailures.push(`comparison labels missing ${label}`);
+    }
+  }
+
+  for (const purpose of caseDef.expectedComparisonPurposes ?? []) {
+    if (!comparisonView?.purposes?.includes(purpose)) {
+      hardFailures.push(`comparison purposes missing ${purpose}`);
+    }
   }
 
   if (caseDef.expectedResolution === "resolved" && answer.length === 0) {

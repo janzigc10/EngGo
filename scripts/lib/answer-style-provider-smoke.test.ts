@@ -31,19 +31,33 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
   it("defines the bounded answer-style smoke set", () => {
     const cases = buildAnswerStyleProviderSmokeCases();
 
-    expect(cases.map((item) => item.query)).toEqual([
-      "stationary 和 stationery 哪个是文具",
-      "access assess excess 怎么区分",
-      "跟 recent 很像的词有哪些",
-      "comply conform defer 怎么区分",
-      "respect 那组词怎么分",
-      "stitute 是什么",
-      "tempt 这一族怎么记",
-      "re+con 的词根有什么词",
-      "有个像 reqeust 的词",
+    expect(cases.map((item) => item.name)).toEqual([
+      "confusion: stationery choice",
+      "confusion: access assess excess",
+      "shape: recent lookalikes",
+      "expression: comply conform defer",
+      "expression: affect effect impact",
+      "expression: adapt adjust accommodate",
+      "expression: recommend suggest propose",
+      "expression: require demand request",
+      "confusion: comply conform defer",
+      "confusion: respect family",
+      "root: stitute",
+      "root: tempt",
+      "root: unsupported combination",
+      "typo: reqeust still no-match",
     ]);
-    expect(cases).toHaveLength(9);
+    expect(cases).toHaveLength(14);
     expect(cases.every((item) => item.manualChecks.length > 0)).toBe(true);
+  });
+
+  it("allows expression recall answers to read like complete writing cards", () => {
+    const expressionCases = buildAnswerStyleProviderSmokeCases().filter((item) =>
+      item.expectedAnswerStyle === "expression_recall"
+    );
+
+    expect(expressionCases).toHaveLength(5);
+    expect(expressionCases.every((item) => item.maxAnswerChars === 400)).toBe(true);
   });
 });
 
@@ -76,7 +90,7 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
   });
 
   it("fails when a no_match case still returns providerRequestId", () => {
-    const noMatchCase = buildAnswerStyleProviderSmokeCases()[7];
+    const noMatchCase = buildAnswerStyleProviderSmokeCases()[12];
     const verdict = evaluateAnswerStyleProviderSmoke(noMatchCase, {
       status: 200,
       providerRequestId: "resp_should_not_exist",
@@ -95,7 +109,7 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
   });
 
   it("fails when a no_match case returns an empty answer", () => {
-    const noMatchCase = buildAnswerStyleProviderSmokeCases()[7];
+    const noMatchCase = buildAnswerStyleProviderSmokeCases()[12];
     const verdict = evaluateAnswerStyleProviderSmoke(noMatchCase, {
       status: 200,
       providerRequestId: null,
@@ -191,7 +205,7 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
         answer: "先抓 stitute 这个碎片，再看常见前缀方向。",
       } satisfies ProviderSmokePayload,
       expectedFailure: "rootFamilyView expected root-stitute, received root-wrong",
-      caseIndex: 5,
+      caseIndex: 10,
     },
   ])("fails on $label", ({ payload, expectedFailure, caseIndex }) => {
     const caseDef = buildAnswerStyleProviderSmokeCases()[caseIndex];
@@ -202,7 +216,7 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
   });
 
   it("collects rootFamilyView members into grounding lemma checks", () => {
-    const caseDef = buildAnswerStyleProviderSmokeCases()[5];
+    const caseDef = buildAnswerStyleProviderSmokeCases()[10];
     const verdict = evaluateAnswerStyleProviderSmoke(caseDef, {
       status: 200,
       providerRequestId: "resp_root_123",
@@ -229,7 +243,7 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
   });
 
   it("fails when no rootFamilyView is expected but the object still exists", () => {
-    const noMatchCase = buildAnswerStyleProviderSmokeCases()[7];
+    const noMatchCase = buildAnswerStyleProviderSmokeCases()[12];
     const verdict = evaluateAnswerStyleProviderSmoke(noMatchCase, {
       status: 200,
       providerRequestId: null,

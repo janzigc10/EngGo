@@ -56,6 +56,13 @@ function deriveAnswerStyle(
     return "confusion_untangle";
   }
 
+  if (
+    queryMode === "meaning_lookup"
+    && comparisonView?.purposes?.includes("expression_recall")
+  ) {
+    return "expression_recall";
+  }
+
   if (comparisonView) {
     return "confusion_untangle";
   }

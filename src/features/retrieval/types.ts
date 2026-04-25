@@ -1,9 +1,13 @@
 import type {
   ConfusionClusterLabel,
+  ConfusionClusterPurpose,
   ExamScopeCode,
 } from "@/features/content/import-types";
 
-export type { ConfusionClusterLabel } from "@/features/content/import-types";
+export type {
+  ConfusionClusterLabel,
+  ConfusionClusterPurpose,
+} from "@/features/content/import-types";
 
 export type QueryMode =
   | "meaning_lookup"
@@ -16,7 +20,8 @@ export type QueryMode =
 export type AnswerStyle =
   | "standard_lookup"
   | "confusion_untangle"
-  | "root_family_summary";
+  | "root_family_summary"
+  | "expression_recall";
 
 export type RootFamilyPriority =
   | "must_memorize"
@@ -79,6 +84,7 @@ export type ComparisonView = {
   commonMisusePoints: string[];
   semanticBoundaryNotes: string[];
   labels: ConfusionClusterLabel[];
+  purposes: ConfusionClusterPurpose[];
   anchorPattern: string | null;
   quickDistinction: string | null;
   examHook: string | null;

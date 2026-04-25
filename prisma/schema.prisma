@@ -77,6 +77,7 @@ model ConfusionGroup {
   commonMisusePoints    String[]
   semanticBoundaryNotes String[]
   labels                String[]              @default([])
+  purposes              String[]              @default([])
   anchorPattern         String?
   quickDistinction      String?
   examHook              String?
