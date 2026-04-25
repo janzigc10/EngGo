@@ -19,6 +19,12 @@
 - 词根家族地图：用户有词根/前缀/碎片，需要结构化展开和优先级。
 
 ## 本 Session 已完成
+- 2026-04-25 拆分过宽旧易混组 `institute-institution-establish`：
+  - 用户指出 `institute 是什么意思` 里出现 `establish` 黑盒体验很怪；排查确认来源不是模型乱加，而是旧数据里有 `institute / institution / establish` 这个宽泛 confusion group。
+  - 新产品判断：`institute / institution` 是强边界，适合一起记；`establish` 只是“设立/建立”中文义弱相关，不是形近、同根或天然一起背的易混组成员。
+  - 已将 [data/exam-vocab/real-smoke/confusion-groups.json](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/confusion-groups.json) 与 [data/exam-vocab/seed/confusion-groups.json](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/seed/confusion-groups.json) 中该组收窄为 `institute-institution`，成员只保留 `institute / institution`；`establish` 仍保留为普通词条，显式问到时仍可作为单词被检索。
+  - [src/features/retrieval/retrieve-candidates.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.test.ts) 新增红灯断言：`有个像 instituton 的词` 不再带出 `establish`；`institute establish 怎么区分` 不再被视为同一个 shared confusion group。
+  - 验证通过：旧数据下新测试先失败；改数据并 `db:seed:real-smoke` 后 `retrieve-candidates.test.ts` 40/40 pass；`eval:answer-style` 12/12 pass；`eval:lookalike:real-smoke` 14/14 pass。
 - 2026-04-25 复验并二次收紧 `standard_lookup` 真实 provider 输出：
   - 先提交成长记录文档：`4d76c49 docs: add communication growth reflection`。
   - 串行健康检查通过：`corepack pnpm exec prisma dev ls` 显示 `enggo` running；`check-vocab-content --dataset real-smoke --min-entries 400 --require-source-lemmas` -> 409 entries / 33 groups；`db:migrate` 无待执行 migration；`db:seed:real-smoke` 通过。
@@ -578,7 +584,8 @@
 
 ## 下一 Session 第一件事
 - 本轮已完成 `standard_lookup` 真实 provider smoke 和二次 prompt 收紧；不要再重复用同一批问题证明普通查词。
-- 下一刀建议先收紧 `root_family_summary` 的范围外低频分支点名（例如 `stitute` 回答里不要直接点名 `restitute/prostitute`），再考虑继续把 `real-smoke` 基础词条扩到 500+。
+- 本轮已开始 legacy confusion group cleanup，第一刀拆掉 `institute / institution / establish` 的过宽关系；下一刀建议继续 audit 5-10 个旧组，优先拆“只是中文义挨边、不是形近/同根/高频考试混淆”的弱关系。
+- `root_family_summary` 的范围外低频分支点名（例如 `stitute` 回答里不要直接点名 `restitute/prostitute`）仍是后续 prompt 收紧项，但优先级可排在旧组数据清洗之后。
 - 当前旧 plan 已执行完成；不要再从以下 plan 的 Task 1 重开：
   - [docs/superpowers/plans/2026-04-24-enggo-answer-style-real-provider-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-enggo-answer-style-real-provider-smoke.md)
   - [docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md)

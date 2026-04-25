@@ -72,7 +72,7 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     expect(result.mainAnswer[0]?.inScope).toBe(true);
   });
 
-  it("returns a stable main answer and same-group boundary for incomplete English recall", async () => {
+  it("keeps incomplete institute recall inside the tight institute/institution boundary", async () => {
     const result = await retrieveCandidates({
       activeExamTarget: "cet6",
       query: "有个像 instituton 的词",
@@ -87,8 +87,27 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     expect(
       [result.mainAnswer[0]?.lemma, ...result.confusionBoundary.map((candidate) => candidate.lemma)],
     ).toEqual(
-      expect.arrayContaining(["institution", "institute", "establish"]),
+      expect.arrayContaining(["institution", "institute"]),
     );
+    expect(
+      [result.mainAnswer[0]?.lemma, ...result.confusionBoundary.map((candidate) => candidate.lemma)],
+    ).not.toContain("establish");
+  });
+
+  it("does not treat institute and establish as a shared confusion group", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "institute establish 怎么区分",
+    });
+
+    expect(result.queryMode).toBe("direct_compare");
+    expect(result.resolution).toBe("resolved");
+    expect(result.mainAnswer.map((candidate) => candidate.lemma)).toEqual([
+      "institute",
+      "establish",
+    ]);
+    expect(result.confusionBoundary).toHaveLength(0);
+    expect(result.comparisonView).toBeNull();
   });
 
   it("enters confusion-group view for direct comparison queries", async () => {

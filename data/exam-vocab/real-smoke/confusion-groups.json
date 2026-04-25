@@ -99,22 +99,20 @@
     }
   },
   {
-    "id": "institute-institution-establish",
+    "id": "institute-institution",
     "members": [
       "institute",
-      "institution",
-      "establish"
+      "institution"
     ],
     "teachFirst": "institute",
-    "whyConfusing": "这组都和“设立、建立、机构”有关，形式和词性容易混在一起。",
+    "whyConfusing": "institute 和 institution 形式接近，都和“机构/制度/设立”有关，词性容易混。",
     "commonMisusePoints": [
       "institute 常被误当成 institution 的同义单词直接替换，但它更常作动词。",
       "institution 是名词，不能直接当作“设立”的动作来用。"
     ],
     "semanticBoundaryNotes": [
       "institute 更强调正式开始实施制度、政策或程序。",
-      "institution 更强调组织、机构或长期形成的制度。",
-      "establish 更宽泛，表示建立、创立、确立。"
+      "institution 更强调组织、机构或长期形成的制度。"
     ],
     "memberNotes": {
       "institute": "常见搭配 institute a policy/reform.",
