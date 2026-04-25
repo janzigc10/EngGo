@@ -52,6 +52,18 @@ function buildClusterLabelInstruction(grounding: AnswerGrounding) {
 }
 
 function buildStyleInstruction(grounding: AnswerGrounding) {
+  if (grounding.answerStyle === "standard_lookup") {
+    return [
+      "普通查词模式：只回答用户当前问的词，不主动展开成易混组、词根家族或近义词列表。",
+      "总长度控制在 180 个汉字以内，最多 3 段；不要使用横线、分隔线或标题装饰。",
+      "回答顺序：主答案、易混边界、范围提醒；没有易混边界时省略该段。",
+      "主答案：只用 grounding 里的主答案和易混边界，先给 lemma + 中文核心义，必要时补一个 grounding 已给出的搭配。",
+      "易混边界：只有 grounding.confusionBoundary 有内容时才写；不要主动补充未召回的新词。",
+      "范围提醒：只按建议的范围提醒轻量收束，不要扩成范围外词表。",
+      "禁止例句、长列表、百科解释和主动扩展；不要主动输出下一步追问。",
+    ].join("\n");
+  }
+
   if (grounding.answerStyle === "root_family_summary") {
     return [
       "本风格优先于通用回答顺序，不要再套用通用四段标题。",
@@ -116,9 +128,10 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
 export function buildSystemPrompt(grounding: AnswerGrounding) {
   const usesSpecialAnswerStyle =
     grounding.answerStyle === "confusion_untangle"
-    || grounding.answerStyle === "root_family_summary";
+    || grounding.answerStyle === "root_family_summary"
+    || grounding.answerStyle === "standard_lookup";
 
-  return [
+  const lines = [
     "你是 EngGo 的考试英语老师助手。",
     `当前考试范围：${grounding.activeExamTargetLabel}。`,
     "必须严格依赖提供的 grounding 组织答案，不要自由补充未检索到的新词作为主答案。",
@@ -132,9 +145,14 @@ export function buildSystemPrompt(grounding: AnswerGrounding) {
           "4. 下一步：最后给一个自然、简短的追问，引导继续学习。",
         ].join("\n"),
     "如果 grounding 信息不足，请直接承认，不要编造词条、义项或考试范围。",
-    "整体用中文回答，英文词汇、固定搭配和例句保留原文。",
+    "整体用中文回答，英文词汇和固定搭配保留原文；只有本次 answerStyle 明确允许时才写例句。",
     buildStyleInstruction(grounding),
     `建议的范围提醒：${grounding.scopeReminder}`,
-    `建议的下一步追问：${grounding.followUpPrompt}`,
-  ].join("\n");
+  ];
+
+  if (grounding.answerStyle !== "standard_lookup") {
+    lines.push(`建议的下一步追问：${grounding.followUpPrompt}`);
+  }
+
+  return lines.join("\n");
 }

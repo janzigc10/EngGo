@@ -60,11 +60,12 @@
   - 词根 / 碎片检索仍未实现：`re+con 的词根有什么词`、`con 开头、re 相关的词`、`re...ct 这种词`
   - 当前 `fuzzy_recall` 对 fragment / 多片段输入仍会落到 `low_confidence` 或 `no_match`
 - 2026-04-25 真实 provider cluster smoke 暴露两个产品侧 prompt 残留：
-  - `academic 是什么意思` 这类 `standard_lookup` 会输出例句、分隔线和较长模板，并在下一步建议里主动扩出未召回的 `scholarly / educational`；这不是检索错误，而是普通查词 prompt 约束不如 `confusion_untangle` 紧。
+  - `academic 是什么意思` 这类 `standard_lookup` 曾会输出例句、分隔线和较长模板，并在下一步建议里主动扩出未召回的 `scholarly / educational`；本轮已先收紧普通查词 prompt，禁止例句、未召回扩词和主动下一步追问，后续可再用真实 provider 复验输出是否稳定。
   - `stitute 是什么` 的 `root_family_summary` 会在谨慎提醒里点名低优先级、范围外的 `restitute / prostitute`；如果产品希望考试范围更收束，后续应让 root summary 只泛称“低频/范围外分支”或只列 in-scope 成员。
 - 结论：
   - 形近词簇小样本已通过 `corepack pnpm eval:shape`
-  - 下一步建议先补 30-50 个精选形近词族，再评估是否扩到 300-500 词
+  - `standard_lookup` prompt 残留已先在本轮收紧；下一步可用小批真实 provider smoke 复验普通查词输出是否稳定
+  - 若继续扩内容能力，再补 30-50 个精选形近词族，并评估是否扩到 300-500 词
   - 词根 / 碎片检索应作为形近词簇扩样本后的下一轮能力，不要和大规模扩库混在一起做
 
 ## 已处理

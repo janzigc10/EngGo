@@ -4,6 +4,46 @@ import type { AnswerGrounding } from "@/features/answering/build-grounding";
 import { buildSystemPrompt } from "@/features/answering/build-system-prompt";
 
 describe("buildSystemPrompt", () => {
+  it("keeps standard lookup short and grounded", () => {
+    const grounding: AnswerGrounding = {
+      activeExamTarget: "cet4",
+      activeExamTargetLabel: "CET-4",
+      query: "academic 是什么意思",
+      queryMode: "fuzzy_recall",
+      answerStyle: "standard_lookup",
+      resolution: "resolved",
+      noMatchReason: null,
+      mainAnswer: [
+        {
+          entryId: "academic",
+          lemma: "academic",
+          meaningsZh: ["学术的"],
+          matchedAlias: null,
+          scopeCodes: ["cet4", "cet6"],
+          inScope: true,
+          reason: "当前考试范围命中",
+          score: 100,
+        },
+      ],
+      confusionBoundary: [],
+      scopeReminder: "这次回答已优先锁定在 CET-4 范围内。",
+      followUpPrompt: "如果你愿意，我可以继续把 academic 的近义词拆开。",
+      comparisonView: null,
+      rootFamilyView: null,
+    };
+
+    const prompt = buildSystemPrompt(grounding);
+
+    expect(prompt).toContain("普通查词模式");
+    expect(prompt).toContain("禁止例句");
+    expect(prompt).toContain("不要主动输出下一步追问");
+    expect(prompt).toContain("不要主动补充未召回的新词");
+    expect(prompt).toContain("只用 grounding 里的主答案和易混边界");
+    expect(prompt).not.toContain("4. 下一步");
+    expect(prompt).not.toContain("建议的下一步追问");
+    expect(prompt).not.toContain("例句保留原文");
+  });
+
   it("guides shape-neighbor answers as lookalike clusters", () => {
     const grounding: AnswerGrounding = {
       activeExamTarget: "cet6",

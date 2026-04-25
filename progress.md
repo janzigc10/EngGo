@@ -19,6 +19,12 @@
 - 词根家族地图：用户有词根/前缀/碎片，需要结构化展开和优先级。
 
 ## 本 Session 已完成
+- 2026-04-25 收紧 `standard_lookup` 普通查词 prompt：
+  - [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts) 新增普通查词专属 guardrails：控制在 180 个汉字以内，不写例句/长列表/分隔线，不主动输出下一步追问，不补充未召回的新词。
+  - 普通查词现在只用 grounding 里的 `mainAnswer` / `confusionBoundary` 组织答案；没有易混边界时省略该段，避免 `academic 是什么意思` 这类问题被讲成泛泛词典百科。
+  - [src/features/answering/build-system-prompt.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.test.ts) 新增红灯测试覆盖 `academic 是什么意思` 的普通查词约束。
+  - `scripts/run-answer-style-eval.ts` 新增 `academic 是什么意思` 与 `institute 是什么意思` 两条 standard lookup case，锁住普通查词不被 root/confusion cluster 抢走。
+  - fresh verification：先看到该测试按预期失败，再修改 prompt；随后 `corepack pnpm test src/features/answering/build-system-prompt.test.ts` 6/6 pass，`corepack pnpm eval:answer-style` 12/12 pass，`corepack pnpm test src/features/answering/chat-service.test.ts` 5/5 pass。
 - 2026-04-25 按用户要求新增成长记录文档：
   - 新增 [docs/engineering-growth-log.md](/C:/Users/Chen/Desktop/EngGo/docs/engineering-growth-log.md)，定位为个人工程成长日志，不替代 `progress.md`。
   - 首条完整记录是 `Confusion Cluster 升级`：记录从 few-shot/prompt 调试转向结构化 grounding、cluster labels、真实 provider smoke 验证的思考过程。
@@ -560,6 +566,8 @@
 6. `corepack pnpm exec tsc --noEmit` 这轮仍未重跑；此前已知失败，属于既有工程债，不纳入本轮完成标准。
 
 ## 下一 Session 第一件事
+- 本轮已完成 `standard_lookup` prompt 收紧；下一刀建议先做 4-6 条真实 provider smoke（如 `academic 是什么意思`、`institute 是什么意思`、`available 怎么用`、`significant 是什么意思`），确认普通查词不再输出例句、未召回扩词和主动下一步追问。
+- 如果真实 provider smoke 稳定，再二选一：收紧 `root_family_summary` 的范围外低频分支点名，或继续把 `real-smoke` 基础词条扩到 500+。
 - 当前旧 plan 已执行完成；不要再从以下 plan 的 Task 1 重开：
   - [docs/superpowers/plans/2026-04-24-enggo-answer-style-real-provider-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-enggo-answer-style-real-provider-smoke.md)
   - [docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md)
