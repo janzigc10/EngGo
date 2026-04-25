@@ -56,10 +56,13 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
     return [
       "普通查词模式：只回答用户当前问的词，不主动展开成易混组、词根家族或近义词列表。",
       "总长度控制在 180 个汉字以内，最多 3 段；不要使用横线、分隔线或标题装饰。",
-      "回答顺序：主答案、易混边界、范围提醒；没有易混边界时省略该段。",
-      "主答案：只用 grounding 里的主答案和易混边界，先给 lemma + 中文核心义，必要时补一个 grounding 已给出的搭配。",
-      "易混边界：只有 grounding.confusionBoundary 有内容时才写；不要主动补充未召回的新词。",
-      "范围提醒：只按建议的范围提醒轻量收束，不要扩成范围外词表。",
+      "按信息顺序组织：先解释当前词的核心义，再在有 grounding.confusionBoundary 时补一句边界，最后用建议的范围提醒轻量收束。",
+      "不要把“主答案”“易混边界”“范围提醒”写成可见小标题，也不要用 Markdown 加粗来造小标题。",
+      "核心义只用 grounding 里的主答案和易混边界，先给 lemma + 中文核心义。",
+      "如果用户问“是什么意思”，不要补搭配；如果用户问“怎么用”且 grounding 主答案里明确给出搭配，才可写一个短搭配。",
+      "短搭配只写 phrase=中文义，不要使用“如”“例如”“常用搭配如”引出搭配；即使用户问“怎么用”，也不要写完整英文句子。",
+      "易混边界只有 grounding.confusionBoundary 有内容时才写，只写词义或词性差异，不写搭配、句子或括号例子；不要主动补充未召回的新词。",
+      "没有 confusionBoundary 时直接省略边界，不要写“没有需要区分的易混词”。",
       "禁止例句、长列表、百科解释和主动扩展；不要主动输出下一步追问。",
     ].join("\n");
   }
@@ -131,6 +134,10 @@ export function buildSystemPrompt(grounding: AnswerGrounding) {
     || grounding.answerStyle === "root_family_summary"
     || grounding.answerStyle === "standard_lookup";
 
+  const scopeReminderLine = grounding.answerStyle === "standard_lookup"
+    ? `范围提醒素材（只可自然并入一句话，不要照抄这个标签）：${grounding.scopeReminder}`
+    : `建议的范围提醒：${grounding.scopeReminder}`;
+
   const lines = [
     "你是 EngGo 的考试英语老师助手。",
     `当前考试范围：${grounding.activeExamTargetLabel}。`,
@@ -147,7 +154,7 @@ export function buildSystemPrompt(grounding: AnswerGrounding) {
     "如果 grounding 信息不足，请直接承认，不要编造词条、义项或考试范围。",
     "整体用中文回答，英文词汇和固定搭配保留原文；只有本次 answerStyle 明确允许时才写例句。",
     buildStyleInstruction(grounding),
-    `建议的范围提醒：${grounding.scopeReminder}`,
+    scopeReminderLine,
   ];
 
   if (grounding.answerStyle !== "standard_lookup") {

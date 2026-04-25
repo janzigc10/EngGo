@@ -36,11 +36,17 @@ describe("buildSystemPrompt", () => {
 
     expect(prompt).toContain("普通查词模式");
     expect(prompt).toContain("禁止例句");
+    expect(prompt).toContain("不要把“主答案”“易混边界”“范围提醒”写成可见小标题");
+    expect(prompt).toContain("即使用户问“怎么用”，也不要写完整英文句子");
+    expect(prompt).toContain("不要使用“如”“例如”“常用搭配如”引出搭配");
+    expect(prompt).toContain("没有 confusionBoundary 时直接省略边界，不要写“没有需要区分的易混词”");
+    expect(prompt).toContain("范围提醒素材");
     expect(prompt).toContain("不要主动输出下一步追问");
     expect(prompt).toContain("不要主动补充未召回的新词");
     expect(prompt).toContain("只用 grounding 里的主答案和易混边界");
     expect(prompt).not.toContain("4. 下一步");
     expect(prompt).not.toContain("建议的下一步追问");
+    expect(prompt).not.toContain("建议的范围提醒：");
     expect(prompt).not.toContain("例句保留原文");
   });
 

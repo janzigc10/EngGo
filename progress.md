@@ -19,6 +19,13 @@
 - 词根家族地图：用户有词根/前缀/碎片，需要结构化展开和优先级。
 
 ## 本 Session 已完成
+- 2026-04-25 复验并二次收紧 `standard_lookup` 真实 provider 输出：
+  - 先提交成长记录文档：`4d76c49 docs: add communication growth reflection`。
+  - 串行健康检查通过：`corepack pnpm exec prisma dev ls` 显示 `enggo` running；`check-vocab-content --dataset real-smoke --min-entries 400 --require-source-lemmas` -> 409 entries / 33 groups；`db:migrate` 无待执行 migration；`db:seed:real-smoke` 通过。
+  - 第一轮真实 provider smoke 暴露普通查词残留：`institute 是什么意思` 仍会输出 `**主答案** / **易混边界**` 一类可见标题，`available 怎么用` 会补完整英文句子或照抄内部 `建议的范围提醒` 标签。
+  - 已用红绿流程收紧 [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts)：普通查词不再把 `主答案/易混边界/范围提醒` 写成可见小标题；`是什么意思` 不补搭配；`怎么用` 也只允许 grounding 明确给出的短搭配，不写完整英文句子；无 `confusionBoundary` 时直接省略边界；范围提醒改成内部素材，不暴露 `建议的范围提醒` 标签。
+  - [src/features/answering/build-system-prompt.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.test.ts) 新增红灯断言，先看到旧 prompt 失败，再修改到通过。
+  - 复验通过：`corepack pnpm test src/features/answering/build-system-prompt.test.ts` 6/6 pass；`corepack pnpm eval:answer-style` 12/12 pass；第二轮真实 provider smoke 5/5 HTTP 200、5/5 `standard_lookup` resolved、5/5 provider called，未再触发可见标题、例句式搭配、内部标签外露、主动下一步追问或未召回扩词 flag。
 - 2026-04-25 追加成长记录里的沟通复盘：
   - [docs/engineering-growth-log.md](/C:/Users/Chen/Desktop/EngGo/docs/engineering-growth-log.md) 新增 `沟通复盘：从“感觉差点意思”到可验证对比`。
   - 记录本轮从主观“不舒服”拆成可验证差异的过程：旧版像“为什么会混 / 先问一句 / 题里抓”的问诊式分流，新版像“范围内相似词 / 词义速览 / 重点区分 / 做题抓手”的整理式辨析卡。
@@ -570,8 +577,8 @@
 6. `corepack pnpm exec tsc --noEmit` 这轮仍未重跑；此前已知失败，属于既有工程债，不纳入本轮完成标准。
 
 ## 下一 Session 第一件事
-- 本轮已完成 `standard_lookup` prompt 收紧；下一刀建议先做 4-6 条真实 provider smoke（如 `academic 是什么意思`、`institute 是什么意思`、`available 怎么用`、`significant 是什么意思`），确认普通查词不再输出例句、未召回扩词和主动下一步追问。
-- 如果真实 provider smoke 稳定，再二选一：收紧 `root_family_summary` 的范围外低频分支点名，或继续把 `real-smoke` 基础词条扩到 500+。
+- 本轮已完成 `standard_lookup` 真实 provider smoke 和二次 prompt 收紧；不要再重复用同一批问题证明普通查词。
+- 下一刀建议先收紧 `root_family_summary` 的范围外低频分支点名（例如 `stitute` 回答里不要直接点名 `restitute/prostitute`），再考虑继续把 `real-smoke` 基础词条扩到 500+。
 - 当前旧 plan 已执行完成；不要再从以下 plan 的 Task 1 重开：
   - [docs/superpowers/plans/2026-04-24-enggo-answer-style-real-provider-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-enggo-answer-style-real-provider-smoke.md)
   - [docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md)
