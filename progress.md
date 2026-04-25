@@ -19,6 +19,10 @@
 - 词根家族地图：用户有词根/前缀/碎片，需要结构化展开和优先级。
 
 ## 本 Session 已完成
+- 2026-04-25 追加成长记录里的沟通复盘：
+  - [docs/engineering-growth-log.md](/C:/Users/Chen/Desktop/EngGo/docs/engineering-growth-log.md) 新增 `沟通复盘：从“感觉差点意思”到可验证对比`。
+  - 记录本轮从主观“不舒服”拆成可验证差异的过程：旧版像“为什么会混 / 先问一句 / 题里抓”的问诊式分流，新版像“范围内相似词 / 词义速览 / 重点区分 / 做题抓手”的整理式辨析卡。
+  - 补充后续沟通模板：`现在它像 A，但我想要 B；词/结果可能是对的，但问题在 C；用户读完应该能 D；应该用 E 验证而不是继续测 F`。
 - 2026-04-25 收紧 `standard_lookup` 普通查词 prompt：
   - [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts) 新增普通查词专属 guardrails：控制在 180 个汉字以内，不写例句/长列表/分隔线，不主动输出下一步追问，不补充未召回的新词。
   - 普通查词现在只用 grounding 里的 `mainAnswer` / `confusionBoundary` 组织答案；没有易混边界时省略该段，避免 `academic 是什么意思` 这类问题被讲成泛泛词典百科。
