@@ -19,6 +19,10 @@
 - 词根家族地图：用户有词根/前缀/碎片，需要结构化展开和优先级。
 
 ## 本 Session 已完成
+- 2026-04-25 按用户要求新增成长记录文档：
+  - 新增 [docs/engineering-growth-log.md](/C:/Users/Chen/Desktop/EngGo/docs/engineering-growth-log.md)，定位为个人工程成长日志，不替代 `progress.md`。
+  - 首条完整记录是 `Confusion Cluster 升级`：记录从 few-shot/prompt 调试转向结构化 grounding、cluster labels、真实 provider smoke 验证的思考过程。
+  - 文档中保留后续待补条目：source-backed `real-smoke`、低置信度 no-match、Windows + Prisma dev 环境坑、`standard_lookup` 收紧。
 - 2026-04-25 按新 `confusion cluster` 计划完成 Task 1-2：
   - 计划落盘：[docs/superpowers/plans/2026-04-25-confusion-cluster-v1.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-25-confusion-cluster-v1.md)。
   - `ConfusionGroup` 增加轻量元数据：`labels`、`anchorPattern`、`quickDistinction`、`examHook`；JSON loader、seed、Prisma 表、retrieval `comparisonView` 已打通。
