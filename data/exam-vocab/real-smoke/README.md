@@ -21,6 +21,19 @@
 - Curated confusion groups require human confirmation; do not create them from spelling similarity alone.
 - Keep source traceability outside generated normalized files when possible, so future reviewers can verify where each vocabulary slice came from.
 
+## Confusion Clusters
+
+- Ordinary entries are not all groups. Most entries are thin lookup records for standard lookup.
+- A confusion cluster is reserved for words worth remembering together because students are likely to mix them up in exams.
+- Cluster labels explain why the group exists:
+  - `shape_like`: spelling or visual form is close.
+  - `root_family`: shared fragment/root-like pattern is useful for memory.
+  - `prefix_family`: prefix direction helps distinguish the words.
+  - `meaning_near`: Chinese meanings are close but usage differs.
+  - `collocation_boundary`: fixed collocation or following pattern is the main boundary.
+  - `exam_high_value`: worth prioritizing for exam-facing recall.
+- Labels are additive metadata on the existing `confusion_group` model, not a separate frontend mode.
+
 ## Scope Notes
 
 - `gaokao`, `cet4`, and `cet6` scopes are backed by the source manifests above.
@@ -29,5 +42,8 @@
 
 ## Current Slice
 
-- This first source-backed smoke slice reuses EngGo's manually reviewed confusing-word entries and retags their exam scopes against the official source lemma manifests.
-- It is deliberately smaller than the eventual 300-800 word dev dataset. Its purpose is to unblock loader/seed validation without fabricating entries, then support the next Task 3/4 retrieval and answer-style work.
+- Current size: 409 entries / 33 manually reviewed confusion groups.
+- The first 86-entry source-backed smoke slice reuses EngGo's manually reviewed confusing-word entries and retags their exam scopes against the official source lemma manifests.
+- The added foundation entries are thin lookup records: source-backed lemma, exam scopes, part of speech, Chinese core meaning, and optional collocation. They are meant to make common exact lookups less empty before the full teaching corpus exists.
+- The first labeled cluster pass upgrades `access-assess-excess` and `respect-respective-respectful-respectable`, and adds `root-stitute` plus `root-tempt` as source-backed cluster smoke fixtures.
+- This dataset has entered the 300-800 word dev dataset range, but is still below the eventual 500-1000 word foundation RAG MVP target. It should keep growing in controlled source-backed batches rather than through one-time full ingestion.

@@ -107,9 +107,13 @@ async function seedConfusionGroups(
           "whyConfusing",
           "commonMisusePoints",
           "semanticBoundaryNotes",
+          "labels",
+          "anchorPattern",
+          "quickDistinction",
+          "examHook",
           "updatedAt"
         )
-        VALUES ($1, $2, $3, $4::text[], $5::text[], NOW())
+        VALUES ($1, $2, $3, $4::text[], $5::text[], $6::text[], $7, $8, $9, NOW())
       `,
       [
         group.id,
@@ -117,6 +121,10 @@ async function seedConfusionGroups(
         group.whyConfusing,
         group.commonMisusePoints ?? [],
         group.semanticBoundaryNotes ?? [],
+        group.labels ?? [],
+        group.anchorPattern ?? null,
+        group.quickDistinction ?? null,
+        group.examHook ?? null,
       ],
     );
 
@@ -141,6 +149,11 @@ export async function seedContent(_client: PrismaClient, seedContent: SeedConten
   // Prisma adapter transactions are unstable against local Prisma Postgres on Windows,
   // so seed through a single pg transaction while keeping the public API unchanged.
   const client = new Client({ connectionString: getSeedConnectionString() });
+  let backgroundClientError: Error | null = null;
+
+  client.on("error", (error) => {
+    backgroundClientError = error;
+  });
 
   await client.connect();
 
@@ -156,5 +169,9 @@ export async function seedContent(_client: PrismaClient, seedContent: SeedConten
     throw error;
   } finally {
     await client.end();
+  }
+
+  if (backgroundClientError) {
+    throw backgroundClientError;
   }
 }

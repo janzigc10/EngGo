@@ -5,6 +5,8 @@ const compareCuePattern =
   /(区别|差别|不同|怎么区分|怎么分|搞混|分不清|哪个|哪一个|还是|vs\.?|versus|\bor\b)/i;
 const groupComparePattern =
   /([a-z]+(?:[-'][a-z]+)?)\s*(?:那组词|这一组词|这组词|这一组|这组).*(?:区别|差别|不同|怎么区分|怎么分)/i;
+const groupMemoryPattern =
+  /(?:跟|和)?\s*([a-z]+(?:[-'][a-z]+)?)\s*(?:一样|同根|一族|一类|那几个词|那组词|这一组词|这组词).*(?:怎么记|怎么背|怎么分|区分)/i;
 const meaningNoisePattern = /(怎么说|什么意思|是什么|啥意思|英文|英语|单词|有个|像|的词)/g;
 const shapeNeighborCuePattern =
   /(很像|形近|长得像|看错|看成|容易把|容易.*混|拼写.{0,4}(像|近|相似))/i;
@@ -55,7 +57,9 @@ function extractComparisonTerms(normalizedText: string): string[] {
 }
 
 function extractGroupSeedTerm(normalizedText: string) {
-  const match = normalizedText.match(groupComparePattern);
+  const match =
+    normalizedText.match(groupComparePattern)
+    ?? normalizedText.match(groupMemoryPattern);
 
   if (!match) {
     return null;

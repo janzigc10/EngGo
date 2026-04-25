@@ -142,6 +142,51 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     expect(result.confusionBoundary).toHaveLength(0);
   });
 
+  it("surfaces root-family cluster metadata for existing derived groups", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet4",
+      query: "respect 那组词怎么分",
+    });
+
+    expect(result.resolution).toBe("resolved");
+    expect(result.comparisonView?.id).toBe("respect-respective-respectful-respectable");
+    expect(result.comparisonView?.labels).toEqual(
+      expect.arrayContaining(["root_family", "shape_like"]),
+    );
+    expect(result.comparisonView?.anchorPattern).toBe("respect");
+  });
+
+  it("surfaces shape-like cluster metadata for existing lookalike groups", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "access assess excess 怎么区分",
+    });
+
+    expect(result.resolution).toBe("resolved");
+    expect(result.comparisonView?.id).toBe("access-assess-excess");
+    expect(result.comparisonView?.labels).toEqual(
+      expect.arrayContaining(["shape_like", "exam_high_value"]),
+    );
+  });
+
+  it("resolves stitute words as one root-family confusion cluster", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "institute substitute constitute 怎么分",
+    });
+
+    expect(result.queryMode).toBe("direct_compare");
+    expect(result.resolution).toBe("resolved");
+    expect(result.comparisonView?.id).toBe("root-stitute");
+    expect(result.comparisonView?.labels).toContain("root_family");
+    expect(result.mainAnswer.map((candidate) => candidate.lemma)).toEqual([
+      "institute",
+      "substitute",
+      "constitute",
+    ]);
+    expect(result.confusionBoundary.map((candidate) => candidate.lemma)).toContain("institution");
+  });
+
   it("returns no-match for out-of-kb word meaning lookup", async () => {
     const result = await retrieveCandidates({
       activeExamTarget: "cet6",

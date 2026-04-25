@@ -2,6 +2,17 @@ export const examScopeCodes = ["gaokao", "cet4", "cet6", "postgrad"] as const;
 
 export type ExamScopeCode = (typeof examScopeCodes)[number];
 
+export const confusionClusterLabels = [
+  "shape_like",
+  "root_family",
+  "prefix_family",
+  "meaning_near",
+  "collocation_boundary",
+  "exam_high_value",
+] as const;
+
+export type ConfusionClusterLabel = (typeof confusionClusterLabels)[number];
+
 export type VocabularySeedPayload = {
   id: string;
   lemma: string;
@@ -15,9 +26,13 @@ export type VocabularySeedPayload = {
 
 export type ConfusionGroupSeedPayload = {
   id: string;
+  labels: ConfusionClusterLabel[];
+  anchorPattern?: string;
   members: string[];
   teachFirst: string;
   whyConfusing: string;
+  quickDistinction?: string;
+  examHook?: string;
   commonMisusePoints?: string[];
   semanticBoundaryNotes?: string[];
   memberNotes?: Partial<Record<string, string>>;

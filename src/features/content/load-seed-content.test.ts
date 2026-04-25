@@ -34,9 +34,13 @@ const validEntries = [
 const validConfusionGroups = [
   {
     id: "stationary-stationery",
+    labels: ["shape_like", "exam_high_value"],
+    anchorPattern: "stationar",
     members: ["stationary", "stationery"],
     teachFirst: "stationery",
     whyConfusing: "only one letter differs",
+    quickDistinction: "stationary=静止的；stationery=文具",
+    examHook: "文具场景选 stationery；remain/keep 不动选 stationary。",
     commonMisusePoints: [],
     semanticBoundaryNotes: [],
     memberNotes: {
@@ -91,6 +95,31 @@ describe("loadVocabContent", () => {
       "stationary",
       "stationery",
     ]);
+    expect(content.confusionGroups[0].labels).toEqual([
+      "shape_like",
+      "exam_high_value",
+    ]);
+    expect(content.confusionGroups[0].anchorPattern).toBe("stationar");
+    expect(content.confusionGroups[0].quickDistinction).toContain("stationary=静止的");
+    expect(content.confusionGroups[0].examHook).toContain("文具场景");
+  });
+
+  it("rejects unknown confusion cluster labels", async () => {
+    const fixtureRoot = await createFixtureDataset({
+      confusionGroups: [
+        {
+          ...validConfusionGroups[0],
+          labels: ["random_label"],
+        },
+      ],
+    });
+
+    await expect(
+      loadVocabContent({
+        datasetName: "fixture-real-smoke",
+        baseDir: fixtureRoot,
+      }),
+    ).rejects.toThrow(/labels/i);
   });
 
   it("rejects duplicate entry ids", async () => {

@@ -87,4 +87,77 @@ describe.skipIf(!process.env.DATABASE_URL)("seedContent", () => {
 
     expect(persistedSentinel.rows[0]?.id).toBe(sentinelEntryId);
   });
+
+  it("persists optional confusion cluster metadata", async () => {
+    const seedData = {
+      entries: [
+        {
+          id: "metadata-left",
+          lemma: "metadata-left",
+          aliases: [],
+          pos: ["noun"],
+          meaningsZh: ["元数据左项"],
+          examScopes: ["cet6"],
+          examples: [],
+          collocations: [],
+        },
+        {
+          id: "metadata-right",
+          lemma: "metadata-right",
+          aliases: [],
+          pos: ["noun"],
+          meaningsZh: ["元数据右项"],
+          examScopes: ["cet6"],
+          examples: [],
+          collocations: [],
+        },
+      ],
+      confusionGroups: [
+        {
+          id: "metadata-cluster",
+          labels: ["root_family", "exam_high_value"],
+          anchorPattern: "meta",
+          members: ["metadata-left", "metadata-right"],
+          teachFirst: "metadata-left",
+          whyConfusing: "This group is used to verify metadata persistence.",
+          quickDistinction: "left=左项；right=右项",
+          examHook: "Use the metadata fields to guide cluster explanations.",
+          commonMisusePoints: [],
+          semanticBoundaryNotes: [],
+          memberNotes: {},
+        },
+      ],
+    } satisfies SeedContent;
+
+    await seedContent(db, seedData);
+
+    const client = new Client({ connectionString: process.env.DATABASE_URL });
+
+    await client.connect();
+    const persistedGroup = await client.query<{
+      labels: string[];
+      anchorPattern: string | null;
+      quickDistinction: string | null;
+      examHook: string | null;
+    }>(
+      `
+        SELECT
+          "labels",
+          "anchorPattern",
+          "quickDistinction",
+          "examHook"
+        FROM "confusion_group"
+        WHERE "id" = $1
+      `,
+      ["metadata-cluster"],
+    );
+    await client.end();
+
+    expect(persistedGroup.rows[0]).toEqual({
+      labels: ["root_family", "exam_high_value"],
+      anchorPattern: "meta",
+      quickDistinction: "left=左项；right=右项",
+      examHook: "Use the metadata fields to guide cluster explanations.",
+    });
+  });
 });

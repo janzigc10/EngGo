@@ -640,15 +640,15 @@ Update `bugs.md` only for newly confirmed stable issues.
 **Files:**
 - Modify: `docs/superpowers/plans/2026-04-24-real-vocab-scope-aware-lookalike-smoke.md`
 
-- [ ] **Step 1: Mark steps as completed during execution**
+- [x] **Step 1: Mark steps as completed during execution**
 
 As each step finishes, immediately change the checkbox from `- [ ]` to `- [x]`.
 
-- [ ] **Step 2: Do not claim completion without fresh verification**
+- [x] **Step 2: Do not claim completion without fresh verification**
 
 Before marking the plan complete, rerun the relevant commands from Task 6 and record exact outcomes in `progress.md`.
 
-- [ ] **Step 3: Keep full ingestion gated**
+- [x] **Step 3: Keep full ingestion gated**
 
 Do not move to full real vocabulary ingestion until:
 

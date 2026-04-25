@@ -1,4 +1,9 @@
-import type { ExamScopeCode } from "@/features/content/import-types";
+import type {
+  ConfusionClusterLabel,
+  ExamScopeCode,
+} from "@/features/content/import-types";
+
+export type { ConfusionClusterLabel } from "@/features/content/import-types";
 
 export type QueryMode =
   | "meaning_lookup"
@@ -73,6 +78,10 @@ export type ComparisonView = {
   whyConfusing: string;
   commonMisusePoints: string[];
   semanticBoundaryNotes: string[];
+  labels: ConfusionClusterLabel[];
+  anchorPattern: string | null;
+  quickDistinction: string | null;
+  examHook: string | null;
   members: Array<{
     entryId: string;
     lemma: string;

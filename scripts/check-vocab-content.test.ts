@@ -7,6 +7,7 @@ import { describe, expect, test } from "vitest";
 import {
   checkVocabContent,
   formatCliError,
+  readCheckVocabContentOptions,
   readDatasetName,
 } from "./check-vocab-content";
 
@@ -59,6 +60,85 @@ describe("checkVocabContent", () => {
       "Vocab content valid: 2 entries, 1 confusion groups, scopes=gaokao, cet4, cet6, postgrad.",
     );
   });
+
+  test("fails when the dataset is smaller than the requested minimum", async () => {
+    const baseDir = await mkdtemp(path.join(os.tmpdir(), "enggo-vocab-min-"));
+    const datasetDir = path.join(baseDir, "fixture-real-smoke");
+    await mkdir(datasetDir);
+
+    await writeFile(
+      path.join(datasetDir, "entries.json"),
+      JSON.stringify([
+        {
+          id: "stationary",
+          lemma: "stationary",
+          aliases: [],
+          pos: ["adjective"],
+          meaningsZh: ["静止的"],
+          examScopes: ["cet4"],
+          examples: [],
+          collocations: [],
+        },
+      ]),
+    );
+    await writeFile(path.join(datasetDir, "confusion-groups.json"), JSON.stringify([]));
+
+    await expect(
+      checkVocabContent({
+        datasetName: "fixture-real-smoke",
+        baseDir,
+        minEntries: 2,
+      }),
+    ).rejects.toThrow("fixture-real-smoke has 1 entries; expected at least 2.");
+  });
+
+  test("fails when source-lemma coverage is required but scoped lemmas are missing", async () => {
+    const baseDir = await mkdtemp(path.join(os.tmpdir(), "enggo-vocab-source-"));
+    const datasetDir = path.join(baseDir, "fixture-real-smoke");
+    const sourceDir = path.join(baseDir, "source-lemmas");
+    await mkdir(datasetDir);
+    await mkdir(sourceDir);
+
+    await writeFile(path.join(sourceDir, "gaokao-2020-lemmas.txt"), "stationary\n");
+    await writeFile(
+      path.join(sourceDir, "cet-2016-lemmas.tsv"),
+      "lemma\tsourceScope\nstationary\tcet4\n",
+    );
+    await writeFile(
+      path.join(datasetDir, "entries.json"),
+      JSON.stringify([
+        {
+          id: "stationary",
+          lemma: "stationary",
+          aliases: [],
+          pos: ["adjective"],
+          meaningsZh: ["静止的"],
+          examScopes: ["gaokao", "cet4", "cet6"],
+          examples: [],
+          collocations: [],
+        },
+        {
+          id: "phantom",
+          lemma: "phantom",
+          aliases: [],
+          pos: ["noun"],
+          meaningsZh: ["幻影"],
+          examScopes: ["cet4"],
+          examples: [],
+          collocations: [],
+        },
+      ]),
+    );
+    await writeFile(path.join(datasetDir, "confusion-groups.json"), JSON.stringify([]));
+
+    await expect(
+      checkVocabContent({
+        datasetName: "fixture-real-smoke",
+        baseDir,
+        requireSourceLemmas: true,
+      }),
+    ).rejects.toThrow("source lemma coverage missing: phantom[cet4]");
+  });
 });
 
 describe("readDatasetName", () => {
@@ -72,6 +152,26 @@ describe("readDatasetName", () => {
     expect(() => readDatasetName(["node", "script", "--datset", "real-smoke"])).toThrow(
       "Unknown argument: --datset.",
     );
+  });
+});
+
+describe("readCheckVocabContentOptions", () => {
+  test("parses dataset, minimum entries, and source coverage flags", () => {
+    expect(
+      readCheckVocabContentOptions([
+        "node",
+        "script",
+        "--dataset",
+        "real-smoke",
+        "--min-entries",
+        "180",
+        "--require-source-lemmas",
+      ]),
+    ).toEqual({
+      datasetName: "real-smoke",
+      minEntries: 180,
+      requireSourceLemmas: true,
+    });
   });
 });
 

@@ -4,6 +4,10 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import type { ExamScopeCode } from "@/features/content/import-types";
+import {
+  confusionClusterLabels,
+  type ConfusionClusterLabel,
+} from "@/features/content/import-types";
 import { normalizeQuery } from "@/features/retrieval/normalize-query";
 import { findRootFamilyPrototype } from "@/features/retrieval/root-family-prototypes";
 import { rankCandidates } from "@/features/retrieval/rank-candidates";
@@ -46,6 +50,26 @@ type RetrievalEntryRecord = Prisma.VocabularyEntryGetPayload<{
   include: typeof retrievalEntryInclude;
 }>;
 
+const confusionGroupInclude = {
+  members: {
+    orderBy: {
+      ordinal: "asc",
+    },
+    include: {
+      entry: {
+        include: retrievalEntryInclude,
+      },
+    },
+  },
+  teachFirstEntry: {
+    include: retrievalEntryInclude,
+  },
+} satisfies Prisma.ConfusionGroupInclude;
+
+type ConfusionGroupRecord = Prisma.ConfusionGroupGetPayload<{
+  include: typeof confusionGroupInclude;
+}>;
+
 type RetrieveCandidatesInput = {
   activeExamTarget: ExamScopeCode;
   query: string;
@@ -64,6 +88,8 @@ type TermResolution = {
   noMatchReason: NoMatchReason;
   candidates: RankedCandidate[];
 };
+
+type GroupSelectionPolicy = "default" | "ordinary_lookup";
 
 function uniqueValues<T>(values: T[]) {
   return [...new Set(values)];
@@ -205,33 +231,36 @@ async function findConfusionGroupsForEntryIds(entryIds: string[]) {
         },
       },
     },
-    include: {
-      members: {
-        orderBy: {
-          ordinal: "asc",
-        },
-        include: {
-          entry: {
-            include: retrievalEntryInclude,
-          },
-        },
-      },
-      teachFirstEntry: {
-        include: retrievalEntryInclude,
-      },
+    include: confusionGroupInclude,
+  });
+}
+
+async function findConfusionGroupById(groupId: string) {
+  return db.confusionGroup.findUnique({
+    where: {
+      id: groupId,
     },
+    include: confusionGroupInclude,
   });
 }
 
 function buildComparisonView(
   activeExamTarget: ExamScopeCode,
-  group: Awaited<ReturnType<typeof findConfusionGroupsForEntryIds>>[number],
+  group: ConfusionGroupRecord,
 ): ComparisonView {
+  const validLabelSet = new Set(confusionClusterLabels);
+  const isConfusionClusterLabel = (label: string): label is ConfusionClusterLabel =>
+    validLabelSet.has(label as ConfusionClusterLabel);
+
   return {
     id: group.id,
     whyConfusing: group.whyConfusing,
     commonMisusePoints: group.commonMisusePoints,
     semanticBoundaryNotes: group.semanticBoundaryNotes,
+    labels: group.labels.filter(isConfusionClusterLabel),
+    anchorPattern: group.anchorPattern ?? null,
+    quickDistinction: group.quickDistinction ?? null,
+    examHook: group.examHook ?? null,
     members: group.members.map((member) => ({
       entryId: member.entry.id,
       lemma: member.entry.lemma,
@@ -522,6 +551,7 @@ function sortGroupsForEntry(
   activeExamTarget: ExamScopeCode,
   entryId: string,
   groups: Awaited<ReturnType<typeof findConfusionGroupsForEntryIds>>,
+  policy: GroupSelectionPolicy = "default",
 ) {
   return groups
     .filter((group) => group.members.some((member) => member.entryId === entryId))
@@ -531,6 +561,15 @@ function sortGroupsForEntry(
 
       if (rightTeachFirst !== leftTeachFirst) {
         return rightTeachFirst - leftTeachFirst;
+      }
+
+      if (policy === "ordinary_lookup") {
+        const leftIsRootFamily = left.labels.includes("root_family");
+        const rightIsRootFamily = right.labels.includes("root_family");
+
+        if (leftIsRootFamily !== rightIsRootFamily) {
+          return leftIsRootFamily ? 1 : -1;
+        }
       }
 
       const leftInScopeCount = left.members.filter((member) =>
@@ -600,7 +639,7 @@ function scoreLookalikeGroup(
   activeExamTarget: ExamScopeCode,
   seedEntryId: string,
   seedLemma: string,
-  group: Awaited<ReturnType<typeof findConfusionGroupsForEntryIds>>[number],
+  group: ConfusionGroupRecord,
 ) {
   const otherMembers = group.members.filter((member) => member.entryId !== seedEntryId);
   const bestLemmaSimilarity = Math.max(
@@ -660,8 +699,9 @@ function pickBestGroupForEntry(
   activeExamTarget: ExamScopeCode,
   entryId: string,
   groups: Awaited<ReturnType<typeof findConfusionGroupsForEntryIds>>,
+  policy: GroupSelectionPolicy = "default",
 ) {
-  return sortGroupsForEntry(activeExamTarget, entryId, groups)[0] ?? null;
+  return sortGroupsForEntry(activeExamTarget, entryId, groups, policy)[0] ?? null;
 }
 
 function pickSharedGroup(
@@ -713,7 +753,7 @@ function pickSharedGroup(
 
 function buildBoundaryCandidates(
   activeExamTarget: ExamScopeCode,
-  group: Awaited<ReturnType<typeof findConfusionGroupsForEntryIds>>[number],
+  group: ConfusionGroupRecord,
   rankedCandidates: RankedCandidate[],
   excludedEntryIds: Set<string>,
 ) {
@@ -733,7 +773,7 @@ function buildBoundaryCandidates(
 
 function buildOrderedGroupMembers(
   activeExamTarget: ExamScopeCode,
-  group: Awaited<ReturnType<typeof findConfusionGroupsForEntryIds>>[number],
+  group: ConfusionGroupRecord,
   rankedCandidates: RankedCandidate[],
 ) {
   const rankedById = new Map(
@@ -770,6 +810,7 @@ async function handleMeaningLookup(
     input.activeExamTarget,
     selectedMainCandidate.entryId,
     confusionGroups,
+    "ordinary_lookup",
   );
   const mainAnswer = [toRetrievalCandidate(selectedMainCandidate)];
   const confusionBoundary = bestGroup
@@ -823,6 +864,7 @@ async function handleEnglishLookup(
     input.activeExamTarget,
     selection.candidate.entryId,
     confusionGroups,
+    "ordinary_lookup",
   );
   const mainAnswer = [toRetrievalCandidate(selection.candidate)];
   const confusionBoundary = bestGroup
@@ -974,6 +1016,7 @@ async function handleRootFamilySummary(
 
   const entries = await findEntriesByLemmas(prototype.members.map((member) => member.lemma));
   const rootFamilyView = hydrateRootFamilyView(input.activeExamTarget, prototype, entries);
+  const comparisonGroup = await findConfusionGroupById(prototype.id);
   const rankedCandidates = entries.map((entry) =>
     createRootFamilyRankedCandidate(input.activeExamTarget, entry),
   );
@@ -983,7 +1026,7 @@ async function handleRootFamilySummary(
     rankedCandidates,
     rankedCandidates.map(toRetrievalCandidate),
     [],
-    null,
+    comparisonGroup ? buildComparisonView(input.activeExamTarget, comparisonGroup) : null,
     rootFamilyView,
   );
 }

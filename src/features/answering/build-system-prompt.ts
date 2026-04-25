@@ -1,5 +1,56 @@
 import type { AnswerGrounding } from "@/features/answering/build-grounding";
 
+function buildClusterLabelInstruction(grounding: AnswerGrounding) {
+  const comparisonView = grounding.comparisonView;
+
+  if (!comparisonView) {
+    return "";
+  }
+
+  const labels = comparisonView.labels ?? [];
+  const anchorPattern = comparisonView.anchorPattern
+    ? `anchorPattern=${comparisonView.anchorPattern}`
+    : "anchorPattern 未提供";
+  const instructions: string[] = [];
+
+  if (labels.includes("root_family")) {
+    instructions.push(
+      [
+        `cluster 标签 root_family：这不是另开一个回答风格，而是在易混解团里补同根/共同片段视角；${anchorPattern}。`,
+        "讲清共同片段为什么容易让人混，再落到每个词的现代考试义和词性边界；不要硬套词源，不要把范围外词扩进主答案。",
+      ].join(""),
+    );
+  }
+
+  if (labels.includes("shape_like")) {
+    instructions.push(
+      `cluster 标签 shape_like：必须点出形近/拼写边界，优先说明哪里看错、哪里拼错、靠什么搭配或词性分开；${anchorPattern}。`,
+    );
+  }
+
+  if (labels.includes("meaning_near")) {
+    instructions.push(
+      "cluster 标签 meaning_near：重点讲中文近义里的使用边界，不要只重复同一个中文释义。",
+    );
+  }
+
+  if (labels.includes("collocation_boundary")) {
+    instructions.push(
+      "cluster 标签 collocation_boundary：重点讲固定搭配、后接结构和场景题眼。",
+    );
+  }
+
+  if (comparisonView.quickDistinction) {
+    instructions.push(`优先吸收 quickDistinction：${comparisonView.quickDistinction}`);
+  }
+
+  if (comparisonView.examHook) {
+    instructions.push(`优先吸收 examHook：${comparisonView.examHook}`);
+  }
+
+  return instructions.join("\n");
+}
+
 function buildStyleInstruction(grounding: AnswerGrounding) {
   if (grounding.answerStyle === "root_family_summary") {
     return [
@@ -29,6 +80,7 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
       grounding.queryMode === "shape_neighbor_search"
         ? "当前问题已经命中形近词簇检索，要把相近词当成一个易混解团来回答。"
         : "当前问题已经命中易混词对比视图，要把相近词当成一个易混解团来回答。",
+      buildClusterLabelInstruction(grounding),
       "总长度控制在 260 个汉字以内，最多 4 段。",
       "只输出这 4 段：范围内相似词、词义速览、重点区分、做题抓手。",
       "范围内相似词：先列范围内召回到的相似词，并轻量说明它们都在当前考试范围内。",

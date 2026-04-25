@@ -28,6 +28,7 @@
 - DeepSeek flash 真实 provider smoke 已能跑通，但有两个本地联调坑：
   - `deepseek-v4-flash` 部分回答会超过 15s；`scripts/run-answer-style-provider-smoke.ts` 已把默认 timeout 提高到 45s，并支持 `ENGGO_PROVIDER_SMOKE_TIMEOUT_MS` 覆盖。继续使用 DeepSeek 时不要再按旧 15s 判断 hard fail。
   - Windows PowerShell `Invoke-RestMethod` / `Invoke-WebRequest` 直接发送中文 JSON 到本地 `/api/chat` 时可能出现中文乱码，导致 query mode 误判；真实中文 smoke 优先用 Node `fetch` 或现有 TypeScript runner。
+  - Windows PowerShell 管道把 inline JS 传给 `node --input-type=module` 时，如果不显式设置 UTF-8，也会把中文 query 传成 `?`；运行临时中文 smoke 前先设置 `$OutputEncoding = [System.Text.UTF8Encoding]::new($false)` 和 `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)`。
   - few-shot 已能把 DeepSeek 回答压到更像 EngGo，但仍有多词/词根 case 轻微超过当前 smoke 的严格字数阈值；这更像验收阈值与真实可读性之间的取舍，不宜继续只靠 prompt 无限压缩。
 - 已移除 `stationary/stationery` 的 `e -> envelope` / `a -> stay` 牵强字母口诀；后续新增 confusion groups 时不要把绕一层的字母联想写入 `memberNotes`，优先写真实搭配、词性、场景边界。
 - 真实词库来源仍是当前产品/内容侧主要 blocker，但高考 / 四级 / 六级的首批 source-backed smoke 入口已解除：
@@ -58,6 +59,9 @@
   - 已补首批形近词簇检索：`跟 recent 很像的词有哪些`、`容易把 recent 看错成什么`、`recent/resent`、`adapt/adopt`、`quiet/quite`
   - 词根 / 碎片检索仍未实现：`re+con 的词根有什么词`、`con 开头、re 相关的词`、`re...ct 这种词`
   - 当前 `fuzzy_recall` 对 fragment / 多片段输入仍会落到 `low_confidence` 或 `no_match`
+- 2026-04-25 真实 provider cluster smoke 暴露两个产品侧 prompt 残留：
+  - `academic 是什么意思` 这类 `standard_lookup` 会输出例句、分隔线和较长模板，并在下一步建议里主动扩出未召回的 `scholarly / educational`；这不是检索错误，而是普通查词 prompt 约束不如 `confusion_untangle` 紧。
+  - `stitute 是什么` 的 `root_family_summary` 会在谨慎提醒里点名低优先级、范围外的 `restitute / prostitute`；如果产品希望考试范围更收束，后续应让 root summary 只泛称“低频/范围外分支”或只列 in-scope 成员。
 - 结论：
   - 形近词簇小样本已通过 `corepack pnpm eval:shape`
   - 下一步建议先补 30-50 个精选形近词族，再评估是否扩到 300-500 词

@@ -6,6 +6,7 @@ import { retrieveCandidates } from "../src/features/retrieval/retrieve-candidate
 import type { ExamScopeCode } from "../src/features/content/import-types";
 import type {
   AnswerStyle,
+  ConfusionClusterLabel,
   QueryMode,
   RetrievalResolution,
   RetrievalResult,
@@ -19,6 +20,8 @@ type EvalCase = {
   expectedResolution: RetrievalResolution;
   expectedAnswerStyle: AnswerStyle;
   expectedRootFamilyViewId?: string | null;
+  expectedComparisonViewId?: string | null;
+  expectedComparisonLabels?: ConfusionClusterLabel[];
   expectedPromptIncludes?: string[];
   expectedGroundingIncludes?: string[];
 };
@@ -31,6 +34,7 @@ type CaseResult = {
   resolution: RetrievalResolution;
   answerStyle: AnswerStyle;
   rootFamilyViewId: string | null;
+  comparisonViewId: string | null;
   providerCalled: boolean;
   elapsedMs: number;
   verdict: "pass" | "fail";
@@ -55,7 +59,9 @@ const cases: EvalCase[] = [
     expectedQueryMode: "direct_compare",
     expectedResolution: "resolved",
     expectedAnswerStyle: "confusion_untangle",
-    expectedPromptIncludes: ["范围内相似词", "词义速览", "做题抓手"],
+    expectedComparisonViewId: "access-assess-excess",
+    expectedComparisonLabels: ["shape_like", "exam_high_value"],
+    expectedPromptIncludes: ["范围内相似词", "词义速览", "做题抓手", "形近"],
     expectedGroundingIncludes: ["access", "assess", "excess"],
   },
   {
@@ -75,8 +81,34 @@ const cases: EvalCase[] = [
     expectedQueryMode: "direct_compare",
     expectedResolution: "resolved",
     expectedAnswerStyle: "confusion_untangle",
-    expectedPromptIncludes: ["范围内相似词", "词义速览", "做题抓手"],
+    expectedComparisonViewId: "respect-respective-respectful-respectable",
+    expectedComparisonLabels: ["root_family", "shape_like"],
+    expectedPromptIncludes: ["范围内相似词", "词义速览", "做题抓手", "同根"],
     expectedGroundingIncludes: ["respect", "respective", "respectful", "respectable"],
+  },
+  {
+    name: "cluster: stitute direct compare",
+    query: "institute substitute constitute 怎么分",
+    activeExamTarget: "cet6",
+    expectedQueryMode: "direct_compare",
+    expectedResolution: "resolved",
+    expectedAnswerStyle: "confusion_untangle",
+    expectedComparisonViewId: "root-stitute",
+    expectedComparisonLabels: ["root_family", "shape_like"],
+    expectedPromptIncludes: ["同根", "共同片段", "anchorPattern"],
+    expectedGroundingIncludes: ["institute", "institution", "constitute", "substitute"],
+  },
+  {
+    name: "cluster: institute memory group",
+    query: "跟 institute 一样那几个词怎么记",
+    activeExamTarget: "cet6",
+    expectedQueryMode: "direct_compare",
+    expectedResolution: "resolved",
+    expectedAnswerStyle: "confusion_untangle",
+    expectedComparisonViewId: "root-stitute",
+    expectedComparisonLabels: ["root_family", "shape_like"],
+    expectedPromptIncludes: ["同根", "共同片段", "anchorPattern"],
+    expectedGroundingIncludes: ["institute", "institution", "constitute", "substitute"],
   },
   {
     name: "root: stitute",
@@ -86,6 +118,7 @@ const cases: EvalCase[] = [
     expectedResolution: "resolved",
     expectedAnswerStyle: "root_family_summary",
     expectedRootFamilyViewId: "root-stitute",
+    expectedComparisonViewId: "root-stitute",
     expectedPromptIncludes: ["词根家族地图", "优先背"],
     expectedGroundingIncludes: ["institute", "institution", "constitute"],
   },
@@ -97,6 +130,7 @@ const cases: EvalCase[] = [
     expectedResolution: "resolved",
     expectedAnswerStyle: "root_family_summary",
     expectedRootFamilyViewId: "root-tempt",
+    expectedComparisonViewId: "root-tempt",
     expectedPromptIncludes: ["词根家族地图", "不要硬凑"],
     expectedGroundingIncludes: ["tempt", "temptation", "attempt", "contempt"],
   },
@@ -209,6 +243,24 @@ async function runCase(item: EvalCase): Promise<CaseResult> {
     );
   }
 
+  if ("expectedComparisonViewId" in item) {
+    const actualComparisonViewId = serviceResult.grounding.comparisonView?.id ?? null;
+
+    if (actualComparisonViewId !== (item.expectedComparisonViewId ?? null)) {
+      failures.push(
+        `comparisonView expected ${item.expectedComparisonViewId ?? "null"}, received ${
+          actualComparisonViewId ?? "null"
+        }`,
+      );
+    }
+  }
+
+  for (const expectedLabel of item.expectedComparisonLabels ?? []) {
+    if (!serviceResult.grounding.comparisonView?.labels.includes(expectedLabel)) {
+      failures.push(`comparison labels missing ${expectedLabel}`);
+    }
+  }
+
   assertIncludes(groundingLemmas, item.expectedGroundingIncludes, "grounding", failures);
 
   for (const expectedPromptText of item.expectedPromptIncludes ?? []) {
@@ -233,6 +285,7 @@ async function runCase(item: EvalCase): Promise<CaseResult> {
     resolution: retrievalResult.resolution,
     answerStyle: serviceResult.grounding.answerStyle,
     rootFamilyViewId: serviceResult.grounding.rootFamilyView?.id ?? null,
+    comparisonViewId: serviceResult.grounding.comparisonView?.id ?? null,
     providerCalled,
     elapsedMs: Date.now() - startedAt,
     verdict: failures.length === 0 ? "pass" : "fail",

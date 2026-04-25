@@ -153,6 +153,87 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("不要再套用通用四段标题");
   });
 
+  it("adapts confusion-untangle guidance for root-family cluster labels", () => {
+    const grounding: AnswerGrounding = {
+      activeExamTarget: "cet6",
+      activeExamTargetLabel: "CET-6",
+      query: "institute substitute constitute 怎么分",
+      queryMode: "direct_compare",
+      answerStyle: "confusion_untangle",
+      resolution: "resolved",
+      noMatchReason: null,
+      mainAnswer: [
+        {
+          entryId: "institute",
+          lemma: "institute",
+          meaningsZh: ["设立", "机构"],
+          matchedAlias: null,
+          scopeCodes: ["cet6"],
+          inScope: true,
+          reason: "来自同一个易混词组",
+          score: 300,
+        },
+      ],
+      confusionBoundary: [],
+      scopeReminder: "这次回答已优先锁定在 CET-6 范围内。",
+      followUpPrompt: "我可以继续拆 institute / institution 的区别。",
+      rootFamilyView: null,
+      comparisonView: {
+        id: "root-stitute",
+        labels: ["root_family", "shape_like", "exam_high_value"],
+        anchorPattern: "stitute",
+        quickDistinction: "institute=设立/机构；constitute=构成；substitute=替代",
+        examHook: "先抓 institute / institution，再用 constitute / substitute 做对比。",
+        whyConfusing: "这组词共享 stitute 片段，词形相近但现代意思不同。",
+        commonMisusePoints: [],
+        semanticBoundaryNotes: [],
+        members: [],
+      },
+    };
+
+    const prompt = buildSystemPrompt(grounding);
+
+    expect(prompt).toContain("同根");
+    expect(prompt).toContain("共同片段");
+    expect(prompt).toContain("不要硬套词源");
+    expect(prompt).toContain("anchorPattern");
+    expect(prompt).not.toContain("碎片判断、家族地图、优先背、谨慎提醒");
+  });
+
+  it("adapts direct-comparison guidance for shape-like cluster labels", () => {
+    const grounding: AnswerGrounding = {
+      activeExamTarget: "cet6",
+      activeExamTargetLabel: "CET-6",
+      query: "access assess excess 怎么区分",
+      queryMode: "direct_compare",
+      answerStyle: "confusion_untangle",
+      resolution: "resolved",
+      noMatchReason: null,
+      mainAnswer: [],
+      confusionBoundary: [],
+      scopeReminder: "这次回答已优先锁定在 CET-6 范围内。",
+      followUpPrompt: "我可以继续拆 access / assess / excess。",
+      rootFamilyView: null,
+      comparisonView: {
+        id: "access-assess-excess",
+        labels: ["shape_like", "exam_high_value"],
+        anchorPattern: "access / assess / excess",
+        quickDistinction: "access=进入/使用；assess=评估；excess=过量。",
+        examHook: "阅读里先看搭配对象，再看词性。",
+        whyConfusing: "三个词拼写接近，考试中容易看错。",
+        commonMisusePoints: [],
+        semanticBoundaryNotes: [],
+        members: [],
+      },
+    };
+
+    const prompt = buildSystemPrompt(grounding);
+
+    expect(prompt).toContain("形近");
+    expect(prompt).toContain("拼写边界");
+    expect(prompt).toContain("anchorPattern");
+  });
+
   it("guides root-family answers as a structured map", () => {
     const grounding: AnswerGrounding = {
       activeExamTarget: "cet6",

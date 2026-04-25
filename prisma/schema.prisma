@@ -76,6 +76,10 @@ model ConfusionGroup {
   whyConfusing          String
   commonMisusePoints    String[]
   semanticBoundaryNotes String[]
+  labels                String[]              @default([])
+  anchorPattern         String?
+  quickDistinction      String?
+  examHook              String?
   members               ConfusionGroupMember[]
   teachFirstEntry       VocabularyEntry       @relation("TeachFirstEntry", fields: [teachFirstEntryId], references: [id], onDelete: Restrict)
   createdAt             DateTime              @default(now())
