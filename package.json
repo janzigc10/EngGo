@@ -18,6 +18,7 @@
     "db:seed:real-smoke": "tsx prisma/seed.ts --dataset real-smoke",
     "eval:shape": "tsx scripts/run-shape-neighbor-eval.ts",
     "eval:lookalike:real-smoke": "tsx scripts/run-real-vocab-lookalike-smoke.ts --dataset real-smoke",
+    "eval:product-smoke": "tsx scripts/run-black-box-product-smoke.ts",
     "eval:answer-style": "tsx scripts/run-answer-style-eval.ts",
     "eval:answer-style:provider": "tsx scripts/run-answer-style-provider-smoke.ts",
     "verify": "corepack pnpm lint && corepack pnpm test:unit && corepack pnpm test:integration && corepack pnpm test:e2e"

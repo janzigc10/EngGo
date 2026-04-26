@@ -588,6 +588,8 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     expect(result.rootFamilyView?.members.map((member) => member.lemma)).toEqual(
       expect.arrayContaining(["institute", "institution", "constitute", "substitute"]),
     );
+    expect(result.rootFamilyView?.members.map((member) => member.lemma)).not.toContain("restitute");
+    expect(result.rootFamilyView?.members.map((member) => member.lemma)).not.toContain("prostitute");
   });
 
   it("keeps unsupported root combinations as no-match", async () => {

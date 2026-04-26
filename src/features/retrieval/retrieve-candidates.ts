@@ -379,18 +379,20 @@ function hydrateRootFamilyView(
 
   return {
     ...prototype,
-    members: prototype.members.map((member) => {
-      const entry = entryMap.get(member.lemma);
-      const inScope = entry
-        ? entry.scopes.some((scope) => scope.scopeCode === activeExamTarget)
-        : false;
+    members: prototype.members
+      .map((member) => {
+        const entry = entryMap.get(member.lemma);
+        const inScope = entry
+          ? entry.scopes.some((scope) => scope.scopeCode === activeExamTarget)
+          : false;
 
-      return {
-        ...member,
-        entryId: entry?.id ?? null,
-        inScope,
-      };
-    }),
+        return {
+          ...member,
+          entryId: entry?.id ?? null,
+          inScope,
+        };
+      })
+      .filter((member) => member.entryId && member.inScope),
   };
 }
 

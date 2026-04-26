@@ -19,6 +19,13 @@
 - 词根家族地图：用户有词根/前缀/碎片，或只记得 `attempt` / `institute` 这类家族成员，需要结构化召回同根/同碎片词、列中文核心义，并总结前缀/后缀/现代义分流。
 
 ## 本 Session 已完成
+- 2026-04-26 按用户确认，从“继续扩词”切换到 546 词底座的黑盒产品验收：
+  - 新 plan 已落盘并执行完成：[docs/superpowers/plans/2026-04-26-black-box-product-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-26-black-box-product-smoke.md)
+  - 新增 [scripts/lib/black-box-product-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/black-box-product-smoke.ts) 与 [scripts/run-black-box-product-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-black-box-product-smoke.ts)，并在 [package.json](/C:/Users/Chen/Desktop/EngGo/package.json) 增加 `eval:product-smoke`。该 runner 使用 stub provider，走 `retrieveCandidates -> chatService -> grounding`，检查路由、resolution、answerStyle、grounding、comparison/root view 和 no-match 短路，不评价真实模型文采。
+  - 黑盒清单共 25 条，覆盖 `standard_lookup`、`fuzzy_typo`、`shape_neighbor`、`confusion`、`expression_recall`、`root_family`、`no_match`；其中 8 条普通查词直接使用 batch-3 新增词：`gain / generate / genuine / gravity / horizon / income / justice / garage`。
+  - 首轮 `corepack pnpm eval:product-smoke` 结果：25 total / 23 pass / 2 fail。通过项说明普通查词、形近召回、易混辨析、中文表达召回、root family 和保守 no-match 主线都能跑通；失败集中在轻微 typo：`generte 是什么意思` 未召回 `generate`，`horizen 是什么意思` 未召回 `horizon`。`genuin 是什么意思` 可以召回 `genuine`。
+  - 同轮黑盒观察到 `root_family_summary` 的 visible grounding 仍暴露 `restitute/prostitute` 风险；已补 [src/features/retrieval/retrieve-candidates.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.test.ts) 红灯并修复 [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts)，现在 root-family 可见成员只保留有真实 entry 且在当前考试范围内的成员。
+  - 当前结论：不要立刻进入 batch 4 扩库；下一刀应围绕 typo/fuzzy 策略做小设计，目标是支持 `generte -> generate`、`horizen -> horizon` 这类轻微拼错，同时不放宽到库外硬猜。
 - 2026-04-26 完成 `real-smoke` foundation vocab batch 3，把基础查询底座从 409 entries 扩到 546 entries：
   - 新 plan 已落盘并执行完成：[docs/superpowers/plans/2026-04-26-real-smoke-foundation-vocab-batch-3.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-26-real-smoke-foundation-vocab-batch-3.md)
   - 红灯确认：`corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 500 --require-source-lemmas` 按预期失败：`real-smoke has 409 entries; expected at least 500.`
@@ -679,9 +686,13 @@
 - `real-smoke foundation vocab batch 3` plan 已完成；不要再从 Task 1 重开：
   - [docs/superpowers/plans/2026-04-26-real-smoke-foundation-vocab-batch-3.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-26-real-smoke-foundation-vocab-batch-3.md)
   - 当前 `real-smoke` 为 546 entries / 34 confusion groups，已进入 `500-1000 词基础 RAG 词库 MVP` 区间。
-- 下一轮更建议用 546 词底座做黑盒抽样，而不是立刻继续硬扩：
-  - 优先抽 10-20 个新增普通词做 standard lookup / fuzzy lookup smoke，确认基础查词、中文释义、scope 约束和 no-match 闸门仍稳。
-  - 若普通查词稳定，再决定是继续 batch 4 扩到 700+，还是转向 typo 识别或泛化词根/碎片检索。
+- `black-box product smoke` plan 已完成；不要再从 Task 1 重开：
+  - [docs/superpowers/plans/2026-04-26-black-box-product-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-26-black-box-product-smoke.md)
+  - 当前 `eval:product-smoke` 为 25 total / 23 pass / 2 fail；失败集中在 `generte -> generate`、`horizen -> horizon` 这类轻微 typo。
+- 下一轮更建议做 typo/fuzzy 策略小设计，而不是立刻继续硬扩：
+  - 目标：支持常见一两处拼写错误的库内召回，但继续禁止库外硬猜。
+  - 设计时要明确哪些 typo 可以过、哪些仍必须 no-match，例如 `reqeust/recomand` 是否进入支持范围需要单独判断。
+  - 若 typo 策略稳定后，再决定是继续 batch 4 扩到 700+，还是转向泛化词根/碎片检索。
   - 暂缓：全量几千词一次性导入、为每个词人工写易混关系、把 embedding 作为主检索方案。
 - 若继续本地验证，先检查 `corepack pnpm exec prisma dev ls`；一旦出现 backend protocol error，直接按 `bugs.md` 的 `enggo` 重建路径恢复。
 - 继续保持串行验证；不要并行跑 `verify`、`eval:shape`、`eval:answer-style`、`eval:lookalike:real-smoke`、`eval:answer-style:provider`。
@@ -696,6 +707,11 @@
 - 若下一轮继续扩 seed，`seed-content.test.ts` 已改为最小 fixture，应不再随 seed 规模线性变慢；若再次超时，先按 `bugs.md` 的 Prisma dev 健康检查路径排查。
 
 ## 最近验证基线
+- 2026-04-26 黑盒产品 smoke：
+  - `corepack pnpm eval:product-smoke`
+    - 当前状态：25 total / 23 pass / 2 fail；失败为 `generte -> generate`、`horizen -> horizon` typo gap
+  - `corepack pnpm test scripts/lib/black-box-product-smoke.test.ts`
+    - 当前状态：1 file / 3 tests passed
 - 2026-04-26 batch-3 扩库后复验：
   - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 500 --require-source-lemmas`
     - 当前状态：546 entries / 34 confusion groups / scopes=gaokao, cet4, cet6
