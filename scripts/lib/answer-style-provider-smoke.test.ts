@@ -110,6 +110,18 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
     expect(cases.map((item) => item.name)).toEqual([
       "standard: academic lookup",
       "standard: institute lookup",
+      "standard: institution lookup",
+      "standard: constitute lookup",
+      "standard: substitute lookup",
+      "standard: attempt lookup",
+      "standard: temptation lookup",
+      "standard: effect lookup",
+      "standard: access lookup",
+      "standard: assess lookup",
+      "standard: respect lookup",
+      "standard: conform lookup",
+      "standard: adjust lookup",
+      "standard: stationery lookup",
       "standard: available usage",
       "standard: gain lookup",
       "standard: generate lookup",
@@ -117,7 +129,7 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
       "standard: evidence lookup",
       "standard: significant lookup",
     ]);
-    expect(cases).toHaveLength(8);
+    expect(cases).toHaveLength(20);
     expect(cases.every((item) =>
       item.expectedAnswerStyle === "standard_lookup"
       && item.expectedResolution === "resolved"
@@ -131,6 +143,14 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
       cases.find((item) => item.name === "standard: institute lookup")
         ?.forbiddenGroundingIncludes,
     ).toContain("institution");
+    expect(
+      cases.find((item) => item.name === "standard: respect lookup")
+        ?.forbiddenGroundingIncludes,
+    ).toEqual(expect.arrayContaining(["respective", "respectful", "respectable"]));
+    expect(
+      cases.find((item) => item.name === "standard: effect lookup")
+        ?.forbiddenGroundingIncludes,
+    ).toEqual(expect.arrayContaining(["affect", "impact"]));
   });
 });
 

@@ -19,6 +19,12 @@
 - 词根家族地图：用户有词根/前缀/碎片，或只记得 `attempt` / `institute` 这类家族成员，需要结构化召回同根/同碎片词、列中文核心义，并总结前缀/后缀/现代义分流。
 
 ## 本 Session 已完成
+- 2026-04-26 扩展普通查词污染小批验收：
+  - 按只读 explorer 建议补了一批 high-risk exact lookup 样本，专门覆盖 `root-stitute`、`root-tempt`、`shape_like`、`meaning_near`、派生/同族和反向形近词成员。
+  - [src/features/retrieval/retrieve-candidates.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.test.ts) 的 ordinary lookup 防回归扩展到 `institution / constitute / substitute / attempt / temptation / effect / access / assess / respect / conform / adjust / stationery` 等 exact 查词；这些查询仍只允许 `mainAnswer` 命中自己，不能带出同组边界。
+  - [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts) 的 `eval:standard-lookup:provider` 从 8 条扩到 20 条；[scripts/lib/black-box-product-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/black-box-product-smoke.ts) 的 product smoke 从 27 条扩到 30 条，只新增 `institution / effect / respect` 三个代表样本，避免矩阵过重。
+  - 验证：`corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts scripts/lib/answer-style-provider-smoke.test.ts scripts/lib/black-box-product-smoke.test.ts` -> 3 files / 75 tests passed；`corepack pnpm eval:product-smoke` -> 30/30 pass；`corepack pnpm eval:standard-lookup:provider` -> 20/20 pass，平均 22 字，最长 30 字，无 manual / fail。
+  - 结论：当前 exact `standard_lookup` 这层已经比较干净；本轮没有改 production retrieval 逻辑，只是加严验收。下一刀可以转向“泛化词根/碎片检索”第一步，而不是继续扩 typo 闸门。
 - 2026-04-26 收紧普通查词与易混边界的分层：
   - 问题根因：`institute 是什么意思` 虽然是 `standard_lookup`，但 exact 英文查词分支仍会查 `confusion_group`，把未标注裸组 `institute-institution` 的另一个成员塞进 `confusionBoundary`，真实 provider 因此补出 `institution`。
   - [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts) 已改为：稳定 exact 命中只返回 `mainAnswer`，不再自动拼接普通查词边界；拼写不完整或 typo fallback 的 fuzzy 保护仍保留，避免 `有个像 instituton 的词` 这类模糊召回退化。

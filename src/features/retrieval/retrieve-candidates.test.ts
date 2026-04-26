@@ -468,7 +468,13 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
         query: "adapt 是什么意思",
         activeExamTarget: "cet6",
         main: "adapt",
-        excludedBoundary: ["adjust", "accommodate"],
+        excludedBoundary: ["adopt", "adjust", "accommodate"],
+      },
+      {
+        query: "affect 是什么意思",
+        activeExamTarget: "cet6",
+        main: "affect",
+        excludedBoundary: ["effect", "impact"],
       },
       {
         query: "impact 是什么意思",
@@ -505,6 +511,36 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
         activeExamTarget: "cet4",
         main: "stationary",
         excludedBoundary: ["stationery"],
+      },
+      {
+        query: "respect 是什么意思",
+        activeExamTarget: "cet6",
+        main: "respect",
+        excludedBoundary: ["respective", "respectful", "respectable"],
+      },
+      {
+        query: "advice 是什么意思",
+        activeExamTarget: "cet4",
+        main: "advice",
+        excludedBoundary: ["advise"],
+      },
+      {
+        query: "economic 是什么意思",
+        activeExamTarget: "cet6",
+        main: "economic",
+        excludedBoundary: ["economical"],
+      },
+      {
+        query: "device 是什么意思",
+        activeExamTarget: "cet6",
+        main: "device",
+        excludedBoundary: ["devise"],
+      },
+      {
+        query: "breath 是什么意思",
+        activeExamTarget: "cet4",
+        main: "breath",
+        excludedBoundary: ["breathe"],
       },
     ];
 

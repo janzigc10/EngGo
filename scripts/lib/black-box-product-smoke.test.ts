@@ -33,6 +33,27 @@ describe("black-box product smoke cases", () => {
           expectedComparisonViewId: null,
           expectedRootFamilyViewId: null,
         }),
+        expect.objectContaining({
+          name: "standard: institution",
+          expectedGroundingIncludes: ["institution"],
+          forbiddenGroundingIncludes: expect.arrayContaining(["institute"]),
+          expectedComparisonViewId: null,
+          expectedRootFamilyViewId: null,
+        }),
+        expect.objectContaining({
+          name: "standard: effect",
+          expectedGroundingIncludes: ["effect"],
+          forbiddenGroundingIncludes: expect.arrayContaining(["affect", "impact"]),
+          expectedComparisonViewId: null,
+          expectedRootFamilyViewId: null,
+        }),
+        expect.objectContaining({
+          name: "standard: respect",
+          expectedGroundingIncludes: ["respect"],
+          forbiddenGroundingIncludes: expect.arrayContaining(["respectful"]),
+          expectedComparisonViewId: null,
+          expectedRootFamilyViewId: null,
+        }),
       ]),
     );
   });
