@@ -44,10 +44,11 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
       "confusion: comply conform defer",
       "root: stitute",
       "root: tempt",
+      "root: inter prefix fragment",
       "root: unsupported combination",
       "typo: reqeust correction",
     ]);
-    expect(cases).toHaveLength(13);
+    expect(cases).toHaveLength(14);
     expect(cases.map((item) => item.name)).not.toContain("confusion: respect family");
     expect(cases.every((item) => item.manualChecks.length > 0)).toBe(true);
   });
@@ -88,7 +89,7 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
       && item.expectedResolution === "resolved"
     );
 
-    expect(rootCases).toHaveLength(2);
+    expect(rootCases).toHaveLength(3);
     expect(rootCases.every((item) => item.maxAnswerChars === 420)).toBe(true);
     expect(rootCases.every((item) =>
       item.manualChecks.includes("检查回答是否把当前范围内召回到的同根/碎片家族成员都列出来")
@@ -183,7 +184,7 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
   });
 
   it("fails when a no_match case still returns providerRequestId", () => {
-    const noMatchCase = buildAnswerStyleProviderSmokeCases()[11];
+    const noMatchCase = buildAnswerStyleProviderSmokeCases()[12];
     const verdict = evaluateAnswerStyleProviderSmoke(noMatchCase, {
       status: 200,
       providerRequestId: "resp_should_not_exist",
@@ -202,7 +203,7 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
   });
 
   it("fails when a no_match case returns an empty answer", () => {
-    const noMatchCase = buildAnswerStyleProviderSmokeCases()[11];
+    const noMatchCase = buildAnswerStyleProviderSmokeCases()[12];
     const verdict = evaluateAnswerStyleProviderSmoke(noMatchCase, {
       status: 200,
       providerRequestId: null,
@@ -389,7 +390,7 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
   });
 
   it("fails when no rootFamilyView is expected but the object still exists", () => {
-    const noMatchCase = buildAnswerStyleProviderSmokeCases()[11];
+    const noMatchCase = buildAnswerStyleProviderSmokeCases()[12];
     const verdict = evaluateAnswerStyleProviderSmoke(noMatchCase, {
       status: 200,
       providerRequestId: null,

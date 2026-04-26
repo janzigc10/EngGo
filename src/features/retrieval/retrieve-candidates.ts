@@ -11,6 +11,12 @@ import {
   type ConfusionClusterPurpose,
 } from "@/features/content/import-types";
 import { normalizeQuery } from "@/features/retrieval/normalize-query";
+import {
+  buildRootFragmentView,
+  parseRootFragmentRecall,
+  selectRootFragmentEntries,
+  type RootFragmentEntry,
+} from "@/features/retrieval/root-fragment-recall";
 import { findRootFamilyPrototype } from "@/features/retrieval/root-family-prototypes";
 import { rankCandidates } from "@/features/retrieval/rank-candidates";
 import {
@@ -255,6 +261,22 @@ async function findEntriesByLemmas(lemmas: string[]) {
     .filter((entry): entry is RetrievalEntryRecord => Boolean(entry));
 }
 
+async function findInScopeEntries(activeExamTarget: ExamScopeCode) {
+  return db.vocabularyEntry.findMany({
+    where: {
+      scopes: {
+        some: {
+          scopeCode: activeExamTarget,
+        },
+      },
+    },
+    include: retrievalEntryInclude,
+    orderBy: {
+      lemma: "asc",
+    },
+  });
+}
+
 async function findConfusionGroupsForEntryIds(entryIds: string[]) {
   if (entryIds.length === 0) {
     return [];
@@ -369,6 +391,32 @@ function createRootFamilyRankedCandidate(
     inScope,
     reason: inScope ? "当前考试范围命中，来自词根家族原型" : "来自词根家族原型",
     score: inScope ? 30 : 8,
+  };
+}
+
+function createRootFragmentRankedCandidate(
+  activeExamTarget: ExamScopeCode,
+  entry: RetrievalEntryRecord,
+): RankedCandidate {
+  const inScope = entry.scopes.some((scope) => scope.scopeCode === activeExamTarget);
+
+  return {
+    ...toRankableCandidate(entry),
+    inScope,
+    reason: inScope ? "当前考试范围命中，来自词形碎片召回" : "来自词形碎片召回",
+    score: inScope ? 28 : 0,
+  };
+}
+
+function toRootFragmentEntry(
+  activeExamTarget: ExamScopeCode,
+  entry: RetrievalEntryRecord,
+): RootFragmentEntry {
+  return {
+    entryId: entry.id,
+    lemma: entry.lemma,
+    meaningsZh: entry.meanings.map((meaning) => meaning.zh),
+    inScope: entry.scopes.some((scope) => scope.scopeCode === activeExamTarget),
   };
 }
 
@@ -1353,7 +1401,45 @@ async function handleRootFamilySummary(
   const prototype = findRootFamilyPrototype(normalizedQuery.normalizedText);
 
   if (!prototype) {
-    return createNoMatchResult(normalizedQuery, [], "low_confidence", null);
+    const fragmentPattern = parseRootFragmentRecall(normalizedQuery.normalizedText);
+
+    if (!fragmentPattern) {
+      return createNoMatchResult(normalizedQuery, [], "low_confidence", null);
+    }
+
+    const entries = await findInScopeEntries(input.activeExamTarget);
+    const fragmentEntries = entries.map((entry) =>
+      toRootFragmentEntry(input.activeExamTarget, entry)
+    );
+    const selectedEntries = selectRootFragmentEntries(
+      fragmentEntries,
+      fragmentPattern,
+    );
+
+    if (selectedEntries.length === 0) {
+      return createNoMatchResult(normalizedQuery, [], "low_confidence", null);
+    }
+
+    const entryById = new Map(entries.map((entry) => [entry.id, entry]));
+    const selectedEntryRecords = selectedEntries
+      .map((entry) => entryById.get(entry.entryId))
+      .filter((entry): entry is RetrievalEntryRecord => Boolean(entry));
+    const rankedCandidates = selectedEntryRecords.map((entry) =>
+      createRootFragmentRankedCandidate(input.activeExamTarget, entry),
+    );
+    const rootFamilyView = buildRootFragmentView(
+      fragmentPattern,
+      selectedEntries,
+    );
+
+    return createResolvedResult(
+      normalizedQuery,
+      rankedCandidates,
+      rankedCandidates.map(toRetrievalCandidate),
+      [],
+      null,
+      rootFamilyView,
+    );
   }
 
   const entries = await findEntriesByLemmas(prototype.members.map((member) => member.lemma));

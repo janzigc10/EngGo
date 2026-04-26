@@ -63,6 +63,10 @@ describe("detectQueryMode", () => {
   it("detects fragment pattern root intent", () => {
     expect(detectQueryMode("re...ct 这种词")).toBe("root_family_summary");
   });
+
+  it("detects prefix fragment list intent", () => {
+    expect(detectQueryMode("inter 开头的词有哪些")).toBe("root_family_summary");
+  });
 });
 
 describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
@@ -705,6 +709,53 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     const result = await retrieveCandidates({
       activeExamTarget: "cet6",
       query: "re+con 的词根有什么词",
+    });
+
+    expect(result.queryMode).toBe("root_family_summary");
+    expect(result.resolution).toBe("no_match");
+    expect(result.rootFamilyView).toBeNull();
+  });
+
+  it("resolves narrow prefix fragment recall from in-scope entries", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "inter 开头的词有哪些",
+    });
+
+    expect(result.queryMode).toBe("root_family_summary");
+    expect(result.resolution).toBe("resolved");
+    expect(result.rootFamilyView?.id).toBe("fragment-prefix-inter");
+    expect(result.rootFamilyView?.members.map((member) => member.lemma)).toEqual([
+      "international",
+      "interpret",
+      "interrupt",
+    ]);
+    expect(result.mainAnswer.map((candidate) => candidate.lemma)).toEqual([
+      "international",
+      "interpret",
+      "interrupt",
+    ]);
+  });
+
+  it("resolves narrow start-end fragment patterns from in-scope entries", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "re...nt 这种词",
+    });
+
+    expect(result.queryMode).toBe("root_family_summary");
+    expect(result.resolution).toBe("resolved");
+    expect(result.rootFamilyView?.id).toBe("fragment-pattern-re-nt");
+    expect(result.rootFamilyView?.members.map((member) => member.lemma)).toEqual([
+      "recent",
+      "resent",
+    ]);
+  });
+
+  it("keeps overly broad prefix fragment recall as no-match", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "con 开头的词有哪些",
     });
 
     expect(result.queryMode).toBe("root_family_summary");

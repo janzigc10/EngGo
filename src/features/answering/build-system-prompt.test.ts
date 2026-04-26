@@ -499,6 +499,8 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("不要因为低优先级或语义跑远就写成不硬背");
     expect(prompt).toContain("语义跑远的成员也要保留在家族里");
     expect(prompt).toContain("讲清前缀、后缀或现代义分流");
+    expect(prompt).toContain("只有当 rootFamilyView.members 里真的有 lemma 与用户片段完全相同");
+    expect(prompt).toContain("否则只能说是词形片段或前缀线索");
     expect(prompt).toContain("不能只给背诵优先级");
     expect(prompt).toContain("短答示例");
     expect(prompt).toContain("碎片定位：stitute 不是完整单词");

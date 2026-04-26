@@ -19,6 +19,13 @@
 - 词根家族地图：用户有词根/前缀/碎片，或只记得 `attempt` / `institute` 这类家族成员，需要结构化召回同根/同碎片词、列中文核心义，并总结前缀/后缀/现代义分流。
 
 ## 本 Session 已完成
+- 2026-04-26 完成泛化词根/碎片检索第一刀：
+  - 新增 [src/features/retrieval/root-fragment-recall.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/root-fragment-recall.ts)，只支持三类窄门输入：`prefix 开头/前缀`、`re...nt` 这类词首+词尾模式、以及 `a+b` 组合；候选必须来自当前考试范围内真实词条，且命中数必须在 2-8 个之间，否则继续 `no_match`。
+  - [src/features/retrieval/normalize-query.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/normalize-query.ts) 已把 `inter 开头的词有哪些` 这类问题路由到 `root_family_summary`；普通 `inter 是什么意思` 仍不走该分支。
+  - [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts) 在已有 `stitute / tempt` prototype 未命中时，才尝试动态碎片召回；`inter 开头的词有哪些` 当前 grounding 为 `international / interpret / interrupt`，`re...nt 这种词` 为 `recent / resent`，`con 开头的词有哪些` 因过宽保持 no-match，`re+con` 仍 no-match。
+  - 真实 provider 首跑暴露一个产品细节：`inter` 被模型自己补成“完整单词：埋葬”。已收紧 [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts)：只有 `rootFamilyView.members` 里真的有同 lemma 成员时，才允许说片段本身也是完整单词；否则只能说成词形片段或前缀线索。provider smoke 对 `inter` 也新增 `埋葬 / 既是一个完整单词` forbidden hard check。
+  - 验证：`corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-system-prompt.test.ts scripts/lib/answer-style-provider-smoke.test.ts scripts/lib/black-box-product-smoke.test.ts` -> 4 files / 87 tests passed；`corepack pnpm eval:answer-style` -> 16/16 pass；`corepack pnpm eval:product-smoke` -> 33/33 pass；`corepack pnpm eval:answer-style:provider` -> 13 pass / 1 manual / 0 fail，manual 是旧 `access/assess/excess` confusion 回答 478/450 字，新增 `inter` root fragment 通过且不再补“埋葬”；focused eslint 通过；`git diff --check` 无 whitespace error，仅 Windows 行尾提示。
+  - 本轮验证中再次遇到已知 Prisma dev `Connection terminated unexpectedly`，已按 `bugs.md` 路径执行 `prisma dev stop enggo` -> 固定端口重启 -> `db:migrate` -> `db:seed:real-smoke` 后恢复。
 - 2026-04-26 扩展普通查词污染小批验收：
   - 按只读 explorer 建议补了一批 high-risk exact lookup 样本，专门覆盖 `root-stitute`、`root-tempt`、`shape_like`、`meaning_near`、派生/同族和反向形近词成员。
   - [src/features/retrieval/retrieve-candidates.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.test.ts) 的 ordinary lookup 防回归扩展到 `institution / constitute / substitute / attempt / temptation / effect / access / assess / respect / conform / adjust / stationery` 等 exact 查词；这些查询仍只允许 `mainAnswer` 命中自己，不能带出同组边界。

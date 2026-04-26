@@ -101,6 +101,7 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
         "意义分流：它们共享 stitute，但 in- 偏设立，con- 偏组成整体，sub- 偏替代位置。",
       ].join("\n"),
       "如果用户问到的片段本身也是成员词，必须说明它也是完整单词，再说明它也可作为构词碎片。",
+      "只有当 rootFamilyView.members 里真的有 lemma 与用户片段完全相同，才说片段本身是完整单词；否则只能说是词形片段或前缀线索，禁止补未召回的完整词义。",
       "不要主动点名未召回的低频或范围外分支；内部保持保守即可，不要把防御性提醒写成正文。",
     ].join("\n");
   }

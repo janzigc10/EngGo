@@ -11,7 +11,7 @@ describe("black-box product smoke cases", () => {
     const cases = buildBlackBoxProductSmokeCases();
 
     expect(cases.length).toBeGreaterThanOrEqual(20);
-    expect(cases.length).toBeLessThanOrEqual(30);
+    expect(cases.length).toBeLessThanOrEqual(35);
     expect(new Set(cases.map((item) => item.category))).toEqual(
       new Set([
         "standard_lookup",
@@ -52,6 +52,21 @@ describe("black-box product smoke cases", () => {
           expectedGroundingIncludes: ["respect"],
           forbiddenGroundingIncludes: expect.arrayContaining(["respectful"]),
           expectedComparisonViewId: null,
+          expectedRootFamilyViewId: null,
+        }),
+        expect.objectContaining({
+          name: "root: inter prefix fragment",
+          expectedGroundingIncludes: expect.arrayContaining([
+            "international",
+            "interpret",
+            "interrupt",
+          ]),
+          expectedComparisonViewId: null,
+          expectedRootFamilyViewId: "fragment-prefix-inter",
+        }),
+        expect.objectContaining({
+          name: "no-match: broad con prefix",
+          expectedResolution: "no_match",
           expectedRootFamilyViewId: null,
         }),
       ]),
