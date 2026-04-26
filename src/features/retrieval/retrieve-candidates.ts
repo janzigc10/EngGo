@@ -1195,13 +1195,19 @@ async function handleEnglishLookup(
     );
   }
 
-  const confusionGroups = await findConfusionGroupsForEntryIds([selection.candidate.entryId]);
-  const bestGroup = pickBestGroupForEntry(
-    input.activeExamTarget,
-    selection.candidate.entryId,
-    confusionGroups,
-    "ordinary_lookup",
-  );
+  const confusionGroups =
+    selection.matchType === "fuzzy"
+      ? await findConfusionGroupsForEntryIds([selection.candidate.entryId])
+      : [];
+  const bestGroup =
+    selection.matchType === "fuzzy"
+      ? pickBestGroupForEntry(
+          input.activeExamTarget,
+          selection.candidate.entryId,
+          confusionGroups,
+          "ordinary_lookup",
+        )
+      : null;
   const mainAnswer = [toRetrievalCandidate(selection.candidate)];
   const confusionBoundary = bestGroup
     ? buildBoundaryCandidates(

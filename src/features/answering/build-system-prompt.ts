@@ -68,9 +68,12 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
       "总长度控制在 180 个汉字以内，最多 3 段；不要使用横线、分隔线或标题装饰。",
       grounding.spellingCorrection
         ? "按信息顺序组织：先给拼写纠错提示，再解释当前词的核心义；没有 confusionBoundary 时不要补边界。"
-        : "按信息顺序组织：先解释当前词的核心义，再在有 grounding.confusionBoundary 时补一句边界，最后用建议的范围提醒轻量收束。",
+        : "按信息顺序组织：先解释当前词的核心义，再在有 grounding.confusionBoundary 时补一句边界；本次不要主动写范围提醒。",
       correctionInstruction,
+      `最终答案不要出现 ${grounding.activeExamTargetLabel}、考试范围、范围内这类范围提示；范围只用于内部选词。`,
       "不要把“主答案”“易混边界”“范围提醒”写成可见小标题，也不要用 Markdown 加粗来造小标题。",
+      "最终答案不要出现“主答案”“易混边界”“范围提醒”“没有需要区分”这些字样。",
+      "最终答案不要出现 Markdown 符号，比如 **、#、列表符号；不要把英文词加粗。",
       "核心义只用 grounding 里的主答案和易混边界，先给 lemma + 中文核心义。",
       "如果用户问“是什么意思”，不要补搭配；如果用户问“怎么用”且 grounding 主答案里明确给出搭配，才可写一个短搭配。",
       "短搭配只写 phrase=中文义，不要使用“如”“例如”“常用搭配如”引出搭配；即使用户问“怎么用”，也不要写完整英文句子。",
@@ -165,9 +168,7 @@ export function buildSystemPrompt(grounding: AnswerGrounding) {
 
   const scopeReminderLine =
     grounding.answerStyle === "standard_lookup"
-      ? grounding.spellingCorrection
-        ? "范围边界素材（内部参考：仅用于确定候选，本次不要在最终答案中写任何范围提示，也不要照抄这个标签）。"
-        : `范围提醒素材（只可自然并入一句话，不要照抄这个标签）：${grounding.scopeReminder}`
+      ? "范围边界素材（内部参考：仅用于确定候选，本次不要在最终答案中写任何范围提示，也不要照抄这个标签）。"
       : grounding.answerStyle === "root_family_summary"
         ? `范围边界素材（内部参考，不要照抄这个标签，也不要主动展开范围外词）：${grounding.scopeReminder}`
         : grounding.answerStyle === "confusion_untangle"

@@ -450,43 +450,67 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     expect(result.comparisonView?.id).toBe("adapt-adopt");
   });
 
-  it("keeps expression-recall and pure meaning-near groups out of ordinary lookup boundaries", async () => {
+  it("keeps confusion groups out of ordinary lookup boundaries", async () => {
     const cases = [
       {
         query: "recommend 是什么意思",
+        activeExamTarget: "cet6",
         main: "recommend",
         excludedBoundary: ["suggest", "propose"],
       },
       {
         query: "request 是什么意思",
+        activeExamTarget: "cet6",
         main: "request",
         excludedBoundary: ["require", "demand"],
       },
       {
         query: "adapt 是什么意思",
+        activeExamTarget: "cet6",
         main: "adapt",
         excludedBoundary: ["adjust", "accommodate"],
       },
       {
         query: "impact 是什么意思",
+        activeExamTarget: "cet6",
         main: "impact",
         excludedBoundary: ["affect", "effect"],
       },
       {
         query: "defer 是什么意思",
+        activeExamTarget: "cet6",
         main: "defer",
         excludedBoundary: ["comply", "conform"],
       },
       {
         query: "curb 是什么意思",
+        activeExamTarget: "cet6",
         main: "curb",
         excludedBoundary: ["restrain", "constrain"],
+      },
+      {
+        query: "institute 是什么意思",
+        activeExamTarget: "cet6",
+        main: "institute",
+        excludedBoundary: ["institution"],
+      },
+      {
+        query: "recent 是什么意思",
+        activeExamTarget: "cet6",
+        main: "recent",
+        excludedBoundary: ["resent"],
+      },
+      {
+        query: "stationary 是什么意思",
+        activeExamTarget: "cet4",
+        main: "stationary",
+        excludedBoundary: ["stationery"],
       },
     ];
 
     for (const testCase of cases) {
       const result = await retrieveCandidates({
-        activeExamTarget: "cet6",
+        activeExamTarget: testCase.activeExamTarget,
         query: testCase.query,
       });
 

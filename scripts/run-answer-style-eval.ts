@@ -26,6 +26,7 @@ type EvalCase = {
   expectedComparisonPurposes?: ConfusionClusterPurpose[];
   expectedPromptIncludes?: string[];
   expectedGroundingIncludes?: string[];
+  forbiddenGroundingIncludes?: string[];
 };
 
 type CaseResult = {
@@ -137,6 +138,13 @@ const cases: EvalCase[] = [
     expectedComparisonViewId: null,
     expectedPromptIncludes: ["普通查词模式", "不要主动输出下一步追问"],
     expectedGroundingIncludes: ["institute"],
+    forbiddenGroundingIncludes: [
+      "institution",
+      "constitute",
+      "substitute",
+      "restitute",
+      "prostitute",
+    ],
   },
   {
     name: "root: stitute",
@@ -309,6 +317,12 @@ async function runCase(item: EvalCase): Promise<CaseResult> {
   }
 
   assertIncludes(groundingLemmas, item.expectedGroundingIncludes, "grounding", failures);
+
+  for (const forbiddenLemma of item.forbiddenGroundingIncludes ?? []) {
+    if (groundingLemmas.includes(forbiddenLemma)) {
+      failures.push(`grounding should not include ${forbiddenLemma}`);
+    }
+  }
 
   for (const expectedPromptText of item.expectedPromptIncludes ?? []) {
     if (!systemPrompt.includes(expectedPromptText)) {

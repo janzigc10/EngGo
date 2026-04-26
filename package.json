@@ -21,6 +21,7 @@
     "eval:product-smoke": "tsx scripts/run-black-box-product-smoke.ts",
     "eval:answer-style": "tsx scripts/run-answer-style-eval.ts",
     "eval:answer-style:provider": "tsx scripts/run-answer-style-provider-smoke.ts",
+    "eval:standard-lookup:provider": "tsx scripts/run-standard-lookup-provider-smoke.ts",
     "verify": "corepack pnpm lint && corepack pnpm test:unit && corepack pnpm test:integration && corepack pnpm test:e2e"
   },
   "prisma": {

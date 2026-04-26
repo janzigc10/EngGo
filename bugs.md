@@ -72,7 +72,8 @@
   - 当前 `fuzzy_recall` 对 fragment / 多片段输入仍会落到 `low_confidence` 或 `no_match`
   - 后续 typo 若继续扩展，必须继续按明确拼写模式加窄门，不要把“低相关候选也先答一个”放回系统。
 - 2026-04-25 真实 provider cluster smoke 暴露两个产品侧 prompt 残留：
-  - `academic 是什么意思` 这类 `standard_lookup` 曾会输出例句、分隔线和较长模板，并在下一步建议里主动扩出未召回的 `scholarly / educational`；本轮已先收紧普通查词 prompt，禁止例句、未召回扩词和主动下一步追问，后续可再用真实 provider 复验输出是否稳定。
+  - `academic 是什么意思` 这类 `standard_lookup` 曾会输出例句、分隔线和较长模板，并在下一步建议里主动扩出未召回的 `scholarly / educational`；2026-04-26 已新增 `eval:standard-lookup:provider` 专门复验普通查词真实输出，当前 8/8 通过，且已压住例句、范围尾巴、主动扩词、可见标签和 Markdown 加粗。
+  - `institute 是什么意思` 曾因为 exact 普通查词分支自动拼接裸 `confusion_group`，把 `institution` 放进 `confusionBoundary`；2026-04-26 已收紧 retrieval：exact 命中只返回 `mainAnswer`，`eval:standard-lookup:provider` 当前显示 `grounding=institute`，不再带 `institution`。
   - `stitute 是什么` 的 `root_family_summary` 曾会在谨慎提醒里点名低优先级、范围外的 `restitute / prostitute`；2026-04-25 已收口：root summary 不再要求可见“谨慎提醒”，也不主动点名未召回低频/范围外分支。
 - 2026-04-25 追加真实 provider expression smoke 时复现 `root_family_summary` 表达残留：
   - `tempt 这一族怎么记` 的真实 provider 输出曾可能写成“tempt 不是完整单词，是构词部件”；这与数据事实冲突，因为 `tempt` 本身就是完整单词。
@@ -87,7 +88,7 @@
   - 后续若出现超长，应优先判断是否真的废话、例句、范围外扩展或尾巴追问；如果是在讲清语义、词性、搭配和对象边界，不应简单压掉。
 - 结论：
   - 形近词簇小样本已通过 `corepack pnpm eval:shape`
-  - `standard_lookup` prompt 残留已先在本轮收紧；下一步可用小批真实 provider smoke 复验普通查词输出是否稳定
+  - `standard_lookup` prompt/grounding 残留已用 8 条真实 provider smoke 复验：`academic / institute / available / gain / generate / garage / evidence / significant` 当前 hard checks 全通过；`institute` 已不再带出 `institution`
   - 若继续扩内容能力，再补 30-50 个精选形近词族，并评估是否扩到 300-500 词
   - 词根 / 碎片检索应作为形近词簇扩样本后的下一轮能力，不要和大规模扩库混在一起做
 

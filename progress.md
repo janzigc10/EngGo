@@ -19,6 +19,19 @@
 - 词根家族地图：用户有词根/前缀/碎片，或只记得 `attempt` / `institute` 这类家族成员，需要结构化召回同根/同碎片词、列中文核心义，并总结前缀/后缀/现代义分流。
 
 ## 本 Session 已完成
+- 2026-04-26 收紧普通查词与易混边界的分层：
+  - 问题根因：`institute 是什么意思` 虽然是 `standard_lookup`，但 exact 英文查词分支仍会查 `confusion_group`，把未标注裸组 `institute-institution` 的另一个成员塞进 `confusionBoundary`，真实 provider 因此补出 `institution`。
+  - [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts) 已改为：稳定 exact 命中只返回 `mainAnswer`，不再自动拼接普通查词边界；拼写不完整或 typo fallback 的 fuzzy 保护仍保留，避免 `有个像 instituton 的词` 这类模糊召回退化。
+  - [src/features/retrieval/retrieve-candidates.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.test.ts) 新增/扩展防回归：`institute / recent / stationary 是什么意思` 不能分别带出 `institution / resent / stationery`；明确形近、对比、root family 路径仍按原样召回组成员。
+  - 同步收紧 [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts)、[scripts/lib/black-box-product-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/black-box-product-smoke.ts) 与 [scripts/run-answer-style-eval.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-eval.ts)：`standard: institute` 现在禁止 `institution / constitute / substitute / restitute / prostitute` 出现在普通查词 grounding。
+  - 复验：`corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts scripts/lib/answer-style-provider-smoke.test.ts scripts/lib/black-box-product-smoke.test.ts` -> 3 files / 75 tests passed；`corepack pnpm eval:answer-style` -> 13/13 pass；`corepack pnpm eval:product-smoke` -> 27/27 pass；`corepack pnpm eval:standard-lookup:provider` -> 8/8 pass，`institute` 当前 `grounding=institute`，输出只解释 `institute`。
+- 2026-04-26 完成普通查词真实 provider 小批验收入口与 prompt 收紧：
+  - 并行只读 explorer 先梳理了现有 provider smoke：默认 `eval:answer-style:provider` 主要覆盖 confusion / expression / root / typo，缺少专门的普通查词真实输出验收。
+  - 新增 [scripts/run-standard-lookup-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-standard-lookup-provider-smoke.ts) 与 `package.json` 脚本 `eval:standard-lookup:provider`，复用 provider smoke runner，但只跑 8 条 `standard_lookup`：`academic / institute / available / gain / generate / garage / evidence / significant`。
+  - [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts) 新增 `buildStandardLookupProviderSmokeCases()` 与 `forbiddenAnswerIncludes` hard check，专门拦截可见标签、范围尾巴、例句、主动扩词、Markdown 加粗等普通查词污染。
+  - 第一轮真实 provider smoke 暴露普通查词仍会输出 `CET 范围/后续按范围筛词`，且 `gain` 曾出现 `**gain**` Markdown 加粗；已收紧 [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts)，普通查词不再暴露 `scopeReminder` 原文，并明确最终答案不要出现范围提示、可见标签或 Markdown 符号。
+  - 最新真实 provider 8 条全通过：`corepack pnpm eval:standard-lookup:provider` -> total 8 / pass 8 / manual 0 / fail 0；平均 22 字，最长 36 字。典型输出：`academic 的意思是学术的、学校的。`、`institute 作动词时意为“设立”“制定”，作名词时意为“机构”。`、`generate 的核心义是“产生、生成”。`
+  - 验证：`corepack pnpm test src/features/answering/build-system-prompt.test.ts scripts/lib/answer-style-provider-smoke.test.ts scripts/run-answer-style-provider-smoke.test.ts` -> 3 files / 35 tests passed；最新 `corepack pnpm eval:answer-style` -> 13/13 pass；最新 `corepack pnpm eval:product-smoke` -> 27/27 pass；focused eslint 通过；`git diff --check` 无 whitespace error，仅有 Windows LF/CRLF 提示。
 - 2026-04-26 完成 typo/fuzzy fallback 第二刀，并已先把上一刀提交为 `0ff9366 fix: resolve single-edit typo lookups`：
   - 问题根因：`reqeust -> request` 是相邻字母换位，`pg_trgm` 分数只有约 0.375，旧单编辑 fallback 不覆盖；`recomand -> recommend` 是更紧的两编辑拼写错，候选唯一且 trigram 分数约 0.556。两者都不是缺词，而是 spelling correction 规则缺口。
   - [src/features/retrieval/retrieve-candidates.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.test.ts) 新增红灯：`有个像 reqeust 的词` 应召回 `request`，`有个像 recomand 的词` 应召回 `recommend`；同时锁住 `有个像 reqxust 的词` 仍保守 no-match。
@@ -682,7 +695,8 @@
 ## 下一 Session 第一件事
 - 本轮已修正“拆组”偏航：不要再按“长得不像就删成员”的逻辑清洗旧组；后续先判断这是普通查词、易混辨析、记忆地图还是中文表达召回。
 - `purposes` 用途层的首轮中文表达召回真实 provider smoke 已补跑；`expression_recall` smoke 字数阈值已从 280 放宽到 400，后续不建议继续为压字数牺牲可读性。
-- 普通查词污染仍要继续黑盒观察，但修法应优先控制触发策略和用途层，不要直接删除知识关系。
+- 普通查词真实 provider 小批验收入口已新增并跑通；后续如果继续查普通查词污染，优先在 `eval:standard-lookup:provider` 上小批复验，不要把它混进 root/confusion 调参。
+- 普通查词 exact 命中已不再自动带 `confusionBoundary`；`institute 是什么意思` 当前 grounding 只有 `institute`。后续不要再用 prompt 兜这个问题，优先检查 retrieval 是否又把裸 `confusion_group` 混进 ordinary lookup。
 - `root_family_summary` 仍有两个后续 prompt 收紧项：`stitute` 回答里不要直接点名 `restitute/prostitute` 这类范围外低频分支；`tempt` 回答必须承认 `tempt` 也是完整单词，不能只说成构词部件。
 - 当前旧 plan 已执行完成；不要再从以下 plan 的 Task 1 重开：
   - [docs/superpowers/plans/2026-04-24-enggo-answer-style-real-provider-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-enggo-answer-style-real-provider-smoke.md)
@@ -703,10 +717,10 @@
   - 当前 `real-smoke` 为 546 entries / 34 confusion groups，已进入 `500-1000 词基础 RAG 词库 MVP` 区间。
 - `black-box product smoke` plan 已完成；不要再从 Task 1 重开：
   - [docs/superpowers/plans/2026-04-26-black-box-product-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-26-black-box-product-smoke.md)
-  - 当前 `eval:product-smoke` 为 26 total / 26 pass / 0 fail；`generte -> generate`、`horizen -> horizon`、`reqeust -> request`、`recomand -> recommend` 已通过窄门 typo fallback 修复。
+  - 当前 `eval:product-smoke` 为 27 total / 27 pass / 0 fail；已新增 `standard: institute` 防回归，且 `generte -> generate`、`horizen -> horizon`、`reqeust -> request`、`recomand -> recommend` 已通过窄门 typo fallback 修复。
 - 下一轮如果继续产品能力，建议先不要再扩 typo 闸门；优先二选一：
-  - 做一小批普通查词真实 provider smoke，观察 `standard_lookup` 是否仍会污染成例句/扩词/范围提示。
-  - 或在 typo 策略稳定后，再决定是继续 batch 4 扩到 700+，还是转向泛化词根/碎片检索。
+  - 继续按小批真实 provider smoke 验收普通查词，观察是否还有其他裸组污染 exact lookup。
+  - 或在普通查词验收认可后，再决定是继续 batch 4 扩到 700+，还是转向泛化词根/碎片检索。
   - 暂缓：全量几千词一次性导入、为每个词人工写易混关系、把 embedding 作为主检索方案。
 - 若继续本地验证，先检查 `corepack pnpm exec prisma dev ls`；一旦出现 backend protocol error，直接按 `bugs.md` 的 `enggo` 重建路径恢复。
 - 继续保持串行验证；不要并行跑 `verify`、`eval:shape`、`eval:answer-style`、`eval:lookalike:real-smoke`、`eval:answer-style:provider`。
@@ -723,13 +737,15 @@
 ## 最近验证基线
 - 2026-04-26 黑盒产品 smoke：
   - `corepack pnpm eval:product-smoke`
-    - 当前状态：26 total / 26 pass / 0 fail；`generte -> generate`、`horizen -> horizon`、`reqeust -> request`、`recomand -> recommend` 已修复
+    - 当前状态：27 total / 27 pass / 0 fail；新增 `standard: institute` 防 ordinary boundary 回归；`generte -> generate`、`horizen -> horizon`、`reqeust -> request`、`recomand -> recommend` 已修复
   - `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts src/features/answering/chat-service.test.ts src/features/answering/build-system-prompt.test.ts`
     - 当前状态：已扩展合跑到 5 files / 88 tests passed（含 retrieval、chat-service、build-system-prompt、black-box smoke、provider-smoke 单测）
   - `corepack pnpm eval:answer-style`
-    - 当前状态：13 pass / 0 fail，averageElapsedMs 170
+    - 当前状态：13 pass / 0 fail，averageElapsedMs 112
+  - `corepack pnpm eval:standard-lookup:provider`
+    - 当前状态：8 total / 8 pass / 0 manual / 0 fail；averageElapsedMs 1849；standard_lookup 平均 22 字，最长 36 字；`institute` grounding 只有 `institute`
   - `corepack pnpm test scripts/lib/black-box-product-smoke.test.ts`
-    - 当前状态：与 retrieval/provider-smoke 单测合跑为 3 files / 72 tests passed
+    - 当前状态：与 retrieval/provider-smoke 单测合跑为 3 files / 75 tests passed
 - 2026-04-26 batch-3 扩库后复验：
   - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 500 --require-source-lemmas`
     - 当前状态：546 entries / 34 confusion groups / scopes=gaokao, cet4, cet6

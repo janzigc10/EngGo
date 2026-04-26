@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildAnswerStyleProviderSmokeCases,
+  buildStandardLookupProviderSmokeCases,
   evaluateAnswerStyleProviderSmoke,
   summarizeAnswerStyleProviderSmoke,
   type ProviderSmokePayload,
@@ -102,6 +103,35 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
       item.manualChecks.includes("检查回答是否带出前缀方向和优先级")
     )).toBe(false);
   });
+
+  it("defines a focused standard-lookup provider smoke set", () => {
+    const cases = buildStandardLookupProviderSmokeCases();
+
+    expect(cases.map((item) => item.name)).toEqual([
+      "standard: academic lookup",
+      "standard: institute lookup",
+      "standard: available usage",
+      "standard: gain lookup",
+      "standard: generate lookup",
+      "standard: garage lookup",
+      "standard: evidence lookup",
+      "standard: significant lookup",
+    ]);
+    expect(cases).toHaveLength(8);
+    expect(cases.every((item) =>
+      item.expectedAnswerStyle === "standard_lookup"
+      && item.expectedResolution === "resolved"
+      && item.expectedComparisonViewId === null
+      && item.expectedRootFamilyViewId === null
+    )).toBe(true);
+    expect(cases.every((item) =>
+      item.manualChecks.includes("检查回答是否没有可见标题、例句、范围尾巴或主动扩词")
+    )).toBe(true);
+    expect(
+      cases.find((item) => item.name === "standard: institute lookup")
+        ?.forbiddenGroundingIncludes,
+    ).toContain("institution");
+  });
 });
 
 describe("evaluateAnswerStyleProviderSmoke", () => {
@@ -167,6 +197,59 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
     expect(verdict.autoVerdict).toBe("fail");
     expect(verdict.hardFailures).toContain(
       "no_match case should return non-empty answer",
+    );
+  });
+
+  it("fails standard lookup smoke when forbidden answer text appears", () => {
+    const [caseDef] = buildStandardLookupProviderSmokeCases();
+    const verdict = evaluateAnswerStyleProviderSmoke(caseDef, {
+      status: 200,
+      providerRequestId: "resp_123",
+      grounding: {
+        queryMode: "fuzzy_recall",
+        resolution: "resolved",
+        answerStyle: "standard_lookup",
+        mainAnswer: [{ lemma: "academic" }],
+        comparisonView: null,
+        rootFamilyView: null,
+      },
+      answer: "主答案：academic 是学术的。它也接近 scholarly。",
+    });
+
+    expect(verdict.autoVerdict).toBe("fail");
+    expect(verdict.hardFailures).toEqual(
+      expect.arrayContaining([
+        "answer should not include 主答案",
+        "answer should not include scholarly",
+      ]),
+    );
+  });
+
+  it("fails standard lookup smoke when forbidden grounding appears", () => {
+    const caseDef = buildStandardLookupProviderSmokeCases().find(
+      (item) => item.name === "standard: institute lookup",
+    );
+
+    expect(caseDef).toBeTruthy();
+
+    const verdict = evaluateAnswerStyleProviderSmoke(caseDef!, {
+      status: 200,
+      providerRequestId: "resp_123",
+      grounding: {
+        queryMode: "fuzzy_recall",
+        resolution: "resolved",
+        answerStyle: "standard_lookup",
+        mainAnswer: [{ lemma: "institute" }],
+        confusionBoundary: [{ lemma: "institution" }],
+        comparisonView: null,
+        rootFamilyView: null,
+      },
+      answer: "institute 是设立、制定或机构。",
+    });
+
+    expect(verdict.autoVerdict).toBe("fail");
+    expect(verdict.hardFailures).toContain(
+      "grounding should not include institution",
     );
   });
 

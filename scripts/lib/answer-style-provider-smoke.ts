@@ -20,6 +20,7 @@ export type ProviderSmokeCase = {
   expectedComparisonViewId?: string | null;
   expectedComparisonLabels?: ConfusionClusterLabel[];
   expectedComparisonPurposes?: ConfusionClusterPurpose[];
+  forbiddenAnswerIncludes?: string[];
   maxAnswerChars: number;
   manualChecks: string[];
 };
@@ -92,6 +93,28 @@ const DEFAULT_TYPO_MANUAL_CHECKS = [
   "检查回答第一句是否先说明“你可能想查的是 X。”",
   "检查回答是否先纠错再解释核心义，而不是把 X 当普通查词直接开头",
   "检查回答是否没有主动扩展未召回的新词",
+];
+
+const DEFAULT_STANDARD_LOOKUP_MANUAL_CHECKS = [
+  "检查回答是否没有可见标题、例句、范围尾巴或主动扩词",
+  "检查回答是否只围绕 grounding 主答案解释核心义",
+  "检查回答是否像短查词，而不是百科讲义或易混词课",
+];
+
+const STANDARD_LOOKUP_FORBIDDEN_ANSWER_TEXT = [
+  "主答案",
+  "易混边界",
+  "范围提醒",
+  "建议的范围提醒",
+  "建议的下一步追问",
+  "CET",
+  "范围",
+  "后续",
+  "没有需要区分",
+  "**",
+  "#",
+  "例如",
+  "例句",
 ];
 
 function createCase(
@@ -273,6 +296,152 @@ export function buildAnswerStyleProviderSmokeCases(): ProviderSmokeCase[] {
   ];
 }
 
+export function buildStandardLookupProviderSmokeCases(): ProviderSmokeCase[] {
+  return [
+    createCase({
+      name: "standard: academic lookup",
+      query: "academic 是什么意思",
+      activeExamTarget: "cet4",
+      expectedQueryMode: "fuzzy_recall",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "standard_lookup",
+      expectedGroundingIncludes: ["academic"],
+      forbiddenGroundingIncludes: ["scholarly", "educational"],
+      forbiddenAnswerIncludes: [
+        ...STANDARD_LOOKUP_FORBIDDEN_ANSWER_TEXT,
+        "scholarly",
+        "educational",
+      ],
+      expectedComparisonViewId: null,
+      expectedRootFamilyViewId: null,
+      manualChecks: DEFAULT_STANDARD_LOOKUP_MANUAL_CHECKS,
+    }),
+    createCase({
+      name: "standard: institute lookup",
+      query: "institute 是什么意思",
+      activeExamTarget: "cet6",
+      expectedQueryMode: "fuzzy_recall",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "standard_lookup",
+      expectedGroundingIncludes: ["institute"],
+      forbiddenGroundingIncludes: [
+        "institution",
+        "constitute",
+        "substitute",
+        "establish",
+        "restitute",
+        "prostitute",
+      ],
+      forbiddenAnswerIncludes: [
+        ...STANDARD_LOOKUP_FORBIDDEN_ANSWER_TEXT,
+        "institution",
+        "constitute",
+        "substitute",
+        "establish",
+        "restitute",
+        "prostitute",
+      ],
+      expectedComparisonViewId: null,
+      expectedRootFamilyViewId: null,
+      manualChecks: DEFAULT_STANDARD_LOOKUP_MANUAL_CHECKS,
+    }),
+    createCase({
+      name: "standard: available usage",
+      query: "available 怎么用",
+      activeExamTarget: "cet4",
+      expectedQueryMode: "fuzzy_recall",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "standard_lookup",
+      expectedGroundingIncludes: ["available"],
+      forbiddenAnswerIncludes: [
+        ...STANDARD_LOOKUP_FORBIDDEN_ANSWER_TEXT,
+        "I am",
+        "You can",
+        "We can",
+      ],
+      expectedComparisonViewId: null,
+      expectedRootFamilyViewId: null,
+      manualChecks: DEFAULT_STANDARD_LOOKUP_MANUAL_CHECKS,
+    }),
+    createCase({
+      name: "standard: gain lookup",
+      query: "gain 是什么意思",
+      activeExamTarget: "cet6",
+      expectedQueryMode: "fuzzy_recall",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "standard_lookup",
+      expectedGroundingIncludes: ["gain"],
+      forbiddenAnswerIncludes: [
+        ...STANDARD_LOOKUP_FORBIDDEN_ANSWER_TEXT,
+        "benefit",
+        "profit",
+      ],
+      expectedComparisonViewId: null,
+      expectedRootFamilyViewId: null,
+      manualChecks: DEFAULT_STANDARD_LOOKUP_MANUAL_CHECKS,
+    }),
+    createCase({
+      name: "standard: generate lookup",
+      query: "generate 是什么意思",
+      activeExamTarget: "cet6",
+      expectedQueryMode: "fuzzy_recall",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "standard_lookup",
+      expectedGroundingIncludes: ["generate"],
+      forbiddenAnswerIncludes: [
+        ...STANDARD_LOOKUP_FORBIDDEN_ANSWER_TEXT,
+        "你可能想查的是",
+      ],
+      expectedComparisonViewId: null,
+      expectedRootFamilyViewId: null,
+      manualChecks: DEFAULT_STANDARD_LOOKUP_MANUAL_CHECKS,
+    }),
+    createCase({
+      name: "standard: garage lookup",
+      query: "garage 是什么意思",
+      activeExamTarget: "cet4",
+      expectedQueryMode: "fuzzy_recall",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "standard_lookup",
+      expectedGroundingIncludes: ["garage"],
+      forbiddenGroundingIncludes: ["garbage"],
+      forbiddenAnswerIncludes: [
+        ...STANDARD_LOOKUP_FORBIDDEN_ANSWER_TEXT,
+        "garbage",
+      ],
+      expectedComparisonViewId: null,
+      expectedRootFamilyViewId: null,
+      manualChecks: DEFAULT_STANDARD_LOOKUP_MANUAL_CHECKS,
+    }),
+    createCase({
+      name: "standard: evidence lookup",
+      query: "evidence 是什么意思",
+      activeExamTarget: "cet6",
+      expectedQueryMode: "fuzzy_recall",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "standard_lookup",
+      expectedGroundingIncludes: ["evidence"],
+      forbiddenAnswerIncludes: STANDARD_LOOKUP_FORBIDDEN_ANSWER_TEXT,
+      expectedComparisonViewId: null,
+      expectedRootFamilyViewId: null,
+      manualChecks: DEFAULT_STANDARD_LOOKUP_MANUAL_CHECKS,
+    }),
+    createCase({
+      name: "standard: significant lookup",
+      query: "significant 是什么意思",
+      activeExamTarget: "cet6",
+      expectedQueryMode: "fuzzy_recall",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "standard_lookup",
+      expectedGroundingIncludes: ["significant"],
+      forbiddenAnswerIncludes: STANDARD_LOOKUP_FORBIDDEN_ANSWER_TEXT,
+      expectedComparisonViewId: null,
+      expectedRootFamilyViewId: null,
+      manualChecks: DEFAULT_STANDARD_LOOKUP_MANUAL_CHECKS,
+    }),
+  ];
+}
+
 function unique(values: Array<string | undefined>) {
   return [...new Set(values.filter((value): value is string => Boolean(value)))];
 }
@@ -334,6 +503,12 @@ export function evaluateAnswerStyleProviderSmoke(
   for (const lemma of caseDef.forbiddenGroundingIncludes ?? []) {
     if (groundingLemmas.includes(lemma)) {
       hardFailures.push(`grounding should not include ${lemma}`);
+    }
+  }
+
+  for (const text of caseDef.forbiddenAnswerIncludes ?? []) {
+    if (answer.includes(text)) {
+      hardFailures.push(`answer should not include ${text}`);
     }
   }
 

@@ -24,6 +24,17 @@ describe("black-box product smoke cases", () => {
       ]),
     );
     expect(cases.filter((item) => item.source === "batch3")).toHaveLength(8);
+    expect(cases).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "standard: institute",
+          expectedGroundingIncludes: ["institute"],
+          forbiddenGroundingIncludes: expect.arrayContaining(["institution"]),
+          expectedComparisonViewId: null,
+          expectedRootFamilyViewId: null,
+        }),
+      ]),
+    );
   });
 
   it("summarizes verdicts by category", () => {
