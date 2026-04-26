@@ -172,13 +172,26 @@ const cases: EvalCase[] = [
     expectedRootFamilyViewId: null,
   },
   {
-    name: "typo: reqeust still no-match",
+    name: "typo: reqeust correction",
     query: "有个像 reqeust 的词",
     activeExamTarget: "cet4",
     expectedQueryMode: "fuzzy_recall",
-    expectedResolution: "no_match",
+    expectedResolution: "resolved",
     expectedAnswerStyle: "standard_lookup",
     expectedRootFamilyViewId: null,
+    expectedPromptIncludes: ["拼写纠错查词", "你可能想查的是 request"],
+    expectedGroundingIncludes: ["request"],
+  },
+  {
+    name: "typo: recomand correction",
+    query: "有个像 recomand 的词",
+    activeExamTarget: "cet6",
+    expectedQueryMode: "fuzzy_recall",
+    expectedResolution: "resolved",
+    expectedAnswerStyle: "standard_lookup",
+    expectedRootFamilyViewId: null,
+    expectedPromptIncludes: ["拼写纠错查词", "你可能想查的是 recommend"],
+    expectedGroundingIncludes: ["recommend"],
   },
 ];
 

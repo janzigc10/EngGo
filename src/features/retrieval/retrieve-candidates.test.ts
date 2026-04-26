@@ -177,10 +177,29 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     expect(horizonResult.mainAnswer[0]?.lemma).toBe("horizon");
   });
 
-  it("keeps broader typo recall conservative when edit distance is not tight", async () => {
-    const result = await retrieveCandidates({
+  it("resolves tight second-layer typo lookups inside the current exam scope", async () => {
+    const requestResult = await retrieveCandidates({
       activeExamTarget: "cet6",
       query: "有个像 reqeust 的词",
+    });
+    const recommendResult = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "有个像 recomand 的词",
+    });
+
+    expect(requestResult.queryMode).toBe("fuzzy_recall");
+    expect(requestResult.resolution).toBe("resolved");
+    expect(requestResult.mainAnswer[0]?.lemma).toBe("request");
+
+    expect(recommendResult.queryMode).toBe("fuzzy_recall");
+    expect(recommendResult.resolution).toBe("resolved");
+    expect(recommendResult.mainAnswer[0]?.lemma).toBe("recommend");
+  });
+
+  it("keeps broader low-score typo recall conservative", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "有个像 reqxust 的词",
     });
 
     expect(result.queryMode).toBe("fuzzy_recall");

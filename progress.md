@@ -19,6 +19,13 @@
 - 词根家族地图：用户有词根/前缀/碎片，或只记得 `attempt` / `institute` 这类家族成员，需要结构化召回同根/同碎片词、列中文核心义，并总结前缀/后缀/现代义分流。
 
 ## 本 Session 已完成
+- 2026-04-26 完成 typo/fuzzy fallback 第二刀，并已先把上一刀提交为 `0ff9366 fix: resolve single-edit typo lookups`：
+  - 问题根因：`reqeust -> request` 是相邻字母换位，`pg_trgm` 分数只有约 0.375，旧单编辑 fallback 不覆盖；`recomand -> recommend` 是更紧的两编辑拼写错，候选唯一且 trigram 分数约 0.556。两者都不是缺词，而是 spelling correction 规则缺口。
+  - [src/features/retrieval/retrieve-candidates.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.test.ts) 新增红灯：`有个像 reqeust 的词` 应召回 `request`，`有个像 recomand 的词` 应召回 `recommend`；同时锁住 `有个像 reqxust 的词` 仍保守 no-match。
+  - [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts) 将 typo fallback 扩为三层窄门：唯一单编辑、相邻换位、以及首尾相同/长度够长/分数不低的唯一两编辑候选；仍不降低全局 `minScore/minGap`。
+  - 同步 [scripts/lib/black-box-product-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/black-box-product-smoke.ts)、[scripts/run-answer-style-eval.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-eval.ts)、[scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts) 与 [scripts/run-chat-batch-eval.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-chat-batch-eval.ts)：`reqeust` 不再作为 no-match 基线，`recomand` 进入产品 typo smoke。
+  - 真实 provider 抽样：`有个像 reqeust 的词` -> “你可能想查的是 request。它的核心意思是‘请求’或‘要求’...”；`有个像 recomand 的词` -> “你可能想查的是 recommend。recommend 的核心义是‘推荐’或‘建议’。” 期间发现模型会顺手写范围提示，已进一步收紧 typo prompt，不再把 `scopeReminder` 原文暴露给纠错场景。
+  - 当前验证：`corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts src/features/answering/chat-service.test.ts src/features/answering/build-system-prompt.test.ts scripts/lib/black-box-product-smoke.test.ts scripts/lib/answer-style-provider-smoke.test.ts` -> 5 files / 88 tests passed；`corepack pnpm eval:product-smoke` -> 26 total / 26 pass / 0 fail；`corepack pnpm eval:answer-style` -> 13/13 pass；focused eslint 通过；`git diff --check` 无 whitespace error，仅有 Windows LF/CRLF 提示。本次提交前 product-smoke 曾在第 20 条后撞到已知 Prisma dev `Connection terminated unexpectedly`，已用非删除式 stop/start 固定端口、`db:migrate`、`db:seed:real-smoke` 恢复后复跑通过。
 - 2026-04-26 完成轻量 typo/fuzzy fallback 第一刀：
   - 问题根因：`generte` 会同时召回 `general / generally / generate / generation / generous`，这些词在 `pg_trgm` 的 `word_similarity` 上接近打平，旧的 `minScore=0.68 / minGap=0.12` 稳定闸门不敢选；`horizen -> horizon` 也因 trigram 分数未过阈值而 no-match。问题不是词库缺词，而是 trigram 相似度不是专门拼写纠错。
   - [src/features/retrieval/retrieve-candidates.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.test.ts) 新增红灯：`generte 是什么意思` 应召回 `generate`，`horizen 是什么意思` 应召回 `horizon`；同时锁住 `有个像 reqeust 的词` 仍保守 no-match。
@@ -667,7 +674,7 @@
 ## 剩余关注点
 1. `root_family_summary` 目前只覆盖 `stitute` / `tempt` 两族，仍然是验证回答形态的最小原型，不是可扩展数据方案。
 2. `re+con`、`re...ct` 这类输入虽然已经进入 `root_family_summary` 主线，但仍是保守 `no_match`，没有真正展开检索。
-3. `reqeust` / `recomand` 这类换位或多编辑 typo 仍需要单独设计，不能简单放宽当前低置信度闸门；当前只支持唯一单编辑 typo fallback。
+3. `reqeust -> request`、`recomand -> recommend` 已通过第二层 typo fallback 处理；后续若继续扩 typo，只能继续走“唯一候选 + 明确拼写模式”的窄门，不要放宽全局相似度闸门。
 4. 真实 MiniMax `/anthropic/v1/messages` 已通过临时命令跑通；正式接入前仍建议补 Anthropic-compatible provider adapter，并用真实 provider 做一次 answer-style smoke。
 5. Windows + local Prisma Postgres (`prisma dev`) 仍不稳定；这轮 `verify` 过程中又复现了 backend protocol error，但已按 `bugs.md` 路径恢复。
 6. `corepack pnpm exec tsc --noEmit` 这轮仍未重跑；此前已知失败，属于既有工程债，不纳入本轮完成标准。
@@ -696,10 +703,10 @@
   - 当前 `real-smoke` 为 546 entries / 34 confusion groups，已进入 `500-1000 词基础 RAG 词库 MVP` 区间。
 - `black-box product smoke` plan 已完成；不要再从 Task 1 重开：
   - [docs/superpowers/plans/2026-04-26-black-box-product-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-26-black-box-product-smoke.md)
-  - 当前 `eval:product-smoke` 为 25 total / 25 pass / 0 fail；`generte -> generate`、`horizen -> horizon` 已通过单编辑 typo fallback 修复。
-- 下一轮如果继续 typo/fuzzy，建议先做第二层小设计，而不是直接放宽全局阈值：
-  - 当前只支持唯一单编辑 typo；`reqeust/recomand` 这类换位或多编辑 typo 仍必须单独判断是否支持。
-  - 若保持现状，后续可在 typo 策略稳定后再决定是继续 batch 4 扩到 700+，还是转向泛化词根/碎片检索。
+  - 当前 `eval:product-smoke` 为 26 total / 26 pass / 0 fail；`generte -> generate`、`horizen -> horizon`、`reqeust -> request`、`recomand -> recommend` 已通过窄门 typo fallback 修复。
+- 下一轮如果继续产品能力，建议先不要再扩 typo 闸门；优先二选一：
+  - 做一小批普通查词真实 provider smoke，观察 `standard_lookup` 是否仍会污染成例句/扩词/范围提示。
+  - 或在 typo 策略稳定后，再决定是继续 batch 4 扩到 700+，还是转向泛化词根/碎片检索。
   - 暂缓：全量几千词一次性导入、为每个词人工写易混关系、把 embedding 作为主检索方案。
 - 若继续本地验证，先检查 `corepack pnpm exec prisma dev ls`；一旦出现 backend protocol error，直接按 `bugs.md` 的 `enggo` 重建路径恢复。
 - 继续保持串行验证；不要并行跑 `verify`、`eval:shape`、`eval:answer-style`、`eval:lookalike:real-smoke`、`eval:answer-style:provider`。
@@ -716,13 +723,13 @@
 ## 最近验证基线
 - 2026-04-26 黑盒产品 smoke：
   - `corepack pnpm eval:product-smoke`
-    - 当前状态：25 total / 25 pass / 0 fail；`generte -> generate`、`horizen -> horizon` 已修复，`reqeust` 仍保守 no-match
+    - 当前状态：26 total / 26 pass / 0 fail；`generte -> generate`、`horizen -> horizon`、`reqeust -> request`、`recomand -> recommend` 已修复
   - `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts src/features/answering/chat-service.test.ts src/features/answering/build-system-prompt.test.ts`
-    - 当前状态：3 files / 66 tests passed
+    - 当前状态：已扩展合跑到 5 files / 88 tests passed（含 retrieval、chat-service、build-system-prompt、black-box smoke、provider-smoke 单测）
   - `corepack pnpm eval:answer-style`
-    - 当前状态：12 pass / 0 fail，averageElapsedMs 116
+    - 当前状态：13 pass / 0 fail，averageElapsedMs 170
   - `corepack pnpm test scripts/lib/black-box-product-smoke.test.ts`
-    - 当前状态：1 file / 3 tests passed
+    - 当前状态：与 retrieval/provider-smoke 单测合跑为 3 files / 72 tests passed
 - 2026-04-26 batch-3 扩库后复验：
   - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 500 --require-source-lemmas`
     - 当前状态：546 entries / 34 confusion groups / scopes=gaokao, cet4, cet6

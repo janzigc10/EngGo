@@ -88,6 +88,12 @@ const DEFAULT_NO_MATCH_MANUAL_CHECKS = [
   "检查 no_match 回答是否明确保守，不要硬猜用户本意",
 ];
 
+const DEFAULT_TYPO_MANUAL_CHECKS = [
+  "检查回答第一句是否先说明“你可能想查的是 X。”",
+  "检查回答是否先纠错再解释核心义，而不是把 X 当普通查词直接开头",
+  "检查回答是否没有主动扩展未召回的新词",
+];
+
 function createCase(
   item: Omit<ProviderSmokeCase, "maxAnswerChars" | "manualChecks">
     & Pick<Partial<ProviderSmokeCase>, "maxAnswerChars" | "manualChecks">,
@@ -254,14 +260,15 @@ export function buildAnswerStyleProviderSmokeCases(): ProviderSmokeCase[] {
       manualChecks: DEFAULT_NO_MATCH_MANUAL_CHECKS,
     }),
     createCase({
-      name: "typo: reqeust still no-match",
+      name: "typo: reqeust correction",
       query: "有个像 reqeust 的词",
       activeExamTarget: "cet4",
       expectedQueryMode: "fuzzy_recall",
-      expectedResolution: "no_match",
+      expectedResolution: "resolved",
       expectedAnswerStyle: "standard_lookup",
       expectedRootFamilyViewId: null,
-      manualChecks: DEFAULT_NO_MATCH_MANUAL_CHECKS,
+      expectedGroundingIncludes: ["request"],
+      manualChecks: DEFAULT_TYPO_MANUAL_CHECKS,
     }),
   ];
 }

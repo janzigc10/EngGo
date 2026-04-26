@@ -212,14 +212,16 @@ const cases: TestCase[] = [
     name: "拼错 request",
     query: "有个像 reqeust 的词",
     activeExamTarget: "cet4",
-    expectNoGrounding: true,
+    expectedGroundingIncludes: ["request"],
+    minGroundingHits: 1,
   },
   {
     category: "知识库内-模糊回忆",
     name: "拼错 recommend",
     query: "有个像 recomand 的词",
     activeExamTarget: "cet6",
-    expectNoGrounding: true,
+    expectedGroundingIncludes: ["recommend"],
+    minGroundingHits: 1,
   },
   {
     category: "知识库内-形近词簇",

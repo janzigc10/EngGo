@@ -59,6 +59,7 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
           `第一句必须写“你可能想查的是 ${grounding.spellingCorrection.lemma}。”`,
           `不要只把 ${grounding.spellingCorrection.lemma} 当成普通查词开头；先说明纠错，再解释核心义。`,
           "本次不要主动写范围提醒、下一步追问、Markdown 加粗或标题装饰。",
+          `最终答案不要出现 ${grounding.activeExamTargetLabel}、考试范围、范围内这类范围提示；范围只用于内部选词。`,
         ].join("\n")
       : "";
 
@@ -165,7 +166,7 @@ export function buildSystemPrompt(grounding: AnswerGrounding) {
   const scopeReminderLine =
     grounding.answerStyle === "standard_lookup"
       ? grounding.spellingCorrection
-        ? `范围边界素材（内部参考，本次不要主动写范围提醒，也不要照抄这个标签）：${grounding.scopeReminder}`
+        ? "范围边界素材（内部参考：仅用于确定候选，本次不要在最终答案中写任何范围提示，也不要照抄这个标签）。"
         : `范围提醒素材（只可自然并入一句话，不要照抄这个标签）：${grounding.scopeReminder}`
       : grounding.answerStyle === "root_family_summary"
         ? `范围边界素材（内部参考，不要照抄这个标签，也不要主动展开范围外词）：${grounding.scopeReminder}`

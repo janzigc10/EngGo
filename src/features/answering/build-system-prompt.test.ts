@@ -89,7 +89,9 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("第一句必须写“你可能想查的是 generate。”");
     expect(prompt).toContain("不要只把 generate 当成普通查词开头");
     expect(prompt).toContain("本次不要主动写范围提醒");
+    expect(prompt).toContain("最终答案不要出现 CET-6、考试范围、范围内这类范围提示");
     expect(prompt).not.toContain("范围提醒素材");
+    expect(prompt).not.toContain("这次回答已优先锁定在 CET-6 范围内。");
   });
 
   it("guides shape-neighbor answers as lookalike clusters", () => {

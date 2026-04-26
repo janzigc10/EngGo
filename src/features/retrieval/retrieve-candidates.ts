@@ -37,6 +37,8 @@ const fuzzyRecallThreshold = {
   minGap: 0.12,
 };
 
+const twoEditTypoMinTextScore = 0.5;
+
 const retrievalEntryInclude = {
   aliases: true,
   meanings: true,
@@ -490,15 +492,102 @@ function isSingleEditTypo(source: string, target: string) {
   return edits === 1;
 }
 
-function selectSingleEditTypoCandidate(
+function isAdjacentTranspositionTypo(source: string, target: string) {
+  const left = source.toLowerCase();
+  const right = target.toLowerCase();
+
+  if (left === right || left.length !== right.length) {
+    return false;
+  }
+
+  for (let index = 0; index < left.length - 1; index += 1) {
+    if (left[index] === right[index]) {
+      continue;
+    }
+
+    return (
+      left[index] === right[index + 1]
+      && left[index + 1] === right[index]
+      && left.slice(index + 2) === right.slice(index + 2)
+    );
+  }
+
+  return false;
+}
+
+function boundedEditDistance(source: string, target: string, maxDistance: number) {
+  const left = source.toLowerCase();
+  const right = target.toLowerCase();
+
+  if (Math.abs(left.length - right.length) > maxDistance) {
+    return maxDistance + 1;
+  }
+
+  let previousRow = Array.from({ length: right.length + 1 }, (_, index) => index);
+
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    const currentRow = [leftIndex];
+    let rowMinimum = currentRow[0] ?? 0;
+
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      const substitutionCost = left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
+      const value = Math.min(
+        (previousRow[rightIndex] ?? maxDistance) + 1,
+        (currentRow[rightIndex - 1] ?? maxDistance) + 1,
+        (previousRow[rightIndex - 1] ?? maxDistance) + substitutionCost,
+      );
+
+      currentRow[rightIndex] = value;
+      rowMinimum = Math.min(rowMinimum, value);
+    }
+
+    if (rowMinimum > maxDistance) {
+      return maxDistance + 1;
+    }
+
+    previousRow = currentRow;
+  }
+
+  return previousRow[right.length] ?? maxDistance + 1;
+}
+
+function isTightTwoEditTypo(source: string, target: string) {
+  const left = source.toLowerCase();
+  const right = target.toLowerCase();
+
+  if (
+    left.length < 6
+    || right.length < 6
+    || left[0] !== right[0]
+    || left[left.length - 1] !== right[right.length - 1]
+    || Math.abs(left.length - right.length) > 2
+  ) {
+    return false;
+  }
+
+  return boundedEditDistance(left, right, 2) === 2;
+}
+
+function isTypoFallbackCandidate(needle: string, candidate: RankedCandidate) {
+  return (
+    isSingleEditTypo(needle, candidate.lemma)
+    || isAdjacentTranspositionTypo(needle, candidate.lemma)
+    || (
+      candidate.textScore >= twoEditTypoMinTextScore
+      && isTightTwoEditTypo(needle, candidate.lemma)
+    )
+  );
+}
+
+function selectTypoFallbackCandidate(
   needle: string,
   candidates: RankedCandidate[],
 ) {
-  const oneEditCandidates = candidates.filter(
-    (candidate) => candidate.inScope && isSingleEditTypo(needle, candidate.lemma),
+  const typoCandidates = candidates.filter(
+    (candidate) => candidate.inScope && isTypoFallbackCandidate(needle, candidate),
   );
 
-  return oneEditCandidates.length === 1 ? oneEditCandidates[0] : null;
+  return typoCandidates.length === 1 ? typoCandidates[0] : null;
 }
 
 async function findEnglishRankedCandidates(
@@ -1069,7 +1158,7 @@ async function handleEnglishLookup(
   if (!selection.candidate) {
     const typoCandidate =
       normalizedQuery.queryMode === "fuzzy_recall"
-        ? selectSingleEditTypoCandidate(needle, rankedCandidates)
+        ? selectTypoFallbackCandidate(needle, rankedCandidates)
         : null;
 
     if (typoCandidate) {

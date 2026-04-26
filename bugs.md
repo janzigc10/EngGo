@@ -51,21 +51,26 @@
   - 后续如果要把 `tsc --noEmit` 纳入 `verify`，需要单独清这批工程债
 
 ## 当前产品侧残留
-- 本轮已锁定“低置信度宁可 no-match 不硬猜”，因此两类常见拼错目前仍会被挡掉：
-  - `有个像 reqeust 的词`
-  - `有个像 recomand 的词`
+- 本轮仍锁定“低置信度宁可 no-match 不硬猜”，但已把两类高把握拼错从残留项移到已处理：
+  - `有个像 reqeust 的词` 现在可召回 `request`
+  - `有个像 recomand 的词` 现在可召回 `recommend`
 - 2026-04-26 追加黑盒 product smoke 后暴露的单编辑 typo 缺口已处理：
   - `generte 是什么意思` 现在可召回 `generate`
   - `horizen 是什么意思` 现在可召回 `horizon`
   - `genuin 是什么意思` 仍可召回 `genuine`
   - 修法不是降低全局 `minScore/minGap`，而是在 `fuzzy_recall` 的 trigram 闸门未过时，仅对当前考试范围内唯一单编辑候选放行。
   - 回答形态也已补：单编辑 typo resolved 时会显式说“你可能想查的是 X。”，再短解释核心义，不再把范围提示作为正文收尾。
-- 后续如果决定支持 `reqeust` / `recomand` 这类换位或多编辑 typo，需要单独设计第二层策略，避免重新引入知识库外误召回。
+- 2026-04-26 继续处理 typo 第二层策略：
+  - `reqeust -> request` 走相邻换位窄门，即使 trigram 分数低也可在唯一范围内候选时放行。
+  - `recomand -> recommend` 走保守两编辑窄门：首尾相同、长度够长、候选唯一、trigram 分数不低。
+  - `有个像 reqxust 的词` 仍保持 no-match，用来防止低分两编辑硬猜。
+  - 真实 provider 抽样曾把 typo 回答写出“在 CET-4 范围内”，已收紧 prompt：纠错场景不再暴露 `scopeReminder` 原文，并明确最终答案不要写范围提示。
 - 当前实现距离用户真正要的“模糊搜索”仍有残留缺口：
   - 已补首批形近词簇检索：`跟 recent 很像的词有哪些`、`容易把 recent 看错成什么`、`recent/resent`、`adapt/adopt`、`quiet/quite`
   - 词根 / 碎片检索已补最小原型闭环：`stitute 是什么`、`tempt 这一族怎么记`、`attempt 这一族怎么记`、`跟 institute 一样那几个词怎么记` 可进入 `root_family_summary`
   - 更泛化的词根 / 碎片检索仍未实现：`re+con 的词根有什么词`、`con 开头、re 相关的词`、`re...ct 这种词`
   - 当前 `fuzzy_recall` 对 fragment / 多片段输入仍会落到 `low_confidence` 或 `no_match`
+  - 后续 typo 若继续扩展，必须继续按明确拼写模式加窄门，不要把“低相关候选也先答一个”放回系统。
 - 2026-04-25 真实 provider cluster smoke 暴露两个产品侧 prompt 残留：
   - `academic 是什么意思` 这类 `standard_lookup` 曾会输出例句、分隔线和较长模板，并在下一步建议里主动扩出未召回的 `scholarly / educational`；本轮已先收紧普通查词 prompt，禁止例句、未召回扩词和主动下一步追问，后续可再用真实 provider 复验输出是否稳定。
   - `stitute 是什么` 的 `root_family_summary` 曾会在谨慎提醒里点名低优先级、范围外的 `restitute / prostitute`；2026-04-25 已收口：root summary 不再要求可见“谨慎提醒”，也不主动点名未召回低频/范围外分支。

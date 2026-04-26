@@ -44,7 +44,7 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
       "root: stitute",
       "root: tempt",
       "root: unsupported combination",
-      "typo: reqeust still no-match",
+      "typo: reqeust correction",
     ]);
     expect(cases).toHaveLength(13);
     expect(cases.map((item) => item.name)).not.toContain("confusion: respect family");
