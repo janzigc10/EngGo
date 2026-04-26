@@ -53,10 +53,22 @@ function buildClusterLabelInstruction(grounding: AnswerGrounding) {
 
 function buildStyleInstruction(grounding: AnswerGrounding) {
   if (grounding.answerStyle === "standard_lookup") {
+    const correctionInstruction = grounding.spellingCorrection
+      ? [
+          `本次是拼写纠错查词：用户输入 ${grounding.spellingCorrection.input}，grounding 主答案是 ${grounding.spellingCorrection.lemma}。`,
+          `第一句必须写“你可能想查的是 ${grounding.spellingCorrection.lemma}。”`,
+          `不要只把 ${grounding.spellingCorrection.lemma} 当成普通查词开头；先说明纠错，再解释核心义。`,
+          "本次不要主动写范围提醒、下一步追问、Markdown 加粗或标题装饰。",
+        ].join("\n")
+      : "";
+
     return [
       "普通查词模式：只回答用户当前问的词，不主动展开成易混组、词根家族或近义词列表。",
       "总长度控制在 180 个汉字以内，最多 3 段；不要使用横线、分隔线或标题装饰。",
-      "按信息顺序组织：先解释当前词的核心义，再在有 grounding.confusionBoundary 时补一句边界，最后用建议的范围提醒轻量收束。",
+      grounding.spellingCorrection
+        ? "按信息顺序组织：先给拼写纠错提示，再解释当前词的核心义；没有 confusionBoundary 时不要补边界。"
+        : "按信息顺序组织：先解释当前词的核心义，再在有 grounding.confusionBoundary 时补一句边界，最后用建议的范围提醒轻量收束。",
+      correctionInstruction,
       "不要把“主答案”“易混边界”“范围提醒”写成可见小标题，也不要用 Markdown 加粗来造小标题。",
       "核心义只用 grounding 里的主答案和易混边界，先给 lemma + 中文核心义。",
       "如果用户问“是什么意思”，不要补搭配；如果用户问“怎么用”且 grounding 主答案里明确给出搭配，才可写一个短搭配。",
@@ -64,7 +76,7 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
       "易混边界只有 grounding.confusionBoundary 有内容时才写，只写词义或词性差异，不写搭配、句子或括号例子；不要主动补充未召回的新词。",
       "没有 confusionBoundary 时直接省略边界，不要写“没有需要区分的易混词”。",
       "禁止例句、长列表、百科解释和主动扩展；不要主动输出下一步追问。",
-    ].join("\n");
+    ].filter(Boolean).join("\n");
   }
 
   if (grounding.answerStyle === "root_family_summary") {
@@ -152,7 +164,9 @@ export function buildSystemPrompt(grounding: AnswerGrounding) {
 
   const scopeReminderLine =
     grounding.answerStyle === "standard_lookup"
-      ? `范围提醒素材（只可自然并入一句话，不要照抄这个标签）：${grounding.scopeReminder}`
+      ? grounding.spellingCorrection
+        ? `范围边界素材（内部参考，本次不要主动写范围提醒，也不要照抄这个标签）：${grounding.scopeReminder}`
+        : `范围提醒素材（只可自然并入一句话，不要照抄这个标签）：${grounding.scopeReminder}`
       : grounding.answerStyle === "root_family_summary"
         ? `范围边界素材（内部参考，不要照抄这个标签，也不要主动展开范围外词）：${grounding.scopeReminder}`
         : grounding.answerStyle === "confusion_untangle"

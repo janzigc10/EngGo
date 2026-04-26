@@ -54,11 +54,13 @@
 - 本轮已锁定“低置信度宁可 no-match 不硬猜”，因此两类常见拼错目前仍会被挡掉：
   - `有个像 reqeust 的词`
   - `有个像 recomand 的词`
-- 2026-04-26 追加黑盒 product smoke 后，轻微拼错能力确认仍是独立缺口：
-  - `generte 是什么意思` 当前 no-match，未召回 `generate`
-  - `horizen 是什么意思` 当前 no-match，未召回 `horizon`
-  - `genuin 是什么意思` 可以召回 `genuine`，说明不是所有 typo 都失败，而是当前 fuzzy 阈值/候选策略仍偏保守
-- 这不是回归 bug，而是当前阈值策略的副作用；如果后续决定支持这类 typo，需要单独设计更保守的 typo 识别策略，避免重新引入知识库外误召回。
+- 2026-04-26 追加黑盒 product smoke 后暴露的单编辑 typo 缺口已处理：
+  - `generte 是什么意思` 现在可召回 `generate`
+  - `horizen 是什么意思` 现在可召回 `horizon`
+  - `genuin 是什么意思` 仍可召回 `genuine`
+  - 修法不是降低全局 `minScore/minGap`，而是在 `fuzzy_recall` 的 trigram 闸门未过时，仅对当前考试范围内唯一单编辑候选放行。
+  - 回答形态也已补：单编辑 typo resolved 时会显式说“你可能想查的是 X。”，再短解释核心义，不再把范围提示作为正文收尾。
+- 后续如果决定支持 `reqeust` / `recomand` 这类换位或多编辑 typo，需要单独设计第二层策略，避免重新引入知识库外误召回。
 - 当前实现距离用户真正要的“模糊搜索”仍有残留缺口：
   - 已补首批形近词簇检索：`跟 recent 很像的词有哪些`、`容易把 recent 看错成什么`、`recent/resent`、`adapt/adopt`、`quiet/quite`
   - 词根 / 碎片检索已补最小原型闭环：`stitute 是什么`、`tempt 这一族怎么记`、`attempt 这一族怎么记`、`跟 institute 一样那几个词怎么记` 可进入 `root_family_summary`

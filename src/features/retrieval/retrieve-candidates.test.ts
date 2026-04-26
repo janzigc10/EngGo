@@ -158,6 +158,36 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     ).not.toContain("establish");
   });
 
+  it("resolves single-edit typo lookups inside the current exam scope", async () => {
+    const generateResult = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "generte 是什么意思",
+    });
+    const horizonResult = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "horizen 是什么意思",
+    });
+
+    expect(generateResult.queryMode).toBe("fuzzy_recall");
+    expect(generateResult.resolution).toBe("resolved");
+    expect(generateResult.mainAnswer[0]?.lemma).toBe("generate");
+
+    expect(horizonResult.queryMode).toBe("fuzzy_recall");
+    expect(horizonResult.resolution).toBe("resolved");
+    expect(horizonResult.mainAnswer[0]?.lemma).toBe("horizon");
+  });
+
+  it("keeps broader typo recall conservative when edit distance is not tight", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "有个像 reqeust 的词",
+    });
+
+    expect(result.queryMode).toBe("fuzzy_recall");
+    expect(result.resolution).toBe("no_match");
+    expect(result.mainAnswer).toHaveLength(0);
+  });
+
   it("does not treat institute and establish as a shared confusion group", async () => {
     const result = await retrieveCandidates({
       activeExamTarget: "cet6",

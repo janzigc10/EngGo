@@ -447,6 +447,60 @@ function selectStableEnglishCandidate(
   };
 }
 
+function isSingleEditTypo(source: string, target: string) {
+  const left = source.toLowerCase();
+  const right = target.toLowerCase();
+  const lengthDelta = Math.abs(left.length - right.length);
+
+  if (left === right || lengthDelta > 1) {
+    return false;
+  }
+
+  let leftIndex = 0;
+  let rightIndex = 0;
+  let edits = 0;
+
+  while (leftIndex < left.length && rightIndex < right.length) {
+    if (left[leftIndex] === right[rightIndex]) {
+      leftIndex += 1;
+      rightIndex += 1;
+      continue;
+    }
+
+    edits += 1;
+
+    if (edits > 1) {
+      return false;
+    }
+
+    if (left.length === right.length) {
+      leftIndex += 1;
+      rightIndex += 1;
+    } else if (left.length < right.length) {
+      rightIndex += 1;
+    } else {
+      leftIndex += 1;
+    }
+  }
+
+  if (leftIndex < left.length || rightIndex < right.length) {
+    edits += 1;
+  }
+
+  return edits === 1;
+}
+
+function selectSingleEditTypoCandidate(
+  needle: string,
+  candidates: RankedCandidate[],
+) {
+  const oneEditCandidates = candidates.filter(
+    (candidate) => candidate.inScope && isSingleEditTypo(needle, candidate.lemma),
+  );
+
+  return oneEditCandidates.length === 1 ? oneEditCandidates[0] : null;
+}
+
 async function findEnglishRankedCandidates(
   activeExamTarget: ExamScopeCode,
   needle: string,
@@ -1013,6 +1067,38 @@ async function handleEnglishLookup(
   );
 
   if (!selection.candidate) {
+    const typoCandidate =
+      normalizedQuery.queryMode === "fuzzy_recall"
+        ? selectSingleEditTypoCandidate(needle, rankedCandidates)
+        : null;
+
+    if (typoCandidate) {
+      const confusionGroups = await findConfusionGroupsForEntryIds([typoCandidate.entryId]);
+      const bestGroup = pickBestGroupForEntry(
+        input.activeExamTarget,
+        typoCandidate.entryId,
+        confusionGroups,
+        "ordinary_lookup",
+      );
+      const mainAnswer = [toRetrievalCandidate(typoCandidate)];
+      const confusionBoundary = bestGroup
+        ? buildBoundaryCandidates(
+            input.activeExamTarget,
+            bestGroup,
+            rankedCandidates,
+            new Set([typoCandidate.entryId]),
+          )
+        : [];
+
+      return createResolvedResult(
+        normalizedQuery,
+        rankedCandidates,
+        mainAnswer,
+        confusionBoundary,
+        null,
+      );
+    }
+
     return createNoMatchResult(
       normalizedQuery,
       rankedCandidates,

@@ -50,6 +50,48 @@ describe("buildSystemPrompt", () => {
     expect(prompt).not.toContain("例句保留原文");
   });
 
+  it("guides standard lookup typo corrections as corrected-word answers", () => {
+    const grounding: AnswerGrounding = {
+      activeExamTarget: "cet6",
+      activeExamTargetLabel: "CET-6",
+      query: "generte 是什么意思",
+      queryMode: "fuzzy_recall",
+      answerStyle: "standard_lookup",
+      resolution: "resolved",
+      noMatchReason: null,
+      mainAnswer: [
+        {
+          entryId: "generate",
+          lemma: "generate",
+          meaningsZh: ["产生", "生成"],
+          matchedAlias: null,
+          scopeCodes: ["cet6"],
+          inScope: true,
+          reason: "当前考试范围命中，单编辑 typo 召回",
+          score: 363,
+        },
+      ],
+      confusionBoundary: [],
+      scopeReminder: "这次回答已优先锁定在 CET-6 范围内。",
+      followUpPrompt: "如果你愿意，我可以继续把 generate 的近义词拆开。",
+      comparisonView: null,
+      rootFamilyView: null,
+      spellingCorrection: {
+        input: "generte",
+        lemma: "generate",
+      },
+    };
+
+    const prompt = buildSystemPrompt(grounding);
+
+    expect(prompt).toContain("本次是拼写纠错查词");
+    expect(prompt).toContain("用户输入 generte，grounding 主答案是 generate");
+    expect(prompt).toContain("第一句必须写“你可能想查的是 generate。”");
+    expect(prompt).toContain("不要只把 generate 当成普通查词开头");
+    expect(prompt).toContain("本次不要主动写范围提醒");
+    expect(prompt).not.toContain("范围提醒素材");
+  });
+
   it("guides shape-neighbor answers as lookalike clusters", () => {
     const grounding: AnswerGrounding = {
       activeExamTarget: "cet6",

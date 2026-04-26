@@ -30,6 +30,10 @@ export type AnswerGrounding = {
   followUpPrompt: string;
   comparisonView: ComparisonView | null;
   rootFamilyView: RootFamilyView | null;
+  spellingCorrection?: {
+    input: string;
+    lemma: string;
+  } | null;
 };
 
 type BuildGroundingInput = {
@@ -122,6 +126,35 @@ function buildFollowUpPrompt(
   return `如果你愿意，我可以继续把 ${wordGroup.join(" / ")} 的区别拆成一眼就能记住的规则。`;
 }
 
+function extractSingleEnglishTerm(query: string) {
+  const terms = query.match(/[A-Za-z][A-Za-z'-]*/g) ?? [];
+  const uniqueTerms = Array.from(new Set(terms.map((term) => term.toLowerCase())));
+
+  return uniqueTerms.length === 1 ? uniqueTerms[0] : null;
+}
+
+function deriveSpellingCorrection(input: BuildGroundingInput) {
+  if (
+    input.queryMode !== "fuzzy_recall"
+    || input.resolution !== "resolved"
+    || input.mainAnswer.length !== 1
+  ) {
+    return null;
+  }
+
+  const queryTerm = extractSingleEnglishTerm(input.query);
+  const lemma = input.mainAnswer[0]?.lemma.toLowerCase();
+
+  if (!queryTerm || !lemma || queryTerm === lemma) {
+    return null;
+  }
+
+  return {
+    input: queryTerm,
+    lemma,
+  };
+}
+
 export function buildGrounding(input: BuildGroundingInput): AnswerGrounding {
   const selectedCandidates = [...input.mainAnswer, ...input.confusionBoundary];
 
@@ -147,5 +180,6 @@ export function buildGrounding(input: BuildGroundingInput): AnswerGrounding {
     ),
     comparisonView: input.comparisonView,
     rootFamilyView: input.rootFamilyView ?? null,
+    spellingCorrection: deriveSpellingCorrection(input),
   };
 }

@@ -205,6 +205,36 @@ describe("buildGrounding", () => {
 
     expect(grounding.answerStyle).toBe("standard_lookup");
   });
+
+  it("marks single-word typo lookups as spelling corrections", () => {
+    const grounding = buildGrounding({
+      activeExamTarget: "cet6",
+      query: "generte 是什么意思",
+      queryMode: "fuzzy_recall",
+      resolution: "resolved",
+      noMatchReason: null,
+      mainAnswer: [
+        {
+          entryId: "generate",
+          lemma: "generate",
+          meaningsZh: ["产生", "生成"],
+          matchedAlias: null,
+          scopeCodes: ["cet6"],
+          inScope: true,
+          reason: "当前考试范围命中，单编辑 typo 召回",
+          score: 363,
+        },
+      ],
+      confusionBoundary: [],
+      comparisonView: null,
+    });
+
+    expect(grounding.answerStyle).toBe("standard_lookup");
+    expect(grounding.spellingCorrection).toEqual({
+      input: "generte",
+      lemma: "generate",
+    });
+  });
 });
 
 describe("createChatService", () => {
