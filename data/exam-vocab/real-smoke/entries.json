@@ -9008,5 +9008,2868 @@
     "collocations": [
       "show contempt for"
     ]
+  },
+  {
+    "id": "gain",
+    "lemma": "gain",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "获得",
+      "增加"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "gain experience"
+    ]
+  },
+  {
+    "id": "gap",
+    "lemma": "gap",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "差距",
+      "间隔"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "generation gap"
+    ]
+  },
+  {
+    "id": "garage",
+    "lemma": "garage",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "车库",
+      "汽车修理厂"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "parking garage"
+    ]
+  },
+  {
+    "id": "garbage",
+    "lemma": "garbage",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "垃圾",
+      "废物"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "garbage collection"
+    ]
+  },
+  {
+    "id": "garden",
+    "lemma": "garden",
+    "aliases": [],
+    "pos": [
+      "noun",
+      "verb"
+    ],
+    "meaningsZh": [
+      "花园",
+      "园地"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "botanical garden"
+    ]
+  },
+  {
+    "id": "garment",
+    "lemma": "garment",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "衣服",
+      "服装"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "garment industry"
+    ]
+  },
+  {
+    "id": "gas",
+    "lemma": "gas",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "气体",
+      "汽油"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "natural gas"
+    ]
+  },
+  {
+    "id": "gasoline",
+    "lemma": "gasoline",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "汽油"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "gasoline price"
+    ]
+  },
+  {
+    "id": "gather",
+    "lemma": "gather",
+    "aliases": [],
+    "pos": [
+      "verb"
+    ],
+    "meaningsZh": [
+      "聚集",
+      "收集"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "gather information"
+    ]
+  },
+  {
+    "id": "gaze",
+    "lemma": "gaze",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "凝视",
+      "注视"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "gaze at"
+    ]
+  },
+  {
+    "id": "gear",
+    "lemma": "gear",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "齿轮",
+      "装备"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "safety gear"
+    ]
+  },
+  {
+    "id": "gender",
+    "lemma": "gender",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "性别"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "gender equality"
+    ]
+  },
+  {
+    "id": "gene",
+    "lemma": "gene",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "基因"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "gene expression"
+    ]
+  },
+  {
+    "id": "general",
+    "lemma": "general",
+    "aliases": [],
+    "pos": [
+      "adjective",
+      "noun"
+    ],
+    "meaningsZh": [
+      "一般的",
+      "将军"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "general public"
+    ]
+  },
+  {
+    "id": "generally",
+    "lemma": "generally",
+    "aliases": [],
+    "pos": [
+      "adverb"
+    ],
+    "meaningsZh": [
+      "通常",
+      "一般地"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "generally speaking"
+    ]
+  },
+  {
+    "id": "generate",
+    "lemma": "generate",
+    "aliases": [],
+    "pos": [
+      "verb"
+    ],
+    "meaningsZh": [
+      "产生",
+      "生成"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "generate electricity"
+    ]
+  },
+  {
+    "id": "generous",
+    "lemma": "generous",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "慷慨的",
+      "大方的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "generous support"
+    ]
+  },
+  {
+    "id": "gentle",
+    "lemma": "gentle",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "温和的",
+      "轻柔的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "gentle voice"
+    ]
+  },
+  {
+    "id": "genuine",
+    "lemma": "genuine",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "真正的",
+      "真诚的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "genuine interest"
+    ]
+  },
+  {
+    "id": "gesture",
+    "lemma": "gesture",
+    "aliases": [],
+    "pos": [
+      "noun",
+      "verb"
+    ],
+    "meaningsZh": [
+      "手势",
+      "表示"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "make a gesture"
+    ]
+  },
+  {
+    "id": "giant",
+    "lemma": "giant",
+    "aliases": [],
+    "pos": [
+      "noun",
+      "adjective"
+    ],
+    "meaningsZh": [
+      "巨人",
+      "巨大的"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "giant panda"
+    ]
+  },
+  {
+    "id": "gift",
+    "lemma": "gift",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "礼物",
+      "天赋"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "birthday gift"
+    ]
+  },
+  {
+    "id": "glad",
+    "lemma": "glad",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "高兴的",
+      "乐意的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "be glad to do"
+    ]
+  },
+  {
+    "id": "glance",
+    "lemma": "glance",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "一瞥",
+      "扫视"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "glance at"
+    ]
+  },
+  {
+    "id": "glare",
+    "lemma": "glare",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "怒视",
+      "强光"
+    ],
+    "examScopes": [
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "glare at"
+    ]
+  },
+  {
+    "id": "globe",
+    "lemma": "globe",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "地球",
+      "球体"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "around the globe"
+    ]
+  },
+  {
+    "id": "glory",
+    "lemma": "glory",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "荣誉",
+      "辉煌"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "win glory"
+    ]
+  },
+  {
+    "id": "glove",
+    "lemma": "glove",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "手套"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "wear gloves"
+    ]
+  },
+  {
+    "id": "glue",
+    "lemma": "glue",
+    "aliases": [],
+    "pos": [
+      "noun",
+      "verb"
+    ],
+    "meaningsZh": [
+      "胶水",
+      "粘合"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "glue together"
+    ]
+  },
+  {
+    "id": "goal",
+    "lemma": "goal",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "目标",
+      "进球"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "achieve a goal"
+    ]
+  },
+  {
+    "id": "goods",
+    "lemma": "goods",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "商品",
+      "货物"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "consumer goods"
+    ]
+  },
+  {
+    "id": "govern",
+    "lemma": "govern",
+    "aliases": [],
+    "pos": [
+      "verb"
+    ],
+    "meaningsZh": [
+      "统治",
+      "管理"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "govern a country"
+    ]
+  },
+  {
+    "id": "government",
+    "lemma": "government",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "政府"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "local government"
+    ]
+  },
+  {
+    "id": "grab",
+    "lemma": "grab",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "抓住",
+      "抢夺"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "grab attention"
+    ]
+  },
+  {
+    "id": "grade",
+    "lemma": "grade",
+    "aliases": [],
+    "pos": [
+      "noun",
+      "verb"
+    ],
+    "meaningsZh": [
+      "年级",
+      "成绩",
+      "评分"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "final grade"
+    ]
+  },
+  {
+    "id": "gradual",
+    "lemma": "gradual",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "逐渐的"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "gradual change"
+    ]
+  },
+  {
+    "id": "gradually",
+    "lemma": "gradually",
+    "aliases": [],
+    "pos": [
+      "adverb"
+    ],
+    "meaningsZh": [
+      "逐渐地"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "gradually improve"
+    ]
+  },
+  {
+    "id": "grain",
+    "lemma": "grain",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "谷物",
+      "颗粒"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "grain production"
+    ]
+  },
+  {
+    "id": "grammar",
+    "lemma": "grammar",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "语法"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "grammar rule"
+    ]
+  },
+  {
+    "id": "grand",
+    "lemma": "grand",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "宏大的",
+      "壮丽的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "grand plan"
+    ]
+  },
+  {
+    "id": "grant",
+    "lemma": "grant",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "授予",
+      "补助金"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "grant permission"
+    ]
+  },
+  {
+    "id": "graph",
+    "lemma": "graph",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "图表",
+      "曲线图"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "line graph"
+    ]
+  },
+  {
+    "id": "grasp",
+    "lemma": "grasp",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "抓住",
+      "理解"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "grasp the meaning"
+    ]
+  },
+  {
+    "id": "grass",
+    "lemma": "grass",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "草",
+      "草地"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "green grass"
+    ]
+  },
+  {
+    "id": "grateful",
+    "lemma": "grateful",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "感激的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "be grateful for"
+    ]
+  },
+  {
+    "id": "gratitude",
+    "lemma": "gratitude",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "感激",
+      "感谢"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "express gratitude"
+    ]
+  },
+  {
+    "id": "grave",
+    "lemma": "grave",
+    "aliases": [],
+    "pos": [
+      "noun",
+      "adjective"
+    ],
+    "meaningsZh": [
+      "坟墓",
+      "严重的"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "grave danger"
+    ]
+  },
+  {
+    "id": "gravity",
+    "lemma": "gravity",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "重力",
+      "严重性"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "force of gravity"
+    ]
+  },
+  {
+    "id": "greenhouse",
+    "lemma": "greenhouse",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "温室"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "greenhouse gas"
+    ]
+  },
+  {
+    "id": "greet",
+    "lemma": "greet",
+    "aliases": [],
+    "pos": [
+      "verb"
+    ],
+    "meaningsZh": [
+      "问候",
+      "迎接"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "greet guests"
+    ]
+  },
+  {
+    "id": "greeting",
+    "lemma": "greeting",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "问候",
+      "祝词"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "greeting card"
+    ]
+  },
+  {
+    "id": "grief",
+    "lemma": "grief",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "悲伤",
+      "悲痛"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "deep grief"
+    ]
+  },
+  {
+    "id": "grieve",
+    "lemma": "grieve",
+    "aliases": [],
+    "pos": [
+      "verb"
+    ],
+    "meaningsZh": [
+      "悲伤",
+      "使伤心"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "grieve over"
+    ]
+  },
+  {
+    "id": "grip",
+    "lemma": "grip",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "紧握",
+      "控制"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "grip the handle"
+    ]
+  },
+  {
+    "id": "ground",
+    "lemma": "ground",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "地面",
+      "理由"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "common ground"
+    ]
+  },
+  {
+    "id": "group",
+    "lemma": "group",
+    "aliases": [],
+    "pos": [
+      "noun",
+      "verb"
+    ],
+    "meaningsZh": [
+      "群体",
+      "分组"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "study group"
+    ]
+  },
+  {
+    "id": "growth",
+    "lemma": "growth",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "增长",
+      "成长"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "economic growth"
+    ]
+  },
+  {
+    "id": "guarantee",
+    "lemma": "guarantee",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "保证",
+      "担保"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "guarantee success"
+    ]
+  },
+  {
+    "id": "guard",
+    "lemma": "guard",
+    "aliases": [],
+    "pos": [
+      "noun",
+      "verb"
+    ],
+    "meaningsZh": [
+      "警卫",
+      "守卫"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "security guard"
+    ]
+  },
+  {
+    "id": "guess",
+    "lemma": "guess",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "猜测",
+      "估计"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "make a guess"
+    ]
+  },
+  {
+    "id": "guest",
+    "lemma": "guest",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "客人",
+      "嘉宾"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "special guest"
+    ]
+  },
+  {
+    "id": "guidance",
+    "lemma": "guidance",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "指导",
+      "引导"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "career guidance"
+    ]
+  },
+  {
+    "id": "guide",
+    "lemma": "guide",
+    "aliases": [],
+    "pos": [
+      "noun",
+      "verb"
+    ],
+    "meaningsZh": [
+      "指南",
+      "导游",
+      "指导"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "guide students"
+    ]
+  },
+  {
+    "id": "guilty",
+    "lemma": "guilty",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "内疚的",
+      "有罪的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "feel guilty"
+    ]
+  },
+  {
+    "id": "habit",
+    "lemma": "habit",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "习惯"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "develop a habit"
+    ]
+  },
+  {
+    "id": "habitat",
+    "lemma": "habitat",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "栖息地"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "natural habitat"
+    ]
+  },
+  {
+    "id": "handle",
+    "lemma": "handle",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "处理",
+      "把手"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "handle pressure"
+    ]
+  },
+  {
+    "id": "hang",
+    "lemma": "hang",
+    "aliases": [],
+    "pos": [
+      "verb"
+    ],
+    "meaningsZh": [
+      "悬挂",
+      "逗留"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "hang on the wall"
+    ]
+  },
+  {
+    "id": "happen",
+    "lemma": "happen",
+    "aliases": [],
+    "pos": [
+      "verb"
+    ],
+    "meaningsZh": [
+      "发生",
+      "碰巧"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "happen to do"
+    ]
+  },
+  {
+    "id": "harbor",
+    "lemma": "harbor",
+    "aliases": [],
+    "pos": [
+      "noun",
+      "verb"
+    ],
+    "meaningsZh": [
+      "港口",
+      "怀有"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "safe harbor"
+    ]
+  },
+  {
+    "id": "hardly",
+    "lemma": "hardly",
+    "aliases": [],
+    "pos": [
+      "adverb"
+    ],
+    "meaningsZh": [
+      "几乎不",
+      "简直不"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "hardly ever"
+    ]
+  },
+  {
+    "id": "harm",
+    "lemma": "harm",
+    "aliases": [],
+    "pos": [
+      "noun",
+      "verb"
+    ],
+    "meaningsZh": [
+      "伤害",
+      "损害"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "do harm to"
+    ]
+  },
+  {
+    "id": "harmful",
+    "lemma": "harmful",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "有害的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "harmful effect"
+    ]
+  },
+  {
+    "id": "harmony",
+    "lemma": "harmony",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "和谐",
+      "协调"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "social harmony"
+    ]
+  },
+  {
+    "id": "harvest",
+    "lemma": "harvest",
+    "aliases": [],
+    "pos": [
+      "noun",
+      "verb"
+    ],
+    "meaningsZh": [
+      "收获",
+      "收割"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "harvest season"
+    ]
+  },
+  {
+    "id": "hate",
+    "lemma": "hate",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "讨厌",
+      "憎恨"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "hate doing"
+    ]
+  },
+  {
+    "id": "hatred",
+    "lemma": "hatred",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "仇恨",
+      "憎恨"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "racial hatred"
+    ]
+  },
+  {
+    "id": "headline",
+    "lemma": "headline",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "标题",
+      "头条新闻"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "news headline"
+    ]
+  },
+  {
+    "id": "healthy",
+    "lemma": "healthy",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "健康的",
+      "有益健康的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "healthy lifestyle"
+    ]
+  },
+  {
+    "id": "hearing",
+    "lemma": "hearing",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "听力",
+      "听证会"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "hearing loss"
+    ]
+  },
+  {
+    "id": "heat",
+    "lemma": "heat",
+    "aliases": [],
+    "pos": [
+      "noun",
+      "verb"
+    ],
+    "meaningsZh": [
+      "热",
+      "加热"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "heat energy"
+    ]
+  },
+  {
+    "id": "height",
+    "lemma": "height",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "高度",
+      "身高"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "average height"
+    ]
+  },
+  {
+    "id": "hence",
+    "lemma": "hence",
+    "aliases": [],
+    "pos": [
+      "adverb"
+    ],
+    "meaningsZh": [
+      "因此",
+      "从此以后"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "hence the result"
+    ]
+  },
+  {
+    "id": "hero",
+    "lemma": "hero",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "英雄",
+      "男主角"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "national hero"
+    ]
+  },
+  {
+    "id": "hesitate",
+    "lemma": "hesitate",
+    "aliases": [],
+    "pos": [
+      "verb"
+    ],
+    "meaningsZh": [
+      "犹豫",
+      "迟疑"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "hesitate to ask"
+    ]
+  },
+  {
+    "id": "highlight",
+    "lemma": "highlight",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "突出",
+      "强调"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "highlight the problem"
+    ]
+  },
+  {
+    "id": "highly",
+    "lemma": "highly",
+    "aliases": [],
+    "pos": [
+      "adverb"
+    ],
+    "meaningsZh": [
+      "高度地",
+      "非常"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "highly effective"
+    ]
+  },
+  {
+    "id": "highway",
+    "lemma": "highway",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "公路",
+      "高速公路"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "highway system"
+    ]
+  },
+  {
+    "id": "honor",
+    "lemma": "honor",
+    "aliases": [],
+    "pos": [
+      "noun",
+      "verb"
+    ],
+    "meaningsZh": [
+      "荣誉",
+      "尊敬"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "in honor of"
+    ]
+  },
+  {
+    "id": "hopeful",
+    "lemma": "hopeful",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "有希望的",
+      "满怀希望的"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "remain hopeful"
+    ]
+  },
+  {
+    "id": "hopeless",
+    "lemma": "hopeless",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "没有希望的",
+      "绝望的"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "hopeless situation"
+    ]
+  },
+  {
+    "id": "horizon",
+    "lemma": "horizon",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "地平线",
+      "视野"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "on the horizon"
+    ]
+  },
+  {
+    "id": "host",
+    "lemma": "host",
+    "aliases": [],
+    "pos": [
+      "noun",
+      "verb"
+    ],
+    "meaningsZh": [
+      "主人",
+      "主持",
+      "举办"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "host an event"
+    ]
+  },
+  {
+    "id": "household",
+    "lemma": "household",
+    "aliases": [],
+    "pos": [
+      "noun",
+      "adjective"
+    ],
+    "meaningsZh": [
+      "家庭",
+      "家用的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "household income"
+    ]
+  },
+  {
+    "id": "however",
+    "lemma": "however",
+    "aliases": [],
+    "pos": [
+      "adverb"
+    ],
+    "meaningsZh": [
+      "然而",
+      "不过"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "however difficult"
+    ]
+  },
+  {
+    "id": "huge",
+    "lemma": "huge",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "巨大的",
+      "庞大的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "huge amount"
+    ]
+  },
+  {
+    "id": "human",
+    "lemma": "human",
+    "aliases": [],
+    "pos": [
+      "adjective",
+      "noun"
+    ],
+    "meaningsZh": [
+      "人的",
+      "人类"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "human rights"
+    ]
+  },
+  {
+    "id": "humorous",
+    "lemma": "humorous",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "幽默的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "humorous story"
+    ]
+  },
+  {
+    "id": "hunger",
+    "lemma": "hunger",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "饥饿",
+      "渴望"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "hunger for knowledge"
+    ]
+  },
+  {
+    "id": "hunt",
+    "lemma": "hunt",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "打猎",
+      "搜寻"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "hunt for a job"
+    ]
+  },
+  {
+    "id": "hurry",
+    "lemma": "hurry",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "匆忙",
+      "赶快"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "in a hurry"
+    ]
+  },
+  {
+    "id": "ideal",
+    "lemma": "ideal",
+    "aliases": [],
+    "pos": [
+      "adjective",
+      "noun"
+    ],
+    "meaningsZh": [
+      "理想的",
+      "理想"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "ideal solution"
+    ]
+  },
+  {
+    "id": "ignore",
+    "lemma": "ignore",
+    "aliases": [],
+    "pos": [
+      "verb"
+    ],
+    "meaningsZh": [
+      "忽视",
+      "不理会"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "ignore advice"
+    ]
+  },
+  {
+    "id": "illegal",
+    "lemma": "illegal",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "非法的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "illegal activity"
+    ]
+  },
+  {
+    "id": "image",
+    "lemma": "image",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "形象",
+      "图像"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "public image"
+    ]
+  },
+  {
+    "id": "imagine",
+    "lemma": "imagine",
+    "aliases": [],
+    "pos": [
+      "verb"
+    ],
+    "meaningsZh": [
+      "想象",
+      "设想"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "imagine doing"
+    ]
+  },
+  {
+    "id": "immediate",
+    "lemma": "immediate",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "立即的",
+      "直接的"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "immediate action"
+    ]
+  },
+  {
+    "id": "immediately",
+    "lemma": "immediately",
+    "aliases": [],
+    "pos": [
+      "adverb"
+    ],
+    "meaningsZh": [
+      "立即",
+      "马上"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "act immediately"
+    ]
+  },
+  {
+    "id": "immigrant",
+    "lemma": "immigrant",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "移民"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "immigrant worker"
+    ]
+  },
+  {
+    "id": "import",
+    "lemma": "import",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "进口",
+      "输入"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "import goods"
+    ]
+  },
+  {
+    "id": "importance",
+    "lemma": "importance",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "重要性"
+    ],
+    "examScopes": [
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "attach importance to"
+    ]
+  },
+  {
+    "id": "impression",
+    "lemma": "impression",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "印象",
+      "感觉"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "leave an impression"
+    ]
+  },
+  {
+    "id": "improve",
+    "lemma": "improve",
+    "aliases": [],
+    "pos": [
+      "verb"
+    ],
+    "meaningsZh": [
+      "改善",
+      "提高"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "improve quality"
+    ]
+  },
+  {
+    "id": "inch",
+    "lemma": "inch",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "英寸",
+      "少量"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "every inch"
+    ]
+  },
+  {
+    "id": "include",
+    "lemma": "include",
+    "aliases": [],
+    "pos": [
+      "verb"
+    ],
+    "meaningsZh": [
+      "包括",
+      "包含"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "include details"
+    ]
+  },
+  {
+    "id": "income",
+    "lemma": "income",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "收入"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "annual income"
+    ]
+  },
+  {
+    "id": "increase",
+    "lemma": "increase",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "增加",
+      "增长"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "increase rapidly"
+    ]
+  },
+  {
+    "id": "independent",
+    "lemma": "independent",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "独立的",
+      "自主的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "independent study"
+    ]
+  },
+  {
+    "id": "initial",
+    "lemma": "initial",
+    "aliases": [],
+    "pos": [
+      "adjective",
+      "noun"
+    ],
+    "meaningsZh": [
+      "最初的",
+      "首字母"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "initial stage"
+    ]
+  },
+  {
+    "id": "injury",
+    "lemma": "injury",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "伤害",
+      "损伤"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "serious injury"
+    ]
+  },
+  {
+    "id": "inner",
+    "lemma": "inner",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "内部的",
+      "内心的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "inner city"
+    ]
+  },
+  {
+    "id": "instance",
+    "lemma": "instance",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "例子",
+      "实例"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "for instance"
+    ]
+  },
+  {
+    "id": "instant",
+    "lemma": "instant",
+    "aliases": [],
+    "pos": [
+      "adjective",
+      "noun"
+    ],
+    "meaningsZh": [
+      "立即的",
+      "瞬间"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "instant coffee"
+    ]
+  },
+  {
+    "id": "instead",
+    "lemma": "instead",
+    "aliases": [],
+    "pos": [
+      "adverb"
+    ],
+    "meaningsZh": [
+      "代替",
+      "反而"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "instead of"
+    ]
+  },
+  {
+    "id": "insurance",
+    "lemma": "insurance",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "保险"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "health insurance"
+    ]
+  },
+  {
+    "id": "intelligent",
+    "lemma": "intelligent",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "聪明的",
+      "智能的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "intelligent system"
+    ]
+  },
+  {
+    "id": "intend",
+    "lemma": "intend",
+    "aliases": [],
+    "pos": [
+      "verb"
+    ],
+    "meaningsZh": [
+      "打算",
+      "意图"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "intend to do"
+    ]
+  },
+  {
+    "id": "international",
+    "lemma": "international",
+    "aliases": [],
+    "pos": [
+      "adjective"
+    ],
+    "meaningsZh": [
+      "国际的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "international trade"
+    ]
+  },
+  {
+    "id": "interpret",
+    "lemma": "interpret",
+    "aliases": [],
+    "pos": [
+      "verb"
+    ],
+    "meaningsZh": [
+      "解释",
+      "口译"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "interpret data"
+    ]
+  },
+  {
+    "id": "interrupt",
+    "lemma": "interrupt",
+    "aliases": [],
+    "pos": [
+      "verb"
+    ],
+    "meaningsZh": [
+      "打断",
+      "中断"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "interrupt a conversation"
+    ]
+  },
+  {
+    "id": "investigate",
+    "lemma": "investigate",
+    "aliases": [],
+    "pos": [
+      "verb"
+    ],
+    "meaningsZh": [
+      "调查",
+      "研究"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "investigate the cause"
+    ]
+  },
+  {
+    "id": "invite",
+    "lemma": "invite",
+    "aliases": [],
+    "pos": [
+      "verb"
+    ],
+    "meaningsZh": [
+      "邀请",
+      "招致"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "invite friends"
+    ]
+  },
+  {
+    "id": "item",
+    "lemma": "item",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "项目",
+      "物品"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "list item"
+    ]
+  },
+  {
+    "id": "journey",
+    "lemma": "journey",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "旅行",
+      "历程"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "long journey"
+    ]
+  },
+  {
+    "id": "judge",
+    "lemma": "judge",
+    "aliases": [],
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "meaningsZh": [
+      "判断",
+      "法官"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "judge by appearance"
+    ]
+  },
+  {
+    "id": "junior",
+    "lemma": "junior",
+    "aliases": [],
+    "pos": [
+      "adjective",
+      "noun"
+    ],
+    "meaningsZh": [
+      "年少的",
+      "初级的"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "junior high school"
+    ]
+  },
+  {
+    "id": "justice",
+    "lemma": "justice",
+    "aliases": [],
+    "pos": [
+      "noun"
+    ],
+    "meaningsZh": [
+      "正义",
+      "公正"
+    ],
+    "examScopes": [
+      "gaokao",
+      "cet4",
+      "cet6"
+    ],
+    "examples": [],
+    "collocations": [
+      "social justice"
+    ]
   }
 ]

@@ -83,6 +83,27 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     ).toEqual(expect.arrayContaining(["comply", "conform", "defer"]));
   });
 
+  it("keeps meaning lookup stable after direct comparison lookups", async () => {
+    await retrieveCandidates({
+      activeExamTarget: "cet4",
+      query: "stationary 和 stationery 哪个是文具",
+    });
+    await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "access assess excess 怎么区分",
+    });
+
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "遵从怎么说",
+    });
+
+    expect(result.queryMode).toBe("meaning_lookup");
+    expect(result.resolution).toBe("resolved");
+    expect(result.mainAnswer[0]?.lemma).toBe("comply");
+    expect(result.comparisonView?.id).toBe("comply-conform-defer");
+  });
+
   it("prefers the expression recall group for Chinese suggestion lookup", async () => {
     const result = await retrieveCandidates({
       activeExamTarget: "cet6",

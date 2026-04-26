@@ -19,6 +19,15 @@
 - 词根家族地图：用户有词根/前缀/碎片，或只记得 `attempt` / `institute` 这类家族成员，需要结构化召回同根/同碎片词、列中文核心义，并总结前缀/后缀/现代义分流。
 
 ## 本 Session 已完成
+- 2026-04-26 完成 `real-smoke` foundation vocab batch 3，把基础查询底座从 409 entries 扩到 546 entries：
+  - 新 plan 已落盘并执行完成：[docs/superpowers/plans/2026-04-26-real-smoke-foundation-vocab-batch-3.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-26-real-smoke-foundation-vocab-batch-3.md)
+  - 红灯确认：`corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 500 --require-source-lemmas` 按预期失败：`real-smoke has 409 entries; expected at least 500.`
+  - [data/exam-vocab/real-smoke/entries.json](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/entries.json) 新增 137 个 source-backed thin foundation entries，主要覆盖 G/H/I/J 段常见基础词；每条保留 `id` / `lemma` / `aliases` / `pos` / `meaningsZh` / `examScopes` / `examples` / `collocations` 字段，不新增例句长讲解。
+  - [data/exam-vocab/real-smoke/confusion-groups.json](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/confusion-groups.json) 未新增自动混淆组，仍保持 34 个已人工确认组。
+  - [data/exam-vocab/real-smoke/README.md](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/README.md) 已更新为 546 entries / 34 groups，并明确当前进入 500-1000 词 foundation RAG MVP 区间，但仍是薄开发词库，不是完整教学语料。
+  - 扩库后 `eval:answer-style` 一度在第三条 `meaning_lookup` 报 `Connection terminated unexpectedly`；排查确认是本地 Prisma dev 连接状态被前序失败污染，不是扩库逻辑回归。已用非删除式 `prisma dev stop enggo` -> 固定端口重启 -> `db:migrate` -> `db:seed:real-smoke` 恢复。
+  - 为防止顺序问题回归，[src/features/retrieval/retrieve-candidates.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.test.ts) 新增 direct_compare 后继续跑中文 `meaning_lookup` 的顺序回归测试。
+  - 验证：恢复健康环境后 `check-vocab-content --dataset real-smoke --min-entries 500 --require-source-lemmas` -> 546 entries / 34 groups；`corepack pnpm test scripts/check-vocab-content.test.ts src/features/content/load-seed-content.test.ts src/features/retrieval/retrieve-candidates.test.ts` -> 3 files / 62 tests passed；`db:migrate` 无待执行；`db:seed:real-smoke` 通过；`eval:lookalike:real-smoke` -> 14/14 pass；`eval:answer-style` -> 12/12 pass。
 - 2026-04-26 根据用户反馈重定向 `root_family_summary`：不再把它写成“优先背 / 眼熟即可 / 不硬背”，而是做同根/碎片召回总结。
   - 产品判断更新：`tempt / attempt / temptation / contempt` 与 `stitute -> institute / institution / constitute / substitute` 属于同一类需求。用户可能只记得一个碎片或家族成员，EngGo 应把当前考试范围内召回到的同根/同碎片词列出来，每个带中文核心义，再讲清前缀、后缀或现代义如何分流；语义跑远的成员不能被简单踢出家族，也不应写成“不硬背”。
   - [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts) 已把 `root_family_summary` 三段改为 `碎片定位 / 家族召回 / 意义分流`，预算放宽到 420 汉字；要求“当前考试范围内召回到的家族成员”都用 `word=中文义` 格式列出，禁止省略英文词，也禁止把回答写成背诵优先级排序。
@@ -599,8 +608,8 @@
 
 ## 当前结果
 - 形近词簇 seed 从 39 entries / 11 groups 扩到 82 entries / 31 groups。
-- 2026-04-24 词库/RAG 方向已和用户口头对齐：
-  - `real-smoke` 已从 86 个精加工样品词扩到 404 个 source-backed entries；其中 31 个易混组仍是精修闭环，其余新增词条是“大而薄”的基础查询底座。
+- 2026-04-24 至 2026-04-26 词库/RAG 方向已和用户口头对齐：
+  - `real-smoke` 已从 86 个精加工样品词扩到 546 个 source-backed entries；其中 34 个易混/记忆组仍是精修闭环，其余新增词条是“大而薄”的基础查询底座。
   - 下一步仍不应手工给每个词量身定制混淆关系；应该继续分批铺基础词库，并只精修高频易混组。
   - 基础词条最小字段：`lemma` / `pos` / `meaningZh` / `scopes`。
   - EngGo 的 RAG 应定位为“结构化词库 RAG”，不是普通“长文档切块 + 向量搜索”RAG。
@@ -666,11 +675,13 @@
   - 已完成 262 entries / 31 confusion groups；新增 checker guardrails 是 `--min-entries` 与 `--require-source-lemmas`。
 - `real-smoke foundation vocab batch 2` plan 已完成；不要再从 Task 1 重开：
   - [docs/superpowers/plans/2026-04-24-real-smoke-foundation-vocab-batch-2.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-real-smoke-foundation-vocab-batch-2.md)
-  - 当前 `real-smoke` 为 404 entries / 31 confusion groups。
-- 下一轮推荐继续沿同一路线把基础词条扩到 500+，正式靠近 `500-1000 词基础 RAG 词库 MVP`：
-  - 目标：先让用户问常见考试词时不空，而不是继续只扩精修易混组。
-  - 下一批继续从 source lemma manifests 中挑选高频/常见词，补 `pos`、中文核心义、`scopes`。
-  - 验收建议：基础词条数达标；每词有中文义/词性/考试范围；精确查询能命中；轻微拼写错误能 fuzzy 命中；形近词召回按考试范围过滤；模型回答被约束为基于召回材料。
+  - 已完成 404 entries / 31 confusion groups。
+- `real-smoke foundation vocab batch 3` plan 已完成；不要再从 Task 1 重开：
+  - [docs/superpowers/plans/2026-04-26-real-smoke-foundation-vocab-batch-3.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-26-real-smoke-foundation-vocab-batch-3.md)
+  - 当前 `real-smoke` 为 546 entries / 34 confusion groups，已进入 `500-1000 词基础 RAG 词库 MVP` 区间。
+- 下一轮更建议用 546 词底座做黑盒抽样，而不是立刻继续硬扩：
+  - 优先抽 10-20 个新增普通词做 standard lookup / fuzzy lookup smoke，确认基础查词、中文释义、scope 约束和 no-match 闸门仍稳。
+  - 若普通查词稳定，再决定是继续 batch 4 扩到 700+，还是转向 typo 识别或泛化词根/碎片检索。
   - 暂缓：全量几千词一次性导入、为每个词人工写易混关系、把 embedding 作为主检索方案。
 - 若继续本地验证，先检查 `corepack pnpm exec prisma dev ls`；一旦出现 backend protocol error，直接按 `bugs.md` 的 `enggo` 重建路径恢复。
 - 继续保持串行验证；不要并行跑 `verify`、`eval:shape`、`eval:answer-style`、`eval:lookalike:real-smoke`、`eval:answer-style:provider`。
@@ -685,6 +696,15 @@
 - 若下一轮继续扩 seed，`seed-content.test.ts` 已改为最小 fixture，应不再随 seed 规模线性变慢；若再次超时，先按 `bugs.md` 的 Prisma dev 健康检查路径排查。
 
 ## 最近验证基线
+- 2026-04-26 batch-3 扩库后复验：
+  - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 500 --require-source-lemmas`
+    - 当前状态：546 entries / 34 confusion groups / scopes=gaokao, cet4, cet6
+  - `corepack pnpm eval:lookalike:real-smoke`
+    - 当前状态：14 pass / 0 fail，averageElapsedMs 106
+  - `corepack pnpm eval:answer-style`
+    - 当前状态：12 pass / 0 fail，averageElapsedMs 111
+  - `corepack pnpm test scripts/check-vocab-content.test.ts src/features/content/load-seed-content.test.ts src/features/retrieval/retrieve-candidates.test.ts`
+    - 当前状态：3 files / 62 tests passed
 - 2026-04-24 batch-2 扩库后复验：
   - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 400 --require-source-lemmas`
     - 当前状态：404 entries / 31 confusion groups / scopes=gaokao, cet4, cet6

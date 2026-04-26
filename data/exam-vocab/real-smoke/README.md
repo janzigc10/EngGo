@@ -42,8 +42,8 @@
 
 ## Current Slice
 
-- Current size: 409 entries / 33 manually reviewed confusion groups.
+- Current size: 546 entries / 34 manually reviewed confusion groups.
 - The first 86-entry source-backed smoke slice reuses EngGo's manually reviewed confusing-word entries and retags their exam scopes against the official source lemma manifests.
 - The added foundation entries are thin lookup records: source-backed lemma, exam scopes, part of speech, Chinese core meaning, and optional collocation. They are meant to make common exact lookups less empty before the full teaching corpus exists.
 - The first labeled cluster pass upgrades `access-assess-excess` and `respect-respective-respectful-respectable`, and adds `root-stitute` plus `root-tempt` as source-backed cluster smoke fixtures.
-- This dataset has entered the 300-800 word dev dataset range, but is still below the eventual 500-1000 word foundation RAG MVP target. It should keep growing in controlled source-backed batches rather than through one-time full ingestion.
+- This dataset has entered the 500-1000 word foundation RAG MVP range, but remains a thin development slice rather than a full teaching corpus. It should keep growing in controlled source-backed batches rather than through one-time full ingestion.
