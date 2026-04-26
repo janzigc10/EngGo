@@ -51,7 +51,7 @@ const cases: EvalCase[] = [
     expectedQueryMode: "direct_compare",
     expectedResolution: "resolved",
     expectedAnswerStyle: "confusion_untangle",
-    expectedPromptIncludes: ["范围内相似词", "词义速览", "做题抓手"],
+    expectedPromptIncludes: ["范围内相似词", "词义速览", "重点区分", "做题抓手"],
     expectedGroundingIncludes: ["stationary", "stationery"],
   },
   {
@@ -63,7 +63,7 @@ const cases: EvalCase[] = [
     expectedAnswerStyle: "confusion_untangle",
     expectedComparisonViewId: "access-assess-excess",
     expectedComparisonLabels: ["shape_like", "exam_high_value"],
-    expectedPromptIncludes: ["范围内相似词", "词义速览", "做题抓手", "形近"],
+    expectedPromptIncludes: ["范围内相似词", "词义速览", "重点区分", "做题抓手", "形近"],
     expectedGroundingIncludes: ["access", "assess", "excess"],
   },
   {
@@ -87,7 +87,7 @@ const cases: EvalCase[] = [
     expectedResolution: "resolved",
     expectedAnswerStyle: "confusion_untangle",
     expectedComparisonViewId: "comply-conform-defer",
-    expectedPromptIncludes: ["范围内相似词", "词义速览", "做题抓手"],
+    expectedPromptIncludes: ["范围内相似词", "词义速览", "重点区分", "做题抓手"],
     expectedGroundingIncludes: ["comply", "conform", "defer"],
   },
   {
@@ -106,12 +106,12 @@ const cases: EvalCase[] = [
     name: "cluster: institute memory group",
     query: "跟 institute 一样那几个词怎么记",
     activeExamTarget: "cet6",
-    expectedQueryMode: "direct_compare",
+    expectedQueryMode: "root_family_summary",
     expectedResolution: "resolved",
-    expectedAnswerStyle: "confusion_untangle",
+    expectedAnswerStyle: "root_family_summary",
+    expectedRootFamilyViewId: "root-stitute",
     expectedComparisonViewId: "root-stitute",
-    expectedComparisonLabels: ["root_family", "shape_like"],
-    expectedPromptIncludes: ["同根", "共同片段", "anchorPattern"],
+    expectedPromptIncludes: ["同根/碎片召回总结", "家族召回", "意义分流"],
     expectedGroundingIncludes: ["institute", "institution", "constitute", "substitute"],
   },
   {
@@ -147,7 +147,7 @@ const cases: EvalCase[] = [
     expectedAnswerStyle: "root_family_summary",
     expectedRootFamilyViewId: "root-stitute",
     expectedComparisonViewId: "root-stitute",
-    expectedPromptIncludes: ["词根家族地图", "优先背"],
+    expectedPromptIncludes: ["同根/碎片召回总结", "家族召回", "意义分流"],
     expectedGroundingIncludes: ["institute", "institution", "constitute"],
   },
   {
@@ -159,7 +159,7 @@ const cases: EvalCase[] = [
     expectedAnswerStyle: "root_family_summary",
     expectedRootFamilyViewId: "root-tempt",
     expectedComparisonViewId: "root-tempt",
-    expectedPromptIncludes: ["词根家族地图", "优先背"],
+    expectedPromptIncludes: ["同根/碎片召回总结", "家族召回", "意义分流"],
     expectedGroundingIncludes: ["tempt", "temptation", "attempt", "contempt"],
   },
   {

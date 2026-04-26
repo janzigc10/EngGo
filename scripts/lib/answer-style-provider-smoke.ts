@@ -66,13 +66,14 @@ export type ProviderSmokeSummary = {
 const DEFAULT_CONFUSION_MANUAL_CHECKS = [
   "检查回答是否列出当前考试范围内召回到的相似词",
   "检查回答是否给每个列出的词都配中文核心义",
-  "检查回答是否优先区分最容易混的 2 个，而不是平均铺开",
+  "检查回答是否讲清语义、词性、搭配或对象边界，而不是只说字母差异",
   "检查回答是否给出一个具体做题抓手",
 ];
 
 const DEFAULT_ROOT_MANUAL_CHECKS = [
-  "检查回答是否先讲碎片能抓什么，不要把词根硬讲成万能规则",
-  "检查回答是否带出前缀方向和优先级",
+  "检查回答是否把当前范围内召回到的同根/碎片家族成员都列出来",
+  "检查回答是否给每个成员都配中文核心义",
+  "检查回答是否讲清前缀、后缀或现代义分流，而不是只排背诵优先级",
   "检查回答是否没有把内部防御性提醒写成正文",
 ];
 
@@ -108,6 +109,7 @@ export function buildAnswerStyleProviderSmokeCases(): ProviderSmokeCase[] {
       expectedResolution: "resolved",
       expectedAnswerStyle: "confusion_untangle",
       expectedGroundingIncludes: ["stationary", "stationery"],
+      maxAnswerChars: 450,
       manualChecks: DEFAULT_CONFUSION_MANUAL_CHECKS,
     }),
     createCase({
@@ -118,7 +120,7 @@ export function buildAnswerStyleProviderSmokeCases(): ProviderSmokeCase[] {
       expectedResolution: "resolved",
       expectedAnswerStyle: "confusion_untangle",
       expectedGroundingIncludes: ["access", "assess", "excess"],
-      maxAnswerChars: 260,
+      maxAnswerChars: 450,
       manualChecks: DEFAULT_CONFUSION_MANUAL_CHECKS,
     }),
     createCase({
@@ -129,7 +131,7 @@ export function buildAnswerStyleProviderSmokeCases(): ProviderSmokeCase[] {
       expectedResolution: "resolved",
       expectedAnswerStyle: "confusion_untangle",
       expectedGroundingIncludes: ["recent", "resent"],
-      maxAnswerChars: 240,
+      maxAnswerChars: 450,
       manualChecks: DEFAULT_CONFUSION_MANUAL_CHECKS,
     }),
     createCase({
@@ -214,7 +216,7 @@ export function buildAnswerStyleProviderSmokeCases(): ProviderSmokeCase[] {
       expectedResolution: "resolved",
       expectedAnswerStyle: "confusion_untangle",
       expectedGroundingIncludes: ["comply", "conform", "defer"],
-      maxAnswerChars: 260,
+      maxAnswerChars: 450,
       manualChecks: DEFAULT_CONFUSION_MANUAL_CHECKS,
     }),
     createCase({
@@ -226,7 +228,7 @@ export function buildAnswerStyleProviderSmokeCases(): ProviderSmokeCase[] {
       expectedAnswerStyle: "root_family_summary",
       expectedGroundingIncludes: ["institute", "institution", "constitute"],
       expectedRootFamilyViewId: "root-stitute",
-      maxAnswerChars: 260,
+      maxAnswerChars: 420,
       manualChecks: DEFAULT_ROOT_MANUAL_CHECKS,
     }),
     createCase({
@@ -238,7 +240,7 @@ export function buildAnswerStyleProviderSmokeCases(): ProviderSmokeCase[] {
       expectedAnswerStyle: "root_family_summary",
       expectedGroundingIncludes: ["tempt", "temptation", "attempt", "contempt"],
       expectedRootFamilyViewId: "root-tempt",
-      maxAnswerChars: 280,
+      maxAnswerChars: 420,
       manualChecks: DEFAULT_ROOT_MANUAL_CHECKS,
     }),
     createCase({

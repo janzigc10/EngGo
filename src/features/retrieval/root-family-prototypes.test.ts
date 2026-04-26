@@ -11,6 +11,12 @@ describe("findRootFamilyPrototype", () => {
     expect(findRootFamilyPrototype("tempt 这一族怎么记")?.id).toBe("root-tempt");
   });
 
+  it("matches a known member when the user asks for its family", () => {
+    expect(findRootFamilyPrototype("attempt 这一族怎么记")?.id).toBe("root-tempt");
+    expect(findRootFamilyPrototype("institute 这种同根词怎么记")?.id).toBe("root-stitute");
+    expect(findRootFamilyPrototype("跟 institute 一样那几个词怎么记")?.id).toBe("root-stitute");
+  });
+
   it("keeps unsupported prefix combinations unresolved", () => {
     expect(findRootFamilyPrototype("re+con 的词根有什么词")).toBeNull();
   });

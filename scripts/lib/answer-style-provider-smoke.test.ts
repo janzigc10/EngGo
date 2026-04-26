@@ -59,6 +59,49 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
     expect(expressionCases).toHaveLength(5);
     expect(expressionCases.every((item) => item.maxAnswerChars === 400)).toBe(true);
   });
+
+  it("asks manual reviewers to check full confusion cards without over-compressing", () => {
+    const confusionCases = buildAnswerStyleProviderSmokeCases().filter((item) =>
+      item.expectedAnswerStyle === "confusion_untangle"
+    );
+
+    expect(confusionCases).toHaveLength(4);
+    expect(confusionCases.every((item) => item.maxAnswerChars === 450)).toBe(true);
+    expect(confusionCases.every((item) =>
+      item.manualChecks.includes("检查回答是否列出当前考试范围内召回到的相似词")
+    )).toBe(true);
+    expect(confusionCases.every((item) =>
+      item.manualChecks.includes("检查回答是否给每个列出的词都配中文核心义")
+    )).toBe(true);
+    expect(confusionCases.every((item) =>
+      item.manualChecks.includes("检查回答是否讲清语义、词性、搭配或对象边界，而不是只说字母差异")
+    )).toBe(true);
+    expect(confusionCases.some((item) =>
+      item.manualChecks.includes("检查回答是否把词列表和中文核心义合并到开头，而不是拆成两段")
+    )).toBe(false);
+  });
+
+  it("asks manual reviewers to check root-family recall summaries", () => {
+    const rootCases = buildAnswerStyleProviderSmokeCases().filter((item) =>
+      item.expectedAnswerStyle === "root_family_summary"
+      && item.expectedResolution === "resolved"
+    );
+
+    expect(rootCases).toHaveLength(2);
+    expect(rootCases.every((item) => item.maxAnswerChars === 420)).toBe(true);
+    expect(rootCases.every((item) =>
+      item.manualChecks.includes("检查回答是否把当前范围内召回到的同根/碎片家族成员都列出来")
+    )).toBe(true);
+    expect(rootCases.every((item) =>
+      item.manualChecks.includes("检查回答是否给每个成员都配中文核心义")
+    )).toBe(true);
+    expect(rootCases.every((item) =>
+      item.manualChecks.includes("检查回答是否讲清前缀、后缀或现代义分流，而不是只排背诵优先级")
+    )).toBe(true);
+    expect(rootCases.some((item) =>
+      item.manualChecks.includes("检查回答是否带出前缀方向和优先级")
+    )).toBe(false);
+  });
 });
 
 describe("evaluateAnswerStyleProviderSmoke", () => {

@@ -50,6 +50,12 @@ describe("detectQueryMode", () => {
     expect(detectQueryMode("tempt 这一族怎么记")).toBe("root_family_summary");
   });
 
+  it("detects known root-family member study intent", () => {
+    expect(detectQueryMode("attempt 这一族怎么记")).toBe("root_family_summary");
+    expect(detectQueryMode("institute 这种同根词怎么记")).toBe("root_family_summary");
+    expect(detectQueryMode("跟 institute 一样那几个词怎么记")).toBe("root_family_summary");
+  });
+
   it("detects prefix combination root intent", () => {
     expect(detectQueryMode("re+con 的词根有什么词")).toBe("root_family_summary");
   });
@@ -533,6 +539,34 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     expect(result.resolution).toBe("resolved");
     expect(result.rootFamilyView?.id).toBe("root-stitute");
     expect(result.rootFamilyView?.members.map((member) => member.lemma)).toContain("institute");
+  });
+
+  it("resolves known family members back to their root-family summary", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "attempt 这一族怎么记",
+    });
+
+    expect(result.queryMode).toBe("root_family_summary");
+    expect(result.resolution).toBe("resolved");
+    expect(result.rootFamilyView?.id).toBe("root-tempt");
+    expect(result.rootFamilyView?.members.map((member) => member.lemma)).toEqual(
+      expect.arrayContaining(["attempt", "tempt", "temptation", "contempt"]),
+    );
+  });
+
+  it("routes known root-family memory prompts to the summary view", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "跟 institute 一样那几个词怎么记",
+    });
+
+    expect(result.queryMode).toBe("root_family_summary");
+    expect(result.resolution).toBe("resolved");
+    expect(result.rootFamilyView?.id).toBe("root-stitute");
+    expect(result.rootFamilyView?.members.map((member) => member.lemma)).toEqual(
+      expect.arrayContaining(["institute", "institution", "constitute", "substitute"]),
+    );
   });
 
   it("keeps unsupported root combinations as no-match", async () => {

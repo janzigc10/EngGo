@@ -127,17 +127,31 @@ function cloneRootFamilyView(view: RootFamilyView): RootFamilyView {
   };
 }
 
+function hasAnyTerm(normalizedText: string, terms: string[]) {
+  return terms.some((term) => new RegExp(`\\b${term}\\b`, "i").test(normalizedText));
+}
+
+function hasFamilyRecallCue(normalizedText: string) {
+  return /(同根|这一族|一族|家族|派生|构词|一样|那几个词|那组词|怎么记|怎么背)/i.test(normalizedText);
+}
+
 export function findRootFamilyPrototype(query: string): RootFamilyView | null {
   const normalizedText = query.trim().toLowerCase();
+  const stituteTerms = stitutePrototype.members.map((member) => member.lemma);
+  const temptTerms = temptPrototype.members.map((member) => member.lemma);
 
   if (
     /^stitute\s*(?:是(什么|啥)|什么意思)$/i.test(normalizedText)
     || (/\bstitute\b/.test(normalizedText) && /(词根|家族|派生|构词)/i.test(normalizedText))
+    || (hasAnyTerm(normalizedText, stituteTerms) && hasFamilyRecallCue(normalizedText))
   ) {
     return cloneRootFamilyView(stitutePrototype);
   }
 
-  if (/\btempt\b/.test(normalizedText) && /(这一族|词根|家族|派生|构词|怎么记)/i.test(normalizedText)) {
+  if (
+    /\btempt\b/.test(normalizedText) && /(这一族|词根|家族|派生|构词|怎么记)/i.test(normalizedText)
+    || (hasAnyTerm(normalizedText, temptTerms) && hasFamilyRecallCue(normalizedText))
+  ) {
     return cloneRootFamilyView(temptPrototype);
   }
 

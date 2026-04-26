@@ -3,8 +3,8 @@
 ## 当前阶段
 已完成 Task 1 至 Task 7、fuzzy retrieval follow-up plan Step 1-6、形近词簇 P0 seed 扩样本，以及 `EngGo Answer Style + Root Family Map` implementation plan 的 Task 1-5。当前已经落地两条回答主线：
 
-- `confusion_untangle`：形近词、易混词对比、group compare 统一进入“先问一句 / 分流 / 题里抓”的回答风格
-- `root_family_summary`：先用最小原型闭环支撑 `stitute` / `tempt` 两族，保持保守范围
+- `confusion_untangle`：形近词、易混词对比、group compare 统一进入“范围内相似词 / 词义速览 / 重点区分 / 做题抓手”的辨析卡；目标是信息满但不散，不再刻意极限压短
+- `root_family_summary`：用最小原型闭环支撑 `stitute` / `tempt` 两族；当前定位已从“优先背谁”改为“用户只记得碎片或家族成员时，召回当前范围内同根/同碎片词并总结意义分流”
 
 上一轮真实 provider smoke 已经跑通，EngGo 的“解混淆语言”和回答风格进入可验证状态；下一阶段可以转向真实词库接入 smoke，但仍应先小批量受控接入，不要一次性全量灌库。新的路线文档已落盘：
 
@@ -16,9 +16,32 @@
 核心判断：EngGo 至少要区分两条完全不同的主线：
 
 - 易混解团：用户脑子里混着几个词，需要判断入口和做题分流。
-- 词根家族地图：用户有词根/前缀/碎片，需要结构化展开和优先级。
+- 词根家族地图：用户有词根/前缀/碎片，或只记得 `attempt` / `institute` 这类家族成员，需要结构化召回同根/同碎片词、列中文核心义，并总结前缀/后缀/现代义分流。
 
 ## 本 Session 已完成
+- 2026-04-26 根据用户反馈重定向 `root_family_summary`：不再把它写成“优先背 / 眼熟即可 / 不硬背”，而是做同根/碎片召回总结。
+  - 产品判断更新：`tempt / attempt / temptation / contempt` 与 `stitute -> institute / institution / constitute / substitute` 属于同一类需求。用户可能只记得一个碎片或家族成员，EngGo 应把当前考试范围内召回到的同根/同碎片词列出来，每个带中文核心义，再讲清前缀、后缀或现代义如何分流；语义跑远的成员不能被简单踢出家族，也不应写成“不硬背”。
+  - [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts) 已把 `root_family_summary` 三段改为 `碎片定位 / 家族召回 / 意义分流`，预算放宽到 420 汉字；要求“当前考试范围内召回到的家族成员”都用 `word=中文义` 格式列出，禁止省略英文词，也禁止把回答写成背诵优先级排序。
+  - [src/features/retrieval/root-family-prototypes.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/root-family-prototypes.ts) 与 [src/features/retrieval/normalize-query.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/normalize-query.ts) 已支持从已知家族成员反查原型：`attempt 这一族怎么记` -> `root-tempt`；`跟 institute 一样那几个词怎么记` -> `root-stitute`。普通 `institute 是什么意思` 仍保持 `standard_lookup`，不被误升级成 root 总结。
+  - [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts) 的 root manual checks 改成检查“当前范围内同根/碎片家族成员、中文核心义、意义分流”，root smoke 字数预算统一放宽到 420。
+  - 真实 provider 抽样：`tempt 这一族怎么记`、`attempt 这一族怎么记`、`跟 institute 一样那几个词怎么记` 均返回 `root_family_summary / resolved`；模型输出能列出 `attempt / tempt / temptation / contempt` 或 `institute / institution / constitute / substitute`，并解释意义分流，未再把 `contempt` 写成“不硬背”。
+  - 验证：先看到 root prompt / provider smoke / 成员反查的红灯；修复后 `corepack pnpm test src/features/retrieval/root-family-prototypes.test.ts src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-system-prompt.test.ts scripts/lib/answer-style-provider-smoke.test.ts` -> 4 files / 77 tests passed；`corepack pnpm eval:answer-style` -> 12/12 pass；focused regression `root-family-prototypes / retrieve-candidates / chat-service / build-system-prompt / answer-style-provider-smoke / run-answer-style-provider-smoke` -> 6 files / 91 tests passed；focused eslint 通过；`git diff --check` 仅有 Windows LF/CRLF 提示。
+- 2026-04-26 根据用户反馈回调 `confusion_untangle` 过度压缩：
+  - 产品判断更新：三段版（`混淆入口 / 核心边界 / 做题抓手`）虽然更短，但会压住模型讲清楚的能力，尤其 `recent/resent` 这类形近词容易只剩“只差 c/s”，学习价值变薄。当前方向回到四段辨析卡：`范围内相似词 / 词义速览 / 重点区分 / 做题抓手`。
+  - 保留本轮有效收口：`confusion_untangle` 仍不追加可见“建议的范围提醒 / 下一步追问”；`root_family_summary` 继续使用三段（`碎片判断 / 家族地图 / 优先背`），不再硬写“谨慎提醒”。
+  - [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts) 已把 `confusion_untangle` 回调到 4 段，预算放宽到 450 汉字；新增约束“形近词不要只说字母哪里不同”，重点区分必须落到语义、词性、搭配或对象边界。
+  - [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts) 的 confusion manual checks 回到检查“范围内相似词 / 中文核心义 / 真实边界 / 做题抓手”，并把 4 条 confusion smoke 的 `maxAnswerChars` 统一放宽到 450，避免把好答案误判成超长。
+  - 直连当前 provider 抽样：`access assess excess` 输出 427 字，能讲清 access=通道/权限、assess=判断/估价、excess=数量/程度超标；`recent/resent` 输出 229 字，已落到时间形容词 vs 情绪动词；`tempt` root 输出 246 字，保留三段且不再出现单独“谨慎提醒”。
+  - 验证：先看到 450 字预算和四段 prompt 的红灯；修复后 `corepack pnpm test scripts/lib/answer-style-provider-smoke.test.ts src/features/answering/build-system-prompt.test.ts` -> 2 files / 24 tests passed；`corepack pnpm eval:answer-style` -> 12/12 pass。首次 eval 因本地 Prisma dev `ECONNREFUSED` 失败，已串行启动 `enggo`、执行 `db:migrate` 与 `db:seed:real-smoke` 后恢复。
+- 2026-04-25 曾尝试继续压缩真正易混辨析 `confusion_untangle`（后续 2026-04-26 已回调，不是当前状态）：
+  - 先提交上一稳定版 checkpoint：`cdb3add feat: route memory maps out of confusion smoke`，封存派生词族退出 `confusion_untangle`、memory_map 分流、root prompt 收口与长度仪表盘改动。
+  - 使用 subagent 做只读旁路观察，确认真实 overfull 根因不是 retrieval，而是旧 prompt 同时强制“四段、逐词、范围、下一步”：`范围内相似词` 与 `词义速览` 重复，`重点区分` 与 `做题抓手` 重叠，且 `scopeReminder` / `followUpPrompt` 仍被追加给 confusion。
+  - 用红绿流程改 [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts)：`confusion_untangle` 从 4 段改为 3 段（混淆入口 / 核心边界 / 做题抓手），总长度目标从 260 收紧到 240；开头一行合并词列表与中文核心义；核心边界只展开最容易混的 1-2 个；超过 2 个词时禁止逐词补完整解释；confusion 不再追加可见“建议的范围提醒 / 下一步追问”。
+  - 更新 [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts) 的人工检查文案：从检查“四段是否都列全”改为检查“是否把词列表和中文核心义合并到开头、是否只展开 1-2 个关键边界、是否没有写成小讲义、是否只给一个做题抓手”。
+  - 更新 [scripts/run-answer-style-eval.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-eval.ts) 的 deterministic prompt markers，从旧 `范围内相似词 / 词义速览` 切到 `混淆入口 / 核心边界 / 做题抓手`。
+  - 验证：红灯先失败于 2 个测试文件；修复后 `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts src/features/answering/chat-service.test.ts src/features/answering/build-system-prompt.test.ts scripts/lib/answer-style-provider-smoke.test.ts scripts/run-answer-style-provider-smoke.test.ts` -> 5 files / 82 tests passed；`corepack pnpm eval:answer-style` -> 12/12 pass；focused eslint 通过。
+  - 真实 provider smoke 复跑：`corepack pnpm eval:answer-style:provider` -> total 13 / pass 12 / manual 1 / fail 0；`confusion_untangle` count 4 / min 176 / max 305 / average 224 / p50 176 / p90 305 / warnings 1。上一轮剩余 manual 基本全在 confusion，本轮只剩 `access assess excess` 305/260 轻微偏长；`comply conform defer` 已压到 239/260。
+  - 已停止本轮临时 Next dev server，确认 port 3000 空闲，并清理 `.codex-next-dev-3000.*` 临时日志。
 - 2026-04-25 根据用户对上一轮 smoke 的产品评价，收口派生词族与 root 回答：
   - 设计判断落盘：派生词族（如 `respect / respective / respectful / respectable`）不再作为 `confusion_untangle` 的代表 case；它属于后续 learning backbone / word-family memory map，只有用户明确问具体边界（如 `respectful / respectable`）时才进入局部易混辨析。已更新 [docs/superpowers/specs/2026-04-21-exam-english-chat-design.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/specs/2026-04-21-exam-english-chat-design.md) 与 [docs/superpowers/specs/2026-04-25-confusion-cluster-layering-design.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/specs/2026-04-25-confusion-cluster-layering-design.md)。
   - 数据层把 `respect-respective-respectful-respectable` 从默认易混代表改为 `labels=["root_family"]`、`purposes=["memory_map"]`，保留词族关系，但不把它作为 `confusion_untangle` smoke 验收样本。

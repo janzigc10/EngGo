@@ -70,21 +70,21 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
   if (grounding.answerStyle === "root_family_summary") {
     return [
       "本风格优先于通用回答顺序，不要再套用通用四段标题。",
-      "当前问题属于词根家族地图，必须明确写出“词根家族地图”。",
-      "总长度控制在 280 个汉字以内，最多 3 段，不要写成长讲义。",
-      "只输出这 3 段：碎片判断、家族地图、优先背。",
-      "禁止例句、词源长故事和完整列表；每个成员只写“词 -> 现代义”一小句。",
-      "优先背最多 2 个；其他成员只用“眼熟即可/不硬背”一句带过。",
+      "当前问题属于同根/碎片召回总结，必须把它当作词族召回来讲，不要写成背诵优先级排序。",
+      "总长度控制在 420 个汉字以内，最多 3 段。",
+      "只输出这 3 段：碎片定位、家族召回、意义分流。",
+      "碎片定位：说明用户给的是完整词、构词碎片，还是既是完整词也是构词碎片。",
+      "家族召回：家族召回必须列出当前考试范围内召回到的家族成员，每个成员都要带中文核心义；每个成员必须写成 word=中文义，不许省略英文词；只列召回成员，不自由补新词。",
+      "意义分流：讲清前缀、后缀或现代义分流如何让同一碎片走向不同意思；语义跑远的成员也要保留在家族里，说明现代义已经分流。",
+      "不要因为低优先级或语义跑远就写成不硬背，也不能只给背诵优先级。",
+      "禁止例句、词源长故事和范围外扩展。",
       [
         "短答示例：",
-        "碎片判断：stitute 不是完整单词，是“放置/建立”的构词部件。",
-        "家族地图：in- 放进去 -> institute 设立/机构；con- 放一起 -> constitute 构成。",
-        "优先背：institute / institution；constitute 眼熟即可。",
+        "碎片定位：stitute 不是完整单词，是“放置/建立”的构词部件。",
+        "家族召回：institute=设立/机构；institution=机构/制度；constitute=构成；substitute=替代/替代品。",
+        "意义分流：它们共享 stitute，但 in- 偏设立，con- 偏组成整体，sub- 偏替代位置。",
       ].join("\n"),
-      "先解释这个碎片是不是完整单词，还是构词部件。",
       "如果用户问到的片段本身也是成员词，必须说明它也是完整单词，再说明它也可作为构词碎片。",
-      "必须按“前缀方向 -> 动作故事 -> 现代义”展开。",
-      "必须写出“优先背”一段，只列最多 2 个最高优先级成员。",
       "不要主动点名未召回的低频或范围外分支；内部保持保守即可，不要把防御性提醒写成正文。",
     ].join("\n");
   }
@@ -111,14 +111,15 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
         ? "当前问题已经命中形近词簇检索，要把相近词当成一个易混解团来回答。"
         : "当前问题已经命中易混词对比视图，要把相近词当成一个易混解团来回答。",
       buildClusterLabelInstruction(grounding),
-      "总长度控制在 260 个汉字以内，最多 4 段。",
+      "总长度控制在 450 个汉字以内，最多 4 段。",
       "只输出这 4 段：范围内相似词、词义速览、重点区分、做题抓手。",
       "范围内相似词：先列范围内召回到的相似词，并轻量说明它们都在当前考试范围内。",
       "词义速览：每个词必须带中文核心义，格式优先用 word=核心义；不能只列英文。",
-      "重点区分：如果超过 2 个词，优先区分最容易混的 2 个，其余先给中文方向。",
-      "做题抓手：只给最有用的词性、搭配或场景题眼。",
+      "重点区分：讲清真正的语义、词性、搭配或对象边界；形近词不要只说字母哪里不同。",
+      "做题抓手：给最有用的词性、搭配或场景题眼；可以覆盖多个词的典型搭配，但不要写例句。",
       "禁止例句、长列表和补充扩展；不要主动输出范围提醒或下一步追问。",
       "超过 2 个词时，用公式行压缩：word=核心义；word=核心义；word=核心义。",
+      "超过 2 个词时，重点区分可以优先讲最容易混的关系，但其余词必须用一句边界收束。",
       "不要使用 e= envelope 这类牵强字母口诀；优先用语义、词性、搭配和场景做边界。",
       [
         "短答示例：",
@@ -130,9 +131,8 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
       "不要把回答写成泛泛词典百科。",
       "必须出现“范围内相似词”这一段，先告诉用户当前范围内召回到了哪些词。",
       "必须出现“词义速览”这一段，逐个给英文词和中文核心义。",
-      "必须出现“重点区分”这一段，优先讲最容易混的 2 个。",
+      "必须出现“重点区分”这一段，讲清真正的语义、词性、搭配或对象差异。",
       "必须出现“做题抓手”这一段，点出考试里最该抓的搭配、场景或题眼。",
-      "每个词只给一行边界，最后用一句短收束总结各词最核心的边界。",
     ].join("\n");
   }
 
@@ -155,7 +155,9 @@ export function buildSystemPrompt(grounding: AnswerGrounding) {
       ? `范围提醒素材（只可自然并入一句话，不要照抄这个标签）：${grounding.scopeReminder}`
       : grounding.answerStyle === "root_family_summary"
         ? `范围边界素材（内部参考，不要照抄这个标签，也不要主动展开范围外词）：${grounding.scopeReminder}`
-        : `建议的范围提醒：${grounding.scopeReminder}`;
+        : grounding.answerStyle === "confusion_untangle"
+          ? `范围边界素材（内部参考，不要照抄这个标签，也不要写成单独段落）：${grounding.scopeReminder}`
+          : `建议的范围提醒：${grounding.scopeReminder}`;
 
   const lines = [
     "你是 EngGo 的考试英语老师助手。",
@@ -179,6 +181,7 @@ export function buildSystemPrompt(grounding: AnswerGrounding) {
   if (
     grounding.answerStyle !== "standard_lookup"
     && grounding.answerStyle !== "root_family_summary"
+    && grounding.answerStyle !== "confusion_untangle"
   ) {
     lines.push(`建议的下一步追问：${grounding.followUpPrompt}`);
   }

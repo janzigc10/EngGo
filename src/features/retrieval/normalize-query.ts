@@ -1,4 +1,5 @@
 import type { NormalizedQuery, QueryMode } from "@/features/retrieval/types";
+import { findRootFamilyPrototype } from "@/features/retrieval/root-family-prototypes";
 
 const englishTokenPattern = /[a-z]+(?:[-'][a-z]+)*/gi;
 const compareCuePattern =
@@ -106,10 +107,13 @@ export function analyzeQuery(query: string): {
   const englishTerms = uniqueTerms(extractEnglishTerms(normalizedText));
   const groupSeedTerm = extractGroupSeedTerm(normalizedText);
   const containsChinese = hasChinese(normalizedText);
+  const hasKnownRootFamilyPrototype = findRootFamilyPrototype(normalizedText) !== null;
 
   let queryMode: QueryMode = "meaning_lookup";
 
-  if (groupSeedTerm || compareTerms.length >= 2) {
+  if (englishTerms.length > 0 && hasKnownRootFamilyPrototype) {
+    queryMode = "root_family_summary";
+  } else if (groupSeedTerm || compareTerms.length >= 2) {
     queryMode = "direct_compare";
   } else if (englishTerms.length === 1 && containsShapeNeighborCue(normalizedText)) {
     queryMode = "shape_neighbor_search";

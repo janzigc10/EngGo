@@ -57,7 +57,8 @@
 - 这不是回归 bug，而是当前阈值策略的副作用；如果后续决定支持这类 typo，需要单独设计更保守的 typo 识别策略，避免重新引入知识库外误召回。
 - 当前实现距离用户真正要的“模糊搜索”仍有残留缺口：
   - 已补首批形近词簇检索：`跟 recent 很像的词有哪些`、`容易把 recent 看错成什么`、`recent/resent`、`adapt/adopt`、`quiet/quite`
-  - 词根 / 碎片检索仍未实现：`re+con 的词根有什么词`、`con 开头、re 相关的词`、`re...ct 这种词`
+  - 词根 / 碎片检索已补最小原型闭环：`stitute 是什么`、`tempt 这一族怎么记`、`attempt 这一族怎么记`、`跟 institute 一样那几个词怎么记` 可进入 `root_family_summary`
+  - 更泛化的词根 / 碎片检索仍未实现：`re+con 的词根有什么词`、`con 开头、re 相关的词`、`re...ct 这种词`
   - 当前 `fuzzy_recall` 对 fragment / 多片段输入仍会落到 `low_confidence` 或 `no_match`
 - 2026-04-25 真实 provider cluster smoke 暴露两个产品侧 prompt 残留：
   - `academic 是什么意思` 这类 `standard_lookup` 曾会输出例句、分隔线和较长模板，并在下一步建议里主动扩出未召回的 `scholarly / educational`；本轮已先收紧普通查词 prompt，禁止例句、未召回扩词和主动下一步追问，后续可再用真实 provider 复验输出是否稳定。
@@ -65,6 +66,14 @@
 - 2026-04-25 追加真实 provider expression smoke 时复现 `root_family_summary` 表达残留：
   - `tempt 这一族怎么记` 的真实 provider 输出曾可能写成“tempt 不是完整单词，是构词部件”；这与数据事实冲突，因为 `tempt` 本身就是完整单词。
   - 2026-04-25 已加 root prompt guardrail：当片段本身也是成员词时，必须说明它也是完整单词，再说明也可作为构词碎片；同日真实 provider smoke 复跑中 `tempt` 输出为“既是完整单词‘引诱’，也是这一族的构词核心”。
+- 2026-04-26 已进一步修正 `root_family_summary` 的产品方向：
+  - 旧三段 `碎片判断 / 家族地图 / 优先背` 会把同根总结误写成背诵优先级，容易输出 `contempt 不硬背` 这类不符合用户目标的话。
+  - 当前 root summary 已改为 `碎片定位 / 家族召回 / 意义分流`：用 `word=中文义` 列当前范围内召回到的同根/同碎片词，再讲前缀、后缀或现代义分流。
+  - 已支持从已知成员反查原型：`attempt 这一族怎么记` 命中 `root-tempt`，`跟 institute 一样那几个词怎么记` 命中 `root-stitute`；但这仍是 `stitute` / `tempt` 两族的最小原型，不代表泛化词根检索已经完成。
+- 2026-04-26 纠正 `confusion_untangle` 过度压缩方向：
+  - 三段版 `混淆入口 / 核心边界 / 做题抓手` 会把部分形近词讲得过薄，例如容易只停在“只差 c/s”这类字母差异，学习价值不足。
+  - 当前已回调到四段辨析卡 `范围内相似词 / 词义速览 / 重点区分 / 做题抓手`，并把 confusion smoke 字数预算放宽到 450；后续不要再把“更短”当作主要胜利标准。
+  - 后续若出现超长，应优先判断是否真的废话、例句、范围外扩展或尾巴追问；如果是在讲清语义、词性、搭配和对象边界，不应简单压掉。
 - 结论：
   - 形近词簇小样本已通过 `corepack pnpm eval:shape`
   - `standard_lookup` prompt 残留已先在本轮收紧；下一步可用小批真实 provider smoke 复验普通查词输出是否稳定
