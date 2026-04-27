@@ -19,6 +19,13 @@
 - 词根家族地图：用户有词根/前缀/碎片，或只记得 `attempt` / `institute` 这类家族成员，需要结构化召回同根/同碎片词、列中文核心义，并总结前缀/后缀/现代义分流。
 
 ## 本 Session 已完成
+- 2026-04-27 完成 [docs/superpowers/plans/2026-04-27-root-fragment-condition-parser.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-27-root-fragment-condition-parser.md) 的 Task 1-6：
+  - [src/features/retrieval/root-fragment-recall.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/root-fragment-recall.ts) 已从旧 `kind` 分支改成 `RootFragmentConstraint / RootFragmentQuery`，支持 `prefix / suffix / contains / start_end / ordered_contains`，多条件默认 AND；结构化单命中也允许 resolved。
+  - [src/features/retrieval/normalize-query.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/normalize-query.ts) 和 [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts) 已接入 condition parser：`tion 结尾的词有哪些` -> `fragment-suffix-tion`，`有 struct 的词` -> `construct / structure`，`con 开头 re 相关的词` -> `conference`，`re...ct 这种词` -> `respect`；`re+con 的词根有什么词` 仍保持 `root_family_summary / no_match`。
+  - 负例已锁住：`content 是什么意思`、`inter 是什么意思`、`con 是什么意思` 不会进入 dynamic fragment recall。
+  - 本地 smoke 已扩展：`corepack pnpm eval:answer-style` -> 20/20 pass；`corepack pnpm eval:product-smoke` -> 37/37 pass，其中 root_family 9 条；provider smoke 新增 `root: tion suffix fragment`，最终 `corepack pnpm eval:answer-style:provider` -> 16 total / 15 pass / 1 manual / 0 fail，`providerUnknown=0`，manual 是旧 confusion 字数超 450，不是新 fragment case。
+  - 最终验证：`corepack pnpm test src/features/retrieval/root-fragment-recall.test.ts src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-system-prompt.test.ts scripts/lib/black-box-product-smoke.test.ts scripts/lib/answer-style-provider-smoke.test.ts` -> 5 files / 107 tests passed；focused eslint 通过；`git diff --check` 通过。
+  - 执行中复现一次已知 Prisma dev `Connection terminated unexpectedly`，证据为 `prisma dev ls` 显示 `enggo not_running`；已用非删除式固定端口重启 + `db:migrate` + `db:seed:real-smoke` 恢复。
 - 2026-04-27 为避免继续 query-by-query 补洞，补充 root fragment condition parser 轻量设计与执行计划：
   - 新增 [docs/superpowers/specs/2026-04-27-root-fragment-condition-parser.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/specs/2026-04-27-root-fragment-condition-parser.md)：把碎片检索定义为结构化词形条件解析，支持 `prefix / suffix / contains / start_end / ordered_contains`，多条件默认 AND；明确 `re+con 的词根有什么词` 仍不应被硬解释成稳定词根组合。
   - 新增 [docs/superpowers/plans/2026-04-27-root-fragment-condition-parser.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-27-root-fragment-condition-parser.md)：按 TDD 拆成 parser 单测、constraint matcher、retrieval integration、本地 smoke、provider smoke、docs handoff 六个任务。
@@ -709,7 +716,7 @@
 
 ## 剩余关注点
 1. `root_family_summary` 目前只覆盖 `stitute` / `tempt` 两族，仍然是验证回答形态的最小原型，不是可扩展数据方案。
-2. `re+con`、`re...ct` 这类输入虽然已经进入 `root_family_summary` 主线，但仍是保守 `no_match`，没有真正展开检索。
+2. 结构化词形过滤已支持 `prefix / suffix / contains / start_end / ordered_contains` 和多条件 AND；剩余不支持的是语义/词根理论类组合，例如 `re+con 的词根有什么词` 仍保持 no-match，不把它硬解释成稳定词根家族。
 3. `reqeust -> request`、`recomand -> recommend` 已通过第二层 typo fallback 处理；后续若继续扩 typo，只能继续走“唯一候选 + 明确拼写模式”的窄门，不要放宽全局相似度闸门。
 4. 真实 MiniMax `/anthropic/v1/messages` 已通过临时命令跑通；正式接入前仍建议补 Anthropic-compatible provider adapter，并用真实 provider 做一次 answer-style smoke。
 5. Windows + local Prisma Postgres (`prisma dev`) 仍不稳定；这轮 `verify` 过程中又复现了 backend protocol error，但已按 `bugs.md` 路径恢复。
@@ -758,6 +765,19 @@
 - 若下一轮继续扩 seed，`seed-content.test.ts` 已改为最小 fixture，应不再随 seed 规模线性变慢；若再次超时，先按 `bugs.md` 的 Prisma dev 健康检查路径排查。
 
 ## 最近验证基线
+- 2026-04-27 root fragment condition parser 完成后：
+  - `corepack pnpm test src/features/retrieval/root-fragment-recall.test.ts src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-system-prompt.test.ts scripts/lib/black-box-product-smoke.test.ts scripts/lib/answer-style-provider-smoke.test.ts`
+    - 当前状态：5 files / 107 tests passed
+  - `corepack pnpm eval:answer-style`
+    - 当前状态：20 pass / 0 fail，新增 `tion` / `struct` / `con + re` / `re...ct` condition cases
+  - `corepack pnpm eval:product-smoke`
+    - 当前状态：37 total / 37 pass / 0 fail；root_family 9 total / 9 pass
+  - `corepack pnpm eval:answer-style:provider`
+    - 当前状态：16 total / 15 pass / 1 manual / 0 fail，`providerUnknown=0`；新增 `root: tion suffix fragment` 通过，manual 为旧 confusion 字数阈值复查
+  - `corepack pnpm exec eslint src/features/retrieval/root-fragment-recall.ts src/features/retrieval/normalize-query.ts src/features/retrieval/retrieve-candidates.ts src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-system-prompt.ts src/features/answering/build-system-prompt.test.ts scripts/run-answer-style-eval.ts scripts/lib/black-box-product-smoke.ts scripts/lib/black-box-product-smoke.test.ts scripts/lib/answer-style-provider-smoke.ts scripts/lib/answer-style-provider-smoke.test.ts`
+    - 当前状态：通过
+  - `git diff --check`
+    - 当前状态：通过
 - 2026-04-26 黑盒产品 smoke：
   - `corepack pnpm eval:product-smoke`
     - 当前状态：27 total / 27 pass / 0 fail；新增 `standard: institute` 防 ordinary boundary 回归；`generte -> generate`、`horizen -> horizon`、`reqeust -> request`、`recomand -> recommend` 已修复

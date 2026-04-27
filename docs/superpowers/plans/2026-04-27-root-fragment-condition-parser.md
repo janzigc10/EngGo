@@ -430,7 +430,7 @@ git commit -m "test: add provider smoke for fragment conditions"
 - Modify: `progress.md`
 - Modify: `bugs.md`
 
-- [ ] **Step 1: Run final verification**
+- [x] **Step 1: Run final verification**
 
 Run:
 
@@ -450,7 +450,7 @@ Expected:
 - provider smoke has 0 hard fail
 - `git diff --check` has no whitespace error, Windows line-ending warnings are acceptable
 
-- [ ] **Step 2: Update docs**
+- [x] **Step 2: Update docs**
 
 Update `progress.md` with:
 
@@ -461,7 +461,7 @@ Update `progress.md` with:
 
 Update `bugs.md` to narrow the remaining fragment gap to semantic/root-theory queries, not structural word-shape filters.
 
-- [ ] **Step 3: Final commit**
+- [x] **Step 3: Final commit**
 
 ```powershell
 git add progress.md bugs.md

@@ -68,9 +68,9 @@
 - 当前实现距离用户真正要的“模糊搜索”仍有残留缺口：
   - 已补首批形近词簇检索：`跟 recent 很像的词有哪些`、`容易把 recent 看错成什么`、`recent/resent`、`adapt/adopt`、`quiet/quite`
   - 词根 / 碎片检索已补最小原型闭环：`stitute 是什么`、`tempt 这一族怎么记`、`attempt 这一族怎么记`、`跟 institute 一样那几个词怎么记` 可进入 `root_family_summary`
-  - 2026-04-27 已补单纯 prefix 宽召回：`con 开头的词有哪些` 现在会列当前范围内 34 个 `con-` 成员，并走 `word / 词性 / 核心义` 三列表格；provider smoke 已加硬检查防止漏词、缺词性、把 `confident` 写成 `confidant`，以及表格后继续写“例如”式词根故事。
-  - 更泛化的组合 / 条件式词根碎片检索仍未实现：`re+con 的词根有什么词`、`con 开头、re 相关的词`、`re...ct 这种词`
-  - 当前 `fuzzy_recall` 对 fragment / 多片段输入仍会落到 `low_confidence` 或 `no_match`
+  - 2026-04-27 已补结构化词形过滤：`con 开头的词有哪些` 会列当前范围内 34 个 `con-` 成员；`tion 结尾的词有哪些`、`有 struct 的词`、`con 开头 re 相关的词`、`re...ct 这种词` 都会按 `prefix / suffix / contains / start_end` 条件过滤真实范围内词条，宽召回走 `word / 词性 / 核心义` 三列表格。
+  - 剩余缺口已收窄到语义 / 词根理论组合：`re+con 的词根有什么词` 仍保持 no-match，不能把它硬解释成稳定词根家族；如果后续要支持，必须先做产品定义，而不是在词形 parser 里加特例。
+  - 非结构化 fragment / 多片段输入若不能解析成明确词形条件，仍会保守落到 `low_confidence` 或 `no_match`
   - 后续 typo 若继续扩展，必须继续按明确拼写模式加窄门，不要把“低相关候选也先答一个”放回系统。
 - 2026-04-25 真实 provider cluster smoke 暴露两个产品侧 prompt 残留：
   - `academic 是什么意思` 这类 `standard_lookup` 曾会输出例句、分隔线和较长模板，并在下一步建议里主动扩出未召回的 `scholarly / educational`；2026-04-26 已新增 `eval:standard-lookup:provider` 专门复验普通查词真实输出，当前 8/8 通过，且已压住例句、范围尾巴、主动扩词、可见标签和 Markdown 加粗。
@@ -91,7 +91,7 @@
   - 形近词簇小样本已通过 `corepack pnpm eval:shape`
   - `standard_lookup` prompt/grounding 残留已用 8 条真实 provider smoke 复验：`academic / institute / available / gain / generate / garage / evidence / significant` 当前 hard checks 全通过；`institute` 已不再带出 `institution`
   - 若继续扩内容能力，再补 30-50 个精选形近词族，并评估是否扩到 300-500 词
-  - 词根 / 碎片检索应作为形近词簇扩样本后的下一轮能力，不要和大规模扩库混在一起做
+  - 结构化词根 / 碎片检索第一层已落地；后续不要把语义词根理论问题混进词形过滤 parser，先单独定义产品边界
 
 ## 已处理
 - `retrieveCandidates -> buildGrounding -> chatService` 的 no-match 闭环已落地，库外 meaning / fuzzy / compare 不再硬猜。
