@@ -43,7 +43,7 @@
 - Create or modify: `src/features/retrieval/root-fragment-recall.test.ts`
 - Modify: `src/features/retrieval/root-fragment-recall.ts`
 
-- [ ] **Step 1: Write failing parser tests**
+- [x] **Step 1: Write failing parser tests**
 
 Add tests for:
 
@@ -83,7 +83,7 @@ expect(parseRootFragmentRecall("con 开头 re 相关的词")).toMatchObject({
 expect(parseRootFragmentRecall("re+con 的词根有什么词")).toBeNull();
 ```
 
-- [ ] **Step 2: Run parser tests and confirm RED**
+- [x] **Step 2: Run parser tests and confirm RED**
 
 Run:
 
@@ -93,7 +93,7 @@ corepack pnpm test src/features/retrieval/root-fragment-recall.test.ts
 
 Expected: fails because `RootFragmentQuery.constraints`, suffix, contains, and multi-condition parsing do not exist yet.
 
-- [ ] **Step 3: Implement parser types and conservative mapping**
+- [x] **Step 3: Implement parser types and conservative mapping**
 
 In `src/features/retrieval/root-fragment-recall.ts`:
 
@@ -114,7 +114,7 @@ export type RootFragmentQuery = {
 
 Keep `re+con 的词根有什么词` out of this parser unless wording says it is word-shape containment, not root theory.
 
-- [ ] **Step 4: Run parser tests and confirm GREEN**
+- [x] **Step 4: Run parser tests and confirm GREEN**
 
 Run:
 
@@ -124,7 +124,7 @@ corepack pnpm test src/features/retrieval/root-fragment-recall.test.ts
 
 Expected: parser tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add src/features/retrieval/root-fragment-recall.ts src/features/retrieval/root-fragment-recall.test.ts

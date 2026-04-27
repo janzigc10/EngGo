@@ -11,26 +11,20 @@ const partOfSpeechLabels: Record<string, string> = {
   verb: "v.",
 };
 
-export type RootFragmentRecallPattern =
-  | {
-      kind: "prefix";
-      id: string;
-      fragment: string;
-      prefix: string;
-    }
-  | {
-      kind: "start_end";
-      id: string;
-      fragment: string;
-      prefix: string;
-      suffix: string;
-    }
-  | {
-      kind: "combo";
-      id: string;
-      fragment: string;
-      parts: string[];
-    };
+export type RootFragmentConstraint =
+  | { type: "prefix"; value: string }
+  | { type: "suffix"; value: string }
+  | { type: "contains"; value: string }
+  | { type: "start_end"; prefix: string; suffix: string }
+  | { type: "ordered_contains"; parts: string[] };
+
+export type RootFragmentQuery = {
+  id: string;
+  fragment: string;
+  constraints: RootFragmentConstraint[];
+};
+
+export type RootFragmentRecallPattern = RootFragmentQuery;
 
 export type RootFragmentEntry = {
   entryId: string;
@@ -52,55 +46,108 @@ function normalizeFragmentId(value: string) {
   return value.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
 }
 
-function buildPatternId(kind: string, fragment: string) {
-  return `fragment-${kind}-${normalizeFragmentId(fragment)}`;
+function describeConstraintForId(constraint: RootFragmentConstraint) {
+  if (constraint.type === "start_end") {
+    return `pattern-${constraint.prefix}-${constraint.suffix}`;
+  }
+
+  if (constraint.type === "ordered_contains") {
+    return `ordered-${constraint.parts.join("-")}`;
+  }
+
+  return `${constraint.type}-${constraint.value}`;
+}
+
+function buildQueryId(constraints: RootFragmentConstraint[]) {
+  return `fragment-${constraints.map(describeConstraintForId).join("-")}`;
+}
+
+function formatConstraintFragment(constraint: RootFragmentConstraint) {
+  if (constraint.type === "prefix") {
+    return `${constraint.value}-`;
+  }
+
+  if (constraint.type === "suffix") {
+    return `-${constraint.value}`;
+  }
+
+  if (constraint.type === "start_end") {
+    return `${constraint.prefix}...${constraint.suffix}`;
+  }
+
+  if (constraint.type === "ordered_contains") {
+    return constraint.parts.join("+");
+  }
+
+  return constraint.value;
+}
+
+function buildQuery(constraints: RootFragmentConstraint[]): RootFragmentQuery {
+  return {
+    id: normalizeFragmentId(buildQueryId(constraints)),
+    fragment: constraints.map(formatConstraintFragment).join(" + "),
+    constraints,
+  };
 }
 
 export function parseRootFragmentRecall(
   normalizedText: string,
-): RootFragmentRecallPattern | null {
-  const startEndMatch = normalizedText.match(/\b([a-z]{1,8})\.\.\.([a-z]{1,8})\b/i);
+): RootFragmentQuery | null {
+  const text = normalizedText.toLowerCase();
+  const rootTheoryCombo = /\b[a-z]{1,8}\+[a-z]{1,8}\b/i.test(text) && /词根/.test(text);
+
+  if (rootTheoryCombo) {
+    return null;
+  }
+
+  const startEndMatch = text.match(/\b([a-z]{1,8})\.\.\.([a-z]{1,8})\b/i);
 
   if (startEndMatch) {
     const prefix = startEndMatch[1].toLowerCase();
     const suffix = startEndMatch[2].toLowerCase();
-    const fragment = `${prefix}...${suffix}`;
 
-    return {
-      kind: "start_end",
-      id: buildPatternId("pattern", `${prefix}-${suffix}`),
-      fragment,
-      prefix,
-      suffix,
-    };
+    return buildQuery([{ type: "start_end", prefix, suffix }]);
   }
 
-  const comboMatch = normalizedText.match(/\b([a-z]{1,8}(?:\+[a-z]{1,8})+)\b/i);
+  const comboMatch = text.match(/\b([a-z]{1,8}(?:\+[a-z]{1,8})+)\b/i);
 
-  if (comboMatch) {
+  if (comboMatch && /词形|这种词|这类词|包含|都有/.test(text)) {
     const parts = comboMatch[1].toLowerCase().split("+");
 
-    return {
-      kind: "combo",
-      id: buildPatternId("combo", parts.join("-")),
-      fragment: parts.join("+"),
-      parts,
-    };
+    return buildQuery([{ type: "ordered_contains", parts }]);
   }
 
-  const prefixMatch = normalizedText.match(
-    /\b([a-z]{2,8})\s*(?:开头|词首|前缀|相关的词|这类词|这种词)/i,
-  );
+  const constraints: RootFragmentConstraint[] = [];
+  const prefixMatch = text.match(/\b([a-z]{2,8})\s*(?:开头|词首|前缀)/i);
 
   if (prefixMatch) {
-    const prefix = prefixMatch[1].toLowerCase();
+    constraints.push({ type: "prefix", value: prefixMatch[1].toLowerCase() });
+  }
 
-    return {
-      kind: "prefix",
-      id: buildPatternId("prefix", prefix),
-      fragment: `${prefix}-`,
-      prefix,
-    };
+  const suffixMatch = text.match(/\b([a-z]{2,8})\s*(?:结尾|词尾|后缀)/i);
+
+  if (suffixMatch) {
+    constraints.push({ type: "suffix", value: suffixMatch[1].toLowerCase() });
+  }
+
+  const explicitContainsMatch = text.match(/(?:有|含有|包含)\s*([a-z]{2,12})\s*(?:的词|这个片段|这个词形)?/i);
+
+  if (explicitContainsMatch) {
+    constraints.push({ type: "contains", value: explicitContainsMatch[1].toLowerCase() });
+  }
+
+  if (constraints.length > 0) {
+    const relatedMatches = [...text.matchAll(/\b([a-z]{2,12})\s*相关(?:的词)?/gi)]
+      .map((match) => match[1].toLowerCase())
+      .filter((value) => !constraints.some((constraint) => (
+        "value" in constraint && constraint.value === value
+      )));
+
+    for (const value of relatedMatches) {
+      constraints.push({ type: "contains", value });
+    }
+
+    return buildQuery(constraints);
   }
 
   return null;
