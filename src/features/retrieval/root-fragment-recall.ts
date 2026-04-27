@@ -1,7 +1,5 @@
 import type { RootFamilyView } from "@/features/retrieval/types";
 
-const minFragmentMembers = 2;
-
 const partOfSpeechLabels: Record<string, string> = {
   adjective: "adj.",
   adverb: "adv.",
@@ -157,24 +155,32 @@ export function hasRootFragmentRecallPattern(normalizedText: string) {
   return parseRootFragmentRecall(normalizedText) !== null;
 }
 
-function lemmaMatchesPattern(lemma: string, pattern: RootFragmentRecallPattern) {
+function lemmaMatchesConstraint(lemma: string, constraint: RootFragmentConstraint) {
   const normalizedLemma = lemma.toLowerCase();
 
-  if (pattern.kind === "prefix") {
-    return normalizedLemma.startsWith(pattern.prefix);
+  if (constraint.type === "prefix") {
+    return normalizedLemma.startsWith(constraint.value);
   }
 
-  if (pattern.kind === "start_end") {
+  if (constraint.type === "suffix") {
+    return normalizedLemma.endsWith(constraint.value);
+  }
+
+  if (constraint.type === "contains") {
+    return normalizedLemma.includes(constraint.value);
+  }
+
+  if (constraint.type === "start_end") {
     return (
-      normalizedLemma.startsWith(pattern.prefix)
-      && normalizedLemma.endsWith(pattern.suffix)
-      && normalizedLemma.length > pattern.prefix.length + pattern.suffix.length
+      normalizedLemma.startsWith(constraint.prefix)
+      && normalizedLemma.endsWith(constraint.suffix)
+      && normalizedLemma.length > constraint.prefix.length + constraint.suffix.length
     );
   }
 
   let searchFrom = 0;
 
-  for (const part of pattern.parts) {
+  for (const part of constraint.parts) {
     const partIndex = normalizedLemma.indexOf(part, searchFrom);
 
     if (partIndex === -1) {
@@ -187,26 +193,26 @@ function lemmaMatchesPattern(lemma: string, pattern: RootFragmentRecallPattern) 
   return true;
 }
 
+function lemmaMatchesConstraints(lemma: string, constraints: RootFragmentConstraint[]) {
+  return constraints.every((constraint) => lemmaMatchesConstraint(lemma, constraint));
+}
+
 export function selectRootFragmentEntries(
   entries: RootFragmentEntry[],
   pattern: RootFragmentRecallPattern,
 ) {
-  const matches = entries
+  return entries
     .filter((entry) => entry.inScope && entry.meaningsZh.length > 0)
-    .filter((entry) => lemmaMatchesPattern(entry.lemma, pattern))
+    .filter((entry) => lemmaMatchesConstraints(entry.lemma, pattern.constraints))
     .sort((left, right) => left.lemma.localeCompare(right.lemma));
-
-  if (matches.length < minFragmentMembers) {
-    return [];
-  }
-
-  return matches;
 }
 
 export function buildRootFragmentView(
   pattern: RootFragmentRecallPattern,
   entries: RootFragmentEntry[],
 ): RootFamilyView {
+  const prefixConstraint = pattern.constraints.find((constraint) => constraint.type === "prefix");
+
   return {
     id: pattern.id,
     fragment: pattern.fragment,
@@ -216,10 +222,10 @@ export function buildRootFragmentView(
     members: entries.map((entry) => ({
       lemma: entry.lemma,
       partOfSpeech: entry.partOfSpeech,
-      prefix: pattern.kind === "prefix" ? `${pattern.prefix}-` : null,
+      prefix: prefixConstraint ? `${prefixConstraint.value}-` : null,
       prefixDirection:
-        pattern.kind === "prefix"
-          ? `词首片段 ${pattern.prefix}-`
+        prefixConstraint
+          ? `词首片段 ${prefixConstraint.value}-`
           : `词形片段 ${pattern.fragment}`,
       actionStory: `命中 ${pattern.fragment} 这个词形线索`,
       modernMeaningZh: entry.meaningsZh.slice(0, 2).join("；"),

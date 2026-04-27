@@ -1,6 +1,36 @@
 import { describe, expect, it } from "vitest";
 
-import { parseRootFragmentRecall } from "@/features/retrieval/root-fragment-recall";
+import {
+  parseRootFragmentRecall,
+  selectRootFragmentEntries,
+  type RootFragmentEntry,
+} from "@/features/retrieval/root-fragment-recall";
+
+function entry(lemma: string, partOfSpeech: string[], meaningsZh: string[]): RootFragmentEntry {
+  return {
+    entryId: `entry-${lemma}`,
+    lemma,
+    partOfSpeech: partOfSpeech.join(" / "),
+    meaningsZh,
+    inScope: true,
+  };
+}
+
+const matcherEntries = [
+  entry("conference", ["n."], ["会议"]),
+  entry("condition", ["n."], ["条件"]),
+  entry("construct", ["v."], ["建造"]),
+  entry("structure", ["n."], ["结构"]),
+  entry("respect", ["v.", "n."], ["尊重"]),
+];
+
+function parseQuery(query: string) {
+  const parsed = parseRootFragmentRecall(query);
+
+  expect(parsed).not.toBeNull();
+
+  return parsed!;
+}
 
 describe("parseRootFragmentRecall", () => {
   it("parses a prefix constraint", () => {
@@ -47,5 +77,52 @@ describe("parseRootFragmentRecall", () => {
 
   it("keeps root-theory combinations out of structural parsing", () => {
     expect(parseRootFragmentRecall("re+con 的词根有什么词")).toBeNull();
+  });
+});
+
+describe("selectRootFragmentEntries", () => {
+  it("matches prefix and contains constraints with AND semantics", () => {
+    const matches = selectRootFragmentEntries(
+      matcherEntries,
+      parseQuery("con 开头 re 相关的词"),
+    );
+
+    expect(matches.map((item) => item.lemma)).toEqual(["conference"]);
+  });
+
+  it("matches entries containing a structural fragment", () => {
+    const matches = selectRootFragmentEntries(
+      matcherEntries,
+      parseQuery("有 struct 的词"),
+    );
+
+    expect(matches.map((item) => item.lemma)).toEqual(["construct", "structure"]);
+  });
+
+  it("matches a start-end structural pattern", () => {
+    const matches = selectRootFragmentEntries(
+      matcherEntries,
+      parseQuery("re...ct 这种词"),
+    );
+
+    expect(matches.map((item) => item.lemma)).toEqual(["respect"]);
+  });
+
+  it("returns an empty list when no entries match", () => {
+    const matches = selectRootFragmentEntries(
+      matcherEntries,
+      parseQuery("pre 开头的词有哪些"),
+    );
+
+    expect(matches).toEqual([]);
+  });
+
+  it("allows a single structural match", () => {
+    const matches = selectRootFragmentEntries(
+      matcherEntries,
+      parseQuery("con 开头 re 相关的词"),
+    );
+
+    expect(matches).toHaveLength(1);
   });
 });

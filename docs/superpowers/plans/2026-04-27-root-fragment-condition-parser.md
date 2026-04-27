@@ -137,7 +137,7 @@ git commit -m "feat: parse root fragment constraints"
 - Modify: `src/features/retrieval/root-fragment-recall.ts`
 - Test: `src/features/retrieval/root-fragment-recall.test.ts`
 
-- [ ] **Step 1: Write failing matcher tests**
+- [x] **Step 1: Write failing matcher tests**
 
 Add tests for a small in-memory entry list:
 
@@ -159,7 +159,7 @@ Assert:
 - 0 matches returns `[]`.
 - Single structural match is allowed.
 
-- [ ] **Step 2: Run matcher tests and confirm RED**
+- [x] **Step 2: Run matcher tests and confirm RED**
 
 Run:
 
@@ -169,7 +169,7 @@ corepack pnpm test src/features/retrieval/root-fragment-recall.test.ts
 
 Expected: fails because matcher still branches on `kind`.
 
-- [ ] **Step 3: Implement `lemmaMatchesConstraints`**
+- [x] **Step 3: Implement `lemmaMatchesConstraints`**
 
 Replace kind-specific matching with:
 
@@ -196,7 +196,7 @@ function lemmaMatchesConstraint(lemma: string, constraint: RootFragmentConstrain
 
 Then require every constraint to match.
 
-- [ ] **Step 4: Run matcher tests and confirm GREEN**
+- [x] **Step 4: Run matcher tests and confirm GREEN**
 
 Run:
 
@@ -206,7 +206,7 @@ corepack pnpm test src/features/retrieval/root-fragment-recall.test.ts
 
 Expected: all parser and matcher tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add src/features/retrieval/root-fragment-recall.ts src/features/retrieval/root-fragment-recall.test.ts
