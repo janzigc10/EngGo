@@ -2,6 +2,15 @@ import type { RootFamilyView } from "@/features/retrieval/types";
 
 const minFragmentMembers = 2;
 
+const partOfSpeechLabels: Record<string, string> = {
+  adjective: "adj.",
+  adverb: "adv.",
+  conjunction: "conj.",
+  noun: "n.",
+  preposition: "prep.",
+  verb: "v.",
+};
+
 export type RootFragmentRecallPattern =
   | {
       kind: "prefix";
@@ -26,9 +35,18 @@ export type RootFragmentRecallPattern =
 export type RootFragmentEntry = {
   entryId: string;
   lemma: string;
+  partOfSpeech: string;
   meaningsZh: string[];
   inScope: boolean;
 };
+
+export function formatPartOfSpeech(pos: string[]) {
+  const labels = pos
+    .map((item) => partOfSpeechLabels[item.trim().toLowerCase()] ?? item.trim())
+    .filter(Boolean);
+
+  return [...new Set(labels)].join(" / ") || "-";
+}
 
 function normalizeFragmentId(value: string) {
   return value.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
@@ -150,6 +168,7 @@ export function buildRootFragmentView(
     caution: "只列当前词库里命中的词；候选过少时不硬凑规律。",
     members: entries.map((entry) => ({
       lemma: entry.lemma,
+      partOfSpeech: entry.partOfSpeech,
       prefix: pattern.kind === "prefix" ? `${pattern.prefix}-` : null,
       prefixDirection:
         pattern.kind === "prefix"

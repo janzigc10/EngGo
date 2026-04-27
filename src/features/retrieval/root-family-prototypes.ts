@@ -9,6 +9,7 @@ const stitutePrototype: RootFamilyView = {
   members: [
     {
       lemma: "institute",
+      partOfSpeech: "v. / n.",
       prefix: "in-",
       prefixDirection: "放进去",
       actionStory: "把制度或机构放进去，变成正式设立",
@@ -19,6 +20,7 @@ const stitutePrototype: RootFamilyView = {
     },
     {
       lemma: "institution",
+      partOfSpeech: "n.",
       prefix: null,
       prefixDirection: "设立后的结果",
       actionStory: "设立动作沉淀成一个机构或制度",
@@ -29,6 +31,7 @@ const stitutePrototype: RootFamilyView = {
     },
     {
       lemma: "constitute",
+      partOfSpeech: "v.",
       prefix: "con-",
       prefixDirection: "放到一起",
       actionStory: "把部分放到一起，形成整体",
@@ -39,6 +42,7 @@ const stitutePrototype: RootFamilyView = {
     },
     {
       lemma: "substitute",
+      partOfSpeech: "v. / n.",
       prefix: "sub-",
       prefixDirection: "放在下面备用",
       actionStory: "把候补放在下面，随时顶上去",
@@ -49,6 +53,7 @@ const stitutePrototype: RootFamilyView = {
     },
     {
       lemma: "restitute",
+      partOfSpeech: "v.",
       prefix: "re-",
       prefixDirection: "放回去",
       actionStory: "把东西放回原处",
@@ -59,6 +64,7 @@ const stitutePrototype: RootFamilyView = {
     },
     {
       lemma: "prostitute",
+      partOfSpeech: "v. / n.",
       prefix: "pro-",
       prefixDirection: "放到前面",
       actionStory: "历史演变义较远，只要知道不是考试优先分支",
@@ -79,6 +85,7 @@ const temptPrototype: RootFamilyView = {
   members: [
     {
       lemma: "attempt",
+      partOfSpeech: "v. / n.",
       prefix: "at-",
       prefixDirection: "朝着目标去碰",
       actionStory: "朝着目标去试一下",
@@ -89,6 +96,7 @@ const temptPrototype: RootFamilyView = {
     },
     {
       lemma: "tempt",
+      partOfSpeech: "v.",
       prefix: null,
       prefixDirection: "直接诱动",
       actionStory: "把人往某个方向勾过去",
@@ -99,6 +107,7 @@ const temptPrototype: RootFamilyView = {
     },
     {
       lemma: "temptation",
+      partOfSpeech: "n.",
       prefix: null,
       prefixDirection: "诱惑形成的结果",
       actionStory: "诱人的东西变成了具体诱惑",
@@ -109,6 +118,7 @@ const temptPrototype: RootFamilyView = {
     },
     {
       lemma: "contempt",
+      partOfSpeech: "n.",
       prefix: "con-",
       prefixDirection: "语义历史演变后转向否定态度",
       actionStory: "从被触动转成轻蔑态度，意义已经跑远",

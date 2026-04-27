@@ -36,6 +36,7 @@ export type RootFamilyView = {
   caution: string;
   members: Array<{
     lemma: string;
+    partOfSpeech: string;
     prefix: string | null;
     prefixDirection: string;
     actionStory: string;

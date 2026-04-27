@@ -118,7 +118,7 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
     expect(
       rootCases.find((item) => item.name === "root: con prefix fragment")
         ?.expectedAnswerIncludes,
-    ).toEqual(["| word | 核心义 |", "confident", "convenient"]);
+    ).toEqual(["| word | 词性 | 核心义 |", "confident", "convenient", "adj."]);
     expect(
       rootCases.find((item) => item.name === "root: con prefix fragment")
         ?.forbiddenAnswerIncludes,

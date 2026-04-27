@@ -13,6 +13,7 @@ import {
 import { normalizeQuery } from "@/features/retrieval/normalize-query";
 import {
   buildRootFragmentView,
+  formatPartOfSpeech,
   parseRootFragmentRecall,
   selectRootFragmentEntries,
   type RootFragmentEntry,
@@ -415,6 +416,7 @@ function toRootFragmentEntry(
   return {
     entryId: entry.id,
     lemma: entry.lemma,
+    partOfSpeech: formatPartOfSpeech(entry.pos),
     meaningsZh: entry.meanings.map((meaning) => meaning.zh),
     inScope: entry.scopes.some((scope) => scope.scopeCode === activeExamTarget),
   };
@@ -438,6 +440,7 @@ function hydrateRootFamilyView(
 
         return {
           ...member,
+          partOfSpeech: entry ? formatPartOfSpeech(entry.pos) : member.partOfSpeech,
           entryId: entry?.id ?? null,
           inScope,
         };

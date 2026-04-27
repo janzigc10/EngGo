@@ -86,16 +86,21 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
   if (grounding.answerStyle === "root_family_summary") {
     const rootFamilyMemberCount = grounding.rootFamilyView?.members.length ?? 0;
     const isBroadRootFamilyRecall = rootFamilyMemberCount > 8;
+    const rootFamilyFragment = grounding.rootFamilyView?.fragment ?? "这个片段";
     const rootFamilyLengthInstruction = isBroadRootFamilyRecall
       ? `本次召回成员较多（${rootFamilyMemberCount} 个）：总长度可放宽到 1500 个汉字以内，最多 3 段。`
       : "总长度控制在 420 个汉字以内，最多 3 段。";
     const rootFamilyRecallInstruction = isBroadRootFamilyRecall
       ? [
-          "家族召回：家族召回段必须用 Markdown 表格，表头固定为 word | 核心义。",
-          "把 rootFamilyView.members 全部列出，不要省略，不要写“等”；word 列必须逐字复制 rootFamilyView.members.lemma，禁止改拼写；只列召回成员，不自由补新词。",
-          "表格只列 word 和核心义两列；意义分流只用 1-2 句概括，不逐词展开，不拆后续词根，不写“例如”。",
+          "家族召回：家族召回段必须用 Markdown 表格，表头固定为 word | 词性 | 核心义。",
+          "把 rootFamilyView.members 全部列出，不要省略，不要写“等”；word 列必须逐字复制 rootFamilyView.members.lemma，词性列必须使用 rootFamilyView.members.partOfSpeech，禁止改拼写；只列召回成员，不自由补新词。",
+          "表格只列 word、词性和核心义三列；意义分流只用 1-2 句概括，不逐词展开。",
+          "意义分流段只允许写两句以内的总括：只说这些词共享同一词首线索，但现代义已经分流；禁止举例，不拆后续词根，不写“例如”。",
         ].join("\n")
       : "家族召回：家族召回必须列出当前考试范围内召回到的家族成员，每个成员都要带中文核心义；每个成员必须写成 word=中文义，不许省略英文词；只列召回成员，不自由补新词。";
+    const rootFamilyMeaningInstruction = isBroadRootFamilyRecall
+      ? `意义分流：意义分流段必须只写这两句，不要改写：这些词共享 ${rootFamilyFragment} 这个词形线索，但现代义已经分流，不能只靠片段猜意思。先按表格记具体词义；如果觉得太多，可以继续按词性或意思缩小范围。`
+      : "意义分流：讲清前缀、后缀或现代义分流如何让同一碎片走向不同意思；语义跑远的成员也要保留在家族里，说明现代义已经分流。";
 
     return [
       "本风格优先于通用回答顺序，不要再套用通用四段标题。",
@@ -104,7 +109,7 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
       "只输出这 3 段：碎片定位、家族召回、意义分流。",
       "碎片定位：说明用户给的是完整词、构词碎片，还是既是完整词也是构词碎片。",
       rootFamilyRecallInstruction,
-      "意义分流：讲清前缀、后缀或现代义分流如何让同一碎片走向不同意思；语义跑远的成员也要保留在家族里，说明现代义已经分流。",
+      rootFamilyMeaningInstruction,
       "不要因为低优先级或语义跑远就写成不硬背，也不能只给背诵优先级。",
       "禁止例句、词源长故事和范围外扩展。",
       [

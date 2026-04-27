@@ -212,7 +212,7 @@ const cases: EvalCase[] = [
     expectedAnswerStyle: "root_family_summary",
     expectedRootFamilyViewId: "fragment-prefix-con",
     expectedComparisonViewId: null,
-    expectedPromptIncludes: ["Markdown 表格", "全部列出", "word | 核心义"],
+    expectedPromptIncludes: ["Markdown 表格", "全部列出", "word | 词性 | 核心义"],
     expectedGroundingIncludes: ["concept", "conform", "construct", "convenient"],
   },
   {

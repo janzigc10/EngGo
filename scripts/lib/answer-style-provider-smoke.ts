@@ -304,7 +304,7 @@ export function buildAnswerStyleProviderSmokeCases(): ProviderSmokeCase[] {
       expectedResolution: "resolved",
       expectedAnswerStyle: "root_family_summary",
       expectedGroundingIncludes: ["concept", "conform", "construct", "convenient"],
-      expectedAnswerIncludes: ["| word | 核心义 |", "confident", "convenient"],
+      expectedAnswerIncludes: ["| word | 词性 | 核心义 |", "confident", "convenient", "adj."],
       forbiddenAnswerIncludes: ["confidant", "例如"],
       expectedRootFamilyViewId: "fragment-prefix-con",
       expectedComparisonViewId: null,

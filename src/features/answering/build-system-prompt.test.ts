@@ -451,6 +451,7 @@ describe("buildSystemPrompt", () => {
         members: [
           {
             lemma: "institute",
+            partOfSpeech: "v. / n.",
             prefix: "in-",
             prefixDirection: "放进去",
             actionStory: "把制度或机构放进去",
@@ -461,6 +462,7 @@ describe("buildSystemPrompt", () => {
           },
           {
             lemma: "institution",
+            partOfSpeech: "n.",
             prefix: null,
             prefixDirection: "已经形成的结果",
             actionStory: "由设立动作沉淀出来的机构或制度",
@@ -471,6 +473,7 @@ describe("buildSystemPrompt", () => {
           },
           {
             lemma: "constitute",
+            partOfSpeech: "v.",
             prefix: "con-",
             prefixDirection: "放到一起",
             actionStory: "把部分放到一起形成整体",
@@ -561,6 +564,7 @@ describe("buildSystemPrompt", () => {
           "control",
         ].map((lemma) => ({
           lemma,
+          partOfSpeech: "n.",
           prefix: "con-",
           prefixDirection: "词首片段 con-",
           actionStory: "命中 con- 这个词形线索",
@@ -577,12 +581,17 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("本次召回成员较多（9 个）");
     expect(prompt).toContain("总长度可放宽到 1500 个汉字以内");
     expect(prompt).toContain("家族召回段必须用 Markdown 表格");
-    expect(prompt).toContain("word | 核心义");
+    expect(prompt).toContain("word | 词性 | 核心义");
+    expect(prompt).toContain("词性列必须使用 rootFamilyView.members.partOfSpeech");
     expect(prompt).toContain("把 rootFamilyView.members 全部列出，不要省略");
     expect(prompt).toContain("word 列必须逐字复制 rootFamilyView.members.lemma");
     expect(prompt).toContain("禁止改拼写");
     expect(prompt).toContain("不要写“等”");
     expect(prompt).toContain("意义分流只用 1-2 句概括");
+    expect(prompt).toContain("意义分流段必须只写这两句，不要改写");
+    expect(prompt).toContain("这些词共享 con- 这个词形线索");
+    expect(prompt).toContain("如果觉得太多，可以继续按词性或意思缩小范围");
+    expect(prompt).toContain("禁止举例");
     expect(prompt).toContain("不拆后续词根");
     expect(prompt).toContain("不写“例如”");
   });

@@ -797,6 +797,18 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
       "control",
       "convenient",
     ]);
+    expect(
+      result.rootFamilyView?.members.find((member) => member.lemma === "conduct")
+        ?.partOfSpeech,
+    ).toBe("v. / n.");
+    expect(
+      result.rootFamilyView?.members.find((member) => member.lemma === "content")
+        ?.partOfSpeech,
+    ).toBe("n. / adj.");
+    expect(
+      result.rootFamilyView?.members.find((member) => member.lemma === "confident")
+        ?.partOfSpeech,
+    ).toBe("adj.");
   });
 
   it("keeps exact compare terms without forcing a confusion boundary", async () => {

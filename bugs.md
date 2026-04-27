@@ -68,7 +68,7 @@
 - 当前实现距离用户真正要的“模糊搜索”仍有残留缺口：
   - 已补首批形近词簇检索：`跟 recent 很像的词有哪些`、`容易把 recent 看错成什么`、`recent/resent`、`adapt/adopt`、`quiet/quite`
   - 词根 / 碎片检索已补最小原型闭环：`stitute 是什么`、`tempt 这一族怎么记`、`attempt 这一族怎么记`、`跟 institute 一样那几个词怎么记` 可进入 `root_family_summary`
-  - 2026-04-27 已补单纯 prefix 宽召回：`con 开头的词有哪些` 现在会列当前范围内 34 个 `con-` 成员，并走表格呈现；provider smoke 已加硬检查防止漏词和把 `confident` 写成 `confidant`。
+  - 2026-04-27 已补单纯 prefix 宽召回：`con 开头的词有哪些` 现在会列当前范围内 34 个 `con-` 成员，并走 `word / 词性 / 核心义` 三列表格；provider smoke 已加硬检查防止漏词、缺词性、把 `confident` 写成 `confidant`，以及表格后继续写“例如”式词根故事。
   - 更泛化的组合 / 条件式词根碎片检索仍未实现：`re+con 的词根有什么词`、`con 开头、re 相关的词`、`re...ct 这种词`
   - 当前 `fuzzy_recall` 对 fragment / 多片段输入仍会落到 `low_confidence` 或 `no_match`
   - 后续 typo 若继续扩展，必须继续按明确拼写模式加窄门，不要把“低相关候选也先答一个”放回系统。
