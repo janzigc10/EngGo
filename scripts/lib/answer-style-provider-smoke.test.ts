@@ -45,10 +45,11 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
       "root: stitute",
       "root: tempt",
       "root: inter prefix fragment",
+      "root: con prefix fragment",
       "root: unsupported combination",
       "typo: reqeust correction",
     ]);
-    expect(cases).toHaveLength(14);
+    expect(cases).toHaveLength(15);
     expect(cases.map((item) => item.name)).not.toContain("confusion: respect family");
     expect(cases.every((item) => item.manualChecks.length > 0)).toBe(true);
   });
@@ -89,8 +90,16 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
       && item.expectedResolution === "resolved"
     );
 
-    expect(rootCases).toHaveLength(3);
-    expect(rootCases.every((item) => item.maxAnswerChars === 420)).toBe(true);
+    expect(rootCases).toHaveLength(4);
+    expect(
+      rootCases
+        .filter((item) => item.name !== "root: con prefix fragment")
+        .every((item) => item.maxAnswerChars === 420),
+    ).toBe(true);
+    expect(
+      rootCases.find((item) => item.name === "root: con prefix fragment")
+        ?.maxAnswerChars,
+    ).toBe(1500);
     expect(rootCases.every((item) =>
       item.manualChecks.includes("检查回答是否把当前范围内召回到的同根/碎片家族成员都列出来")
     )).toBe(true);
@@ -103,6 +112,17 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
     expect(rootCases.some((item) =>
       item.manualChecks.includes("检查回答是否带出前缀方向和优先级")
     )).toBe(false);
+    expect(rootCases.find((item) => item.name === "root: con prefix fragment")?.manualChecks).toContain(
+      "检查回答是否用表格列出全部成员，而不是只写部分词或用“等”省略",
+    );
+    expect(
+      rootCases.find((item) => item.name === "root: con prefix fragment")
+        ?.expectedAnswerIncludes,
+    ).toEqual(["| word | 核心义 |", "confident", "convenient"]);
+    expect(
+      rootCases.find((item) => item.name === "root: con prefix fragment")
+        ?.forbiddenAnswerIncludes,
+    ).toEqual(["confidant", "例如"]);
   });
 
   it("defines a focused standard-lookup provider smoke set", () => {
@@ -184,8 +204,13 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
   });
 
   it("fails when a no_match case still returns providerRequestId", () => {
-    const noMatchCase = buildAnswerStyleProviderSmokeCases()[12];
-    const verdict = evaluateAnswerStyleProviderSmoke(noMatchCase, {
+    const noMatchCase = buildAnswerStyleProviderSmokeCases().find(
+      (item) => item.name === "root: unsupported combination",
+    );
+
+    expect(noMatchCase).toBeTruthy();
+
+    const verdict = evaluateAnswerStyleProviderSmoke(noMatchCase!, {
       status: 200,
       providerRequestId: "resp_should_not_exist",
       grounding: {
@@ -203,8 +228,13 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
   });
 
   it("fails when a no_match case returns an empty answer", () => {
-    const noMatchCase = buildAnswerStyleProviderSmokeCases()[12];
-    const verdict = evaluateAnswerStyleProviderSmoke(noMatchCase, {
+    const noMatchCase = buildAnswerStyleProviderSmokeCases().find(
+      (item) => item.name === "root: unsupported combination",
+    );
+
+    expect(noMatchCase).toBeTruthy();
+
+    const verdict = evaluateAnswerStyleProviderSmoke(noMatchCase!, {
       status: 200,
       providerRequestId: null,
       grounding: {
@@ -244,6 +274,39 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
         "answer should not include scholarly",
       ]),
     );
+  });
+
+  it("fails provider smoke when required answer text is missing", () => {
+    const caseDef = buildAnswerStyleProviderSmokeCases().find(
+      (item) => item.name === "root: con prefix fragment",
+    );
+
+    expect(caseDef).toBeTruthy();
+
+    const verdict = evaluateAnswerStyleProviderSmoke(caseDef!, {
+      status: 200,
+      providerRequestId: "resp_123",
+      grounding: {
+        queryMode: "root_family_summary",
+        resolution: "resolved",
+        answerStyle: "root_family_summary",
+        mainAnswer: [{ lemma: "concept" }],
+        rootFamilyView: {
+          id: "fragment-prefix-con",
+          members: [
+            { lemma: "concept" },
+            { lemma: "conform" },
+            { lemma: "construct" },
+            { lemma: "convenient" },
+          ],
+        },
+      },
+      answer: "| word | 核心义 |\n| concept | 概念 |",
+    });
+
+    expect(verdict.autoVerdict).toBe("fail");
+    expect(verdict.hardFailures).toContain("answer missing confident");
+    expect(verdict.hardFailures).toContain("answer missing convenient");
   });
 
   it("fails standard lookup smoke when forbidden grounding appears", () => {
@@ -390,8 +453,13 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
   });
 
   it("fails when no rootFamilyView is expected but the object still exists", () => {
-    const noMatchCase = buildAnswerStyleProviderSmokeCases()[12];
-    const verdict = evaluateAnswerStyleProviderSmoke(noMatchCase, {
+    const noMatchCase = buildAnswerStyleProviderSmokeCases().find(
+      (item) => item.name === "root: unsupported combination",
+    );
+
+    expect(noMatchCase).toBeTruthy();
+
+    const verdict = evaluateAnswerStyleProviderSmoke(noMatchCase!, {
       status: 200,
       providerRequestId: null,
       grounding: {

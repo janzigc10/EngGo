@@ -752,15 +752,51 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     ]);
   });
 
-  it("keeps overly broad prefix fragment recall as no-match", async () => {
+  it("resolves broad prefix fragment recall with all in-scope members", async () => {
     const result = await retrieveCandidates({
       activeExamTarget: "cet6",
       query: "con 开头的词有哪些",
     });
 
     expect(result.queryMode).toBe("root_family_summary");
-    expect(result.resolution).toBe("no_match");
-    expect(result.rootFamilyView).toBeNull();
+    expect(result.resolution).toBe("resolved");
+    expect(result.rootFamilyView?.id).toBe("fragment-prefix-con");
+    expect(result.rootFamilyView?.members.map((member) => member.lemma)).toEqual([
+      "concentrate",
+      "concept",
+      "concern",
+      "conclude",
+      "condition",
+      "conduct",
+      "conference",
+      "confidence",
+      "confident",
+      "confirm",
+      "conflict",
+      "conform",
+      "connection",
+      "conscience",
+      "conscious",
+      "consequence",
+      "consider",
+      "considerable",
+      "considerate",
+      "constant",
+      "constitute",
+      "constrain",
+      "construct",
+      "consume",
+      "contact",
+      "contain",
+      "contempt",
+      "content",
+      "context",
+      "continent",
+      "contrast",
+      "contribute",
+      "control",
+      "convenient",
+    ]);
   });
 
   it("keeps exact compare terms without forcing a confusion boundary", async () => {

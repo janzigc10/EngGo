@@ -65,9 +65,15 @@ describe("black-box product smoke cases", () => {
           expectedRootFamilyViewId: "fragment-prefix-inter",
         }),
         expect.objectContaining({
-          name: "no-match: broad con prefix",
-          expectedResolution: "no_match",
-          expectedRootFamilyViewId: null,
+          name: "root: broad con prefix",
+          expectedResolution: "resolved",
+          expectedRootFamilyViewId: "fragment-prefix-con",
+          expectedGroundingIncludes: expect.arrayContaining([
+            "concept",
+            "conform",
+            "construct",
+            "convenient",
+          ]),
         }),
       ]),
     );

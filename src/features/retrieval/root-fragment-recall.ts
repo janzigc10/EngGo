@@ -1,7 +1,6 @@
 import type { RootFamilyView } from "@/features/retrieval/types";
 
 const minFragmentMembers = 2;
-const maxFragmentMembers = 8;
 
 export type RootFragmentRecallPattern =
   | {
@@ -132,10 +131,7 @@ export function selectRootFragmentEntries(
     .filter((entry) => lemmaMatchesPattern(entry.lemma, pattern))
     .sort((left, right) => left.lemma.localeCompare(right.lemma));
 
-  if (
-    matches.length < minFragmentMembers
-    || matches.length > maxFragmentMembers
-  ) {
+  if (matches.length < minFragmentMembers) {
     return [];
   }
 
@@ -151,7 +147,7 @@ export function buildRootFragmentView(
     fragment: pattern.fragment,
     coreImage: "按词形碎片召回",
     note: "这是按用户给出的词首、词尾或片段组合，从当前考试范围内做的保守召回。",
-    caution: "只列当前词库里命中的少量词；候选过少或过宽时不硬凑规律。",
+    caution: "只列当前词库里命中的词；候选过少时不硬凑规律。",
     members: entries.map((entry) => ({
       lemma: entry.lemma,
       prefix: pattern.kind === "prefix" ? `${pattern.prefix}-` : null,

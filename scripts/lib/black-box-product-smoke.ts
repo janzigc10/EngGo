@@ -455,15 +455,17 @@ export function buildBlackBoxProductSmokeCases(): BlackBoxProductSmokeCase[] {
       expectedRootFamilyViewId: null,
     }),
     createCase({
-      name: "no-match: broad con prefix",
-      category: "no_match",
+      name: "root: broad con prefix",
+      category: "root_family",
       source: "existing",
       query: "con 开头的词有哪些",
       activeExamTarget: "cet6",
       expectedQueryMode: "root_family_summary",
-      expectedResolution: "no_match",
+      expectedResolution: "resolved",
       expectedAnswerStyle: "root_family_summary",
-      expectedRootFamilyViewId: null,
+      expectedRootFamilyViewId: "fragment-prefix-con",
+      expectedComparisonViewId: null,
+      expectedGroundingIncludes: ["concept", "conform", "construct", "convenient"],
     }),
   ];
 }

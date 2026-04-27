@@ -517,4 +517,73 @@ describe("buildSystemPrompt", () => {
     expect(prompt).not.toContain("建议的下一步追问");
     expect(prompt).toContain("不要再套用通用四段标题");
   });
+
+  it("guides broad root fragment summaries to render every member in a table", () => {
+    const grounding: AnswerGrounding = {
+      activeExamTarget: "cet6",
+      activeExamTargetLabel: "CET-6",
+      query: "con 开头的词有哪些",
+      queryMode: "root_family_summary",
+      answerStyle: "root_family_summary",
+      resolution: "resolved",
+      noMatchReason: null,
+      mainAnswer: [
+        {
+          entryId: "concept",
+          lemma: "concept",
+          meaningsZh: ["概念"],
+          matchedAlias: null,
+          scopeCodes: ["cet4", "cet6"],
+          inScope: true,
+          reason: "当前考试范围命中，来自词形片段召回",
+          score: 260,
+        },
+      ],
+      confusionBoundary: [],
+      scopeReminder: "这次回答已优先锁定在 CET-6 范围内。",
+      followUpPrompt: "如果你愿意，我可以继续按意思分组。",
+      comparisonView: null,
+      rootFamilyView: {
+        id: "fragment-prefix-con",
+        fragment: "con-",
+        coreImage: "按词形碎片召回",
+        note: "这是按用户给出的词首，从当前考试范围内做的保守召回。",
+        caution: "只列当前词库里命中的词。",
+        members: [
+          "concept",
+          "concern",
+          "conclude",
+          "condition",
+          "conduct",
+          "confirm",
+          "conform",
+          "construct",
+          "control",
+        ].map((lemma) => ({
+          lemma,
+          prefix: "con-",
+          prefixDirection: "词首片段 con-",
+          actionStory: "命中 con- 这个词形线索",
+          modernMeaningZh: "核心义",
+          priority: "recognize",
+          entryId: lemma,
+          inScope: true,
+        })),
+      },
+    };
+
+    const prompt = buildSystemPrompt(grounding);
+
+    expect(prompt).toContain("本次召回成员较多（9 个）");
+    expect(prompt).toContain("总长度可放宽到 1500 个汉字以内");
+    expect(prompt).toContain("家族召回段必须用 Markdown 表格");
+    expect(prompt).toContain("word | 核心义");
+    expect(prompt).toContain("把 rootFamilyView.members 全部列出，不要省略");
+    expect(prompt).toContain("word 列必须逐字复制 rootFamilyView.members.lemma");
+    expect(prompt).toContain("禁止改拼写");
+    expect(prompt).toContain("不要写“等”");
+    expect(prompt).toContain("意义分流只用 1-2 句概括");
+    expect(prompt).toContain("不拆后续词根");
+    expect(prompt).toContain("不写“例如”");
+  });
 });

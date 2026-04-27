@@ -15,6 +15,7 @@ export type ProviderSmokeCase = {
   expectedResolution: RetrievalResolution;
   expectedAnswerStyle: AnswerStyle;
   expectedGroundingIncludes?: string[];
+  expectedAnswerIncludes?: string[];
   forbiddenGroundingIncludes?: string[];
   expectedRootFamilyViewId?: string | null;
   expectedComparisonViewId?: string | null;
@@ -76,6 +77,11 @@ const DEFAULT_ROOT_MANUAL_CHECKS = [
   "检查回答是否给每个成员都配中文核心义",
   "检查回答是否讲清前缀、后缀或现代义分流，而不是只排背诵优先级",
   "检查回答是否没有把内部防御性提醒写成正文",
+];
+
+const DEFAULT_BROAD_ROOT_MANUAL_CHECKS = [
+  ...DEFAULT_ROOT_MANUAL_CHECKS,
+  "检查回答是否用表格列出全部成员，而不是只写部分词或用“等”省略",
 ];
 
 const DEFAULT_EXPRESSION_MANUAL_CHECKS = [
@@ -289,6 +295,21 @@ export function buildAnswerStyleProviderSmokeCases(): ProviderSmokeCase[] {
       forbiddenAnswerIncludes: ["埋葬", "既是一个完整单词"],
       maxAnswerChars: 420,
       manualChecks: DEFAULT_ROOT_MANUAL_CHECKS,
+    }),
+    createCase({
+      name: "root: con prefix fragment",
+      query: "con 开头的词有哪些",
+      activeExamTarget: "cet6",
+      expectedQueryMode: "root_family_summary",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "root_family_summary",
+      expectedGroundingIncludes: ["concept", "conform", "construct", "convenient"],
+      expectedAnswerIncludes: ["| word | 核心义 |", "confident", "convenient"],
+      forbiddenAnswerIncludes: ["confidant", "例如"],
+      expectedRootFamilyViewId: "fragment-prefix-con",
+      expectedComparisonViewId: null,
+      maxAnswerChars: 1500,
+      manualChecks: DEFAULT_BROAD_ROOT_MANUAL_CHECKS,
     }),
     createCase({
       name: "root: unsupported combination",
@@ -718,6 +739,12 @@ export function evaluateAnswerStyleProviderSmoke(
   for (const lemma of caseDef.forbiddenGroundingIncludes ?? []) {
     if (groundingLemmas.includes(lemma)) {
       hardFailures.push(`grounding should not include ${lemma}`);
+    }
+  }
+
+  for (const text of caseDef.expectedAnswerIncludes ?? []) {
+    if (!answer.includes(text)) {
+      hardFailures.push(`answer missing ${text}`);
     }
   }
 
