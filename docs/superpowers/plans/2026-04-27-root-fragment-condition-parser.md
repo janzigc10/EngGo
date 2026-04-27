@@ -319,7 +319,7 @@ git commit -m "feat: resolve root fragment condition queries"
 - Modify: `scripts/lib/black-box-product-smoke.ts`
 - Modify: `scripts/lib/black-box-product-smoke.test.ts`
 
-- [ ] **Step 1: Add deterministic eval cases**
+- [x] **Step 1: Add deterministic eval cases**
 
 After Task 3 is green, add deterministic regression smoke cases. These smoke cases verify the integrated behavior; the parser and retrieval tests above are the main RED/GREEN guardrail.
 
@@ -336,7 +336,7 @@ Expected:
 - first four are `root_family_summary / resolved`
 - `re+con` remains `root_family_summary / no_match`
 
-- [ ] **Step 2: Run local evals and confirm failures where expected**
+- [x] **Step 2: Run local evals and confirm failures where expected**
 
 Run:
 
@@ -347,11 +347,11 @@ corepack pnpm eval:product-smoke
 
 Expected before implementation is complete: new cases fail. After Task 3, they should pass.
 
-- [ ] **Step 3: Update black-box case tests**
+- [x] **Step 3: Update black-box case tests**
 
 Update `scripts/lib/black-box-product-smoke.test.ts` to assert the new case names and expected root family view IDs.
 
-- [ ] **Step 4: Run smoke tests**
+- [x] **Step 4: Run smoke tests**
 
 Run:
 
@@ -367,7 +367,7 @@ Expected:
 - product smoke passes
 - product smoke category totals now include the new root-family cases
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add scripts/run-answer-style-eval.ts scripts/lib/black-box-product-smoke.ts scripts/lib/black-box-product-smoke.test.ts

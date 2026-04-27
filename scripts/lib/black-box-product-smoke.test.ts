@@ -11,7 +11,7 @@ describe("black-box product smoke cases", () => {
     const cases = buildBlackBoxProductSmokeCases();
 
     expect(cases.length).toBeGreaterThanOrEqual(20);
-    expect(cases.length).toBeLessThanOrEqual(35);
+    expect(cases.length).toBeLessThanOrEqual(40);
     expect(new Set(cases.map((item) => item.category))).toEqual(
       new Set([
         "standard_lookup",
@@ -74,6 +74,33 @@ describe("black-box product smoke cases", () => {
             "construct",
             "convenient",
           ]),
+        }),
+        expect.objectContaining({
+          name: "root: tion suffix fragment",
+          expectedResolution: "resolved",
+          expectedRootFamilyViewId: "fragment-suffix-tion",
+          expectedGroundingIncludes: expect.arrayContaining([
+            "condition",
+            "connection",
+            "function",
+            "institution",
+            "tradition",
+          ]),
+        }),
+        expect.objectContaining({
+          name: "root: struct contains fragment",
+          expectedRootFamilyViewId: "fragment-contains-struct",
+          expectedGroundingIncludes: expect.arrayContaining(["construct", "structure"]),
+        }),
+        expect.objectContaining({
+          name: "root: con prefix re contains",
+          expectedRootFamilyViewId: "fragment-prefix-con-contains-re",
+          expectedGroundingIncludes: ["conference"],
+        }),
+        expect.objectContaining({
+          name: "root: re ct fragment pattern",
+          expectedRootFamilyViewId: "fragment-pattern-re-ct",
+          expectedGroundingIncludes: ["respect"],
         }),
       ]),
     );

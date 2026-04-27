@@ -17,7 +17,7 @@ export type BlackBoxProductSmokeCategory =
 export type BlackBoxProductSmokeCase = {
   name: string;
   category: BlackBoxProductSmokeCategory;
-  source: "existing" | "batch3";
+  source: "existing" | "batch3" | "condition-parser";
   query: string;
   activeExamTarget: ExamScopeCode;
   expectedQueryMode: QueryMode;
@@ -466,6 +466,64 @@ export function buildBlackBoxProductSmokeCases(): BlackBoxProductSmokeCase[] {
       expectedRootFamilyViewId: "fragment-prefix-con",
       expectedComparisonViewId: null,
       expectedGroundingIncludes: ["concept", "conform", "construct", "convenient"],
+    }),
+    createCase({
+      name: "root: tion suffix fragment",
+      category: "root_family",
+      source: "condition-parser",
+      query: "tion 结尾的词有哪些",
+      activeExamTarget: "cet6",
+      expectedQueryMode: "root_family_summary",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "root_family_summary",
+      expectedRootFamilyViewId: "fragment-suffix-tion",
+      expectedComparisonViewId: null,
+      expectedGroundingIncludes: [
+        "condition",
+        "connection",
+        "function",
+        "institution",
+        "tradition",
+      ],
+    }),
+    createCase({
+      name: "root: struct contains fragment",
+      category: "root_family",
+      source: "condition-parser",
+      query: "有 struct 的词",
+      activeExamTarget: "cet6",
+      expectedQueryMode: "root_family_summary",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "root_family_summary",
+      expectedRootFamilyViewId: "fragment-contains-struct",
+      expectedComparisonViewId: null,
+      expectedGroundingIncludes: ["construct", "structure"],
+    }),
+    createCase({
+      name: "root: con prefix re contains",
+      category: "root_family",
+      source: "condition-parser",
+      query: "con 开头 re 相关的词",
+      activeExamTarget: "cet6",
+      expectedQueryMode: "root_family_summary",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "root_family_summary",
+      expectedRootFamilyViewId: "fragment-prefix-con-contains-re",
+      expectedComparisonViewId: null,
+      expectedGroundingIncludes: ["conference"],
+    }),
+    createCase({
+      name: "root: re ct fragment pattern",
+      category: "root_family",
+      source: "condition-parser",
+      query: "re...ct 这种词",
+      activeExamTarget: "cet6",
+      expectedQueryMode: "root_family_summary",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "root_family_summary",
+      expectedRootFamilyViewId: "fragment-pattern-re-ct",
+      expectedComparisonViewId: null,
+      expectedGroundingIncludes: ["respect"],
     }),
   ];
 }
