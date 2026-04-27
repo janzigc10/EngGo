@@ -1404,9 +1404,9 @@ async function handleRootFamilySummary(
   const prototype = findRootFamilyPrototype(normalizedQuery.normalizedText);
 
   if (!prototype) {
-    const fragmentPattern = parseRootFragmentRecall(normalizedQuery.normalizedText);
+    const fragmentQuery = parseRootFragmentRecall(normalizedQuery.normalizedText);
 
-    if (!fragmentPattern) {
+    if (!fragmentQuery) {
       return createNoMatchResult(normalizedQuery, [], "low_confidence", null);
     }
 
@@ -1416,7 +1416,7 @@ async function handleRootFamilySummary(
     );
     const selectedEntries = selectRootFragmentEntries(
       fragmentEntries,
-      fragmentPattern,
+      fragmentQuery,
     );
 
     if (selectedEntries.length === 0) {
@@ -1431,7 +1431,7 @@ async function handleRootFamilySummary(
       createRootFragmentRankedCandidate(input.activeExamTarget, entry),
     );
     const rootFamilyView = buildRootFragmentView(
-      fragmentPattern,
+      fragmentQuery,
       selectedEntries,
     );
 

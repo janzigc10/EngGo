@@ -67,6 +67,18 @@ describe("detectQueryMode", () => {
   it("detects prefix fragment list intent", () => {
     expect(detectQueryMode("inter 开头的词有哪些")).toBe("root_family_summary");
   });
+
+  it("detects structural fragment condition intents", () => {
+    expect(detectQueryMode("tion 结尾的词有哪些")).toBe("root_family_summary");
+    expect(detectQueryMode("有 struct 的词")).toBe("root_family_summary");
+    expect(detectQueryMode("con 开头 re 相关的词")).toBe("root_family_summary");
+  });
+
+  it("keeps ordinary lookup wording out of fragment recall routing", () => {
+    expect(detectQueryMode("content 是什么意思")).not.toBe("root_family_summary");
+    expect(detectQueryMode("inter 是什么意思")).not.toBe("root_family_summary");
+    expect(detectQueryMode("con 是什么意思")).not.toBe("root_family_summary");
+  });
 });
 
 describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
@@ -809,6 +821,90 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
       result.rootFamilyView?.members.find((member) => member.lemma === "confident")
         ?.partOfSpeech,
     ).toBe("adj.");
+  });
+
+  it("resolves suffix fragment recall from in-scope entries", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "tion 结尾的词有哪些",
+    });
+
+    expect(result.queryMode).toBe("root_family_summary");
+    expect(result.resolution).toBe("resolved");
+    expect(result.rootFamilyView?.id).toBe("fragment-suffix-tion");
+    const lemmas = result.rootFamilyView?.members.map((member) => member.lemma) ?? [];
+
+    expect(lemmas.length).toBeGreaterThan(8);
+    expect(lemmas.every((lemma) => lemma.endsWith("tion"))).toBe(true);
+    expect(lemmas).toEqual(
+      expect.arrayContaining([
+        "condition",
+        "connection",
+        "function",
+        "institution",
+        "temptation",
+        "tradition",
+      ]),
+    );
+  });
+
+  it("resolves contains fragment recall from in-scope entries", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "有 struct 的词",
+    });
+
+    expect(result.queryMode).toBe("root_family_summary");
+    expect(result.resolution).toBe("resolved");
+    expect(result.rootFamilyView?.id).toBe("fragment-contains-struct");
+    expect(result.rootFamilyView?.members.map((member) => member.lemma)).toEqual([
+      "construct",
+      "structure",
+    ]);
+  });
+
+  it("resolves multi-condition fragment recall from in-scope entries", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "con 开头 re 相关的词",
+    });
+
+    expect(result.queryMode).toBe("root_family_summary");
+    expect(result.resolution).toBe("resolved");
+    expect(result.rootFamilyView?.id).toBe("fragment-prefix-con-contains-re");
+    expect(result.rootFamilyView?.members.map((member) => member.lemma)).toEqual([
+      "conference",
+    ]);
+  });
+
+  it("resolves single-match start-end fragment recall from in-scope entries", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "re...ct 这种词",
+    });
+
+    expect(result.queryMode).toBe("root_family_summary");
+    expect(result.resolution).toBe("resolved");
+    expect(result.rootFamilyView?.id).toBe("fragment-pattern-re-ct");
+    expect(result.rootFamilyView?.members.map((member) => member.lemma)).toEqual(["respect"]);
+  });
+
+  it("keeps ordinary lookup queries out of dynamic fragment recall", async () => {
+    const cases = [
+      "content 是什么意思",
+      "inter 是什么意思",
+      "con 是什么意思",
+    ];
+
+    for (const query of cases) {
+      const result = await retrieveCandidates({
+        activeExamTarget: "cet6",
+        query,
+      });
+
+      expect(result.queryMode).not.toBe("root_family_summary");
+      expect(result.rootFamilyView).toBeNull();
+    }
   });
 
   it("keeps exact compare terms without forcing a confusion boundary", async () => {

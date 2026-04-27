@@ -84,11 +84,13 @@ function containsShapeNeighborCue(normalizedText: string) {
 }
 
 function containsRootFamilyCue(normalizedText: string) {
-  if (rootCuePattern.test(normalizedText) || rootFragmentPattern.test(normalizedText)) {
+  const hasStructuralFragmentQuery = hasRootFragmentRecallPattern(normalizedText);
+
+  if (hasStructuralFragmentQuery) {
     return true;
   }
 
-  if (hasRootFragmentRecallPattern(normalizedText)) {
+  if (rootCuePattern.test(normalizedText) || rootFragmentPattern.test(normalizedText)) {
     return true;
   }
 

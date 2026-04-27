@@ -220,7 +220,7 @@ git commit -m "feat: match root fragment constraints"
 - Modify: `src/features/retrieval/retrieve-candidates.ts`
 - Modify: `src/features/retrieval/retrieve-candidates.test.ts`
 
-- [ ] **Step 1: Write failing retrieval integration tests**
+- [x] **Step 1: Write failing retrieval integration tests**
 
 Add cases:
 
@@ -256,7 +256,7 @@ Also add:
 - `re+con 的词根有什么词` remains `no_match`
 - Negative routing tests: `content 是什么意思`, `inter 是什么意思`, and `con 是什么意思` must not become dynamic fragment recall.
 
-- [ ] **Step 2: Run integration tests and confirm RED**
+- [x] **Step 2: Run integration tests and confirm RED**
 
 Run:
 
@@ -266,7 +266,9 @@ corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts -t "fragme
 
 Expected: new condition cases fail under the current parser.
 
-- [ ] **Step 3: Wire parser into query-mode routing**
+Actual during execution: after Task 1-2, the existing dynamic retrieval branch was already using `parseRootFragmentRecall`, so the new fragment integration cases were GREEN immediately. The first full retrieval run failed on the known Prisma dev `Connection terminated unexpectedly` environment issue; a non-deleting restart plus migrate/seed restored the database and the full file passed.
+
+- [x] **Step 3: Wire parser into query-mode routing**
 
 In `normalize-query.ts`, make routing depend on concrete structure:
 
@@ -283,7 +285,7 @@ Add or keep negative tests proving these stay out of dynamic fragment recall:
 - `con 是什么意思`
 - `re+con 的词根有什么词`
 
-- [ ] **Step 4: Build `RootFamilyView` from condition query**
+- [x] **Step 4: Build `RootFamilyView` from condition query**
 
 In `retrieve-candidates.ts`, continue:
 
@@ -293,7 +295,7 @@ In `retrieve-candidates.ts`, continue:
 
 For single-match structural queries, return resolved. The visible answer can say the current scope only matched one word.
 
-- [ ] **Step 5: Run integration tests and confirm GREEN**
+- [x] **Step 5: Run integration tests and confirm GREEN**
 
 Run:
 
@@ -303,7 +305,7 @@ corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts
 
 Expected: all retrieval tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add src/features/retrieval/normalize-query.ts src/features/retrieval/retrieve-candidates.ts src/features/retrieval/retrieve-candidates.test.ts
