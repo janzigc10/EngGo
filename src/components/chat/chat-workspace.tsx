@@ -22,7 +22,7 @@ export function ChatWorkspace() {
 
   return (
     <section className="grid flex-1 gap-6 lg:grid-cols-[minmax(0,1.2fr)_320px]">
-      <div className="flex min-h-[560px] flex-col justify-between rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.06)] backdrop-blur sm:p-8">
+      <div className="flex min-h-[560px] min-w-0 flex-col justify-between rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.06)] backdrop-blur sm:p-8">
         <div className="space-y-6">
           <ExamTargetSwitcher
             activeExamTarget={activeExamTarget}

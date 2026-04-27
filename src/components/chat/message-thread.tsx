@@ -1,4 +1,5 @@
 import { AnswerActions } from "@/components/chat/answer-actions";
+import { AnswerContent } from "@/components/chat/answer-content";
 import type { ChatMessage } from "@/features/chat/types";
 
 type MessageThreadProps = {
@@ -31,11 +32,11 @@ export function MessageThread({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       {messages.map((message) => (
         <article
           key={message.id}
-          className={`rounded-[1.5rem] border px-4 py-4 shadow-sm ${
+          className={`min-w-0 rounded-[1.5rem] border px-4 py-4 shadow-sm ${
             message.role === "user"
               ? "ml-auto max-w-xl border-sky-200 bg-sky-50 text-slate-900"
               : "border-slate-200 bg-white text-slate-800"
@@ -44,7 +45,7 @@ export function MessageThread({
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
             {message.role === "user" ? "你的问题" : "EngGo 回答"}
           </p>
-          <p className="whitespace-pre-wrap text-sm leading-7">{message.content}</p>
+          <AnswerContent content={message.content} />
           {message.role === "assistant" && message.grounding ? (
             <div className="mt-4 space-y-3 rounded-[1.25rem] border border-slate-100 bg-slate-50 p-4">
               {message.grounding.resolution === "no_match" ? (

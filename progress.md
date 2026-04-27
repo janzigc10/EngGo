@@ -19,6 +19,20 @@
 - 词根家族地图：用户有词根/前缀/碎片，或只记得 `attempt` / `institute` 这类家族成员，需要结构化召回同根/同碎片词、列中文核心义，并总结前缀/后缀/现代义分流。
 
 ## 本 Session 已完成
+- 2026-04-27 完成聊天回答渲染层第一刀：
+  - 新增 [src/components/chat/answer-content.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/answer-content.tsx) 和 [src/components/chat/answer-content.test.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/answer-content.test.tsx)，用受控 Markdown 子集渲染 assistant answer：段落、`###` 标题、`**加粗**`、反引号 code、`-` 列表和 Markdown 表格。
+  - [src/components/chat/message-thread.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/message-thread.tsx) 已改用 `AnswerContent`，不再把 `word | 词性 | 核心义` 或 `###` 原样露给用户。
+  - [src/components/chat/answer-actions.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/answer-actions.tsx) 已把长 `mainAnswer` 收藏动作默认折叠：超过 5 个时只显示前 5 个，并提供 `展开全部 N 个`，避免手机端一次性摊开 15-34 个收藏按钮。
+  - 移动端真实浏览器复验 `tion 结尾的词有哪些`：`status=200`、`tableCount=1`、`rawTableVisible=false`、`rawHeadingVisible=false`、`visibleCollectButtons=5`、`expandVisible=1`、`hasCoreMeaningColumn=true`、`innerWidth=390 / scrollWidth=390`，说明表格已渲染且无页面级横向溢出。
+  - 最新截图保存为 `output/playwright/enggo-mobile-tion-rendered.png`。
+  - 验证：`corepack pnpm test src/components/chat/answer-content.test.tsx src/components/chat/answer-actions.test.tsx src/components/chat/chat-workspace.test.tsx` -> 3 files / 10 tests passed；focused eslint 通过。
+- 2026-04-27 完成一次真实聊天页前端验收，结论是“功能链路可用，但前端承接还没做好”：
+  - 本地 `http://localhost:3000` 已启动并用真实浏览器跑过 `tion 结尾的词有哪些`、`有 struct 的词`、`con 开头 re 相关的词`、`re...ct 这种词`、`re+con 的词根有什么词`。
+  - 五条 query 均无前端 error；前四条 resolved，`re+con 的词根有什么词` 保持 no-match，回答文案自然，不像服务报错。
+  - 明确前端残留：`src/components/chat/message-thread.tsx` 仍把 assistant answer 当普通 `<p className="whitespace-pre-wrap">` 文本渲染，所以 Markdown 加粗、反引号、列表和 `word | 词性 | 核心义` 表格都会原样显示；宽召回没有真正变成表格。
+  - 明确移动端残留：宽召回会把 `AnswerActions` 的 15 个 `加入收藏` 项全部展开，手机全页截图非常长；桌面端也只是把原始 Markdown 文字排得更宽，不是结构化学习卡。
+  - 验收截图已保存：`output/playwright/enggo-mobile-empty.png`、`output/playwright/enggo-mobile-tion-answer.png`、`output/playwright/enggo-desktop-tion-answer.png`。
+  - 下一步建议不要先做大改版，也不要继续只测后端；应先写一个“聊天回答渲染层 / root-family 宽召回展示”前端设计，把 Markdown/表格、长列表收藏动作、移动端折叠策略定下来，再进实现计划。
 - 2026-04-27 完成 [docs/superpowers/plans/2026-04-27-root-fragment-condition-parser.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-27-root-fragment-condition-parser.md) 的 Task 1-6：
   - [src/features/retrieval/root-fragment-recall.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/root-fragment-recall.ts) 已从旧 `kind` 分支改成 `RootFragmentConstraint / RootFragmentQuery`，支持 `prefix / suffix / contains / start_end / ordered_contains`，多条件默认 AND；结构化单命中也允许 resolved。
   - [src/features/retrieval/normalize-query.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/normalize-query.ts) 和 [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts) 已接入 condition parser：`tion 结尾的词有哪些` -> `fragment-suffix-tion`，`有 struct 的词` -> `construct / structure`，`con 开头 re 相关的词` -> `conference`，`re...ct 这种词` -> `respect`；`re+con 的词根有什么词` 仍保持 `root_family_summary / no_match`。

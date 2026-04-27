@@ -9,6 +9,8 @@ type AnswerActionsProps = {
   grounding: AnswerGrounding;
 };
 
+const collapsedMainAnswerLimit = 5;
+
 function buildCollectionNote(meaning: string[] | undefined, reason: string) {
   const normalizedMeaning =
     meaning?.map((item) => item.trim()).filter(Boolean) ?? [];
@@ -35,6 +37,7 @@ export function AnswerActions({ grounding }: AnswerActionsProps) {
       .filter(Boolean),
   );
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
   const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -67,6 +70,12 @@ export function AnswerActions({ grounding }: AnswerActionsProps) {
     return null;
   }
 
+  const shouldCollapse = grounding.mainAnswer.length > collapsedMainAnswerLimit;
+  const visibleCandidates =
+    shouldCollapse && !isExpanded
+      ? grounding.mainAnswer.slice(0, collapsedMainAnswerLimit)
+      : grounding.mainAnswer;
+
   return (
     <div className="mt-4 space-y-3 rounded-[1.25rem] border border-slate-100 bg-white p-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -75,17 +84,31 @@ export function AnswerActions({ grounding }: AnswerActionsProps) {
             收藏动作
           </p>
           <p className="text-sm text-slate-600">
-            把这条主答案收进当前考试范围，后面再慢慢整理。
+            {shouldCollapse
+              ? `先显示前 ${collapsedMainAnswerLimit} 个，展开后可以逐个收藏。`
+              : "把这条主答案收进当前考试范围，后面再慢慢整理。"}
           </p>
         </div>
-        {statusMessage ? (
-          <p className="text-sm font-medium text-emerald-700" aria-live="polite">
-            {statusMessage}
-          </p>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-3">
+          {shouldCollapse ? (
+            <button
+              type="button"
+              aria-expanded={isExpanded}
+              onClick={() => setIsExpanded((current) => !current)}
+              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-200 hover:text-sky-900"
+            >
+              {isExpanded ? "收起" : `展开全部 ${grounding.mainAnswer.length} 个`}
+            </button>
+          ) : null}
+          {statusMessage ? (
+            <p className="text-sm font-medium text-emerald-700" aria-live="polite">
+              {statusMessage}
+            </p>
+          ) : null}
+        </div>
       </div>
       <div className="space-y-3">
-        {grounding.mainAnswer.map((candidate) => {
+        {visibleCandidates.map((candidate) => {
           const note = buildCollectionNote(candidate.meaningsZh, candidate.reason);
           const isSaved = collectedLemmas.has(candidate.lemma);
 

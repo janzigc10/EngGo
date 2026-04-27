@@ -6,6 +6,7 @@
   - 本地实例一旦进入坏状态，连原生 `pg` 的 `SELECT 1` 也可能报 `Connection terminated unexpectedly` / `read ECONNRESET`
   - `prisma dev ls` 显示 `running` 不代表 TCP 连接一定健康
   - `corepack pnpm exec prisma dev ls` / `corepack pnpm exec prisma dev ...` 在本机还可能报 `%TEMP%\\@prisma\\cli-dev@latest-*` 的 `EPERM, Permission denied`
+- 2026-04-27 追加本地 Codex sandbox 环境坑：非 escalated shell 里，pnpm junction 依赖可能被映射到 `C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\...`，导致 `@prisma/debug` 明明存在却报 `MODULE_NOT_FOUND` 或 `EPERM package.json access denied`；真实工作区权限下同一命令可正常 resolve。遇到该现象时，不要先删 `node_modules`，先用 real-workspace/elevated 权限复查 `node -e "require.resolve('@prisma/debug')"` 和 `node_modules\.bin\prisma.CMD dev ls`。
 - 当前可复用的恢复路径仍是：
   - 若 `corepack pnpm exec prisma dev ...` 命中上面的 `EPERM`，改用仓库内 Prisma 二进制：
     - 当前 `.env` 指向的实例名是 `enggo`
@@ -94,6 +95,7 @@
   - 结构化词根 / 碎片检索第一层已落地；后续不要把语义词根理论问题混进词形过滤 parser，先单独定义产品边界
 
 ## 已处理
+- 2026-04-27 聊天回答展示层第一刀已处理：assistant answer 不再作为纯 `<p className="whitespace-pre-wrap">` 渲染，而是用 [src/components/chat/answer-content.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/answer-content.tsx) 渲染段落、标题、加粗、code、列表和 Markdown 表格；宽召回的收藏动作超过 5 个默认折叠。真实手机复验 `tion 结尾的词有哪些` 得到 `tableCount=1`、`rawTableVisible=false`、`rawHeadingVisible=false`、`visibleCollectButtons=5`、`scrollWidth=390`。
 - `retrieveCandidates -> buildGrounding -> chatService` 的 no-match 闭环已落地，库外 meaning / fuzzy / compare 不再硬猜。
 - 多词 compare、group compare、`哪个` 句式 compare 已支持。
 - no-match UI 已避免空白主答案卡片。
