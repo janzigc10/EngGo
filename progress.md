@@ -19,6 +19,10 @@
 - 词根家族地图：用户有词根/前缀/碎片，或只记得 `attempt` / `institute` 这类家族成员，需要结构化召回同根/同碎片词、列中文核心义，并总结前缀/后缀/现代义分流。
 
 ## 本 Session 已完成
+- 2026-04-27 为避免继续 query-by-query 补洞，补充 root fragment condition parser 轻量设计与执行计划：
+  - 新增 [docs/superpowers/specs/2026-04-27-root-fragment-condition-parser.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/specs/2026-04-27-root-fragment-condition-parser.md)：把碎片检索定义为结构化词形条件解析，支持 `prefix / suffix / contains / start_end / ordered_contains`，多条件默认 AND；明确 `re+con 的词根有什么词` 仍不应被硬解释成稳定词根组合。
+  - 新增 [docs/superpowers/plans/2026-04-27-root-fragment-condition-parser.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-27-root-fragment-condition-parser.md)：按 TDD 拆成 parser 单测、constraint matcher、retrieval integration、本地 smoke、provider smoke、docs handoff 六个任务。
+  - 代表验收矩阵锁定当前 `real-smoke` 可支撑的四类行为：`tion 结尾` 多命中、`有 struct 的词` 少量命中、`con 开头 re 相关` 单命中、`re...ct` 单命中；`re+con 的词根有什么词` 保持 no-match，避免把语义词根问题误当词形过滤。
 - 2026-04-27 根据用户确认调整宽 prefix 碎片召回：
   - [src/features/retrieval/root-fragment-recall.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/root-fragment-recall.ts) 已取消“命中超过 8 个就 no-match”的上限，只保留少于 2 个不硬凑；`con 开头的词有哪些` 现在进入 `root_family_summary / resolved`，`rootFamilyView.id=fragment-prefix-con`，当前 CET-6 `real-smoke` 范围内返回 34 个 `con-` 成员。
   - [src/features/retrieval/types.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/types.ts)、[src/features/retrieval/root-fragment-recall.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/root-fragment-recall.ts) 与 [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts) 已把词条 `pos` 转成 `partOfSpeech` 短标签写入 `rootFamilyView.members`，例如 `conduct=v. / n.`、`content=n. / adj.`、`confident=adj.`。
