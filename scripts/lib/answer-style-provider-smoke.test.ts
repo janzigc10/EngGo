@@ -46,10 +46,11 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
       "root: tempt",
       "root: inter prefix fragment",
       "root: con prefix fragment",
+      "root: tion suffix fragment",
       "root: unsupported combination",
       "typo: reqeust correction",
     ]);
-    expect(cases).toHaveLength(15);
+    expect(cases).toHaveLength(16);
     expect(cases.map((item) => item.name)).not.toContain("confusion: respect family");
     expect(cases.every((item) => item.manualChecks.length > 0)).toBe(true);
   });
@@ -90,16 +91,23 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
       && item.expectedResolution === "resolved"
     );
 
-    expect(rootCases).toHaveLength(4);
+    expect(rootCases).toHaveLength(5);
     expect(
       rootCases
-        .filter((item) => item.name !== "root: con prefix fragment")
+        .filter((item) => ![
+          "root: con prefix fragment",
+          "root: tion suffix fragment",
+        ].includes(item.name))
         .every((item) => item.maxAnswerChars === 420),
     ).toBe(true);
     expect(
       rootCases.find((item) => item.name === "root: con prefix fragment")
         ?.maxAnswerChars,
     ).toBe(1500);
+    expect(
+      rootCases.find((item) => item.name === "root: tion suffix fragment")
+        ?.maxAnswerChars,
+    ).toBe(1200);
     expect(rootCases.every((item) =>
       item.manualChecks.includes("检查回答是否把当前范围内召回到的同根/碎片家族成员都列出来")
     )).toBe(true);
@@ -115,6 +123,9 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
     expect(rootCases.find((item) => item.name === "root: con prefix fragment")?.manualChecks).toContain(
       "检查回答是否用表格列出全部成员，而不是只写部分词或用“等”省略",
     );
+    expect(rootCases.find((item) => item.name === "root: tion suffix fragment")?.manualChecks).toContain(
+      "检查回答是否用表格列出全部成员，而不是只写部分词或用“等”省略",
+    );
     expect(
       rootCases.find((item) => item.name === "root: con prefix fragment")
         ?.expectedAnswerIncludes,
@@ -123,6 +134,14 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
       rootCases.find((item) => item.name === "root: con prefix fragment")
         ?.forbiddenAnswerIncludes,
     ).toEqual(["confidant", "例如"]);
+    expect(
+      rootCases.find((item) => item.name === "root: tion suffix fragment")
+        ?.expectedAnswerIncludes,
+    ).toEqual(["| word | 词性 | 核心义 |", "condition", "connection", "n."]);
+    expect(
+      rootCases.find((item) => item.name === "root: tion suffix fragment")
+        ?.forbiddenAnswerIncludes,
+    ).toEqual(["例如"]);
   });
 
   it("defines a focused standard-lookup provider smoke set", () => {

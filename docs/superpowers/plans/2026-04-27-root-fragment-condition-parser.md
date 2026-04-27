@@ -382,7 +382,7 @@ git commit -m "test: cover root fragment condition smoke"
 - Modify if needed: `src/features/answering/build-system-prompt.ts`
 - Modify if needed: `src/features/answering/build-system-prompt.test.ts`
 
-- [ ] **Step 1: Add one provider case after local smoke is green**
+- [x] **Step 1: Add one provider case after local smoke is green**
 
 Prefer one of:
 
@@ -391,7 +391,7 @@ Prefer one of:
 
 Do not add every deterministic case to provider smoke; keep real-provider cost bounded.
 
-- [ ] **Step 2: Run provider smoke**
+- [x] **Step 2: Run provider smoke**
 
 Start local app if needed, then run:
 
@@ -406,7 +406,9 @@ Expected:
 - new case produces grounded answer
 - if broad, answer uses `word | 词性 | 核心义`
 
-- [ ] **Step 3: Tighten prompt only if the real output proves a repeated issue**
+Actual during execution: `corepack pnpm eval:answer-style:provider` returned 16 total / 15 pass / 1 manual / 0 fail, `providerUnknown=0`. The new `root: tion suffix fragment` case passed with broad table output; the only manual flag was the pre-existing `access/assess/excess` confusion case exceeding the 450-char budget.
+
+- [x] **Step 3: Tighten prompt only if the real output proves a repeated issue**
 
 Do not preemptively add more prompt rules. Only tighten if provider output:
 
@@ -415,7 +417,7 @@ Do not preemptively add more prompt rules. Only tighten if provider output:
 - drops part-of-speech
 - expands into a long word-origin lecture
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```powershell
 git add scripts/lib/answer-style-provider-smoke.ts scripts/lib/answer-style-provider-smoke.test.ts src/features/answering/build-system-prompt.ts src/features/answering/build-system-prompt.test.ts
