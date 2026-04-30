@@ -58,7 +58,7 @@ describe("AnswerActions", () => {
     expect(screen.getByRole("button", { name: "已收藏" })).toBeInTheDocument();
   });
 
-  it("collapses long main-answer action lists until the learner expands them", async () => {
+  it("keeps broad main-answer collection tools closed until the learner opens them", async () => {
     const user = userEvent.setup();
     const candidates = Array.from({ length: 8 }, (_, index) => ({
       entryId: `word-${index + 1}`,
@@ -90,6 +90,12 @@ describe("AnswerActions", () => {
         }}
       />,
     );
+
+    expect(screen.getByRole("button", { name: "展开收藏工具" })).toBeInTheDocument();
+    expect(screen.queryByText("word1")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "加入收藏" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "展开收藏工具" }));
 
     expect(screen.getAllByRole("button", { name: "加入收藏" })).toHaveLength(5);
     expect(screen.queryByText("word6")).not.toBeInTheDocument();

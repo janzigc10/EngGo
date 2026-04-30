@@ -37,6 +37,7 @@ export function AnswerActions({ grounding }: AnswerActionsProps) {
       .filter(Boolean),
   );
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [areToolsOpen, setAreToolsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const timeoutRef = useRef<number | null>(null);
 
@@ -71,10 +72,35 @@ export function AnswerActions({ grounding }: AnswerActionsProps) {
   }
 
   const shouldCollapse = grounding.mainAnswer.length > collapsedMainAnswerLimit;
+  const shouldStartCompact = shouldCollapse && !areToolsOpen;
   const visibleCandidates =
     shouldCollapse && !isExpanded
       ? grounding.mainAnswer.slice(0, collapsedMainAnswerLimit)
       : grounding.mainAnswer;
+
+  if (shouldStartCompact) {
+    return (
+      <div className="mt-4 space-y-3 rounded-[1.25rem] border border-slate-100 bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+              收藏工具
+            </p>
+            <p className="text-sm text-slate-600">
+              这次命中 {grounding.mainAnswer.length} 个词，展开后可以逐个收藏。
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAreToolsOpen(true)}
+            className="rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-900 transition hover:border-sky-300 hover:bg-sky-50"
+          >
+            展开收藏工具
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-4 space-y-3 rounded-[1.25rem] border border-slate-100 bg-white p-4">

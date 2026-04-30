@@ -31,7 +31,7 @@
 - Modify: `src/components/chat/answer-actions.test.tsx`
 - Modify: `src/components/chat/answer-actions.tsx`
 
-- [ ] **Step 1: Write failing broad-list test**
+- [x] **Step 1: Write failing broad-list test**
 
 Add a test that renders `AnswerActions` with 8 candidates and asserts:
 
@@ -43,7 +43,7 @@ expect(screen.queryByRole("button", { name: "加入收藏" })).not.toBeInTheDocu
 
 Then click `展开收藏工具` and assert the first 5 `加入收藏` buttons appear.
 
-- [ ] **Step 2: Run test and confirm RED**
+- [x] **Step 2: Run test and confirm RED**
 
 Run:
 
@@ -53,7 +53,7 @@ corepack pnpm test src/components/chat/answer-actions.test.tsx
 
 Expected: fails because broad candidates are currently visible immediately.
 
-- [ ] **Step 3: Implement compact broad state**
+- [x] **Step 3: Implement compact broad state**
 
 In `AnswerActions`:
 
@@ -65,7 +65,7 @@ In `AnswerActions`:
 - after tools open, render current list behavior with first 5 visible and `展开全部 N 个`
 - keep 1-5 candidate behavior unchanged
 
-- [ ] **Step 4: Run test and confirm GREEN**
+- [x] **Step 4: Run test and confirm GREEN**
 
 Run:
 
@@ -75,7 +75,7 @@ corepack pnpm test src/components/chat/answer-actions.test.tsx
 
 Expected: all tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add src/components/chat/answer-actions.tsx src/components/chat/answer-actions.test.tsx
