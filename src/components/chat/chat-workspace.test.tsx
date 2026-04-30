@@ -107,6 +107,63 @@ describe("ChatWorkspace", () => {
     expect(screen.getByText(/下一步/)).toBeInTheDocument();
   });
 
+  it("summarizes broad resolved answers without duplicating the main-answer list", async () => {
+    const user = userEvent.setup();
+    const candidates = Array.from({ length: 8 }, (_, index) => ({
+      entryId: `word-${index + 1}`,
+      lemma: `word${index + 1}`,
+      meaningsZh: [`释义${index + 1}`],
+      matchedAlias: null,
+      scopeCodes: ["cet6"],
+      inScope: true,
+      reason: "in-scope main answer",
+      score: 10 - index,
+    }));
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer: [
+          "### 家族召回",
+          "",
+          "| word | 词性 | 核心义 |",
+          "| :--- | :--- | :--- |",
+          "| word1 | n. | 释义1 |",
+          "| word2 | n. | 释义2 |",
+        ].join("\n"),
+        requestId: "req_test_broad",
+        providerRequestId: "resp_test_broad",
+        grounding: {
+          activeExamTarget: "cet6",
+          activeExamTargetLabel: "CET-6",
+          query: "tion 结尾的词有哪些",
+          queryMode: "root_family_summary",
+          answerStyle: "root_family_summary",
+          resolution: "resolved",
+          noMatchReason: null,
+          mainAnswer: candidates,
+          confusionBoundary: [],
+          scopeReminder: "scope reminder",
+          followUpPrompt: "你可以继续问其中最容易混的两个词。",
+          comparisonView: null,
+          rootFamilyView: null,
+        },
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "tion 结尾的词有哪些");
+    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+
+    expect(await screen.findByText("已命中 8 个当前范围词")).toBeInTheDocument();
+    expect(
+      screen.queryByText("word1 / word2 / word3 / word4 / word5 / word6 / word7 / word8"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "展开收藏工具" })).toBeInTheDocument();
+  });
+
   it("renders a no-match assistant card without an empty main-answer section", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockResolvedValue({

@@ -8,6 +8,14 @@ type MessageThreadProps = {
   isLoading: boolean;
 };
 
+function buildHitSummary(count: number, firstLemma?: string) {
+  if (count === 1 && firstLemma) {
+    return `已命中 1 个当前范围词：${firstLemma}`;
+  }
+
+  return `已命中 ${count} 个当前范围词`;
+}
+
 export function MessageThread({
   messages,
   errorMessage,
@@ -61,10 +69,13 @@ export function MessageThread({
                 <>
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                      主答案
+                      命中状态
                     </p>
                     <p className="mt-1 text-sm text-slate-700">
-                      {message.grounding.mainAnswer.map((item) => item.lemma).join(" / ")}
+                      {buildHitSummary(
+                        message.grounding.mainAnswer.length,
+                        message.grounding.mainAnswer[0]?.lemma,
+                      )}
                     </p>
                   </div>
                   {message.grounding.confusionBoundary.length > 0 ? (

@@ -88,7 +88,7 @@ git commit -m "feat: compact broad answer collection tools"
 - Modify: `src/components/chat/message-thread.tsx`
 - Modify: `src/components/chat/chat-workspace.test.tsx`
 
-- [ ] **Step 1: Write failing support-panel test**
+- [x] **Step 1: Write failing support-panel test**
 
 Add or update a chat workspace test with a broad resolved grounding. Assert:
 
@@ -98,7 +98,7 @@ expect(screen.queryByText("word1 / word2 / word3 / word4 / word5 / word6 / word7
 expect(screen.getByRole("button", { name: "展开收藏工具" })).toBeInTheDocument();
 ```
 
-- [ ] **Step 2: Run test and confirm RED**
+- [x] **Step 2: Run test and confirm RED**
 
 Run:
 
@@ -108,7 +108,7 @@ corepack pnpm test src/components/chat/chat-workspace.test.tsx
 
 Expected: fails because `message-thread.tsx` currently renders the long `主答案` string.
 
-- [ ] **Step 3: Implement hit summary**
+- [x] **Step 3: Implement hit summary**
 
 In `message-thread.tsx` resolved panel:
 
@@ -126,7 +126,7 @@ function buildHitSummary(count: number, firstLemma?: string) {
 - Keep `下一步`.
 - Keep no-match branch unchanged.
 
-- [ ] **Step 4: Run test and confirm GREEN**
+- [x] **Step 4: Run test and confirm GREEN**
 
 Run:
 
@@ -136,7 +136,7 @@ corepack pnpm test src/components/chat/chat-workspace.test.tsx
 
 Expected: all tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add src/components/chat/message-thread.tsx src/components/chat/chat-workspace.test.tsx
