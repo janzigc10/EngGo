@@ -19,6 +19,11 @@
 - 词根家族地图：用户有词根/前缀/碎片，或只记得 `attempt` / `institute` 这类家族成员，需要结构化召回同根/同碎片词、列中文核心义，并总结前缀/后缀/现代义分流。
 
 ## 本 Session 已完成
+- 2026-04-30 同步协作入口文档：
+  - [AGENTS.md](/C:/Users/Chen/Desktop/EngGo/AGENTS.md) 已补充 [docs/engineering-growth-log.md](/C:/Users/Chen/Desktop/EngGo/docs/engineering-growth-log.md) 的职责：仅在个人成长复盘、简历素材或沟通方式总结相关任务中读取；不替代 `progress.md`，不作为项目当前实现状态依据。
+  - 顺手把 `AGENTS.md` 的当前焦点从早期“实现计划与项目初始化”更新为真实词库、检索能力与聊天回答展示体验阶段。
+- 2026-04-30 更新成长记录：
+  - [docs/engineering-growth-log.md](/C:/Users/Chen/Desktop/EngGo/docs/engineering-growth-log.md) 新增 `从后端正确到前端可读`，记录本轮从 API/eval 正确性推进到真实移动端可读学习体验的复盘：受控 Markdown 子集渲染、宽召回收藏动作折叠、真实手机视口验收。
 - 2026-04-27 完成聊天回答渲染层第一刀：
   - 新增 [src/components/chat/answer-content.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/answer-content.tsx) 和 [src/components/chat/answer-content.test.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/answer-content.test.tsx)，用受控 Markdown 子集渲染 assistant answer：段落、`###` 标题、`**加粗**`、反引号 code、`-` 列表和 Markdown 表格。
   - [src/components/chat/message-thread.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/message-thread.tsx) 已改用 `AnswerContent`，不再把 `word | 词性 | 核心义` 或 `###` 原样露给用户。
