@@ -19,6 +19,10 @@
 - 词根家族地图：用户有词根/前缀/碎片，或只记得 `attempt` / `institute` 这类家族成员，需要结构化召回同根/同碎片词、列中文核心义，并总结前缀/后缀/现代义分流。
 
 ## 本 Session 已完成
+- 2026-04-30 聊天回答展示第二刀设计确认：
+  - 已采用 B 方案“学习材料 + 工具条”：答案正文保留完整学习材料，grounding 面板只放命中状态、下一步和收藏工具入口，不再默认重复铺主答案长串和逐词收藏列表。
+  - 新增 spec：[docs/superpowers/specs/2026-04-30-chat-answer-display-tools.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/specs/2026-04-30-chat-answer-display-tools.md)。
+  - 新增 plan：[docs/superpowers/plans/2026-04-30-chat-answer-display-tools.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-30-chat-answer-display-tools.md)。
 - 2026-04-30 同步协作入口文档：
   - [AGENTS.md](/C:/Users/Chen/Desktop/EngGo/AGENTS.md) 已补充 [docs/engineering-growth-log.md](/C:/Users/Chen/Desktop/EngGo/docs/engineering-growth-log.md) 的职责：仅在个人成长复盘、简历素材或沟通方式总结相关任务中读取；不替代 `progress.md`，不作为项目当前实现状态依据。
   - 顺手把 `AGENTS.md` 的当前焦点从早期“实现计划与项目初始化”更新为真实词库、检索能力与聊天回答展示体验阶段。
