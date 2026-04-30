@@ -19,6 +19,12 @@
 - 词根家族地图：用户有词根/前缀/碎片，或只记得 `attempt` / `institute` 这类家族成员，需要结构化召回同根/同碎片词、列中文核心义，并总结前缀/后缀/现代义分流。
 
 ## 本 Session 已完成
+- 2026-04-30 完成聊天回答展示第二刀：
+  - [src/components/chat/answer-actions.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/answer-actions.tsx) 已把 5 个以上主答案的收藏动作改为默认紧凑态：先显示 `收藏工具` 和 `展开收藏工具`，不再默认铺出逐词收藏列表；展开后保留前 5 个 + `展开全部 N 个` 的原行为。
+  - [src/components/chat/message-thread.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/message-thread.tsx) 已把 resolved grounding 面板从 `主答案` 长 lemma 串改成 `命中状态` 摘要，例如 `已命中 15 个当前范围词`；no-match 分支保持原样。
+  - [src/components/chat/answer-actions.test.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/answer-actions.test.tsx) 和 [src/components/chat/chat-workspace.test.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/chat-workspace.test.tsx) 新增宽召回防重复测试。
+  - 验证：`corepack pnpm test src/components/chat/answer-content.test.tsx src/components/chat/answer-actions.test.tsx src/components/chat/chat-workspace.test.tsx` -> 3 files / 11 tests passed；focused eslint 通过。
+  - 真实浏览器 smoke：本地 `http://localhost:3000` 问 `tion 结尾的词有哪些`，先因 Prisma dev `enggo not_running` 导致 `/api/chat` 500，已按 `bugs.md` 非删除式路径启动 `enggo`、执行 `db:migrate` 与 `db:seed:real-smoke` 后恢复；复验显示表格正常渲染，未露出原始 `| word | 词性 | 核心义 |`，未出现长主答案串，默认无逐词 `加入收藏`，点击 `展开收藏工具` 后出现逐词收藏与 `展开全部 15 个`。
 - 2026-04-30 聊天回答展示第二刀设计确认：
   - 已采用 B 方案“学习材料 + 工具条”：答案正文保留完整学习材料，grounding 面板只放命中状态、下一步和收藏工具入口，不再默认重复铺主答案长串和逐词收藏列表。
   - 新增 spec：[docs/superpowers/specs/2026-04-30-chat-answer-display-tools.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/specs/2026-04-30-chat-answer-display-tools.md)。

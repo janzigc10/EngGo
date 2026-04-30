@@ -148,7 +148,7 @@ git commit -m "feat: summarize resolved answer support panel"
 **Files:**
 - Modify: `progress.md`
 
-- [ ] **Step 1: Run focused component tests**
+- [x] **Step 1: Run focused component tests**
 
 Run:
 
@@ -158,7 +158,7 @@ corepack pnpm test src/components/chat/answer-content.test.tsx src/components/ch
 
 Expected: all pass.
 
-- [ ] **Step 2: Run focused lint**
+- [x] **Step 2: Run focused lint**
 
 Run:
 
@@ -168,7 +168,7 @@ corepack pnpm exec eslint src/components/chat/answer-content.tsx src/components/
 
 Expected: pass.
 
-- [ ] **Step 3: Browser smoke**
+- [x] **Step 3: Browser smoke**
 
 Start or reuse local dev server, then check at mobile width with a broad answer such as `tion 结尾的词有哪些`.
 
@@ -180,7 +180,7 @@ Verify:
 - expanding collection tools reveals collection buttons
 - page has no horizontal overflow
 
-- [ ] **Step 4: Update progress**
+- [x] **Step 4: Update progress**
 
 Record:
 
@@ -188,7 +188,7 @@ Record:
 - tests/lint/browser smoke result
 - any remaining UI follow-up
 
-- [ ] **Step 5: Commit docs**
+- [x] **Step 5: Commit docs**
 
 ```powershell
 git add progress.md docs/superpowers/specs/2026-04-30-chat-answer-display-tools.md docs/superpowers/plans/2026-04-30-chat-answer-display-tools.md
