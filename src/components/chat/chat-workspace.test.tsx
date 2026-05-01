@@ -164,6 +164,58 @@ describe("ChatWorkspace", () => {
     expect(screen.getByRole("button", { name: "展开收藏工具" })).toBeInTheDocument();
   });
 
+  it("shows a staged loading state while the answer is being prepared", async () => {
+    const user = userEvent.setup();
+    let resolveResponse: (value: {
+      ok: boolean;
+      json: () => Promise<unknown>;
+    }) => void = () => {};
+    const responsePromise = new Promise<{
+      ok: boolean;
+      json: () => Promise<unknown>;
+    }>((resolve) => {
+      resolveResponse = resolve;
+    });
+    const fetchMock = vi.fn(() => responsePromise);
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "tion 结尾的词有哪些");
+    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+
+    expect(screen.getByRole("button", { name: "组织答案中" })).toBeDisabled();
+    expect(screen.getByText("正在检索当前范围词条")).toBeInTheDocument();
+    expect(screen.getByText("整理易混边界")).toBeInTheDocument();
+    expect(screen.getByText("组织可读答案")).toBeInTheDocument();
+
+    resolveResponse({
+      ok: true,
+      json: async () => ({
+        answer: "当前范围内暂时没有稳定命中。",
+        requestId: "req_test_loading",
+        providerRequestId: null,
+        grounding: {
+          activeExamTarget: "cet6",
+          activeExamTargetLabel: "CET-6",
+          query: "tion 结尾的词有哪些",
+          queryMode: "root_family_summary",
+          resolution: "no_match",
+          noMatchReason: "out_of_kb",
+          mainAnswer: [],
+          confusionBoundary: [],
+          scopeReminder: "这次先不硬猜。",
+          followUpPrompt: "你可以继续给我一个更明确的词形片段。",
+          comparisonView: null,
+        },
+      }),
+    });
+
+    expect(await screen.findByText("当前范围内暂时没有稳定命中。")).toBeInTheDocument();
+    expect(screen.queryByText("正在检索当前范围词条")).not.toBeInTheDocument();
+  });
+
   it("renders a no-match assistant card without an empty main-answer section", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockResolvedValue({

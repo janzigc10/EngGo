@@ -33,9 +33,9 @@ export function ChatInput({
             type="button"
             onClick={onSubmit}
             disabled={isLoading}
-            className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="min-w-28 rounded-full bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-sky-700 disabled:cursor-wait disabled:bg-slate-700"
           >
-            {isLoading ? "回答生成中..." : "开始提问"}
+            {isLoading ? "组织答案中" : "开始提问"}
           </button>
         </div>
       </div>

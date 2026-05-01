@@ -19,6 +19,12 @@
 - 词根家族地图：用户有词根/前缀/碎片，或只记得 `attempt` / `institute` 这类家族成员，需要结构化召回同根/同碎片词、列中文核心义，并总结前缀/后缀/现代义分流。
 
 ## 本 Session 已完成
+- 2026-05-01 完成 loading 体验小优化：
+  - [src/components/chat/message-thread.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/message-thread.tsx) 的等待态从单句 `正在根据当前考试范围组织回答...` 改成三步进度卡：`正在检索当前范围词条`、`整理易混边界`、`组织可读答案`，并用 `aria-live="polite"` 让状态更明确。
+  - [src/components/chat/chat-input.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/chat-input.tsx) 的 loading 按钮文案从 `回答生成中...` 改成 `组织答案中`，保持禁用状态并避免用户以为没有点上。
+  - [src/components/chat/chat-workspace.test.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/chat-workspace.test.tsx) 新增等待态测试，先确认旧实现红灯，再实现转绿。
+  - 验证：`corepack pnpm test src/components/chat/chat-workspace.test.tsx` -> 1 file / 7 tests passed；`corepack pnpm test src/components/chat/answer-content.test.tsx src/components/chat/answer-actions.test.tsx src/components/chat/chat-workspace.test.tsx` -> 3 files / 12 tests passed；focused eslint 通过。
+  - 真实浏览器复验：本地 `http://localhost:3000` 提交 `tion 结尾的词有哪些` 后，页面显示 `EngGo 正在工作`、三步进度和禁用的 `组织答案中` 按钮；服务日志显示该次 `/api/chat` 以 200 返回，耗时约 7.4s。
 - 2026-05-01 跑了一轮“自动化 product smoke + 真实浏览器 smoke”：
   - 首次 `corepack pnpm eval:product-smoke` 因 sandbox Corepack `EPERM` 失败，切到真实工作区权限后又因数据库 `ECONNREFUSED` 失败；根因确认是 Prisma dev `enggo not_running`，不是产品逻辑回归。
   - 已按 `bugs.md` 的非删除路径恢复：`.\\node_modules\\.bin\\prisma.CMD dev -n enggo -d -p 51213 -P 51214 --shadow-db-port 51215`、`corepack pnpm db:migrate`、`corepack pnpm db:seed:real-smoke`。

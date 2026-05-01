@@ -2,6 +2,8 @@ import { AnswerActions } from "@/components/chat/answer-actions";
 import { AnswerContent } from "@/components/chat/answer-content";
 import type { ChatMessage } from "@/features/chat/types";
 
+const loadingSteps = ["正在检索当前范围词条", "整理易混边界", "组织可读答案"];
+
 type MessageThreadProps = {
   messages: ChatMessage[];
   errorMessage: string | null;
@@ -106,8 +108,38 @@ export function MessageThread({
         </article>
       ))}
       {isLoading ? (
-        <div className="rounded-[1.5rem] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">
-          正在根据当前考试范围组织回答...
+        <div
+          aria-live="polite"
+          className="rounded-[1.5rem] border border-sky-100 bg-sky-50/70 px-4 py-4 text-sm text-slate-700 shadow-sm"
+        >
+          <div className="flex items-start gap-3">
+            <span className="mt-1 flex h-2.5 w-2.5 shrink-0 rounded-full bg-sky-500 shadow-[0_0_0_6px_rgba(14,165,233,0.14)]" />
+            <div className="min-w-0 space-y-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-800">
+                  EngGo 正在工作
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  先锁定范围内证据，再把回答整理成能直接看的学习材料。
+                </p>
+              </div>
+              <ol className="grid gap-2 sm:grid-cols-3">
+                {loadingSteps.map((step, index) => (
+                  <li
+                    key={step}
+                    className="flex items-center gap-2 rounded-full border border-white/80 bg-white/80 px-3 py-2 text-xs font-medium text-slate-600"
+                  >
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        index === 0 ? "bg-sky-500" : "bg-slate-300"
+                      }`}
+                    />
+                    {step}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
         </div>
       ) : null}
       {errorMessage ? (
