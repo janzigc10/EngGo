@@ -19,6 +19,12 @@
 - 词根家族地图：用户有词根/前缀/碎片，或只记得 `attempt` / `institute` 这类家族成员，需要结构化召回同根/同碎片词、列中文核心义，并总结前缀/后缀/现代义分流。
 
 ## 本 Session 已完成
+- 2026-05-01 确认 Answer Policy v1 产品方向：
+  - 用户明确 EngGo 与 DeepSeek 的差异不在“能不能解释英语”，而在 RAG 帮备考用户缩小学习范围：当前阶段什么词该背、什么词不用优先背、哪些易混词值得一起学。
+  - 当前问题不是“规则太多”，而是规则把大模型基础交互能力锁死：`你好` 和 `complex 和 complicate 是一个意思吗` 这类输入不该直接 no-match。
+  - 新产品原则：`范围优先，不范围专制`；EngGo 应先自然接住问题，再用考试范围和词库证据帮用户收束学习决策。
+  - 新增设计文档：[docs/superpowers/specs/2026-05-01-answer-policy-v1.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/specs/2026-05-01-answer-policy-v1.md)。
+  - 下一步若继续实现，应先写 Answer Policy v1 plan，最小范围覆盖 greeting、grounded answer、general learning answer、clarify/no-match 文案边界；不要直接上完整 Agent 框架。
 - 2026-05-01 完成 loading 体验小优化：
   - [src/components/chat/message-thread.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/message-thread.tsx) 的等待态从单句 `正在根据当前考试范围组织回答...` 改成三步进度卡：`正在检索当前范围词条`、`整理易混边界`、`组织可读答案`，并用 `aria-live="polite"` 让状态更明确。
   - [src/components/chat/chat-input.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/chat-input.tsx) 的 loading 按钮文案从 `回答生成中...` 改成 `组织答案中`，保持禁用状态并避免用户以为没有点上。
