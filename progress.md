@@ -19,6 +19,13 @@
 - 词根家族地图：用户有词根/前缀/碎片，或只记得 `attempt` / `institute` 这类家族成员，需要结构化召回同根/同碎片词、列中文核心义，并总结前缀/后缀/现代义分流。
 
 ## 本 Session 已完成
+- 2026-05-01 跑了一轮“自动化 product smoke + 真实浏览器 smoke”：
+  - 首次 `corepack pnpm eval:product-smoke` 因 sandbox Corepack `EPERM` 失败，切到真实工作区权限后又因数据库 `ECONNREFUSED` 失败；根因确认是 Prisma dev `enggo not_running`，不是产品逻辑回归。
+  - 已按 `bugs.md` 的非删除路径恢复：`.\\node_modules\\.bin\\prisma.CMD dev -n enggo -d -p 51213 -P 51214 --shadow-db-port 51215`、`corepack pnpm db:migrate`、`corepack pnpm db:seed:real-smoke`。
+  - 恢复后 `corepack pnpm eval:product-smoke` -> 37 total / 37 pass / 0 fail；覆盖 standard_lookup、fuzzy_typo、shape_neighbor、confusion、expression_recall、root_family、no_match。
+  - 本地 Next dev 也一度没有监听 `http://localhost:3000`，已重新启动；真实浏览器 smoke 中 `tion 结尾的词有哪些` 能渲染 15 行表格，`命中状态` 为 `已命中 15 个当前范围词`，默认只显示 `展开收藏工具`，无原始 Markdown 表格泄露、无服务错误。
+  - 真实浏览器 smoke 中 `institute 是什么意思` 可正常 resolved，单词收藏动作显示 1 个；`access assess excess 怎么区分` 可正常 resolved，显示 3 个收藏动作；`re+con 的词根有什么词` 保持保守 no-match，没有服务错误。
+  - 观察到两个后续可打磨点：宽召回回答首段偶尔会被模型加上一层引号；真实 provider 响应在本轮浏览器 smoke 中有 5-11s 延迟，后续做交互体验时应考虑 loading 文案和等待反馈。
 - 2026-04-30 完成聊天回答展示第二刀：
   - [src/components/chat/answer-actions.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/answer-actions.tsx) 已把 5 个以上主答案的收藏动作改为默认紧凑态：先显示 `收藏工具` 和 `展开收藏工具`，不再默认铺出逐词收藏列表；展开后保留前 5 个 + `展开全部 N 个` 的原行为。
   - [src/components/chat/message-thread.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/message-thread.tsx) 已把 resolved grounding 面板从 `主答案` 长 lemma 串改成 `命中状态` 摘要，例如 `已命中 15 个当前范围词`；no-match 分支保持原样。
