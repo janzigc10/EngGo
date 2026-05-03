@@ -33,19 +33,19 @@ type CreateChatServiceOptions = {
   createRequestId?: () => string;
 };
 
-function buildNoMatchAnswer(grounding: AnswerGrounding) {
-  if (grounding.queryMode === "root_family_summary") {
-    return "这个词根/前缀组合还没有稳定收录成词族，这次先不展开。你可以给我一个更明确的词根片段，或者直接问某一族（比如 stitute / tempt）。";
-  }
-
-  return "当前词库暂未稳定定位到你说的词，为避免答错对象，这次先不硬猜。你可以再告诉我它的中文意思、词首或词尾，或者你容易把它和哪个词搞混。";
-}
-
 const learningIntentPattern =
   /意思|区别|区分|一样|怎么用|用法|造句|\bmean\b|\bdifference\b|\buse\b/i;
 
 const comparisonIntentPattern =
   /意思|区别|区分|一样|同义|不同|vs\.?|versus|\bsame\b|\bdifference\b|\bcompare\b|\bor\b/i;
+
+function getEnglishTokens(query: string) {
+  return query.match(/[A-Za-z][A-Za-z'-]*/g) ?? [];
+}
+
+function getUniqueEnglishTokens(query: string) {
+  return [...new Set(getEnglishTokens(query).map((token) => token.toLowerCase()))];
+}
 
 function isSuspiciousSingleEnglishToken(token: string) {
   const normalizedToken = token.toLowerCase();
@@ -53,12 +53,42 @@ function isSuspiciousSingleEnglishToken(token: string) {
   return /q(?!u)/.test(normalizedToken) || /[bcdfghjklmnpqrstvwxyz]{5,}/.test(normalizedToken);
 }
 
+function getSuspiciousSingleEnglishToken(query: string) {
+  const englishTokens = getUniqueEnglishTokens(query);
+
+  if (englishTokens.length !== 1) {
+    return null;
+  }
+
+  const [token] = englishTokens;
+
+  if (!token || !isSuspiciousSingleEnglishToken(token)) {
+    return null;
+  }
+
+  return token;
+}
+
+function buildNoMatchAnswer(query: string, grounding: AnswerGrounding) {
+  if (grounding.queryMode === "root_family_summary") {
+    return "这个词根/前缀组合还没有稳定收录成词族，这次先不展开。你可以给我一个更明确的词根片段，或者直接问某一族（比如 stitute / tempt）。";
+  }
+
+  const suspiciousToken = getSuspiciousSingleEnglishToken(query);
+
+  if (suspiciousToken) {
+    return `我还不能稳定定位到 “${suspiciousToken}”。它看起来可能有拼写不确定的地方，所以这次先不硬猜成某一个词。你可以确认一下拼写，或者告诉我它的中文意思、词首词尾，或你觉得它像哪个词。`;
+  }
+
+  return "当前词库暂未稳定定位到你说的词，为避免答错对象，这次先不硬猜。你可以再告诉我它的中文意思、词首或词尾，或者你容易把它和哪个词搞混。";
+}
+
 function shouldUsePlainFallback(input: ChatServiceInput, grounding: AnswerGrounding) {
   if (grounding.resolution !== "no_match") {
     return false;
   }
 
-  const englishTokens = input.query.match(/[A-Za-z][A-Za-z'-]*/g) ?? [];
+  const englishTokens = getUniqueEnglishTokens(input.query);
 
   if (englishTokens.length === 0) {
     return false;
@@ -132,7 +162,7 @@ export function createChatService(options: CreateChatServiceOptions = {}) {
         }
 
         return {
-          answer: buildNoMatchAnswer(grounding),
+          answer: buildNoMatchAnswer(input.query, grounding),
           answerKind: "grounded",
           grounding,
           requestId,

@@ -489,6 +489,56 @@ describe("createChatService", () => {
     expect(result.answerKind).toBe("grounded");
     expect(result.grounding?.resolution).toBe("no_match");
     expect(result.answer).toContain("不硬猜");
+    expect(result.answer).toContain("拼写");
+    expect(result.answer).toContain("reqxust");
+  });
+
+  it("keeps repeated suspicious typo tokens out of plain provider fallback", async () => {
+    let providerCalled = false;
+
+    const service = createChatService({
+      provider: {
+        async generateAnswer() {
+          providerCalled = true;
+
+          return {
+            answer: "should not be used",
+            providerRequestId: "resp_unused_repeated_typo",
+          };
+        },
+      },
+      createRequestId: () => "req_repeated_typo_123",
+    });
+
+    const result = await service.answer({
+      activeExamTarget: "cet6",
+      query: "reqxust reqxust 是什么意思",
+      history: [],
+      retrievalResult: {
+        queryMode: "fuzzy_recall",
+        normalizedQuery: {
+          raw: "reqxust reqxust 是什么意思",
+          normalizedText: "reqxust reqxust 是什么意思",
+          queryMode: "fuzzy_recall",
+          englishTerms: ["reqxust", "reqxust"],
+          meaningHint: "reqxust reqxust",
+          compareTerms: [],
+          groupSeedTerm: null,
+        },
+        resolution: "no_match",
+        noMatchReason: "out_of_kb",
+        comparisonView: null,
+        candidates: [],
+        mainAnswer: [],
+        confusionBoundary: [],
+      },
+    });
+
+    expect(providerCalled).toBe(false);
+    expect(result.providerRequestId).toBeNull();
+    expect(result.answerKind).toBe("grounded");
+    expect(result.answer).toContain("拼写");
+    expect(result.answer).toContain("reqxust");
   });
 
   it("returns a root-specific no-match answer for unsupported root queries", async () => {
