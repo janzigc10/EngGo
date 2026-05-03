@@ -1,115 +1,107 @@
 # EngGo 已知问题与环境坑
 
-## 当前确认问题
-- Windows + `Prisma 7.7.0 + local Prisma Postgres (prisma dev)` 仍不稳定：
-  - `prisma migrate dev` / `prisma migrate resolve` 可能报 `P1017`、`unexpected message from server`、`prepared statement already exists`
-  - 本地实例一旦进入坏状态，连原生 `pg` 的 `SELECT 1` 也可能报 `Connection terminated unexpectedly` / `read ECONNRESET`
-  - `prisma dev ls` 显示 `running` 不代表 TCP 连接一定健康
-  - `corepack pnpm exec prisma dev ls` / `corepack pnpm exec prisma dev ...` 在本机还可能报 `%TEMP%\\@prisma\\cli-dev@latest-*` 的 `EPERM, Permission denied`
-- 2026-04-27 追加本地 Codex sandbox 环境坑：非 escalated shell 里，pnpm junction 依赖可能被映射到 `C:\Users\CodexSandboxOffline\.codex\.sandbox\cwd\...`，导致 `@prisma/debug` 明明存在却报 `MODULE_NOT_FOUND` 或 `EPERM package.json access denied`；真实工作区权限下同一命令可正常 resolve。遇到该现象时，不要先删 `node_modules`，先用 real-workspace/elevated 权限复查 `node -e "require.resolve('@prisma/debug')"` 和 `node_modules\.bin\prisma.CMD dev ls`。
-- 当前可复用的恢复路径仍是：
-  - 若 `corepack pnpm exec prisma dev ...` 命中上面的 `EPERM`，改用仓库内 Prisma 二进制：
-    - 当前 `.env` 指向的实例名是 `enggo`
-    - 如需重建：`node_modules\.bin\prisma.CMD dev rm enggo --force`
-    - 如需启动：`node_modules\.bin\prisma.CMD dev -n enggo -d -p 51213 -P 51214 --shadow-db-port 51215`
-  - 然后重新执行 `corepack pnpm db:migrate`、`corepack pnpm db:seed`
-  - 若 `corepack pnpm db:seed` 首次报 `Received unexpected commandComplete message from backend`，先确认 `vocabulary_entry` / `confusion_group` 计数仍是 `0 / 0`，再重试一次
-- 本地 Prisma adapter 在开发联调时容易把连接打坏：
-  - 当前仓库 workaround 是把 `src/lib/db.ts` 中的非生产连接池收紧到 `max=1`
-  - 这能降低连续 `/api/chat` 请求时的掉线概率，但不是根治
-  - 不要把 `corepack pnpm verify` 与 `corepack pnpm eval:shape` 这类会访问本地库的命令并行跑；本 session 并行跑过一次后，`prisma dev ls` 仍显示 running，但原生 `pg SELECT 1` 已报 `Connection terminated unexpectedly`
-- 中文释义检索原先那条 Prisma relation-filter 查询在本地环境会直接打挂连接：
-  - 当前仓库 workaround 已改成“原生 `pg` 查 `vocabulary_meaning` -> Prisma 按 id 回表”
-  - 后续如果再改 meaning lookup，优先沿用这条两段式路径，不要再切回原查询
-- MiniMax OpenAI 兼容接口在长时间批量联调下会返回 429：
-  - 单条和小批量联调可用
-  - 连续跑 27 条 full batch eval 时，可能在中后段进入限流窗口
-  - 当前 `scripts/run-chat-batch-eval.ts` 已加退避重试，但如果限流窗口过长，整轮验收仍会变慢甚至超时
-- 2026-04-24 追加确认：两把临时 key 对 `api.minimaxi.com` 的 OpenAI-compatible 与 Anthropic-compatible 文本接口均返回 `429 usage limit exceeded (2056)`，即使单条最小请求也不可用；第一把对 `api.minimax.io` 返回 `401`。后续真实 provider smoke 需要先更换/恢复可用额度 key，再启动本地 app 跑完整小批次。
-- DeepSeek flash 真实 provider smoke 已能跑通，但有两个本地联调坑：
-  - `deepseek-v4-flash` 部分回答会超过 15s；`scripts/run-answer-style-provider-smoke.ts` 已把默认 timeout 提高到 45s，并支持 `ENGGO_PROVIDER_SMOKE_TIMEOUT_MS` 覆盖。继续使用 DeepSeek 时不要再按旧 15s 判断 hard fail。
-  - Windows PowerShell `Invoke-RestMethod` / `Invoke-WebRequest` 直接发送中文 JSON 到本地 `/api/chat` 时可能出现中文乱码，导致 query mode 误判；真实中文 smoke 优先用 Node `fetch` 或现有 TypeScript runner。
-  - Windows PowerShell 管道把 inline JS 传给 `node --input-type=module` 时，如果不显式设置 UTF-8，也会把中文 query 传成 `?`；运行临时中文 smoke 前先设置 `$OutputEncoding = [System.Text.UTF8Encoding]::new($false)` 和 `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)`。
-  - few-shot 已能把 DeepSeek 回答压到更像 EngGo，但仍有多词/词根 case 轻微超过当前 smoke 的严格字数阈值；这更像验收阈值与真实可读性之间的取舍，不宜继续只靠 prompt 无限压缩。
-- 已移除 `stationary/stationery` 的 `e -> envelope` / `a -> stay` 牵强字母口诀；后续新增 confusion groups 时不要把绕一层的字母联想写入 `memberNotes`，优先写真实搭配、词性、场景边界。
-- 真实词库来源仍是当前产品/内容侧主要 blocker，但高考 / 四级 / 六级的首批 source-backed smoke 入口已解除：
-  - 商业词书（星火、红宝书、新东方等）的完整释义、例句、辨析、助记、章节编排和品牌名不能直接抠进仓库；若要直接使用，需走正版授权。
-  - 官方大纲更适合做 `lemma + examScopes` 的范围来源，不等于可直接得到 EngGo 需要的中文核心义、易混关系和做题抓手。
-  - 已确认高中课标词汇表不标注词性和中文释义；后续 `meaningsZh` 应由 EngGo 自建/生成后人工审核。
-  - 2026-04-24 已从教育部高中课标和中国教育考试网 CET 大纲提取 source lemma manifests，并用 86-entry `real-smoke` slice 解开 loader/seed blocker。
-  - `postgrad` 仍缺 entry-level 可机读官方词表；在没有可确认来源前，不要给 `real-smoke` 条目补 `postgrad` scope。
-  - 下一轮不要把“找完整词书”作为唯一解法；优先用现有 source-backed `real-smoke` slice 验证 scope-aware lookalike retrieval，再扩到中等规模 dev 数据集。
-- Playwright bundled Chromium 的历史缺失问题本 session 已变化：
-  - `corepack pnpm exec playwright install --dry-run chromium` 显示 `chromium` 与 `chromium_headless_shell` install location 已存在
-  - 这说明“缺少 bundled Chromium 二进制”不再是本 session 的直接 blocker
-  - 本 session 已通过默认 `corepack pnpm verify` 复跑 Chromium E2E，默认链路已恢复
-- `corepack pnpm exec tsc --noEmit` 仍失败，不属于当前 shape-neighbor 断言回归：
-  - `scripts/run-chat-batch-eval.ts` 的 `results` 隐式 `any[]` 已在 Step 6 中修掉
-  - 部分测试 fixture 的 `activeExamTarget` / `examScopes` 被 TypeScript 推宽为 `string`
-  - `src/features/chat/use-chat-session.ts` 的 API 成功/错误响应联合类型还需要收窄
-  - `pg` ESM 入口仍缺少当前解析路径下的声明文件
-  - `retrieve-candidates.ts` 中 `row` 的隐式 any 是 `pg` 声明缺失的连带症状
-  - 后续如果要把 `tsc --noEmit` 纳入 `verify`，需要单独清这批工程债
+## 环境恢复路径
+
+### Windows + Prisma dev 不稳定
+本地 Windows + `Prisma 7.7.0 + local Prisma Postgres (prisma dev)` 仍不稳定。
+
+常见症状：
+- `prisma migrate dev` / `prisma migrate resolve` 报 `P1017`
+- `unexpected message from server`
+- `prepared statement already exists`
+- `Connection terminated unexpectedly`
+- `read ECONNRESET`
+- `prisma dev ls` 显示 `running`，但实际 TCP 连接不健康
+- `corepack pnpm exec prisma dev ...` 报 `%TEMP%\\@prisma\\cli-dev@latest-*` 的 `EPERM, Permission denied`
+
+优先恢复路径：
+1. 先检查：
+   - `corepack pnpm exec prisma dev ls`
+2. 如果 `corepack pnpm exec prisma dev ...` 命中 `EPERM`，改用仓库内 Prisma 二进制：
+   - `node_modules\\.bin\\prisma.CMD dev ls`
+3. 当前 `.env` 指向的实例名是 `enggo`。如需重建：
+   - `node_modules\\.bin\\prisma.CMD dev rm enggo --force`
+   - `node_modules\\.bin\\prisma.CMD dev -n enggo -d -p 51213 -P 51214 --shadow-db-port 51215`
+4. 恢复后串行执行：
+   - `corepack pnpm db:migrate`
+   - `corepack pnpm db:seed`
+   - 或按任务需要执行 `corepack pnpm db:seed:real-smoke`
+
+注意：
+- 不要在 Prisma dev 不健康时继续跑 retrieval / API / product smoke。
+- 不要并行跑会访问本地库的命令，例如 `verify` 与 `eval:shape`。
+- 如果 `corepack pnpm db:seed` 首次报 `Received unexpected commandComplete message from backend`，先确认表计数仍是 `0 / 0`，再重试一次。
+
+### Codex sandbox + pnpm junction
+非 escalated shell 里，pnpm junction 依赖可能被映射到 sandbox 路径，导致 `@prisma/debug` 明明存在却报：
+- `MODULE_NOT_FOUND`
+- `EPERM package.json access denied`
+
+遇到时不要先删 `node_modules`。先在真实工作区权限下复查：
+- `node -e "require.resolve('@prisma/debug')"`
+- `node_modules\\.bin\\prisma.CMD dev ls`
+
+### 中文 smoke 编码
+Windows PowerShell 直接用 `Invoke-RestMethod` / `Invoke-WebRequest` 发中文 JSON 到本地 `/api/chat` 时可能乱码，导致 query mode 误判。
+
+优先用：
+- Node `fetch`
+- 现有 TypeScript runner
+
+如果必须用 PowerShell inline JS，先设置：
+- `$OutputEncoding = [System.Text.UTF8Encoding]::new($false)`
+- `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)`
+
+### Provider 限流与超时
+- MiniMax 临时 key 历史上出现 `429 usage limit exceeded (2056)`，不要把 429 误判成 retrieval 回归。
+- DeepSeek flash 真实 provider smoke 已能跑通，但部分回答会超过 15s。
+- `scripts/run-answer-style-provider-smoke.ts` 当前默认 timeout 已提高到 45s，并支持 `ENGGO_PROVIDER_SMOKE_TIMEOUT_MS` 覆盖。
+- 真实 provider smoke 尽量小批量串行跑。
 
 ## 当前产品侧残留
-- 本轮仍锁定“低置信度宁可 no-match 不硬猜”，但已把两类高把握拼错从残留项移到已处理：
-  - `有个像 reqeust 的词` 现在可召回 `request`
-  - `有个像 recomand 的词` 现在可召回 `recommend`
-- 2026-04-26 追加黑盒 product smoke 后暴露的单编辑 typo 缺口已处理：
-  - `generte 是什么意思` 现在可召回 `generate`
-  - `horizen 是什么意思` 现在可召回 `horizon`
-  - `genuin 是什么意思` 仍可召回 `genuine`
-  - 修法不是降低全局 `minScore/minGap`，而是在 `fuzzy_recall` 的 trigram 闸门未过时，仅对当前考试范围内唯一单编辑候选放行。
-  - 回答形态也已补：单编辑 typo resolved 时会显式说“你可能想查的是 X。”，再短解释核心义，不再把范围提示作为正文收尾。
-- 2026-04-26 继续处理 typo 第二层策略：
-  - `reqeust -> request` 走相邻换位窄门，即使 trigram 分数低也可在唯一范围内候选时放行。
-  - `recomand -> recommend` 走保守两编辑窄门：首尾相同、长度够长、候选唯一、trigram 分数不低。
-  - `有个像 reqxust 的词` 仍保持 no-match，用来防止低分两编辑硬猜。
-  - 真实 provider 抽样曾把 typo 回答写出“在 CET-4 范围内”，已收紧 prompt：纠错场景不再暴露 `scopeReminder` 原文，并明确最终答案不要写范围提示。
-- 当前实现距离用户真正要的“模糊搜索”仍有残留缺口：
-  - 已补首批形近词簇检索：`跟 recent 很像的词有哪些`、`容易把 recent 看错成什么`、`recent/resent`、`adapt/adopt`、`quiet/quite`
-  - 词根 / 碎片检索已补最小原型闭环：`stitute 是什么`、`tempt 这一族怎么记`、`attempt 这一族怎么记`、`跟 institute 一样那几个词怎么记` 可进入 `root_family_summary`
-  - 2026-04-27 已补结构化词形过滤：`con 开头的词有哪些` 会列当前范围内 34 个 `con-` 成员；`tion 结尾的词有哪些`、`有 struct 的词`、`con 开头 re 相关的词`、`re...ct 这种词` 都会按 `prefix / suffix / contains / start_end` 条件过滤真实范围内词条，宽召回走 `word / 词性 / 核心义` 三列表格。
-  - 剩余缺口已收窄到语义 / 词根理论组合：`re+con 的词根有什么词` 仍保持 no-match，不能把它硬解释成稳定词根家族；如果后续要支持，必须先做产品定义，而不是在词形 parser 里加特例。
-  - 非结构化 fragment / 多片段输入若不能解析成明确词形条件，仍会保守落到 `low_confidence` 或 `no_match`
-  - 后续 typo 若继续扩展，必须继续按明确拼写模式加窄门，不要把“低相关候选也先答一个”放回系统。
-- 2026-04-25 真实 provider cluster smoke 暴露两个产品侧 prompt 残留：
-  - `academic 是什么意思` 这类 `standard_lookup` 曾会输出例句、分隔线和较长模板，并在下一步建议里主动扩出未召回的 `scholarly / educational`；2026-04-26 已新增 `eval:standard-lookup:provider` 专门复验普通查词真实输出，当前 8/8 通过，且已压住例句、范围尾巴、主动扩词、可见标签和 Markdown 加粗。
-  - `institute 是什么意思` 曾因为 exact 普通查词分支自动拼接裸 `confusion_group`，把 `institution` 放进 `confusionBoundary`；2026-04-26 已收紧 retrieval：exact 命中只返回 `mainAnswer`，`eval:standard-lookup:provider` 当前显示 `grounding=institute`，不再带 `institution`。
-  - `stitute 是什么` 的 `root_family_summary` 曾会在谨慎提醒里点名低优先级、范围外的 `restitute / prostitute`；2026-04-25 已收口：root summary 不再要求可见“谨慎提醒”，也不主动点名未召回低频/范围外分支。
-- 2026-04-25 追加真实 provider expression smoke 时复现 `root_family_summary` 表达残留：
-  - `tempt 这一族怎么记` 的真实 provider 输出曾可能写成“tempt 不是完整单词，是构词部件”；这与数据事实冲突，因为 `tempt` 本身就是完整单词。
-  - 2026-04-25 已加 root prompt guardrail：当片段本身也是成员词时，必须说明它也是完整单词，再说明也可作为构词碎片；同日真实 provider smoke 复跑中 `tempt` 输出为“既是完整单词‘引诱’，也是这一族的构词核心”。
-- 2026-04-26 已进一步修正 `root_family_summary` 的产品方向：
-  - 旧三段 `碎片判断 / 家族地图 / 优先背` 会把同根总结误写成背诵优先级，容易输出 `contempt 不硬背` 这类不符合用户目标的话。
-  - 当前 root summary 已改为 `碎片定位 / 家族召回 / 意义分流`：用 `word=中文义` 列当前范围内召回到的同根/同碎片词，再讲前缀、后缀或现代义分流。
-  - 已支持从已知成员反查原型：`attempt 这一族怎么记` 命中 `root-tempt`，`跟 institute 一样那几个词怎么记` 命中 `root-stitute`；但这仍是 `stitute` / `tempt` 两族的最小原型，不代表泛化词根检索已经完成。
-- 2026-04-26 纠正 `confusion_untangle` 过度压缩方向：
-  - 三段版 `混淆入口 / 核心边界 / 做题抓手` 会把部分形近词讲得过薄，例如容易只停在“只差 c/s”这类字母差异，学习价值不足。
-  - 当前已回调到四段辨析卡 `范围内相似词 / 词义速览 / 重点区分 / 做题抓手`，并把 confusion smoke 字数预算放宽到 450；后续不要再把“更短”当作主要胜利标准。
-  - 后续若出现超长，应优先判断是否真的废话、例句、范围外扩展或尾巴追问；如果是在讲清语义、词性、搭配和对象边界，不应简单压掉。
-- 结论：
-  - 形近词簇小样本已通过 `corepack pnpm eval:shape`
-  - `standard_lookup` prompt/grounding 残留已用 8 条真实 provider smoke 复验：`academic / institute / available / gain / generate / garage / evidence / significant` 当前 hard checks 全通过；`institute` 已不再带出 `institution`
-  - 若继续扩内容能力，再补 30-50 个精选形近词族，并评估是否扩到 300-500 词
-  - 结构化词根 / 碎片检索第一层已落地；后续不要把语义词根理论问题混进词形过滤 parser，先单独定义产品边界
+- 普通查词 exact lookup 仍需要继续小批验收，重点防止：
+  - exact 命中自动带出裸 `confusion_group`
+  - 回答出现 `CET` / 当前范围尾巴
+  - 主动扩出未召回同义词
+  - Markdown 加粗或模板痕迹
+- `root_family_summary` 当前仍是最小原型：
+  - `stitute` / `tempt` 两族可用
+  - 结构化词形过滤可用
+  - 泛化语义词根理论仍未定义
+- `re+con 的词根有什么词` 仍应保持保守 no-match；如果要支持，先写产品定义，不要在 parser 里加特例。
+- `postgrad` 缺 entry-level 可机读官方词表，不要为了 scope 完整性补伪造条目。
+- `corepack pnpm exec tsc --noEmit` 仍是已知工程债，主要集中在：
+  - 测试 fixture 的 `activeExamTarget` / `examScopes` 被推宽为 `string`
+  - `src/features/chat/use-chat-session.ts` 的 API 成功/错误响应联合类型需要收窄
+  - `pg` ESM 入口声明缺失
+  - `retrieve-candidates.ts` 的 `row` 隐式 any 是 `pg` 声明缺失的连带症状
 
-## 已处理
-- 2026-04-27 聊天回答展示层第一刀已处理：assistant answer 不再作为纯 `<p className="whitespace-pre-wrap">` 渲染，而是用 [src/components/chat/answer-content.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/answer-content.tsx) 渲染段落、标题、加粗、code、列表和 Markdown 表格；宽召回的收藏动作超过 5 个默认折叠。真实手机复验 `tion 结尾的词有哪些` 得到 `tableCount=1`、`rawTableVisible=false`、`rawHeadingVisible=false`、`visibleCollectButtons=5`、`scrollWidth=390`。
+## 已处理但要防回归
 - `retrieveCandidates -> buildGrounding -> chatService` 的 no-match 闭环已落地，库外 meaning / fuzzy / compare 不再硬猜。
 - 多词 compare、group compare、`哪个` 句式 compare 已支持。
 - no-match UI 已避免空白主答案卡片。
-- 首批形近词簇检索已支持，并复用现有 `confusion_group` 表达 why-confusing / boundary notes。
-- `corepack pnpm eval:shape` 已作为 Step 6 小样本评测入口，覆盖 retrieval-only 与 fake-provider chat-level 编排。
-
-## 后续关注
-- 正式部署前，仍需要在标准 PostgreSQL 环境里重跑 migration / seed / 验证闭环，不要把本地 Prisma dev 的稳定性结论直接外推到正式环境。
-- 若还要继续跑真实模型 batch eval，建议：
-  - 先确认 provider 限流窗口恢复
-  - 按小批次运行，不要一口气压满 27 条
-  - 把 429 当成外部验收限制，而不是 retrieval/grounding 回归
+- assistant answer 已改用 `AnswerContent` 渲染，不再把 Markdown 表格和 `###` 原样展示给用户。
+- 宽召回收藏工具超过 5 个默认折叠。
+- `standard_lookup` 已压住例句、范围尾巴、主动扩词、可见标签和 Markdown 加粗。
+- `institute 是什么意思` 当前 grounding 只有 `institute`，不再带出 `institution`。
+- 单编辑 typo 已处理：
+  - `generte -> generate`
+  - `horizen -> horizon`
+  - `genuin -> genuine`
+- 第二层 typo 窄门已处理：
+  - `reqeust -> request`
+  - `recomand -> recommend`
+- `reqxust 是什么意思` 已从保守 no-match 升级为 spelling-assist 候选确认，但仍不带 grounding。
+- `stationary/stationery` 的牵强字母口诀已移除；后续新增 confusion groups 不要写 `e -> envelope` 这类绕一层的助记。
+- `tempt` 作为 root family 片段时，必须承认它也是完整单词，不能只说成构词部件。
+- `confusion_untangle` 已从过度压缩回调到四段辨析卡；后续不要把“更短”当成唯一胜利标准。
 
 ## 不要重复走的失败路径
-- 不要在本地 `prisma dev` 已经不健康时继续跑 retrieval / API 验证；先重建实例。
-- 不要把本轮已经锁定的 no-match 闸门又放宽回“弱相关也先答一个像样答案”。
-- 不要因为 MiniMax 429 就误判检索逻辑回退；先看 HTTP 状态和 `providerRequestId` / `error`。
+- 不要在 Prisma dev 不健康时继续跑验证。
+- 不要把 no-match 闸门放宽成“弱相关也先答一个像样答案”。
+- 不要因为 provider 429 / timeout 就回退检索逻辑。
+- 不要用 prompt 兜 retrieval 边界污染；如果 ordinary lookup 又带出裸组，优先修 retrieval。
+- 不要一次性导入几千词。
+- 不要抠商业词书完整释义、例句、辨析、助记和章节结构。
+- 不要为 `postgrad` 编造 `real-smoke` scope。
+- 不要把 embedding 当成形近词和考试范围过滤主干。

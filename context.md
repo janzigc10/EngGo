@@ -1,41 +1,73 @@
 # EngGo 项目地图
 
 ## 项目定位
-EngGo 是一个面向应试英语场景的聊天式学习平台，目标用户是准备高考、四级、六级、考研的中文学生。
+EngGo 是一个面向高考、四级、六级、考研用户的聊天式英语学习平台。
 
-产品核心不是普通背词，也不是开放式英语问答，而是：
-- 在当前考试范围内给出答案
-- 帮用户从模糊记忆中找回正确词群
-- 帮用户讲清易混词之间的边界
+它不是普通词书，也不是开放式英语问答壳。当前核心价值是：
+- 用考试范围帮助用户缩小学习范围
+- 从模糊记忆、拼写片段、中文表达或形近词中找回候选
+- 讲清易混词、相近词和词形家族的边界
+- 把命中的词条沉淀到收藏与后续复习流程
 
-## 当前稳定设计结论
-- 首页是大模型对话工作台，不是词书首页
-- 产品形态是“聊天主舞台 + 学习骨架”
-- 首版只做内置知识库，不支持用户上传资料
-- 首版考试范围：高考、四级、六级、考研
-- 用户有持久化的当前考试目标
-- 回答以当前考试范围为主，范围外结果只做轻提醒
-- 底层能力由考试词库、易混关系、模糊召回和 LLM 组织回答共同构成
-- 词库/RAG 采用结构化路线：基础词条先覆盖 `lemma`、词性、中文核心义和考试范围；检索层负责精确查、模糊查、拼写相似和范围过滤；LLM 负责基于召回材料讲解
-- embedding 可作为语义召回补充，优先用于“中文意思找英文词”和近义词辨析；形近词、考试范围和基础释义不依赖纯 embedding 兜底
-- 易混词关系只对高频、高价值或算法难判断的组做精修，不为每个词手工定制混淆材料
+当前产品原则是：
 
-## 当前文档地图
-- 产品设计 spec：
-  - `docs/superpowers/specs/2026-04-21-exam-english-chat-design.md`
+> 范围优先，不范围专制。
 
-后续应继续补齐：
-- `docs/superpowers/plans/`：实现计划
-- 代码目录与测试目录
+RAG / 词库是证据系统，不是回答许可系统。命中范围时要明确标注、支持收藏；未命中当前小词库但用户意图清楚时，可以走 non-grounded `plain` 回答，但不能假装来自当前考试词库。
 
-## 当前仓库状态
-- 当前目录还没有正式应用代码骨架
-- 当前主要资产是产品 spec 与协作文档骨架
-- `.superpowers/brainstorm/` 中的可视化页面是设计探索产物，不是正式产品页面
-- `.playwright-cli/` 中的内容属于浏览器自动化产物
+## 当前稳定能力
+- 聊天式 MVP 主舞台已落地，首页是聊天工作台。
+- 用户可选择并持久化当前考试目标。
+- 数据库使用 Prisma + PostgreSQL，词库数据来自 `data/exam-vocab/`。
+- `seed` 数据覆盖高考、四级、六级、考研；`real-smoke` 当前只覆盖高考、四级、六级。
+- `real-smoke` 当前约 546 entries / 34 confusion groups，已进入 500-1000 词基础 RAG MVP 区间。
+- 检索主线包括：
+  - exact 普通查词
+  - 中文核心义召回
+  - typo / fuzzy recall
+  - shape-neighbor / 易混词组
+  - expression recall
+  - root / fragment family recall
+- 回答风格主线包括：
+  - `standard_lookup`
+  - `confusion_untangle`
+  - `root_family_summary`
+  - non-grounded `plain`
+- UI 已支持受控 Markdown 子集渲染、表格渲染、命中状态摘要和收藏工具折叠。
+
+## 当前边界
+- 不把 `re+con` 这类语义/词根理论问题硬塞进词形过滤 parser；如果要支持，先定义产品边界。
+- typo 不走全局阈值放宽，只走“唯一候选 + 明确拼写模式”的窄门。
+- 普通查词 exact 命中不应自动带出裸 `confusion_group`。
+- `postgrad` 暂不进入 `real-smoke`，除非找到 entry-level 可机读且可确认来源的官方词表。
+- 不直接抠商业词书的完整释义、例句、辨析、助记和章节编排。
+- embedding 只能作为语义召回补充，不作为形近词、考试范围和基础释义的主干。
+
+## 代码地图
+- `src/app/api/chat/route.ts`：聊天 API 入口，含 greeting short-circuit。
+- `src/features/retrieval/`：query normalize、候选召回、root fragment recall、SQL 辅助。
+- `src/features/answering/`：grounding 构建、system prompt、provider 调用、chat service。
+- `src/features/chat/`：聊天类型、前端 session hook。
+- `src/components/chat/`：聊天工作台、输入框、消息线程、答案渲染、收藏动作。
+- `data/exam-vocab/seed/`：开发基础词库。
+- `data/exam-vocab/real-smoke/`：source-backed 真实词库 smoke 数据。
+- `prisma/`：schema、migration、seed 入口。
+- `scripts/`：内容校验、deterministic eval、provider smoke runner。
+- `tests/e2e/`：Playwright e2e。
+
+## 文档地图
+- 协作入口：`AGENTS.md`
+- 当前交接：`progress.md`
+- 环境坑和已知问题：`bugs.md`
+- 长期项目地图：本文件
+- 文档索引：`docs/README.md`
+- 产品/技术 spec：`docs/superpowers/specs/`
+- 已执行或历史 implementation plan：`docs/superpowers/plans/`
+- 个人成长复盘：`docs/engineering-growth-log.md`
 
 ## 进入新任务时的阅读顺序
-1. 先读 `AGENTS.md`、`progress.md`、`bugs.md`
-2. 需要项目地图或长期背景时再读 `context.md`
-3. 只读与当前任务直接相关的 design / plan
-4. 最后进入对应代码与测试
+1. 读 `AGENTS.md`、`progress.md`、`bugs.md`
+2. 需要长期背景时读 `context.md`
+3. 需要定位历史设计时读 `docs/README.md`
+4. 只打开与当前任务直接相关的 spec / plan
+5. 最后进入代码、测试和真实 smoke

@@ -1,22 +1,95 @@
 # EngGo
 
-EngGo 是一个面向高考、四级、六级、考研用户的聊天式英语学习平台。当前 MVP 的主舞台是聊天工作台，重点能力是考试范围内的模糊检索、中文提问理解、易混词辨析，以及收藏进入后续学习流程。
+EngGo 是一个面向高考、四级、六级、考研用户的聊天式英语学习平台。它的目标不是做普通词书，也不是做泛泛的英语聊天机器人，而是用考试范围、真实词库和模糊检索能力，帮助学生更快定位“这个阶段该学什么、哪些词容易混、应该怎么区分”。
 
-## 环境要求
+## 项目亮点
 
-- Node.js 20 或更高
+- **聊天式学习入口**：用户可以直接用中文或中英混合提问，例如“access assess excess 怎么区分”“tion 结尾的词有哪些”“complex 和 complicate 是一个意思吗”。
+- **考试范围优先**：回答优先结合当前考试目标和词库证据；未命中当前小词库时，也可以给出普通英语学习回答，但不会伪装成范围命中。
+- **模糊检索与纠错**：支持 exact lookup、中文核心义召回、形近词检索、拼写 typo 候选确认、词根/后缀/碎片检索。
+- **易混词辨析**：针对形近、义近、搭配相似的词，输出“词义速览 / 重点区分 / 做题抓手”式解释，而不是只给词典释义。
+- **可验证工程闭环**：项目包含 seed 校验、deterministic smoke、provider smoke、React/Vitest 测试和 Playwright E2E。
+
+## 我在项目中完成的工作
+
+- 搭建 Next.js + Prisma + PostgreSQL 的聊天式 MVP。
+- 设计并实现结构化词库数据模型，覆盖词条、词性、中文核心义、考试范围和易混组。
+- 实现 retrieval -> grounding -> prompt -> provider -> UI 的回答链路。
+- 设计 `standard_lookup`、`confusion_untangle`、`root_family_summary`、`plain` 等回答分支。
+- 建立真实词库 smoke 数据集，当前 `real-smoke` 约 546 entries / 34 confusion groups。
+- 为普通查词、形近词、typo、词根碎片、answer policy 和 UI 展示建立回归测试。
+- 优化移动端阅读体验，包括 Markdown 表格渲染、命中状态摘要和收藏工具折叠。
+
+## 示例能力
+
+| 用户问题 | 系统行为 |
+| --- | --- |
+| `institute 是什么意思` | exact lookup，短解释核心义，不主动带出未请求的易混词 |
+| `access assess excess 怎么区分` | 进入易混词辨析，说明每个词的核心义和做题边界 |
+| `tion 结尾的词有哪些` | 结构化 suffix 检索，返回当前范围内词表和核心义 |
+| `reqxust 是什么意思` | 识别为疑似拼写问题，给出候选确认，不标记为词库命中 |
+| `complex 和 complicate 是一个意思吗` | 当前词库未命中时走普通英语学习回答，不显示命中状态 |
+| `re+con 的词根有什么词` | 保守 no-match，避免硬造不稳定词根家族 |
+
+## 技术栈
+
+- **Frontend**：Next.js 16, React 19, Tailwind CSS
+- **Backend**：Next.js Route Handlers
+- **Database**：PostgreSQL, Prisma 7
+- **LLM Provider**：OpenAI-compatible API abstraction
+- **Testing**：Vitest, React Testing Library, Playwright
+- **Tooling**：TypeScript, ESLint, pnpm, Corepack
+
+## 架构概览
+
+```text
+User query
+  -> query normalization
+  -> retrieval candidates
+  -> grounding builder
+  -> answer-style prompt
+  -> provider / local fallback
+  -> chat UI rendering
+```
+
+关键目录：
+
+- `src/app/api/chat/route.ts`：聊天 API 入口。
+- `src/features/retrieval/`：query mode、候选召回、排序、词根/碎片检索。
+- `src/features/answering/`：grounding 构建、prompt 编排、provider 调用。
+- `src/components/chat/`：聊天界面、答案渲染、收藏动作。
+- `data/exam-vocab/`：seed 与 real-smoke 词库数据。
+- `scripts/`：内容校验、产品 smoke、provider smoke。
+- `docs/`：产品设计、实现计划和文档索引。
+
+## 数据说明
+
+- `data/exam-vocab/seed/`：开发基础数据，覆盖 `gaokao`、`cet4`、`cet6`、`postgrad`。
+- `data/exam-vocab/real-smoke/`：source-backed 真实词库 smoke 数据，当前覆盖 `gaokao`、`cet4`、`cet6`。
+- `postgrad` 暂未进入 `real-smoke`，因为仍缺少 entry-level、可机读、可确认来源的官方词表。
+- 商业词书的完整释义、例句、辨析和助记没有直接抠入仓库。
+
+## 本地运行
+
+环境要求：
+
+- Node.js 20+
 - pnpm 10.x
 - PostgreSQL
 
-推荐先启用 Corepack：
+启用 Corepack：
 
 ```bash
 corepack enable pnpm
 ```
 
-## 环境变量
+安装依赖：
 
-把 `.env.example` 复制成 `.env`，然后填写下面这些值：
+```bash
+pnpm install
+```
+
+复制 `.env.example` 为 `.env`，并填写：
 
 ```bash
 OPENAI_API_KEY=
@@ -25,112 +98,54 @@ DIRECT_URL=
 SENTRY_DSN=
 ```
 
-- `DATABASE_URL`：应用运行时使用的数据库连接串，Prisma Client 会读它。
-- `DIRECT_URL`：Prisma CLI / migrate 使用的直连地址，特别适合池化连接或某些本地 Prisma Postgres 环境。
-- `OPENAI_API_KEY`：真实调用 `/api/chat` 时必需；缺失时接口会按设计返回 `503`。
-- `SENTRY_DSN`：可选，当前没有配置也不影响本地开发和验证。
-
-## 首次启动
-
-1. 安装依赖。
-
-```bash
-pnpm install
-```
-
-2. 配置 `.env`。
-3. 执行数据库迁移。
+数据库迁移和 seed：
 
 ```bash
 pnpm db:migrate
-```
-
-4. 导入 seed 数据。
-
-```bash
 pnpm db:seed
 ```
 
-5. 启动开发服务器。
+启动开发服务器：
 
 ```bash
-pnpm dev
+corepack pnpm dev --hostname 127.0.0.1 --port 3000
 ```
 
-## 数据库维护
+## 验证命令
 
-- `pnpm db:migrate` 会执行 `prisma migrate deploy`，适合已有 migrations 的环境和部署阶段。
-- `pnpm db:seed` 会执行 `prisma db seed`，把 `data/exam-vocab/seed/` 中的词表和易混组导入数据库。
-- `pnpm build` / `pnpm start` 前，建议先保证数据库迁移和 seed 已经完成。
-
-## Seed 数据格式
-
-`data/exam-vocab/seed/entries.json` 必须是 JSON 数组，每个词条至少包含这些字段：
-
-- `id`
-- `lemma`
-- `aliases`
-- `pos`
-- `meaningsZh`
-- `examScopes`
-- `examples`
-- `collocations`
-
-`data/exam-vocab/seed/confusion-groups.json` 也是 JSON 数组，每个易混组至少包含这些字段：
-
-- `id`
-- `members`
-- `teachFirst`
-- `whyConfusing`
-
-可选字段包括 `commonMisusePoints`、`semanticBoundaryNotes`、`memberNotes`。
-
-约束规则：
-
-- `examScopes` 只能使用 `gaokao`、`cet4`、`cet6`、`postgrad`
-- 词条和易混组的字符串值都应保持非空
-- 易混组 `members` 至少 2 个词
-- `teachFirst` 应该出现在 `members` 中
-
-seed 导入会在本地做校验，格式不对会直接报错。
-
-## 验证
+基础验证：
 
 ```bash
 pnpm verify
 ```
 
-`pnpm verify` 会依次运行：
-
-- `pnpm lint`
-- `pnpm test:unit`
-- `pnpm test:integration`
-- `pnpm test:e2e`
-
-当前 e2e 会 mock `/api/chat`，所以本地跑 `verify` 不需要先配置 `OPENAI_API_KEY`。
-
-## 部署
-
-基础部署流程如下：
-
-1. 部署前准备好生产环境变量，至少包括 `DATABASE_URL`、`DIRECT_URL`、`OPENAI_API_KEY`。
-2. 安装依赖。
-3. 运行 `pnpm db:migrate`。
-4. 运行 `pnpm db:seed`。
-5. 执行 `pnpm build`。
-6. 启动 `pnpm start`，或交给支持 Next.js 的平台运行。
-
-如果部署平台支持独立的数据库迁移步骤，建议把迁移和 seed 放到发布流水线里，而不是应用启动时。
-
-## Windows + local Prisma Postgres workaround
-
-当前仓库在 Windows + local Prisma Postgres 环境下，`prisma migrate dev` 和 `prisma migrate resolve` 可能不稳定。首次建立迁移时，优先用下面这条路线：
+常用产品 smoke：
 
 ```bash
-pnpm exec prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script --output prisma/migrations/<timestamp>_init_content/migration.sql
-pnpm exec prisma db execute --file prisma/migrations/<timestamp>_init_content/migration.sql
-pnpm db:migrate
-pnpm db:seed
+corepack pnpm eval:product-smoke
+corepack pnpm eval:answer-style
+corepack pnpm eval:lookalike:real-smoke
+corepack pnpm eval:standard-lookup:provider
 ```
 
-如果后续再新增迁移，而 `migrate dev` 继续报 schema-engine 连接问题，也沿用同样思路：先 `migrate diff` 生成 SQL，再用 `db execute` 应用到数据库。
+最近一轮记录过的验证基线包括：
+
+- `corepack pnpm eval:product-smoke`：37 total / 37 pass / 0 fail
+- Answer Policy / spelling-assist 相关 focused tests：3 files / 23 tests passed
+- Root fragment condition parser focused tests：5 files / 107 tests passed
+- `real-smoke` 内容校验：546 entries / 34 confusion groups / scopes=gaokao, cet4, cet6
+
+## 文档入口
+
+- `docs/README.md`：文档索引。
+- `context.md`：长期项目地图。
+- `progress.md`：当前交接和下一步。
+- `bugs.md`：环境坑、恢复路径和产品残留。
+- `docs/superpowers/specs/`：产品和技术设计文档。
+- `docs/superpowers/plans/`：历史 implementation plans。
+
+## 当前状态
+
+项目处于 MVP + 产品能力打磨阶段。当前优先事项是继续验收普通查词 exact lookup 是否干净，防止范围话术、裸易混组或主动扩词回流；之后再决定继续扩 `real-smoke` 数据集，还是推进泛化词根/碎片检索。
+
+Windows + local Prisma Postgres 在本机开发时偶发不稳定，恢复路径记录在 `bugs.md`。

@@ -42,6 +42,8 @@ yarn-error.log*
 # local exploration artifacts
 .superpowers/brainstorm/
 .playwright-cli/
+.runlogs/
+output/
 
 # typescript
 *.tsbuildinfo

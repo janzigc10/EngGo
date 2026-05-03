@@ -1,966 +1,113 @@
 # EngGo 滚动交接
 
 ## 当前阶段
-已完成 Task 1 至 Task 7、fuzzy retrieval follow-up plan Step 1-6、形近词簇 P0 seed 扩样本，以及 `EngGo Answer Style + Root Family Map` implementation plan 的 Task 1-5。当前已经落地两条回答主线：
+EngGo 已完成聊天式 MVP、真实词库 smoke、易混词辨析、词根/碎片检索、聊天回答渲染层，以及 Answer Policy v1 的松绑 spike。
 
-- `confusion_untangle`：形近词、易混词对比、group compare 统一进入“范围内相似词 / 词义速览 / 重点区分 / 做题抓手”的辨析卡；目标是信息满但不散，不再刻意极限压短
-- `root_family_summary`：用最小原型闭环支撑 `stitute` / `tempt` 两族；当前定位已从“优先背谁”改为“用户只记得碎片或家族成员时，召回当前范围内同根/同碎片词并总结意义分流”
+当前稳定产品原则：
 
-上一轮真实 provider smoke 已经跑通，EngGo 的“解混淆语言”和回答风格进入可验证状态；下一阶段可以转向真实词库接入 smoke，但仍应先小批量受控接入，不要一次性全量灌库。新的路线文档已落盘：
+> 范围优先，不范围专制。
 
-- [docs/superpowers/plans/2026-04-23-enggo-confusion-taxonomy-roadmap.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-enggo-confusion-taxonomy-roadmap.md)
-- [docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md)
+RAG / 词库负责提供证据、命中状态和收藏入口；它不应该成为所有回答的许可闸门。明确低风险的英语学习问题可以走 `plain`，但不能伪装成 grounded 命中。
 
-当前下一刀已从“小批次真实 provider 的 answer-style smoke”推进到“真实词库接入 smoke”：先用高考 / 四级 / 六级 / 考研真实词库小批量验证导入、scope 合并、检索命中和回答风格，再决定是否扩全量或补第二批 root prototype。
+## 本 Session 文档整理
+- 2026-05-03 整理核心文档职责：
+  - `AGENTS.md`：保留协作入口、高频规则和当前焦点。
+  - `context.md`：更新为长期项目地图，移除“尚无正式代码骨架”等过期信息。
+  - `progress.md`：瘦身为当前状态、下一步、阻塞和验证基线，不再保留完整历史流水账。
+  - `bugs.md`：整理为环境恢复路径、当前产品残留、已处理事项和不要重复走的失败路径。
+  - `docs/README.md`：新增文档索引，说明 spec / plan / growth log 的阅读方式。
+- 2026-05-03 面向 GitHub / HR 整理仓库首页：
+  - `README.md` 已从开发启动说明改成项目展示型首页，包含项目亮点、本人完成工作、示例能力、技术栈、架构、数据说明、运行方式和验证基线。
+  - `.gitignore` 新增 `.runlogs/` 与 `output/`，避免本地服务日志和 Playwright 截图误提交。
+  - `docs/README.md` 补充 `README.md` 作为面向 GitHub 访问者和招聘方的入口。
 
-核心判断：EngGo 至少要区分两条完全不同的主线：
+## 当前已完成的主线
+- 聊天主舞台：
+  - Next.js chat workspace 已可提交问题、展示回答、显示 loading 进度和收藏入口。
+  - assistant answer 已用受控 Markdown 子集渲染，支持段落、标题、加粗、code、列表和 Markdown 表格。
+  - 宽召回的收藏动作默认折叠，移动端 390px smoke 未出现页面级横向溢出或原始 Markdown 表头泄露。
+- 词库与检索：
+  - `seed` 覆盖高考、四级、六级、考研。
+  - `real-smoke` 当前约 546 entries / 34 confusion groups，只覆盖高考、四级、六级。
+  - exact lookup、中文核心义召回、typo / fuzzy recall、shape-neighbor、expression recall、root / fragment recall 均已进入可验证状态。
+- 回答风格：
+  - `standard_lookup`：普通查词短答，避免主动扩未召回词、例句、范围尾巴和 Markdown 装饰。
+  - `confusion_untangle`：四段辨析卡，信息满但不散，不再追求极限压短。
+  - `root_family_summary`：用于碎片/家族召回，当前支持 `stitute` / `tempt` 原型和结构化词形过滤。
+  - `plain`：用于 greeting、明确英语学习问题 fallback、spelling-assist 候选确认，不显示命中状态和收藏工具。
+- Answer Policy v1 松绑 spike：
+  - `你好` / `hi` 等 greeting 直接返回 `plain`，不走 retrieval/provider。
+  - `complex 和 complicate 是一个意思吗`、`complex 是什么意思` 这类明确英语学习问题，在当前小词库未命中时可走 non-grounded provider fallback。
+  - `reqxust 是什么意思` 这类疑似 typo no-match 已升级为 spelling-assist 候选确认，返回 `plain`，不带 grounding。
+  - `re+con 的词根有什么词` 仍保守 no-match，不硬造词根家族。
 
-- 易混解团：用户脑子里混着几个词，需要判断入口和做题分流。
-- 词根家族地图：用户有词根/前缀/碎片，或只记得 `attempt` / `institute` 这类家族成员，需要结构化召回同根/同碎片词、列中文核心义，并总结前缀/后缀/现代义分流。
+## 下一步建议
+优先做一轮普通查词 exact lookup 污染验收。
 
-## 本 Session 已完成
-- 2026-05-02 执行 Answer Policy v1 loosening spike：
-  - [src/app/api/chat/route.ts](/C:/Users/Chen/Desktop/EngGo/src/app/api/chat/route.ts) 新增 greeting pre-retrieval short-circuit：`你好` / `您好` / `hi` / `hello` / `hey` 直接返回 `answerKind: "plain"`，不调用 retrieval/provider。
-  - [src/features/answering/chat-service.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/chat-service.ts) 新增窄门 plain fallback：no-match 后仅对明确英语学习问题放行；真实 smoke 暴露 `complex 和 complicate 是一个意思吗` 会先被 normalize 到 `fuzzy_recall/no_match`，因此已补成“多英文词 + 明确比较/意思问法”也可走 fallback。单词拼写低置信 `fuzzy_recall` 仍保守，不回到硬猜。
-  - 2026-05-02 review follow-up：根据用户确认，单词级普通英语学习问题也应允许松绑；[src/features/answering/chat-service.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/chat-service.test.ts) 新增 `complex 是什么意思` no-match -> plain provider fallback 用例，同时保留 `reqxust 是什么意思` 低置信 no-match 不调用 provider 的反例；[src/features/answering/chat-service.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/chat-service.ts) 已改为 `out_of_kb + 英文 token + 明确学习意图` 可 fallback，`low_confidence` 与 `root_family_summary` 仍保守。
-  - 2026-05-02 boundary follow-up：根据本轮真实 API smoke，确认“RAG 是证据系统，不是回答许可系统”。[src/features/answering/chat-service.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/chat-service.test.ts) 已补两条回归：`complex 和 complicate 是一个意思吗` 即使 comparison 只得到 `low_confidence/no_match` 也应走 `plain`；`reqxust 是什么意思` 即使是 `out_of_kb` 也不应交给模型猜词。[src/features/answering/chat-service.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/chat-service.ts) 已改为多词明确比较可越过 low-confidence 走 plain，疑似拼写异常的单英文 token 继续保守 no-match。
-  - [src/features/chat/types.ts](/C:/Users/Chen/Desktop/EngGo/src/features/chat/types.ts)、[src/features/chat/use-chat-session.ts](/C:/Users/Chen/Desktop/EngGo/src/features/chat/use-chat-session.ts)、[src/features/answering/chat-provider.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/chat-provider.ts) 已支持 non-grounded plain answer；plain answer 不带 `grounding`，UI 自然不显示命中状态、收藏工具或 no-match 面板。
-  - [src/components/chat/message-thread.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/message-thread.tsx) 的 no-match 支撑面板文案从“当前考试范围内”改为“当前词库暂未稳定定位”，避免把 `real-smoke` 小切片说成完整考试范围。
-  - 更新并勾选 [docs/superpowers/plans/2026-05-01-answer-policy-v1.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-05-01-answer-policy-v1.md) 的 Task 1-4；计划标题从 `Lightening` 修正为 `Loosening`，并记录 UI plain branch 其实已有基础能力、fallback 需按真实 query mode 收窄。
-  - 验证：`corepack pnpm test src/features/answering/chat-service.test.ts src/components/chat/chat-workspace.test.tsx src/components/chat/answer-actions.test.tsx` -> 3 files / 20 tests passed；focused eslint 通过；`corepack pnpm eval:product-smoke` -> 37 total / 37 pass / 0 fail。
-  - 2026-05-02 boundary follow-up 验证：新增测试先红后绿；`corepack pnpm test src/features/answering/chat-service.test.ts src/components/chat/chat-workspace.test.tsx src/components/chat/answer-actions.test.tsx` -> 3 files / 22 tests passed；focused eslint 通过；真实 API smoke：`complex 和 complicate 是一个意思吗` -> `plain` / no grounding / provider called，`reqxust 是什么意思` -> grounded no_match / no provider，`re+con 的词根有什么词` -> grounded no_match / no provider；`corepack pnpm eval:product-smoke` -> 37 total / 37 pass / 0 fail。
-  - 2026-05-03 checkpoint 前真实浏览器 UI smoke：本地 3000 首次未运行，已启动 Next dev；中途复现 Prisma dev `enggo not_running / ECONNREFUSED`，按 `bugs.md` 非删除恢复路径执行 `prisma dev -n enggo -d -p 51213 -P 51214 --shadow-db-port 51215`、`corepack pnpm db:migrate`、`corepack pnpm db:seed:real-smoke` 后恢复。浏览器重测 `你好`、`complex 和 complicate 是一个意思吗`、`reqxust 是什么意思`、`re+con 的词根有什么词` 均显示预期内容；plain 两例无 `命中状态`/`收藏工具`，两个保守 no-match 显示 `暂未稳定命中`，无服务错误。
-  - 2026-05-03 typo/clarify 小优化：根据下一刀方向，疑似单词拼写异常的 no-match 仍不调用 provider，但回答从泛化“当前词库暂未稳定定位”改为明确提示“还不能稳定定位到 reqxust / 可能拼写不确定 / 先不硬猜成某一个词”。浏览器自动化中还暴露“同一疑似 typo token 重复出现会误进 plain provider”的边界，已把英文 token 去重后再判断；`reqxust reqxust 是什么意思` 现在同样保守 clarify，不让模型猜 `request`。
-  - typo/clarify 验证：新增测试先红后绿；`corepack pnpm test src/features/answering/chat-service.test.ts` -> 1 file / 12 tests passed；`corepack pnpm test src/features/answering/chat-service.test.ts src/components/chat/chat-workspace.test.tsx src/components/chat/answer-actions.test.tsx` -> 3 files / 23 tests passed；focused eslint 通过；真实 API smoke：`reqxust 是什么意思` 和 `reqxust reqxust 是什么意思` 均 grounded no_match / no provider / 拼写澄清，`complex 和 complicate 是一个意思吗` 仍 plain，`re+con 的词根有什么词` 仍保守；真实浏览器 smoke 显示 typo clarify 文案、无服务错误、不再猜 `request`；`corepack pnpm eval:product-smoke` -> 37 total / 37 pass / 0 fail。
-  - 2026-05-03 手动 provider probe：按 plain fallback prompt 旁路调用模型测试 `reqxust 是什么意思`，模型回答“不是标准英语单词，看起来很可能是拼写错误”，并主动列出 `request`、`requisite` 两个可能候选。结论：直接放给通用 plain 模型不会声称词库命中，但会开始猜候选；后续如要放开，应设计成明确的 spelling-assist/候选确认模式，而不是普通 plain answer。
-  - 2026-05-03 spelling-assist 小实现：根据用户确认，把疑似 typo no-match 从纯保守提示升级为候选确认分支。[src/features/answering/chat-service.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/chat-service.ts) 新增 `buildSpellingAssistPrompt()` 与 `shouldUseSpellingAssist()`：疑似单英文 typo token（含重复 token 去重后）会调用 provider 生成 1-3 个拼写候选，但返回 `answerKind: "plain"` 且不带 `grounding`，不显示命中/收藏，也不声称来自当前词库。普通 low-confidence 非 typo no-match、`re+con` root-family 仍保守。
-  - spelling-assist 验证：新增测试先红后绿；`corepack pnpm test src/features/answering/chat-service.test.ts` -> 1 file / 12 tests passed；`corepack pnpm test src/features/answering/chat-service.test.ts src/components/chat/chat-workspace.test.tsx src/components/chat/answer-actions.test.tsx` -> 3 files / 23 tests passed；真实 API smoke：`reqxust 是什么意思` / `reqxust reqxust 是什么意思` -> `plain` / no grounding / provider called / 候选 `request`、`requisite` 等，`complex 和 complicate 是一个意思吗` 仍 plain，`re+con 的词根有什么词` 仍 grounded no_match / no provider；真实浏览器 smoke：显示候选，`命中状态`、`暂未稳定命中`、`收藏工具` 均为 0；focused eslint 通过；`corepack pnpm eval:product-smoke` -> 37 total / 37 pass / 0 fail。
-  - API smoke：`你好` -> `plain` / no grounding / no provider；`complex 和 complicate 是一个意思吗` -> `plain` / no grounding / provider called；`tion 结尾的词有哪些` -> grounded resolved / 15 main answers；`access assess excess 怎么区分` -> grounded resolved / 3 main answers；`re+con 的词根有什么词` -> grounded no_match / no provider。
-  - 真实移动宽度 UI smoke（390px）：plain 两例均无 `命中状态`、`暂未稳定命中`、收藏工具；grounded 两例保留命中状态和收藏工具；`re+con` 保守 no-match；所有 case `scrollWidth=390`，无页面级横向溢出或原始 Markdown 表头泄露。
-  - 执行中复现已知本地环境坑：首次 `eval:product-smoke` 因 Prisma dev `enggo not_running / ECONNREFUSED` 失败，已按 `bugs.md` 非删除式路径启动 `enggo`、`db:migrate`、`db:seed:real-smoke` 后恢复。Next dev 首次启动参数误带 `--`，已改为 `corepack pnpm dev --hostname 127.0.0.1 --port 3000`。
-- 2026-05-02 将 Answer Policy v1 plan 收瘦为松绑 spike：
-  - 根据用户对 LangChain/RAG 学习后的反思，确认 EngGo 当前风险不是“规则不够”，而是硬约束把大模型基础交互能力锁死。
-  - 已把 [docs/superpowers/plans/2026-05-01-answer-policy-v1.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-05-01-answer-policy-v1.md) 从完整 answer-mode 框架改成轻量 spike：只放开 `你好` 这类 greeting 和 `complex 和 complicate 是一个意思吗` 这类明确英语学习问题；`re+con` 等高风险词根组合仍保守。
-  - 新计划的判断标准改为“先松绑、再 smoke 观察真实坏法”，不提前堆分类和硬规则；下一步如果执行，应从 greeting escape hatch 开始，不要回到五类复杂 mode 的旧方案。
-- 2026-05-01 确认并落地 Answer Policy v1 实施计划：
-  - 用户确认 [docs/superpowers/specs/2026-05-01-answer-policy-v1.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/specs/2026-05-01-answer-policy-v1.md) 的产品方向基本正确：EngGo 应该“范围优先，不范围专制”，先自然接住问题，再用 RAG/考试范围收束学习决策。
-  - 新增实施计划 [docs/superpowers/plans/2026-05-01-answer-policy-v1.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-05-01-answer-policy-v1.md)，第一刀限定为回答身份路由：`greeting`、`grounded`、`general_learning`、`clarify`、`no_match`。
-  - 计划明确不做完整 Agent、不重写检索、不放宽命中阈值；先用最小 answer-policy 层解决 `你好` 被 no-match、`complex 和 complicate` 被小词库锁死的问题，同时保持 `tion`、`access assess excess` 等 grounded 场景不退化。
-- 2026-05-01 确认 Answer Policy v1 产品方向：
-  - 用户明确 EngGo 与 DeepSeek 的差异不在“能不能解释英语”，而在 RAG 帮备考用户缩小学习范围：当前阶段什么词该背、什么词不用优先背、哪些易混词值得一起学。
-  - 当前问题不是“规则太多”，而是规则把大模型基础交互能力锁死：`你好` 和 `complex 和 complicate 是一个意思吗` 这类输入不该直接 no-match。
-  - 新产品原则：`范围优先，不范围专制`；EngGo 应先自然接住问题，再用考试范围和词库证据帮用户收束学习决策。
-  - 新增设计文档：[docs/superpowers/specs/2026-05-01-answer-policy-v1.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/specs/2026-05-01-answer-policy-v1.md)。
-  - 下一步若继续实现，应先写 Answer Policy v1 plan，最小范围覆盖 greeting、grounded answer、general learning answer、clarify/no-match 文案边界；不要直接上完整 Agent 框架。
-- 2026-05-01 完成 loading 体验小优化：
-  - [src/components/chat/message-thread.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/message-thread.tsx) 的等待态从单句 `正在根据当前考试范围组织回答...` 改成三步进度卡：`正在检索当前范围词条`、`整理易混边界`、`组织可读答案`，并用 `aria-live="polite"` 让状态更明确。
-  - [src/components/chat/chat-input.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/chat-input.tsx) 的 loading 按钮文案从 `回答生成中...` 改成 `组织答案中`，保持禁用状态并避免用户以为没有点上。
-  - [src/components/chat/chat-workspace.test.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/chat-workspace.test.tsx) 新增等待态测试，先确认旧实现红灯，再实现转绿。
-  - 验证：`corepack pnpm test src/components/chat/chat-workspace.test.tsx` -> 1 file / 7 tests passed；`corepack pnpm test src/components/chat/answer-content.test.tsx src/components/chat/answer-actions.test.tsx src/components/chat/chat-workspace.test.tsx` -> 3 files / 12 tests passed；focused eslint 通过。
-  - 真实浏览器复验：本地 `http://localhost:3000` 提交 `tion 结尾的词有哪些` 后，页面显示 `EngGo 正在工作`、三步进度和禁用的 `组织答案中` 按钮；服务日志显示该次 `/api/chat` 以 200 返回，耗时约 7.4s。
-- 2026-05-01 跑了一轮“自动化 product smoke + 真实浏览器 smoke”：
-  - 首次 `corepack pnpm eval:product-smoke` 因 sandbox Corepack `EPERM` 失败，切到真实工作区权限后又因数据库 `ECONNREFUSED` 失败；根因确认是 Prisma dev `enggo not_running`，不是产品逻辑回归。
-  - 已按 `bugs.md` 的非删除路径恢复：`.\\node_modules\\.bin\\prisma.CMD dev -n enggo -d -p 51213 -P 51214 --shadow-db-port 51215`、`corepack pnpm db:migrate`、`corepack pnpm db:seed:real-smoke`。
-  - 恢复后 `corepack pnpm eval:product-smoke` -> 37 total / 37 pass / 0 fail；覆盖 standard_lookup、fuzzy_typo、shape_neighbor、confusion、expression_recall、root_family、no_match。
-  - 本地 Next dev 也一度没有监听 `http://localhost:3000`，已重新启动；真实浏览器 smoke 中 `tion 结尾的词有哪些` 能渲染 15 行表格，`命中状态` 为 `已命中 15 个当前范围词`，默认只显示 `展开收藏工具`，无原始 Markdown 表格泄露、无服务错误。
-  - 真实浏览器 smoke 中 `institute 是什么意思` 可正常 resolved，单词收藏动作显示 1 个；`access assess excess 怎么区分` 可正常 resolved，显示 3 个收藏动作；`re+con 的词根有什么词` 保持保守 no-match，没有服务错误。
-  - 观察到两个后续可打磨点：宽召回回答首段偶尔会被模型加上一层引号；真实 provider 响应在本轮浏览器 smoke 中有 5-11s 延迟，后续做交互体验时应考虑 loading 文案和等待反馈。
-- 2026-04-30 完成聊天回答展示第二刀：
-  - [src/components/chat/answer-actions.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/answer-actions.tsx) 已把 5 个以上主答案的收藏动作改为默认紧凑态：先显示 `收藏工具` 和 `展开收藏工具`，不再默认铺出逐词收藏列表；展开后保留前 5 个 + `展开全部 N 个` 的原行为。
-  - [src/components/chat/message-thread.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/message-thread.tsx) 已把 resolved grounding 面板从 `主答案` 长 lemma 串改成 `命中状态` 摘要，例如 `已命中 15 个当前范围词`；no-match 分支保持原样。
-  - [src/components/chat/answer-actions.test.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/answer-actions.test.tsx) 和 [src/components/chat/chat-workspace.test.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/chat-workspace.test.tsx) 新增宽召回防重复测试。
-  - 验证：`corepack pnpm test src/components/chat/answer-content.test.tsx src/components/chat/answer-actions.test.tsx src/components/chat/chat-workspace.test.tsx` -> 3 files / 11 tests passed；focused eslint 通过。
-  - 真实浏览器 smoke：本地 `http://localhost:3000` 问 `tion 结尾的词有哪些`，先因 Prisma dev `enggo not_running` 导致 `/api/chat` 500，已按 `bugs.md` 非删除式路径启动 `enggo`、执行 `db:migrate` 与 `db:seed:real-smoke` 后恢复；复验显示表格正常渲染，未露出原始 `| word | 词性 | 核心义 |`，未出现长主答案串，默认无逐词 `加入收藏`，点击 `展开收藏工具` 后出现逐词收藏与 `展开全部 15 个`。
-- 2026-04-30 聊天回答展示第二刀设计确认：
-  - 已采用 B 方案“学习材料 + 工具条”：答案正文保留完整学习材料，grounding 面板只放命中状态、下一步和收藏工具入口，不再默认重复铺主答案长串和逐词收藏列表。
-  - 新增 spec：[docs/superpowers/specs/2026-04-30-chat-answer-display-tools.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/specs/2026-04-30-chat-answer-display-tools.md)。
-  - 新增 plan：[docs/superpowers/plans/2026-04-30-chat-answer-display-tools.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-30-chat-answer-display-tools.md)。
-- 2026-04-30 同步协作入口文档：
-  - [AGENTS.md](/C:/Users/Chen/Desktop/EngGo/AGENTS.md) 已补充 [docs/engineering-growth-log.md](/C:/Users/Chen/Desktop/EngGo/docs/engineering-growth-log.md) 的职责：仅在个人成长复盘、简历素材或沟通方式总结相关任务中读取；不替代 `progress.md`，不作为项目当前实现状态依据。
-  - 顺手把 `AGENTS.md` 的当前焦点从早期“实现计划与项目初始化”更新为真实词库、检索能力与聊天回答展示体验阶段。
-- 2026-04-30 更新成长记录：
-  - [docs/engineering-growth-log.md](/C:/Users/Chen/Desktop/EngGo/docs/engineering-growth-log.md) 新增 `从后端正确到前端可读`，记录本轮从 API/eval 正确性推进到真实移动端可读学习体验的复盘：受控 Markdown 子集渲染、宽召回收藏动作折叠、真实手机视口验收。
-- 2026-04-27 完成聊天回答渲染层第一刀：
-  - 新增 [src/components/chat/answer-content.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/answer-content.tsx) 和 [src/components/chat/answer-content.test.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/answer-content.test.tsx)，用受控 Markdown 子集渲染 assistant answer：段落、`###` 标题、`**加粗**`、反引号 code、`-` 列表和 Markdown 表格。
-  - [src/components/chat/message-thread.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/message-thread.tsx) 已改用 `AnswerContent`，不再把 `word | 词性 | 核心义` 或 `###` 原样露给用户。
-  - [src/components/chat/answer-actions.tsx](/C:/Users/Chen/Desktop/EngGo/src/components/chat/answer-actions.tsx) 已把长 `mainAnswer` 收藏动作默认折叠：超过 5 个时只显示前 5 个，并提供 `展开全部 N 个`，避免手机端一次性摊开 15-34 个收藏按钮。
-  - 移动端真实浏览器复验 `tion 结尾的词有哪些`：`status=200`、`tableCount=1`、`rawTableVisible=false`、`rawHeadingVisible=false`、`visibleCollectButtons=5`、`expandVisible=1`、`hasCoreMeaningColumn=true`、`innerWidth=390 / scrollWidth=390`，说明表格已渲染且无页面级横向溢出。
-  - 最新截图保存为 `output/playwright/enggo-mobile-tion-rendered.png`。
-  - 验证：`corepack pnpm test src/components/chat/answer-content.test.tsx src/components/chat/answer-actions.test.tsx src/components/chat/chat-workspace.test.tsx` -> 3 files / 10 tests passed；focused eslint 通过。
-- 2026-04-27 完成一次真实聊天页前端验收，结论是“功能链路可用，但前端承接还没做好”：
-  - 本地 `http://localhost:3000` 已启动并用真实浏览器跑过 `tion 结尾的词有哪些`、`有 struct 的词`、`con 开头 re 相关的词`、`re...ct 这种词`、`re+con 的词根有什么词`。
-  - 五条 query 均无前端 error；前四条 resolved，`re+con 的词根有什么词` 保持 no-match，回答文案自然，不像服务报错。
-  - 明确前端残留：`src/components/chat/message-thread.tsx` 仍把 assistant answer 当普通 `<p className="whitespace-pre-wrap">` 文本渲染，所以 Markdown 加粗、反引号、列表和 `word | 词性 | 核心义` 表格都会原样显示；宽召回没有真正变成表格。
-  - 明确移动端残留：宽召回会把 `AnswerActions` 的 15 个 `加入收藏` 项全部展开，手机全页截图非常长；桌面端也只是把原始 Markdown 文字排得更宽，不是结构化学习卡。
-  - 验收截图已保存：`output/playwright/enggo-mobile-empty.png`、`output/playwright/enggo-mobile-tion-answer.png`、`output/playwright/enggo-desktop-tion-answer.png`。
-  - 下一步建议不要先做大改版，也不要继续只测后端；应先写一个“聊天回答渲染层 / root-family 宽召回展示”前端设计，把 Markdown/表格、长列表收藏动作、移动端折叠策略定下来，再进实现计划。
-- 2026-04-27 完成 [docs/superpowers/plans/2026-04-27-root-fragment-condition-parser.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-27-root-fragment-condition-parser.md) 的 Task 1-6：
-  - [src/features/retrieval/root-fragment-recall.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/root-fragment-recall.ts) 已从旧 `kind` 分支改成 `RootFragmentConstraint / RootFragmentQuery`，支持 `prefix / suffix / contains / start_end / ordered_contains`，多条件默认 AND；结构化单命中也允许 resolved。
-  - [src/features/retrieval/normalize-query.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/normalize-query.ts) 和 [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts) 已接入 condition parser：`tion 结尾的词有哪些` -> `fragment-suffix-tion`，`有 struct 的词` -> `construct / structure`，`con 开头 re 相关的词` -> `conference`，`re...ct 这种词` -> `respect`；`re+con 的词根有什么词` 仍保持 `root_family_summary / no_match`。
-  - 负例已锁住：`content 是什么意思`、`inter 是什么意思`、`con 是什么意思` 不会进入 dynamic fragment recall。
-  - 本地 smoke 已扩展：`corepack pnpm eval:answer-style` -> 20/20 pass；`corepack pnpm eval:product-smoke` -> 37/37 pass，其中 root_family 9 条；provider smoke 新增 `root: tion suffix fragment`，最终 `corepack pnpm eval:answer-style:provider` -> 16 total / 15 pass / 1 manual / 0 fail，`providerUnknown=0`，manual 是旧 confusion 字数超 450，不是新 fragment case。
-  - 最终验证：`corepack pnpm test src/features/retrieval/root-fragment-recall.test.ts src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-system-prompt.test.ts scripts/lib/black-box-product-smoke.test.ts scripts/lib/answer-style-provider-smoke.test.ts` -> 5 files / 107 tests passed；focused eslint 通过；`git diff --check` 通过。
-  - 执行中复现一次已知 Prisma dev `Connection terminated unexpectedly`，证据为 `prisma dev ls` 显示 `enggo not_running`；已用非删除式固定端口重启 + `db:migrate` + `db:seed:real-smoke` 恢复。
-- 2026-04-27 为避免继续 query-by-query 补洞，补充 root fragment condition parser 轻量设计与执行计划：
-  - 新增 [docs/superpowers/specs/2026-04-27-root-fragment-condition-parser.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/specs/2026-04-27-root-fragment-condition-parser.md)：把碎片检索定义为结构化词形条件解析，支持 `prefix / suffix / contains / start_end / ordered_contains`，多条件默认 AND；明确 `re+con 的词根有什么词` 仍不应被硬解释成稳定词根组合。
-  - 新增 [docs/superpowers/plans/2026-04-27-root-fragment-condition-parser.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-27-root-fragment-condition-parser.md)：按 TDD 拆成 parser 单测、constraint matcher、retrieval integration、本地 smoke、provider smoke、docs handoff 六个任务。
-  - 代表验收矩阵锁定当前 `real-smoke` 可支撑的四类行为：`tion 结尾` 多命中、`有 struct 的词` 少量命中、`con 开头 re 相关` 单命中、`re...ct` 单命中；`re+con 的词根有什么词` 保持 no-match，避免把语义词根问题误当词形过滤。
-- 2026-04-27 根据用户确认调整宽 prefix 碎片召回：
-  - [src/features/retrieval/root-fragment-recall.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/root-fragment-recall.ts) 已取消“命中超过 8 个就 no-match”的上限，只保留少于 2 个不硬凑；`con 开头的词有哪些` 现在进入 `root_family_summary / resolved`，`rootFamilyView.id=fragment-prefix-con`，当前 CET-6 `real-smoke` 范围内返回 34 个 `con-` 成员。
-  - [src/features/retrieval/types.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/types.ts)、[src/features/retrieval/root-fragment-recall.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/root-fragment-recall.ts) 与 [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts) 已把词条 `pos` 转成 `partOfSpeech` 短标签写入 `rootFamilyView.members`，例如 `conduct=v. / n.`、`content=n. / adj.`、`confident=adj.`。
-  - [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts) 新增宽召回表格契约：当 `rootFamilyView.members.length > 8` 时，`家族召回` 段必须用 `word | 词性 | 核心义` Markdown 表格，全部列出 `rootFamilyView.members`，不写“等”，word 列必须逐字复制 lemma，词性列必须使用 `partOfSpeech`；`意义分流` 固定为两句总括，不拆后续词根、不写“例如”。
-  - 同步 [scripts/run-answer-style-eval.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-eval.ts)、[scripts/lib/black-box-product-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/black-box-product-smoke.ts) 和 [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts)：`con 开头` 不再属于 `no_match` bucket，而是 `root_family` resolved；真实 provider smoke 对 `con` 新增三列表头、`confident / convenient / adj.` answer hard check，并禁止模型把 `confident` 写成 `confidant` 或写“例如”。
-  - 验证：`corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-system-prompt.test.ts scripts/lib/answer-style-provider-smoke.test.ts scripts/lib/black-box-product-smoke.test.ts` -> 4 files / 89 tests passed；`corepack pnpm eval:answer-style` -> 16/16 pass；`corepack pnpm eval:product-smoke` -> 33/33 pass，其中 `root: broad con prefix` 为 `root_family_summary/resolved/root_family_summary`；`corepack pnpm eval:answer-style:provider` -> 15 total / 15 pass / 0 manual / 0 fail，新增 `root: con prefix fragment` 通过，34 成员，回答 1179/1500 字；focused eslint 通过。
-- 2026-04-26 完成泛化词根/碎片检索第一刀：
-  - 新增 [src/features/retrieval/root-fragment-recall.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/root-fragment-recall.ts)，只支持三类窄门输入：`prefix 开头/前缀`、`re...nt` 这类词首+词尾模式、以及 `a+b` 组合；候选必须来自当前考试范围内真实词条，且命中数至少 2 个，否则继续 `no_match`。
-  - [src/features/retrieval/normalize-query.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/normalize-query.ts) 已把 `inter 开头的词有哪些` 这类问题路由到 `root_family_summary`；普通 `inter 是什么意思` 仍不走该分支。
-  - [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts) 在已有 `stitute / tempt` prototype 未命中时，才尝试动态碎片召回；`inter 开头的词有哪些` 当前 grounding 为 `international / interpret / interrupt`，`re...nt 这种词` 为 `recent / resent`，`con 开头的词有哪些` 已在 2026-04-27 改为全量表格召回，`re+con` 仍 no-match。
-  - 真实 provider 首跑暴露一个产品细节：`inter` 被模型自己补成“完整单词：埋葬”。已收紧 [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts)：只有 `rootFamilyView.members` 里真的有同 lemma 成员时，才允许说片段本身也是完整单词；否则只能说成词形片段或前缀线索。provider smoke 对 `inter` 也新增 `埋葬 / 既是一个完整单词` forbidden hard check。
-  - 验证：`corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-system-prompt.test.ts scripts/lib/answer-style-provider-smoke.test.ts scripts/lib/black-box-product-smoke.test.ts` -> 4 files / 87 tests passed；`corepack pnpm eval:answer-style` -> 16/16 pass；`corepack pnpm eval:product-smoke` -> 33/33 pass；`corepack pnpm eval:answer-style:provider` -> 13 pass / 1 manual / 0 fail，manual 是旧 `access/assess/excess` confusion 回答 478/450 字，新增 `inter` root fragment 通过且不再补“埋葬”；focused eslint 通过；`git diff --check` 无 whitespace error，仅 Windows 行尾提示。
-  - 本轮验证中再次遇到已知 Prisma dev `Connection terminated unexpectedly`，已按 `bugs.md` 路径执行 `prisma dev stop enggo` -> 固定端口重启 -> `db:migrate` -> `db:seed:real-smoke` 后恢复。
-- 2026-04-26 扩展普通查词污染小批验收：
-  - 按只读 explorer 建议补了一批 high-risk exact lookup 样本，专门覆盖 `root-stitute`、`root-tempt`、`shape_like`、`meaning_near`、派生/同族和反向形近词成员。
-  - [src/features/retrieval/retrieve-candidates.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.test.ts) 的 ordinary lookup 防回归扩展到 `institution / constitute / substitute / attempt / temptation / effect / access / assess / respect / conform / adjust / stationery` 等 exact 查词；这些查询仍只允许 `mainAnswer` 命中自己，不能带出同组边界。
-  - [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts) 的 `eval:standard-lookup:provider` 从 8 条扩到 20 条；[scripts/lib/black-box-product-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/black-box-product-smoke.ts) 的 product smoke 从 27 条扩到 30 条，只新增 `institution / effect / respect` 三个代表样本，避免矩阵过重。
-  - 验证：`corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts scripts/lib/answer-style-provider-smoke.test.ts scripts/lib/black-box-product-smoke.test.ts` -> 3 files / 75 tests passed；`corepack pnpm eval:product-smoke` -> 30/30 pass；`corepack pnpm eval:standard-lookup:provider` -> 20/20 pass，平均 22 字，最长 30 字，无 manual / fail。
-  - 结论：当前 exact `standard_lookup` 这层已经比较干净；本轮没有改 production retrieval 逻辑，只是加严验收。下一刀可以转向“泛化词根/碎片检索”第一步，而不是继续扩 typo 闸门。
-- 2026-04-26 收紧普通查词与易混边界的分层：
-  - 问题根因：`institute 是什么意思` 虽然是 `standard_lookup`，但 exact 英文查词分支仍会查 `confusion_group`，把未标注裸组 `institute-institution` 的另一个成员塞进 `confusionBoundary`，真实 provider 因此补出 `institution`。
-  - [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts) 已改为：稳定 exact 命中只返回 `mainAnswer`，不再自动拼接普通查词边界；拼写不完整或 typo fallback 的 fuzzy 保护仍保留，避免 `有个像 instituton 的词` 这类模糊召回退化。
-  - [src/features/retrieval/retrieve-candidates.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.test.ts) 新增/扩展防回归：`institute / recent / stationary 是什么意思` 不能分别带出 `institution / resent / stationery`；明确形近、对比、root family 路径仍按原样召回组成员。
-  - 同步收紧 [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts)、[scripts/lib/black-box-product-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/black-box-product-smoke.ts) 与 [scripts/run-answer-style-eval.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-eval.ts)：`standard: institute` 现在禁止 `institution / constitute / substitute / restitute / prostitute` 出现在普通查词 grounding。
-  - 复验：`corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts scripts/lib/answer-style-provider-smoke.test.ts scripts/lib/black-box-product-smoke.test.ts` -> 3 files / 75 tests passed；`corepack pnpm eval:answer-style` -> 13/13 pass；`corepack pnpm eval:product-smoke` -> 27/27 pass；`corepack pnpm eval:standard-lookup:provider` -> 8/8 pass，`institute` 当前 `grounding=institute`，输出只解释 `institute`。
-- 2026-04-26 完成普通查词真实 provider 小批验收入口与 prompt 收紧：
-  - 并行只读 explorer 先梳理了现有 provider smoke：默认 `eval:answer-style:provider` 主要覆盖 confusion / expression / root / typo，缺少专门的普通查词真实输出验收。
-  - 新增 [scripts/run-standard-lookup-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-standard-lookup-provider-smoke.ts) 与 `package.json` 脚本 `eval:standard-lookup:provider`，复用 provider smoke runner，但只跑 8 条 `standard_lookup`：`academic / institute / available / gain / generate / garage / evidence / significant`。
-  - [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts) 新增 `buildStandardLookupProviderSmokeCases()` 与 `forbiddenAnswerIncludes` hard check，专门拦截可见标签、范围尾巴、例句、主动扩词、Markdown 加粗等普通查词污染。
-  - 第一轮真实 provider smoke 暴露普通查词仍会输出 `CET 范围/后续按范围筛词`，且 `gain` 曾出现 `**gain**` Markdown 加粗；已收紧 [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts)，普通查词不再暴露 `scopeReminder` 原文，并明确最终答案不要出现范围提示、可见标签或 Markdown 符号。
-  - 最新真实 provider 8 条全通过：`corepack pnpm eval:standard-lookup:provider` -> total 8 / pass 8 / manual 0 / fail 0；平均 22 字，最长 36 字。典型输出：`academic 的意思是学术的、学校的。`、`institute 作动词时意为“设立”“制定”，作名词时意为“机构”。`、`generate 的核心义是“产生、生成”。`
-  - 验证：`corepack pnpm test src/features/answering/build-system-prompt.test.ts scripts/lib/answer-style-provider-smoke.test.ts scripts/run-answer-style-provider-smoke.test.ts` -> 3 files / 35 tests passed；最新 `corepack pnpm eval:answer-style` -> 13/13 pass；最新 `corepack pnpm eval:product-smoke` -> 27/27 pass；focused eslint 通过；`git diff --check` 无 whitespace error，仅有 Windows LF/CRLF 提示。
-- 2026-04-26 完成 typo/fuzzy fallback 第二刀，并已先把上一刀提交为 `0ff9366 fix: resolve single-edit typo lookups`：
-  - 问题根因：`reqeust -> request` 是相邻字母换位，`pg_trgm` 分数只有约 0.375，旧单编辑 fallback 不覆盖；`recomand -> recommend` 是更紧的两编辑拼写错，候选唯一且 trigram 分数约 0.556。两者都不是缺词，而是 spelling correction 规则缺口。
-  - [src/features/retrieval/retrieve-candidates.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.test.ts) 新增红灯：`有个像 reqeust 的词` 应召回 `request`，`有个像 recomand 的词` 应召回 `recommend`；同时锁住 `有个像 reqxust 的词` 仍保守 no-match。
-  - [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts) 将 typo fallback 扩为三层窄门：唯一单编辑、相邻换位、以及首尾相同/长度够长/分数不低的唯一两编辑候选；仍不降低全局 `minScore/minGap`。
-  - 同步 [scripts/lib/black-box-product-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/black-box-product-smoke.ts)、[scripts/run-answer-style-eval.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-eval.ts)、[scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts) 与 [scripts/run-chat-batch-eval.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-chat-batch-eval.ts)：`reqeust` 不再作为 no-match 基线，`recomand` 进入产品 typo smoke。
-  - 真实 provider 抽样：`有个像 reqeust 的词` -> “你可能想查的是 request。它的核心意思是‘请求’或‘要求’...”；`有个像 recomand 的词` -> “你可能想查的是 recommend。recommend 的核心义是‘推荐’或‘建议’。” 期间发现模型会顺手写范围提示，已进一步收紧 typo prompt，不再把 `scopeReminder` 原文暴露给纠错场景。
-  - 当前验证：`corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts src/features/answering/chat-service.test.ts src/features/answering/build-system-prompt.test.ts scripts/lib/black-box-product-smoke.test.ts scripts/lib/answer-style-provider-smoke.test.ts` -> 5 files / 88 tests passed；`corepack pnpm eval:product-smoke` -> 26 total / 26 pass / 0 fail；`corepack pnpm eval:answer-style` -> 13/13 pass；focused eslint 通过；`git diff --check` 无 whitespace error，仅有 Windows LF/CRLF 提示。本次提交前 product-smoke 曾在第 20 条后撞到已知 Prisma dev `Connection terminated unexpectedly`，已用非删除式 stop/start 固定端口、`db:migrate`、`db:seed:real-smoke` 恢复后复跑通过。
-- 2026-04-26 完成轻量 typo/fuzzy fallback 第一刀：
-  - 问题根因：`generte` 会同时召回 `general / generally / generate / generation / generous`，这些词在 `pg_trgm` 的 `word_similarity` 上接近打平，旧的 `minScore=0.68 / minGap=0.12` 稳定闸门不敢选；`horizen -> horizon` 也因 trigram 分数未过阈值而 no-match。问题不是词库缺词，而是 trigram 相似度不是专门拼写纠错。
-  - [src/features/retrieval/retrieve-candidates.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.test.ts) 新增红灯：`generte 是什么意思` 应召回 `generate`，`horizen 是什么意思` 应召回 `horizon`；同时锁住 `有个像 reqeust 的词` 仍保守 no-match。
-  - [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts) 新增仅用于 `fuzzy_recall` 的单编辑 fallback：旧 trigram 闸门未通过时，只在当前考试范围内、且唯一候选与输入相差 1 个编辑操作（插入/删除/替换，不含换位）时放行；不改全局 `minScore/minGap`。
-  - 进一步补了拼写纠错回答形态：[src/features/answering/build-grounding.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-grounding.ts) 会把 `generte -> generate` 这类 fuzzy resolved 标成 `spellingCorrection`；[src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts) 要求第一句写“你可能想查的是 generate。”，再短解释核心义，并禁止在该场景主动输出范围提示。
-  - 真实 provider 抽样：`generte 是什么意思` -> “你可能想查的是 generate。它的核心意思是‘产生’‘生成’。”；`horizen 是什么意思` -> “你可能想查的是 horizon。horizon 是名词，核心义包括‘地平线’和‘视野’。”
-  - 本轮恢复本地 `enggo` Prisma dev：先遇到 `ECONNREFUSED 127.0.0.1:51214`，按 `bugs.md` 非删除路径重启固定端口实例，执行 `db:migrate` 与 `db:seed:real-smoke` 后恢复。
-  - 验证：`corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts src/features/answering/chat-service.test.ts src/features/answering/build-system-prompt.test.ts` -> 3 files / 66 tests passed；`corepack pnpm eval:product-smoke` -> 25 total / 25 pass / 0 fail；`corepack pnpm eval:answer-style` -> 12/12 pass；focused eslint 通过。`reqeust` 仍按预期 no-match。
-- 2026-04-26 按用户确认，从“继续扩词”切换到 546 词底座的黑盒产品验收：
-  - 新 plan 已落盘并执行完成：[docs/superpowers/plans/2026-04-26-black-box-product-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-26-black-box-product-smoke.md)
-  - 新增 [scripts/lib/black-box-product-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/black-box-product-smoke.ts) 与 [scripts/run-black-box-product-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-black-box-product-smoke.ts)，并在 [package.json](/C:/Users/Chen/Desktop/EngGo/package.json) 增加 `eval:product-smoke`。该 runner 使用 stub provider，走 `retrieveCandidates -> chatService -> grounding`，检查路由、resolution、answerStyle、grounding、comparison/root view 和 no-match 短路，不评价真实模型文采。
-  - 黑盒清单共 25 条，覆盖 `standard_lookup`、`fuzzy_typo`、`shape_neighbor`、`confusion`、`expression_recall`、`root_family`、`no_match`；其中 8 条普通查词直接使用 batch-3 新增词：`gain / generate / genuine / gravity / horizon / income / justice / garage`。
-  - 首轮 `corepack pnpm eval:product-smoke` 结果：25 total / 23 pass / 2 fail。通过项说明普通查词、形近召回、易混辨析、中文表达召回、root family 和保守 no-match 主线都能跑通；失败集中在轻微 typo：`generte 是什么意思` 未召回 `generate`，`horizen 是什么意思` 未召回 `horizon`。`genuin 是什么意思` 可以召回 `genuine`。
-  - 同轮黑盒观察到 `root_family_summary` 的 visible grounding 仍暴露 `restitute/prostitute` 风险；已补 [src/features/retrieval/retrieve-candidates.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.test.ts) 红灯并修复 [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts)，现在 root-family 可见成员只保留有真实 entry 且在当前考试范围内的成员。
-  - 当前结论：不要立刻进入 batch 4 扩库；下一刀应围绕 typo/fuzzy 策略做小设计，目标是支持 `generte -> generate`、`horizen -> horizon` 这类轻微拼错，同时不放宽到库外硬猜。
-- 2026-04-26 完成 `real-smoke` foundation vocab batch 3，把基础查询底座从 409 entries 扩到 546 entries：
-  - 新 plan 已落盘并执行完成：[docs/superpowers/plans/2026-04-26-real-smoke-foundation-vocab-batch-3.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-26-real-smoke-foundation-vocab-batch-3.md)
-  - 红灯确认：`corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 500 --require-source-lemmas` 按预期失败：`real-smoke has 409 entries; expected at least 500.`
-  - [data/exam-vocab/real-smoke/entries.json](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/entries.json) 新增 137 个 source-backed thin foundation entries，主要覆盖 G/H/I/J 段常见基础词；每条保留 `id` / `lemma` / `aliases` / `pos` / `meaningsZh` / `examScopes` / `examples` / `collocations` 字段，不新增例句长讲解。
-  - [data/exam-vocab/real-smoke/confusion-groups.json](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/confusion-groups.json) 未新增自动混淆组，仍保持 34 个已人工确认组。
-  - [data/exam-vocab/real-smoke/README.md](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/README.md) 已更新为 546 entries / 34 groups，并明确当前进入 500-1000 词 foundation RAG MVP 区间，但仍是薄开发词库，不是完整教学语料。
-  - 扩库后 `eval:answer-style` 一度在第三条 `meaning_lookup` 报 `Connection terminated unexpectedly`；排查确认是本地 Prisma dev 连接状态被前序失败污染，不是扩库逻辑回归。已用非删除式 `prisma dev stop enggo` -> 固定端口重启 -> `db:migrate` -> `db:seed:real-smoke` 恢复。
-  - 为防止顺序问题回归，[src/features/retrieval/retrieve-candidates.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.test.ts) 新增 direct_compare 后继续跑中文 `meaning_lookup` 的顺序回归测试。
-  - 验证：恢复健康环境后 `check-vocab-content --dataset real-smoke --min-entries 500 --require-source-lemmas` -> 546 entries / 34 groups；`corepack pnpm test scripts/check-vocab-content.test.ts src/features/content/load-seed-content.test.ts src/features/retrieval/retrieve-candidates.test.ts` -> 3 files / 62 tests passed；`db:migrate` 无待执行；`db:seed:real-smoke` 通过；`eval:lookalike:real-smoke` -> 14/14 pass；`eval:answer-style` -> 12/12 pass。
-- 2026-04-26 根据用户反馈重定向 `root_family_summary`：不再把它写成“优先背 / 眼熟即可 / 不硬背”，而是做同根/碎片召回总结。
-  - 产品判断更新：`tempt / attempt / temptation / contempt` 与 `stitute -> institute / institution / constitute / substitute` 属于同一类需求。用户可能只记得一个碎片或家族成员，EngGo 应把当前考试范围内召回到的同根/同碎片词列出来，每个带中文核心义，再讲清前缀、后缀或现代义如何分流；语义跑远的成员不能被简单踢出家族，也不应写成“不硬背”。
-  - [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts) 已把 `root_family_summary` 三段改为 `碎片定位 / 家族召回 / 意义分流`，预算放宽到 420 汉字；要求“当前考试范围内召回到的家族成员”都用 `word=中文义` 格式列出，禁止省略英文词，也禁止把回答写成背诵优先级排序。
-  - [src/features/retrieval/root-family-prototypes.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/root-family-prototypes.ts) 与 [src/features/retrieval/normalize-query.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/normalize-query.ts) 已支持从已知家族成员反查原型：`attempt 这一族怎么记` -> `root-tempt`；`跟 institute 一样那几个词怎么记` -> `root-stitute`。普通 `institute 是什么意思` 仍保持 `standard_lookup`，不被误升级成 root 总结。
-  - [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts) 的 root manual checks 改成检查“当前范围内同根/碎片家族成员、中文核心义、意义分流”，root smoke 字数预算统一放宽到 420。
-  - 真实 provider 抽样：`tempt 这一族怎么记`、`attempt 这一族怎么记`、`跟 institute 一样那几个词怎么记` 均返回 `root_family_summary / resolved`；模型输出能列出 `attempt / tempt / temptation / contempt` 或 `institute / institution / constitute / substitute`，并解释意义分流，未再把 `contempt` 写成“不硬背”。
-  - 验证：先看到 root prompt / provider smoke / 成员反查的红灯；修复后 `corepack pnpm test src/features/retrieval/root-family-prototypes.test.ts src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-system-prompt.test.ts scripts/lib/answer-style-provider-smoke.test.ts` -> 4 files / 77 tests passed；`corepack pnpm eval:answer-style` -> 12/12 pass；focused regression `root-family-prototypes / retrieve-candidates / chat-service / build-system-prompt / answer-style-provider-smoke / run-answer-style-provider-smoke` -> 6 files / 91 tests passed；focused eslint 通过；`git diff --check` 仅有 Windows LF/CRLF 提示。
-- 2026-04-26 根据用户反馈回调 `confusion_untangle` 过度压缩：
-  - 产品判断更新：三段版（`混淆入口 / 核心边界 / 做题抓手`）虽然更短，但会压住模型讲清楚的能力，尤其 `recent/resent` 这类形近词容易只剩“只差 c/s”，学习价值变薄。当前方向回到四段辨析卡：`范围内相似词 / 词义速览 / 重点区分 / 做题抓手`。
-  - 保留本轮有效收口：`confusion_untangle` 仍不追加可见“建议的范围提醒 / 下一步追问”；`root_family_summary` 继续使用三段（`碎片判断 / 家族地图 / 优先背`），不再硬写“谨慎提醒”。
-  - [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts) 已把 `confusion_untangle` 回调到 4 段，预算放宽到 450 汉字；新增约束“形近词不要只说字母哪里不同”，重点区分必须落到语义、词性、搭配或对象边界。
-  - [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts) 的 confusion manual checks 回到检查“范围内相似词 / 中文核心义 / 真实边界 / 做题抓手”，并把 4 条 confusion smoke 的 `maxAnswerChars` 统一放宽到 450，避免把好答案误判成超长。
-  - 直连当前 provider 抽样：`access assess excess` 输出 427 字，能讲清 access=通道/权限、assess=判断/估价、excess=数量/程度超标；`recent/resent` 输出 229 字，已落到时间形容词 vs 情绪动词；`tempt` root 输出 246 字，保留三段且不再出现单独“谨慎提醒”。
-  - 验证：先看到 450 字预算和四段 prompt 的红灯；修复后 `corepack pnpm test scripts/lib/answer-style-provider-smoke.test.ts src/features/answering/build-system-prompt.test.ts` -> 2 files / 24 tests passed；`corepack pnpm eval:answer-style` -> 12/12 pass。首次 eval 因本地 Prisma dev `ECONNREFUSED` 失败，已串行启动 `enggo`、执行 `db:migrate` 与 `db:seed:real-smoke` 后恢复。
-- 2026-04-25 曾尝试继续压缩真正易混辨析 `confusion_untangle`（后续 2026-04-26 已回调，不是当前状态）：
-  - 先提交上一稳定版 checkpoint：`cdb3add feat: route memory maps out of confusion smoke`，封存派生词族退出 `confusion_untangle`、memory_map 分流、root prompt 收口与长度仪表盘改动。
-  - 使用 subagent 做只读旁路观察，确认真实 overfull 根因不是 retrieval，而是旧 prompt 同时强制“四段、逐词、范围、下一步”：`范围内相似词` 与 `词义速览` 重复，`重点区分` 与 `做题抓手` 重叠，且 `scopeReminder` / `followUpPrompt` 仍被追加给 confusion。
-  - 用红绿流程改 [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts)：`confusion_untangle` 从 4 段改为 3 段（混淆入口 / 核心边界 / 做题抓手），总长度目标从 260 收紧到 240；开头一行合并词列表与中文核心义；核心边界只展开最容易混的 1-2 个；超过 2 个词时禁止逐词补完整解释；confusion 不再追加可见“建议的范围提醒 / 下一步追问”。
-  - 更新 [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts) 的人工检查文案：从检查“四段是否都列全”改为检查“是否把词列表和中文核心义合并到开头、是否只展开 1-2 个关键边界、是否没有写成小讲义、是否只给一个做题抓手”。
-  - 更新 [scripts/run-answer-style-eval.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-eval.ts) 的 deterministic prompt markers，从旧 `范围内相似词 / 词义速览` 切到 `混淆入口 / 核心边界 / 做题抓手`。
-  - 验证：红灯先失败于 2 个测试文件；修复后 `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts src/features/answering/chat-service.test.ts src/features/answering/build-system-prompt.test.ts scripts/lib/answer-style-provider-smoke.test.ts scripts/run-answer-style-provider-smoke.test.ts` -> 5 files / 82 tests passed；`corepack pnpm eval:answer-style` -> 12/12 pass；focused eslint 通过。
-  - 真实 provider smoke 复跑：`corepack pnpm eval:answer-style:provider` -> total 13 / pass 12 / manual 1 / fail 0；`confusion_untangle` count 4 / min 176 / max 305 / average 224 / p50 176 / p90 305 / warnings 1。上一轮剩余 manual 基本全在 confusion，本轮只剩 `access assess excess` 305/260 轻微偏长；`comply conform defer` 已压到 239/260。
-  - 已停止本轮临时 Next dev server，确认 port 3000 空闲，并清理 `.codex-next-dev-3000.*` 临时日志。
-- 2026-04-25 根据用户对上一轮 smoke 的产品评价，收口派生词族与 root 回答：
-  - 设计判断落盘：派生词族（如 `respect / respective / respectful / respectable`）不再作为 `confusion_untangle` 的代表 case；它属于后续 learning backbone / word-family memory map，只有用户明确问具体边界（如 `respectful / respectable`）时才进入局部易混辨析。已更新 [docs/superpowers/specs/2026-04-21-exam-english-chat-design.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/specs/2026-04-21-exam-english-chat-design.md) 与 [docs/superpowers/specs/2026-04-25-confusion-cluster-layering-design.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/specs/2026-04-25-confusion-cluster-layering-design.md)。
-  - 数据层把 `respect-respective-respectful-respectable` 从默认易混代表改为 `labels=["root_family"]`、`purposes=["memory_map"]`，保留词族关系，但不把它作为 `confusion_untangle` smoke 验收样本。
-  - [src/features/answering/build-grounding.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-grounding.ts) 新增分流：`memory_map` 且不含 `confusion_untangle` 的组不再派发到 `confusion_untangle`；完整词族卡留给后续学习流能力。
-  - [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts) 收口 `root_family_summary`：从 4 段改为 3 段（碎片判断 / 家族地图 / 优先背），不再要求可见“谨慎提醒”，不主动点名未召回低频或范围外分支；当片段本身也是成员词时，必须说明它也是完整单词。
-  - [src/features/answering/chat-service.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/chat-service.ts) 的 root no-match 文案去掉“为避免不硬凑规律”式内部防御话术，改成“还没有稳定收录成词族”。
-  - provider smoke 默认集从 14 条调为 13 条，移除 `confusion: respect family`；`scripts/run-answer-style-eval.ts` 也移除该易混代表 case，deterministic eval 当前为 12 条。
-  - 验证：先看到 root prompt / memory_map 分流 / provider smoke case 的红灯；修复后 `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts src/features/answering/chat-service.test.ts src/features/answering/build-system-prompt.test.ts scripts/lib/answer-style-provider-smoke.test.ts scripts/run-answer-style-provider-smoke.test.ts` -> 5 files / 81 tests passed；`corepack pnpm eval:answer-style` -> 12/12 pass；`check-vocab-content --dataset real-smoke --min-entries 400 --require-source-lemmas` -> 409 entries / 34 groups；focused eslint 通过。
-  - 真实 provider smoke 复跑：`corepack pnpm eval:answer-style:provider` -> total 13 / pass 9 / manual 4 / fail 0；`root_family_summary` count 3 / average 166 / p90 217 / warnings 0；`tempt` 输出已承认“既是完整单词‘引诱’，也是这一族的构词核心”。剩余 manual 全在 `confusion_untangle`，说明下一刀应继续压缩真正易混辨析模板。
-- 2026-04-25 将 provider smoke 从“只看单条字数阈值”升级为按回答类型统计长度分布：
-  - [scripts/run-answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-provider-smoke.ts) 的单条输出新增 `chars=实际/预算`，真实 smoke 时可以直接看到某条回答是轻微超长还是明显失控。
-  - `RunnerSummary` 新增 `answerLengthByStyle`，按 `answerStyle` 聚合 `count / min / max / average / p50 / p90 / warnings`；后续大规模词库 smoke 可以先看各类型长度分布，而不是把固定字数当唯一质量标准。
-  - 保留现有 `maxAnswerChars` 作为 warning/manual 入口：超长仍进入人工复核，但不会变成 hard fail，符合本轮对 `expression_recall` 的判断。
-  - 红绿验证：先补 [scripts/run-answer-style-provider-smoke.test.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-provider-smoke.test.ts) 断言 `chars=实际/预算` 和 `answerLengthByStyle`，旧实现按预期失败；实现后 `corepack pnpm test scripts/run-answer-style-provider-smoke.test.ts` -> 7/7 pass。
-  - 收口验证：`corepack pnpm test scripts/lib/answer-style-provider-smoke.test.ts scripts/run-answer-style-provider-smoke.test.ts` -> 2 files / 23 tests passed；focused eslint 通过；`git diff --check` 仅有 Windows LF/CRLF 提示。
-- 2026-04-25 用真实 provider 复跑 answer-style smoke，验证新长度仪表盘：
-  - 临时启动 Next dev server 后运行 `corepack pnpm eval:answer-style:provider`，结果 total 14 / pass 9 / manual 5 / fail 0；resolved 12；no_match 2；providerCalled 12；providerSkipped 2；avgElapsedMs 4994；maxElapsedMs 14775。
-  - `answerLengthByStyle` 显示真正容易超预算的是 `confusion_untangle`：count 5 / average 309 / p50 305 / p90 443 / warnings 4；其中 `respect` 四词组最高 443/260。
-  - `expression_recall` 本轮非常稳：count 5 / average 257 / p90 290 / warnings 0，说明把阈值放宽到 400 是合理的，不应继续压缩这一类回答。
-  - `root_family_summary`：count 3 / average 195 / p90 272 / warnings 1；`root: stitute` 轻微超长 272/260。
-  - `standard_lookup` 本轮 no-match 输出 68/220，无长度风险。
-  - 内容风险仍复现：`tempt 这一族怎么记` 仍把 `tempt` 说成“不是完整单词”，该项已在 [bugs.md](/C:/Users/Chen/Desktop/EngGo/bugs.md) 记录，后续应优先做 root prompt guardrail。
-  - 下一刀建议：不要继续调 `expression_recall` 字数；优先收紧 `confusion_untangle` 的重复铺陈，尤其 3-4 词组的“范围内相似词 / 词义速览 / 重点区分 / 做题抓手”要更像压缩卡片。
-- 2026-04-25 收口上一轮剩余真实 provider smoke，并补上中文表达召回观察：
-  - 已把 [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts) 的默认 provider smoke 从旧 9 条扩到 14 条，新增 5 条 `expression_recall` case：`遵从怎么说`、`影响怎么说`、`适应怎么说`、`建议怎么说`、`要求怎么说`，并补 `comparisonView` / labels / purposes 断言。
-  - 首轮真实 smoke 排除旧 Next dev server 后暴露两个真实检索问题：`建议怎么说` 被 `advice` 抢成 `standard_lookup`，`要求怎么说` 被 `claim` 抢成 `standard_lookup`。
-  - 已用红绿流程修复 [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts)：中文 `meaning_lookup` 候选里如果同时命中同一 `expression_recall` 组的多个成员，则优先选择该组，并用 `teachFirst` 做主答案；新增 [src/features/retrieval/retrieve-candidates.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.test.ts) 断言 `建议怎么说 -> recommend/suggest/propose`、`要求怎么说 -> require/demand/request`。
-  - 最终真实 provider smoke 通过：`corepack pnpm eval:answer-style:provider` -> total 14 / pass 7 / manual 7 / fail 0；resolved 12；no_match 2；providerCalled 12；providerSkipped 2；avgElapsedMs 5973；maxElapsedMs 13045。5 条表达召回均命中 `meaning_lookup / resolved / expression_recall`。
-  - manual 项主要是 DeepSeek 输出字数略超当前阈值；另人工观察到 `tempt 这一族怎么记` 仍可能把 `tempt` 说成“不是完整单词”，已补到 [bugs.md](/C:/Users/Chen/Desktop/EngGo/bugs.md)，后续应做 root prompt guardrail。
-  - 本轮追加人工复核：已清理 `.codex-next-dev-3017.*` 临时 dev server 文件；直接调用 chat service 重跑 5 条 `expression_recall` case，均保持 `meaning_lookup / resolved / expression_recall`，回答基本符合“首选表达 / 可替换表达 / 使用边界 / 写作抓手”的规划；`建议怎么说` 输出 374 字，质量好但超过旧 280 字阈值，因此已把 provider smoke 中 `expression_recall` 的 `maxAnswerChars` 放宽到 400。
-  - 评估策略补充：小样本 smoke 可以用硬阈值快速发现“小作文化”，但未来词库扩大到 500-1000+ 甚至几千词时，不能把固定字数当主质量标准；应优先看分流正确率、grounding 命中率、库外扩词、内部标签泄漏、风格漂移和长度分布。
-  - 本轮验证：`corepack pnpm exec prisma dev ls`；`corepack pnpm db:migrate` 无待执行；`check-vocab-content --dataset real-smoke --min-entries 400 --require-source-lemmas` -> 409 entries / 34 groups；`corepack pnpm db:seed:real-smoke`；`retrieve-candidates.test.ts` 44/44 pass；`run-answer-style-provider-smoke.test.ts` 6/6 pass；`eval:answer-style` 13/13 pass；focused eslint 通过。
-  - 收口复验：`corepack pnpm test scripts/lib/answer-style-provider-smoke.test.ts src/features/retrieval/retrieve-candidates.test.ts src/features/answering/chat-service.test.ts src/features/answering/build-system-prompt.test.ts` -> 4 files / 73 tests passed；`corepack pnpm eval:answer-style` -> 13/13 pass；`corepack pnpm eval:lookalike:real-smoke` -> 14/14 pass；`check-vocab-content --dataset real-smoke --min-entries 400 --require-source-lemmas` -> 409 entries / 34 groups；focused eslint 通过。
-  - 环境备注：旧 Next dev server 会让 provider smoke 大面积 500；重启干净 server 后正常。一次并发验证把本地 Prisma dev 打进 `Server has closed the connection`，本轮只用 `prisma dev stop/start` 与清理残留 Next 子进程恢复，未走删除式 `dev rm`。
-- 2026-04-25 修正“拆组”方向，落地 cluster 用途层：
-  - 用户指出 `comply / conform / defer` 这类词不只是“易混”，还服务“中文意思 -> 多个英文表达”的写作/翻译召回；本轮确认此前把 `defer`、`curb`、`impact` 从旧组里拆掉是把“触发策略”误做成了“删除知识关系”。
-  - 新增 cluster `purposes` 用途层，与 `labels` 分开：`labels` 继续表示成组原因（如 `shape_like`、`root_family`、`meaning_near`、`collocation_boundary`），`purposes` 表示使用场景（`confusion_untangle`、`memory_map`、`expression_recall`）。
-  - [prisma/schema.prisma](/C:/Users/Chen/Desktop/EngGo/prisma/schema.prisma) 与迁移 [20260425120000_add_confusion_cluster_purposes](/C:/Users/Chen/Desktop/EngGo/prisma/migrations/20260425120000_add_confusion_cluster_purposes/migration.sql) 增加 `confusion_group.purposes`；seed/import schema、retrieval `ComparisonView`、answer grounding 与 answer-style eval 已打通该字段。
-  - 恢复 `comply-conform-defer`、`restrain-constrain-curb`、`affect-effect-impact` 这类表达/近义资产，不再把旧关系当作错误删除；同时新增独立 `affect-effect` 形近辨析组，让 `affect/effect` 的形近纠错和 `affect/effect/impact` 的“影响怎么说”表达召回并存。
-  - [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts) 区分普通查词与表达召回：`defer 是什么意思`、`impact 是什么意思` 这类普通查词不自动展开表达召回组；`遵从怎么说` 会命中 `comply-conform-defer` 并带出 `expression_recall`；显式三词比较仍走 `confusion_untangle`。
-  - [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts) 新增 `expression_recall` answerStyle：按“首选表达 / 可替换表达 / 使用边界 / 写作抓手”回答，避免把中文表达召回写成易混词纠错课。
-  - 红灯先失败于 6 处：表达召回无 comparisonView、三组被拆窄、`expression_recall` answerStyle 未实现；修复后 focused retrieval/answering 测试 55/55 pass。
-  - 验证通过：`prisma generate`、`db:migrate`、`db:seed:real-smoke`、`check-vocab-content` seed=82 entries / 32 groups、real-smoke=409 entries / 34 groups、`eval:answer-style` 13/13 pass、`eval:lookalike:real-smoke` 14/14 pass、content tests 18/18 pass、focused eslint 通过。
-- 2026-04-25 拆分过宽旧易混组 `institute-institution-establish`：
-  - 用户指出 `institute 是什么意思` 里出现 `establish` 黑盒体验很怪；排查确认来源不是模型乱加，而是旧数据里有 `institute / institution / establish` 这个宽泛 confusion group。
-  - 新产品判断：`institute / institution` 是强边界，适合一起记；`establish` 只是“设立/建立”中文义弱相关，不是形近、同根或天然一起背的易混组成员。
-  - 已将 [data/exam-vocab/real-smoke/confusion-groups.json](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/confusion-groups.json) 与 [data/exam-vocab/seed/confusion-groups.json](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/seed/confusion-groups.json) 中该组收窄为 `institute-institution`，成员只保留 `institute / institution`；`establish` 仍保留为普通词条，显式问到时仍可作为单词被检索。
-  - [src/features/retrieval/retrieve-candidates.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.test.ts) 新增红灯断言：`有个像 instituton 的词` 不再带出 `establish`；`institute establish 怎么区分` 不再被视为同一个 shared confusion group。
-  - 验证通过：旧数据下新测试先失败；改数据并 `db:seed:real-smoke` 后 `retrieve-candidates.test.ts` 40/40 pass；`eval:answer-style` 12/12 pass；`eval:lookalike:real-smoke` 14/14 pass。
-- 2026-04-25 复验并二次收紧 `standard_lookup` 真实 provider 输出：
-  - 先提交成长记录文档：`4d76c49 docs: add communication growth reflection`。
-  - 串行健康检查通过：`corepack pnpm exec prisma dev ls` 显示 `enggo` running；`check-vocab-content --dataset real-smoke --min-entries 400 --require-source-lemmas` -> 409 entries / 33 groups；`db:migrate` 无待执行 migration；`db:seed:real-smoke` 通过。
-  - 第一轮真实 provider smoke 暴露普通查词残留：`institute 是什么意思` 仍会输出 `**主答案** / **易混边界**` 一类可见标题，`available 怎么用` 会补完整英文句子或照抄内部 `建议的范围提醒` 标签。
-  - 已用红绿流程收紧 [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts)：普通查词不再把 `主答案/易混边界/范围提醒` 写成可见小标题；`是什么意思` 不补搭配；`怎么用` 也只允许 grounding 明确给出的短搭配，不写完整英文句子；无 `confusionBoundary` 时直接省略边界；范围提醒改成内部素材，不暴露 `建议的范围提醒` 标签。
-  - [src/features/answering/build-system-prompt.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.test.ts) 新增红灯断言，先看到旧 prompt 失败，再修改到通过。
-  - 复验通过：`corepack pnpm test src/features/answering/build-system-prompt.test.ts` 6/6 pass；`corepack pnpm eval:answer-style` 12/12 pass；第二轮真实 provider smoke 5/5 HTTP 200、5/5 `standard_lookup` resolved、5/5 provider called，未再触发可见标题、例句式搭配、内部标签外露、主动下一步追问或未召回扩词 flag。
-- 2026-04-25 追加成长记录里的沟通复盘：
-  - [docs/engineering-growth-log.md](/C:/Users/Chen/Desktop/EngGo/docs/engineering-growth-log.md) 新增 `沟通复盘：从“感觉差点意思”到可验证对比`。
-  - 记录本轮从主观“不舒服”拆成可验证差异的过程：旧版像“为什么会混 / 先问一句 / 题里抓”的问诊式分流，新版像“范围内相似词 / 词义速览 / 重点区分 / 做题抓手”的整理式辨析卡。
-  - 补充后续沟通模板：`现在它像 A，但我想要 B；词/结果可能是对的，但问题在 C；用户读完应该能 D；应该用 E 验证而不是继续测 F`。
-- 2026-04-25 收紧 `standard_lookup` 普通查词 prompt：
-  - [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts) 新增普通查词专属 guardrails：控制在 180 个汉字以内，不写例句/长列表/分隔线，不主动输出下一步追问，不补充未召回的新词。
-  - 普通查词现在只用 grounding 里的 `mainAnswer` / `confusionBoundary` 组织答案；没有易混边界时省略该段，避免 `academic 是什么意思` 这类问题被讲成泛泛词典百科。
-  - [src/features/answering/build-system-prompt.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.test.ts) 新增红灯测试覆盖 `academic 是什么意思` 的普通查词约束。
-  - `scripts/run-answer-style-eval.ts` 新增 `academic 是什么意思` 与 `institute 是什么意思` 两条 standard lookup case，锁住普通查词不被 root/confusion cluster 抢走。
-  - fresh verification：先看到该测试按预期失败，再修改 prompt；随后 `corepack pnpm test src/features/answering/build-system-prompt.test.ts` 6/6 pass，`corepack pnpm eval:answer-style` 12/12 pass，`corepack pnpm test src/features/answering/chat-service.test.ts` 5/5 pass。
-- 2026-04-25 按用户要求新增成长记录文档：
-  - 新增 [docs/engineering-growth-log.md](/C:/Users/Chen/Desktop/EngGo/docs/engineering-growth-log.md)，定位为个人工程成长日志，不替代 `progress.md`。
-  - 首条完整记录是 `Confusion Cluster 升级`：记录从 few-shot/prompt 调试转向结构化 grounding、cluster labels、真实 provider smoke 验证的思考过程。
-  - 文档中保留后续待补条目：source-backed `real-smoke`、低置信度 no-match、Windows + Prisma dev 环境坑、`standard_lookup` 收紧。
-- 2026-04-25 按新 `confusion cluster` 计划完成 Task 1-2：
-  - 计划落盘：[docs/superpowers/plans/2026-04-25-confusion-cluster-v1.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-25-confusion-cluster-v1.md)。
-  - `ConfusionGroup` 增加轻量元数据：`labels`、`anchorPattern`、`quickDistinction`、`examHook`；JSON loader、seed、Prisma 表、retrieval `comparisonView` 已打通。
-  - 已支持标签集合：`shape_like`、`root_family`、`prefix_family`、`meaning_near`、`collocation_boundary`、`exam_high_value`。
-  - `real-smoke` 从 404 entries / 31 groups 升到 409 entries / 33 groups；新增 source-backed thin entries：`constitute`、`substitute`、`tempt`、`temptation`、`contempt`。
-  - 已升级现有组：`access-assess-excess`、`respect-respective-respectful-respectable`；新增 cluster：`root-stitute`、`root-tempt`。
-  - 普通查词与显式 cluster compare 分开选组：`有个像 instituton 的词` 继续保留原 `institute / institution / establish` 边界；`institute substitute constitute 怎么分` 命中 `root-stitute`。
-  - Task 3 已完成：`confusion_untangle` prompt 会读取 `comparisonView.labels`；`root_family` 组补同根/共同片段视角，`shape_like` 组补形近/拼写边界，但不新增前台 answerStyle。
-  - Task 4 已完成：`scripts/run-answer-style-eval.ts` 扩到 10 条 deterministic cases，新增 `institute substitute constitute 怎么分`、`跟 institute 一样那几个词怎么记`，并要求 `stitute` / `tempt` root summary 同时暴露对应 `comparisonView`。
-  - `data/exam-vocab/real-smoke/README.md` 已补 cluster label 说明：普通 entry 不等于组；confusion cluster 只给值得一起记的易混词；labels 说明成组原因。
-  - 本地 Prisma dev 又复现连接异常，已按 `bugs.md` 重建 `enggo` dev DB；`seed-content` 额外监听 `pg` 后置 error，避免回滚测试被本地协议噪声打穿。
-  - 最终验证通过：`check-vocab-content --dataset real-smoke --min-entries 400 --require-source-lemmas` -> 409 entries / 33 groups；`eval:answer-style` -> 10/10 pass，averageElapsedMs 126；`eval:lookalike:real-smoke` -> 14/14 pass，averageElapsedMs 109；`git diff --check` 仅有 Windows LF/CRLF 提示。
-  - 过程验证也通过：`load-seed-content.test.ts`、`seed-content.test.ts`、`build-system-prompt.test.ts`、`retrieve-candidates.test.ts`、focused 50 tests、focused eslint、`db:migrate`、`prisma generate`、`db:seed:real-smoke`。
-  - 下一步建议：先不要继续重构分组系统；优先做一小轮真实 provider smoke 看 root/shape cluster 的模型表达是否稳定，再决定是否扩更多 labeled clusters。
-- 2026-04-25 已按用户要求对 root/shape confusion cluster 做小批次真实 provider smoke，并把提问、prompt 关键句、grounding 摘要和模型输出逐条打印检查：
-  - 使用当前 `.env` 的 DeepSeek provider（`OPENAI_BASE_URL` host 为 `api.deepseek.com`，`OPENAI_MODEL=deepseek-v4-flash`），未打印任何 key。
-  - 先串行健康检查：`corepack pnpm exec prisma dev ls` 显示 `enggo` running；`check-vocab-content --dataset real-smoke --min-entries 400 --require-source-lemmas` 通过，409 entries / 33 groups；`db:migrate` 无待执行 migration；`db:seed:real-smoke` 通过。
-  - `corepack pnpm eval:answer-style` 通过：10/10 pass，averageElapsedMs 216。
-  - 真实 provider smoke 共 9 条，全部返回 `providerRequestId` 且无 HTTP/provider error：
-    - `stitute 是什么` -> `root_family_summary / root-stitute`，回答能说明 `stitute` 是构词部件，并给出 institute/institution/constitute/substitute 的优先级；但仍会在谨慎提醒中点名低优先级范围外分支 `restitute/prostitute`。
-    - `institute substitute constitute 怎么分` -> `confusion_untangle / root-stitute`，labels=`root_family, shape_like, exam_high_value`，回答能按共同片段、词义速览、词性/搭配边界区分。
-    - `跟 institute 一样那几个词怎么记` -> `confusion_untangle / root-stitute`，模型理解为“这几个放一起记”，没有退回普通查词。
-    - `tempt 这一族怎么记` -> `root_family_summary / root-tempt`，本轮已避免旧问题，不再说 `tempt` 不是完整单词；回答写成“既是独立单词，也是构词核心碎片”。
-    - `attempt tempt temptation contempt 怎么分` -> `confusion_untangle / root-tempt`，能区分 attempt=尝试、tempt=引诱、temptation=诱惑、contempt=轻蔑。
-    - `跟 access 很像的词有哪些` -> `shape_neighbor_search / access-assess-excess`，labels=`shape_like, exam_high_value`，回答能列 access/assess/excess 并给搭配抓手。
-    - `respect 那组词怎么分` -> `confusion_untangle / respect-respective-respectful-respectable`，labels=`root_family, shape_like`，能点出 respective 不能按 respect 推成“尊敬的”。
-    - `institute 是什么意思` -> `standard_lookup`，没有被 root cluster 抢走，仍保留旧的 `institute / institution / establish` 边界。
-    - `academic 是什么意思` -> `standard_lookup`，普通基础词条可回答，但模型输出偏啰嗦，且主动扩了未召回的 `scholarly / educational` 作为下一步建议。
-  - 结论：cluster label 升级方向是对的；root/shape cluster 的真实模型表达基本可用。下一步不建议继续改分组结构，优先收紧 `standard_lookup` prompt 的“不要例句/不要扩未召回词/不要下一步主动加新词”，并决定 root summary 是否要隐藏范围外低优先级成员名。
-- 2026-04-25 按用户要求对 404-entry `real-smoke` 做 smoke，查看当前词库表现与真实模型输出：
-  - 先启动本地 `enggo` Prisma dev；`corepack pnpm exec prisma dev ls` 显示 `enggo` running。
-  - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 400 --require-source-lemmas`：通过，当前仍为 404 entries / 31 confusion groups / scopes=gaokao, cet4, cet6。
-  - `corepack pnpm db:migrate`：No pending migrations to apply。
-  - `corepack pnpm db:seed:real-smoke`：通过。
-  - `corepack pnpm eval:lookalike:real-smoke`：14 pass / 0 fail，averageElapsedMs 142；404 词下形近召回仍稳定，`cet6 statue` 动态召回为 `statue/status/statute/state/stationary/stationery`，在上限内。
-  - `corepack pnpm eval:answer-style`：8 pass / 0 fail，averageElapsedMs 125。
-  - 启动 Next dev server 后，用真实 provider 对同一批 9 个 answer-style/provider smoke 问题逐条请求 `/api/chat` 并打印完整回答：
-    - 9/9 HTTP 200 且均有 answer。
-    - resolved 案例均返回 providerRequestId；`root: unsupported combination` 与 `typo: reqeust still no-match` 按预期短路，不调用 provider。
-    - 正确命中：`stationary/stationery`、`access/assess/excess`、`recent/resent`、`comply/conform/defer`、`respect/respective/respectful/respectable`、`root-stitute`、`root-tempt`。
-    - 人工观察：`tempt 这一族怎么记` 的模型回答有明显措辞问题，把 `tempt` 说成“不是完整单词，是构词碎片”；这不是检索失败，而是 root-family prompt/grounding 表达需要后续收紧。
-  - 第一次自定义 provider smoke 因 PowerShell 管道编码未设 UTF-8，中文 query 被传成 `?`，导致若干 query mode 误判；已用 UTF-8 管道重跑，正确结果以上一条为准。
-  - 用户指出上述 9 条仍复用了旧 provider smoke case，只能证明旧闭环未被 404 词冲坏，不能证明新增基础词条表现；这个判断正确。
-  - 已补跑真正面向新增基础词条的 smoke：
-    - 从非精修 confusion group 的 331 个 foundation entries 中抽 21 个普通词条做 retrieval-only exact lookup：`ability`、`absence`、`academic`、`accurate`、`achieve`、`agriculture`、`authority`、`available`、`benefit`、`circumstance`、`consequence`、`district`、`efficient`、`environment`、`evidence`、`function`、`individual`、`maintain`、`opportunity`、`potential`、`significant`。
-    - retrieval-only 结果：21/21 pass，均为 `direct_lookup/resolved`，命中目标 lemma，且有中文核心义和 in-scope 标记。
-    - 真实 provider foundation smoke 8 条：`academic 是什么意思`、`available 怎么用`、`benefit from 是什么意思`、`consequence 是什么意思`、`efficient 是什么意思`、`evidence 是什么意思`、`maintain balance 怎么理解`、`significant 是什么意思`。
-    - provider 结果：8/8 HTTP 200 且有 answer；其中 6 条调用 provider 并基于新增词条回答，`benefit from` 与 `maintain balance` 因当前自然语言/搭配召回不足而 `no_match` 短路。
-    - 结论：404 扩词对“普通单词查词”已经有实际价值；但对“搭配短语查词 / collocation-aware lookup”还没吃到新增 collocations，需要后续单独补检索策略或 case。
-  - 经用户用易混词截图澄清后，已把设计共识落盘为 [docs/superpowers/specs/2026-04-25-confusion-cluster-layering-design.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/specs/2026-04-25-confusion-cluster-layering-design.md)：
-    - 不是照搬截图词表，也不是推翻旧分组。
-    - 核心是把现有 `confusion group` 从“形近词组”升级理解为“学生应该放在一起辨析的一组词”。
-    - 三层关系：输入方式（direct / shape / root / collocation / Chinese meaning / typo）→ 知识组织（single entry / confusion cluster + labels）→ 回答样式（standard_lookup / confusion_untangle，root-family 作为特殊呈现）。
-    - `shape_like`、`root_family`、`prefix_family`、`meaning_near`、`collocation_boundary` 都是 group labels，不是互相独立的新系统。
-- 2026-04-24 本轮接力先按最新 `real-vocab scope-aware lookalike smoke` plan 做 Task 7 completion gate 收口：
-  - 已把 [docs/superpowers/plans/2026-04-24-real-vocab-scope-aware-lookalike-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-real-vocab-scope-aware-lookalike-smoke.md) 的 Task 7 Step 1-3 勾选。
-  - fresh verification 串行通过：
-    - `corepack pnpm exec prisma dev ls`：`enggo` running。
-    - `corepack pnpm db:seed:real-smoke`：通过。
-    - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke`：`Vocab content valid: 86 entries, 31 confusion groups, scopes=gaokao, cet4, cet6.`
-    - `corepack pnpm eval:lookalike:real-smoke`：14 pass / 0 fail，averageElapsedMs 100。
-    - `corepack pnpm eval:answer-style`：8 pass / 0 fail，averageElapsedMs 94。
-    - `corepack pnpm test src/features/content/load-seed-content.test.ts src/features/content/seed-content-rules.test.ts src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-system-prompt.test.ts src/features/answering/chat-service.test.ts scripts/run-real-vocab-lookalike-smoke.test.ts scripts/lib/answer-style-provider-smoke.test.ts`：7 files / 69 tests passed。
-    - `corepack pnpm exec eslint src/features/content/load-seed-content.ts src/features/content/load-seed-content.test.ts src/features/content/seed-content-rules.test.ts src/features/retrieval/retrieval-sql.ts src/features/retrieval/retrieve-candidates.ts src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-grounding.ts src/features/answering/build-system-prompt.ts src/features/answering/build-system-prompt.test.ts src/features/answering/chat-service.test.ts scripts/run-answer-style-eval.ts scripts/lib/answer-style-provider-smoke.ts scripts/lib/answer-style-provider-smoke.test.ts scripts/run-real-vocab-lookalike-smoke.ts scripts/run-real-vocab-lookalike-smoke.test.ts prisma/seed.ts`：通过。
-    - `git diff --check`：通过。
-  - 本轮未跑可选 provider smoke；原因仍是把外部模型耗时/额度与词库本地闭环分开。
-  - 旧 plan 已可视为收口，下一刀进入用户要求的“扩单词库”：先做 source-backed、较薄的基础词条扩展，不碰商业词书文案，不给 `postgrad` 编造 scope。
-- 2026-04-24 按用户要求扩充 `real-smoke` 基础词条：
-  - 新 plan 已落盘并执行完成：[docs/superpowers/plans/2026-04-24-real-smoke-foundation-vocab-expansion.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-real-smoke-foundation-vocab-expansion.md)
-  - [scripts/check-vocab-content.ts](/C:/Users/Chen/Desktop/EngGo/scripts/check-vocab-content.ts) 新增 `--min-entries` 与 `--require-source-lemmas` guardrails；其中 `cet4` source lemma 可支撑 `cet4` 与共享 `cet6` scope，`postgrad` 仍因缺 source manifest 不支持。
-  - [data/exam-vocab/real-smoke/entries.json](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/entries.json) 从 86 entries 扩到 262 entries；新增 176 个 source-backed thin foundation entries，字段保持 `lemma` / `pos` / `meaningsZh` / `examScopes` / 可选 `collocations`。
-  - [data/exam-vocab/real-smoke/confusion-groups.json](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/confusion-groups.json) 保持 31 个已确认组，未因拼写相似自动新增易混组。
-  - [data/exam-vocab/real-smoke/README.md](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/README.md) 已更新当前规模与 thin foundation slice 定位。
-  - 本轮 fresh verification：
-    - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 180 --require-source-lemmas`：`Vocab content valid: 262 entries, 31 confusion groups, scopes=gaokao, cet4, cet6.`
-    - `corepack pnpm exec prisma dev ls`：`enggo` running。
-    - `corepack pnpm db:seed:real-smoke`：通过。
-    - `corepack pnpm eval:lookalike:real-smoke`：14 pass / 0 fail，averageElapsedMs 109。
-    - `corepack pnpm eval:answer-style`：8 pass / 0 fail，averageElapsedMs 98。
-    - `corepack pnpm test scripts/check-vocab-content.test.ts src/features/content/load-seed-content.test.ts src/features/retrieval/retrieve-candidates.test.ts`：3 files / 49 tests passed。
-    - `corepack pnpm exec eslint scripts/check-vocab-content.ts scripts/check-vocab-content.test.ts`：通过。
-    - `git diff --check`：通过；仅输出 Windows 工作区 LF/CRLF 提示。
-- 2026-04-24 继续按 source-backed 规则推进 batch-2 扩库：
-  - 新 plan 已落盘并执行完成：[docs/superpowers/plans/2026-04-24-real-smoke-foundation-vocab-batch-2.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-real-smoke-foundation-vocab-batch-2.md)
-  - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 300 --require-source-lemmas` 按预期失败：`real-smoke has 262 entries; expected at least 300.`
-  - [data/exam-vocab/real-smoke/entries.json](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/entries.json) 从 262 entries 扩到 404 entries；本批新增 142 个 source-backed thin foundation entries，跳过已存在的 `annual` / `argue`。
-  - [data/exam-vocab/real-smoke/confusion-groups.json](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/confusion-groups.json) 继续保持 31 个已确认组，未因拼写相似自动新增易混组。
-  - [data/exam-vocab/real-smoke/README.md](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/README.md) 已更新为 404 entries / 31 groups，并记录当前已进入 300-800 dev dataset 区间，但仍低于 500-1000 基础 RAG MVP 目标。
-  - 本轮 fresh verification：
-    - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 400 --require-source-lemmas`：`Vocab content valid: 404 entries, 31 confusion groups, scopes=gaokao, cet4, cet6.`
-    - `corepack pnpm exec prisma dev ls`：`enggo` running。
-    - `corepack pnpm db:seed:real-smoke`：通过。
-    - `corepack pnpm eval:lookalike:real-smoke`：14 pass / 0 fail，averageElapsedMs 142。
-    - `corepack pnpm eval:answer-style`：8 pass / 0 fail，averageElapsedMs 126。
-    - `corepack pnpm test scripts/check-vocab-content.test.ts src/features/content/load-seed-content.test.ts src/features/retrieval/retrieve-candidates.test.ts`：3 files / 49 tests passed。
-    - `corepack pnpm exec eslint scripts/check-vocab-content.ts scripts/check-vocab-content.test.ts`：通过。
-    - `git diff --check`：通过；仅输出 Windows 工作区 LF/CRLF 提示。
-  - 最后一轮 completion 复验时再次撞到已知 Windows + Prisma dev 环境坑：`eval:lookalike:real-smoke` 报 `Connection terminated unexpectedly`，随后原生 `pg SELECT 1` 也失败，确认是本地 `enggo` dev DB 实例不健康。
-  - 经用户明确确认后，已按 `bugs.md` 路径重建本地 `enggo`：
-    - `node_modules\.bin\prisma.CMD dev rm enggo --force`：通过。
-    - `node_modules\.bin\prisma.CMD dev -n enggo -d -p 51213 -P 51214 --shadow-db-port 51215`：通过。
-    - `corepack pnpm db:migrate`：2 migrations applied successfully。
-    - `corepack pnpm db:seed:real-smoke`：通过。
-    - 原生 `pg SELECT 1`：`pg health ok`。
-  - 重建后复验结果同上：404 entries content check、lookalike 14/14、answer-style 8/8、focused tests 49/49、eslint 与 `git diff --check` 均通过。
-- 2026-04-24 推进真实词库 blocker 到 source-backed `real-smoke` dev slice：
-  - 已从官方/准官方入口落地可审计 source lemma manifests：
-    - [data/exam-vocab/source-lemmas/gaokao-2020-lemmas.txt](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/source-lemmas/gaokao-2020-lemmas.txt)：来自教育部《普通高中英语课程标准（2017年版2020年修订）》附录 2 词汇表，提取 3019 个 lemma forms。
-    - [data/exam-vocab/source-lemmas/cet-2016-lemmas.tsv](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/source-lemmas/cet-2016-lemmas.tsv)：来自中国教育考试网《全国大学英语四、六级考试大纲（2016年修订版）》词表，提取 6168 个 `cet4` lemma forms 与 1695 个 `cet6-extra` lemma forms。
-  - 已更新 [data/exam-vocab/source-lemmas/README.md](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/source-lemmas/README.md) 和 [data/exam-vocab/real-smoke/README.md](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/README.md)，明确 `postgrad` 仍因缺 entry-level 可机读官方词表而暂不进入 `real-smoke`。
-  - 已创建 [data/exam-vocab/real-smoke/entries.json](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/entries.json)、[data/exam-vocab/real-smoke/confusion-groups.json](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/confusion-groups.json)、[data/exam-vocab/real-smoke/lookalike-smoke-cases.json](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/lookalike-smoke-cases.json)。
-  - 当前 `real-smoke` 是第一批 source-backed smoke slice：86 entries / 31 confusion groups / 14 lookalike smoke cases；scope 覆盖 `gaokao`、`cet4`、`cet6`，暂不覆盖 `postgrad`。
-  - 已把 [docs/superpowers/plans/2026-04-24-real-vocab-scope-aware-lookalike-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-real-vocab-scope-aware-lookalike-smoke.md) 的 Task 2 Step 4-5、Task 3 Step 1-5、Task 4 Step 1-5 与 Task 5 Step 1-4 勾选；下一步进入 Task 6。
-  - Task 3 已落地 scope-aware dynamic lookalike fallback：
-    - [src/features/retrieval/retrieval-sql.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieval-sql.ts) 新增 `findInScopeLookalikeRows()`，只在 active exam scope 内查 trigram 相似词。
-    - [src/features/retrieval/retrieve-candidates.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/retrieve-candidates.ts) 在无 curated group 时使用动态 fallback，少于 2 个 in-scope 候选则继续 no-match。
-    - [src/features/answering/build-grounding.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-grounding.ts) 让 resolved `shape_neighbor_search` 即使没有 `comparisonView` 也走 `confusion_untangle`。
-    - [data/exam-vocab/real-smoke/entries.json](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/entries.json) 增加 source-backed `statue/state/status/statute` 作为无 curated group 的动态召回测试簇。
-  - Task 4 已把 `confusion_untangle` 新结构落地：
-    - [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts) 从旧“为什么会混 / 先问一句 / 题里抓”切到“范围内相似词 / 词义速览 / 重点区分 / 做题抓手”。
-    - [scripts/run-answer-style-eval.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-eval.ts) 的 prompt snippet 改为新四段。
-    - [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts) 的 manual checks 改为检查范围内召回、中文核心义、优先区分 2 个、做题抓手。
-  - Task 5 已新增 real-smoke lookalike eval runner：
-    - [scripts/run-real-vocab-lookalike-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-real-vocab-lookalike-smoke.ts) 读取 `lookalike-smoke-cases.json`，断言 query mode、resolution、expected includes/excludes、in-scope 与中文核心义。
-    - [scripts/run-real-vocab-lookalike-smoke.test.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-real-vocab-lookalike-smoke.test.ts) 覆盖 evaluator 与 summary。
-    - [package.json](/C:/Users/Chen/Desktop/EngGo/package.json) 新增 `eval:lookalike:real-smoke`。
-    - 第一次 runner 暴露 `adapt` shape search 误选语义组 `adapt/adjust/accommodate`；已补回归测试并在 `shape_neighbor_search` 分支优先选择拼写相近组，现 `adapt/adopt` 命中。
-  - Task 6 本地 deterministic checks 与 lint 已完成；真实 provider smoke 是本 plan 的可选步骤，本轮未启动 dev server 跑 provider，以免把外部模型耗时/额度混进词库本地闭环。
-  - 本轮 fresh verification：
-    - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke`：`Vocab content valid: 86 entries, 31 confusion groups, scopes=gaokao, cet4, cet6.`
-    - 一次性 source coverage probe：86 entries / unsupported scopes `[]`。
-    - `corepack pnpm exec prisma dev ls`：`enggo` running。
-    - `corepack pnpm db:seed:real-smoke`：首次命中已知 Prisma dev `Connection terminated unexpectedly`，按 `bugs.md` 重建 `enggo` 后通过。
-    - DB 计数 probe：86 entries / 31 groups / scopes: gaokao 47, cet4 78, cet6 86。
-    - `corepack pnpm test src/features/content/load-seed-content.test.ts scripts/check-vocab-content.test.ts`：2 files / 10 tests passed。
-    - `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts src/features/answering/chat-service.test.ts`：2 files / 40 tests passed。
-    - `corepack pnpm exec eslint src/features/retrieval/retrieval-sql.ts src/features/retrieval/retrieve-candidates.ts src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-grounding.ts src/features/answering/chat-service.test.ts`：通过。
-    - `corepack pnpm test src/features/answering/build-system-prompt.test.ts scripts/lib/answer-style-provider-smoke.test.ts`：2 files / 18 tests passed。
-    - `corepack pnpm eval:answer-style`：8 passed / 0 failed，averageElapsedMs 91。
-    - `corepack pnpm exec eslint src/features/answering/build-system-prompt.ts src/features/answering/build-system-prompt.test.ts scripts/run-answer-style-eval.ts scripts/lib/answer-style-provider-smoke.ts scripts/lib/answer-style-provider-smoke.test.ts`：通过。
-    - `corepack pnpm test scripts/run-real-vocab-lookalike-smoke.test.ts`：1 file / 3 tests passed。
-    - Task 6 串行 checks：
-      - `corepack pnpm test src/features/content/load-seed-content.test.ts`：1 file / 5 tests passed。
-      - `corepack pnpm test src/features/content/seed-content-rules.test.ts`：1 file / 2 tests passed。
-      - `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts`：1 file / 36 tests passed。
-      - `corepack pnpm test src/features/answering/build-system-prompt.test.ts`：1 file / 3 tests passed。
-      - `corepack pnpm test src/features/answering/chat-service.test.ts`：1 file / 5 tests passed。
-      - `corepack pnpm eval:answer-style`：8 pass / 0 fail，averageElapsedMs 91。
-      - `corepack pnpm eval:lookalike:real-smoke`：14 pass / 0 fail，averageElapsedMs 102。
-    - `corepack pnpm exec eslint scripts/run-real-vocab-lookalike-smoke.ts scripts/run-real-vocab-lookalike-smoke.test.ts src/features/retrieval/retrieve-candidates.ts src/features/retrieval/retrieve-candidates.test.ts`：通过。
+原因：前几轮已经连续调整 answer policy、spelling-assist 和 UI plain branch，下一步最需要确认普通查词没有被 retrieval 或 prompt 又带回不该出现的裸 `confusion_group`、范围话术、主动扩词或可见 Markdown。
 
-- 2026-04-24 追查词库来源路线并形成下一轮判断：
-  - 已明确不建议在当前开发阶段直接全量接入商业词书内容；星火、红宝书、新东方等词书若要使用完整释义、例句、辨析、助记或品牌名，正路是正版授权。
-  - 已确认官方/准官方来源能解决一部分“考试范围”问题：
-    - 高考/高中：教育部《普通高中英语课程标准（2017年版2020年修订）》附录词汇表，提供约 3000 个词，但不标注词性和中文释义。
-    - 四级/六级：中国教育考试网 CET 考试大纲页列出《全国大学英语四、六级考试大纲（2016年修订版）》，大纲含四、六级考试词表。
-    - 考研：教育考试院/高教社考试大纲确认英语大纲附录含词汇表，约 5500 词，但公开可机读入口仍需下一轮继续处理。
-  - 当前产品判断：官方大纲适合做 `lemma + examScopes` 的范围来源；`meaningsZh`、易混关系、做题抓手仍应由 EngGo 自建/生成后人工审核，不复制商业词书文案。
-  - 下一轮建议不要做全量接入；先把当前 plan 调整为“中等规模 dev real-smoke 数据集”：
-    - 目标规模：约 300-800 个词，覆盖高考 / 四级 / 六级 / 考研。
-    - 核心验证：30-50 组易混/形近 smoke cases。
-    - 入库字段：英文词、考试范围、1 个中文核心义、可选 collocation、sourceRefs。
-    - 暂不接入商业书完整释义、例句、辨析、助记和章节编排。
+建议顺序：
+1. 检查本地 Prisma dev 健康：
+   - `corepack pnpm exec prisma dev ls`
+2. 跑现有普通查词 provider smoke：
+   - `corepack pnpm eval:standard-lookup:provider`
+3. 如果现有 8 条全绿，再补 6-10 个普通查词 case，重点覆盖：
+   - exact 命中但附近存在易混组的词，例如 `institute`
+   - 普通高频词，例如 `available`、`evidence`、`significant`
+   - 不应出现 `CET` / 当前范围尾巴 / 主动扩未召回同义词 / Markdown 加粗
+4. 根据结果再决定：
+   - 若普通查词仍干净，再考虑 `real-smoke` batch 4 扩到 700+
+   - 若出现污染，优先修 retrieval ordinary lookup 边界，不用 prompt 兜
 
-- 2026-04-24 执行最新 `real-vocab scope-aware lookalike smoke` plan 至真实词库源文件 blocker：
-  - 已完成 [docs/superpowers/plans/2026-04-24-real-vocab-scope-aware-lookalike-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-real-vocab-scope-aware-lookalike-smoke.md) Task 1 全部 Step 1-6，并在 plan 中勾选。
-  - Task 1 新增通用数据集加载入口：
-    - [src/features/content/load-seed-content.ts](/C:/Users/Chen/Desktop/EngGo/src/features/content/load-seed-content.ts) 新增 `loadVocabContent({ datasetName, baseDir })`。
-    - `loadSeedContent()` 继续保留默认 seed 专属 `assertSeedContentRequirements` 门槛。
-    - [prisma/seed.ts](/C:/Users/Chen/Desktop/EngGo/prisma/seed.ts) 支持 `--dataset <name>`；无参数时仍走 `loadSeedContent()`，显式 dataset 才走通用 loader。
-    - [package.json](/C:/Users/Chen/Desktop/EngGo/package.json) 新增 `db:seed:real-smoke`，未改变 `db:seed`。
-    - 新增测试：[src/features/content/load-seed-content.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/content/load-seed-content.test.ts)、[src/features/content/seed-cli.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/content/seed-cli.test.ts)。
-  - 已完成 Task 2 Step 1-3，并在 plan 中勾选；Task 2 Step 4-5 与后续 Task 3+ 因真实源文件缺失暂停。
-  - Task 2 新增：
-    - [data/exam-vocab/real-smoke/README.md](/C:/Users/Chen/Desktop/EngGo/data/exam-vocab/real-smoke/README.md)：记录 source contract，明确禁止手编真实词条。
-    - [scripts/check-vocab-content.ts](/C:/Users/Chen/Desktop/EngGo/scripts/check-vocab-content.ts)：dataset-aware 文件级 checker，复用 `loadVocabContent` / `summarizeSeedContent`，不触碰 Prisma。
-    - [scripts/check-vocab-content.test.ts](/C:/Users/Chen/Desktop/EngGo/scripts/check-vocab-content.test.ts)：覆盖成功路径、`--dataset` 缺值、未知 flag fail-fast、稳定错误输出。
-  - 已由 subagent 只读侦察确认：仓库内没有可确认来源的高考 / 四级 / 六级 / 考研真实词库源文件；`data/exam-vocab/real-smoke/` 当前只应有 README，不应创建 `entries.json`、`confusion-groups.json`、`lookalike-smoke-cases.json`。
-  - 本轮明确 blocker：
-    - `Blocked: real vocabulary source files are not present in the repository; do not fabricate entries. Need confirmed-source Gaokao/CET4/CET6/Postgrad vocabulary files or explicit source documents before normalizing data/exam-vocab/real-smoke/entries.json, confusion-groups.json, or lookalike-smoke-cases.json.`
-  - 本轮 fresh verification：
-    - `corepack pnpm test src/features/content/load-seed-content.test.ts src/features/content/seed-cli.test.ts src/features/content/seed-content-rules.test.ts scripts/check-vocab-content.test.ts`：4 files / 15 tests passed。
-    - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset seed`：`Vocab content valid: 82 entries, 31 confusion groups, scopes=gaokao, cet4, cet6, postgrad.`
-    - `corepack pnpm exec eslint src/features/content/load-seed-content.ts src/features/content/load-seed-content.test.ts src/features/content/seed-cli.test.ts prisma/seed.ts scripts/check-vocab-content.ts scripts/check-vocab-content.test.ts`：通过。
-    - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke`：预期失败，`ENOENT ... data\exam-vocab\real-smoke\entries.json`，证明当前停在真实源文件 blocker，而不是代码回归。
-
-- 2026-04-24 清理旧下一步并落盘真实词库 smoke plan：
-  - 已确认当前旧 implementation plans 均已执行完成；文档中的未勾选项只剩格式说明，不是漏做 task。
-  - 已把 `progress.md` 的“下一 Session 第一件事”从旧的真实 provider smoke 清理为新路线。
-  - 新 plan 已落盘：[docs/superpowers/plans/2026-04-24-real-vocab-scope-aware-lookalike-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-real-vocab-scope-aware-lookalike-smoke.md)
-  - 新 plan 核心顺序：显式 real-smoke 数据集加载 -> 真实词库源文件校验 -> scope-aware 动态形近召回 -> 新版 `confusion_untangle` 结构 -> deterministic smoke -> 可选 provider smoke。
-  - 明确 blocker：没有可确认来源的真实词库文件时，不能编造“真实词条”；只能先完成 loader/runner，并在 Task 2 停下记录 blocker。
-
-- 2026-04-24 复跑上一轮 few-shot / provider 改动效果：
-  - 工作区干净；`.env` 中 provider 三件套已存在，未打印敏感值。
-  - 串行预检：
-    - `corepack pnpm exec prisma dev ls`：`enggo` running
-    - `corepack pnpm eval:answer-style`：8 pass / 0 fail，平均 109ms
-    - `corepack pnpm eval:shape`：34 pass / 0 fail，平均 126ms
-  - 启动本地 `corepack pnpm dev` 后复跑 `corepack pnpm eval:answer-style:provider`，可见输出结果：
-    - 4 pass / 5 manual / 0 fail
-    - resolved 7 / no_match 2
-    - providerCalled 7 / providerSkipped 2 / providerUnknown 0
-    - avgElapsedMs 5185 / maxElapsedMs 8562
-  - manual 案例：
-    - `stationary/stationery`：239 chars vs 220
-    - `access/assess/excess`：270 chars vs 260
-    - `comply/conform/defer`：324 chars vs 260
-    - `respect/respective/respectful/respectable`：273 chars vs 260
-    - `stitute`：347 chars vs 260
-  - 结论：
-    - hard grounding、no-match guard、provider skip 都稳定，没有 hard fail。
-    - few-shot 对回答形态有效：真实输出基本都按“为什么会混 / 先问一句 / 题里抓”或“碎片判断 / 家族地图 / 优先背 / 谨慎提醒”组织。
-    - 剩余问题集中在多词组和 `stitute` 偏长；下一刀不建议继续无限压 prompt，应优先做真实词库接入 smoke，同时保留“必要时校准 `maxAnswerChars` 或强化多词公式行”的后续选项。
-
-- 2026-04-24 固化 DeepSeek flash 为长期真实 provider smoke：
-  - 本地 `.env` 已写入 DeepSeek provider 三件套：
-    - `OPENAI_API_KEY`：已配置，文件被 `.gitignore` 忽略，不提交。
-    - `OPENAI_BASE_URL=https://api.deepseek.com/v1`
-    - `OPENAI_MODEL=deepseek-v4-flash`
-  - [`.env.example`](/C:/Users/Chen/Desktop/EngGo/.env.example) 已保留非敏感默认值：
-    - `OPENAI_BASE_URL=https://api.deepseek.com/v1`
-    - `OPENAI_MODEL=deepseek-v4-flash`
-    - `OPENAI_API_KEY` 仍为空，由本地 `.env` 提供。
-  - 验证方式：不再临时注入 `OPENAI_*` 环境变量，直接启动 `corepack pnpm dev`，再跑 `corepack pnpm eval:answer-style:provider`。
-  - 验证结果：5 pass / 4 manual / 0 fail，说明以后本地真实 provider smoke 可直接使用 DeepSeek flash；输出保存在 [test-results/deepseek-env-default-smoke.txt](/C:/Users/Chen/Desktop/EngGo/test-results/deepseek-env-default-smoke.txt)。
-
-- 2026-04-24 处理“牵强字母口诀”反馈：
-  - 用户指出 `文具 = stationery（e 联想 envelope）` 太突兀，不应输出这类不必要口诀。
-  - 根因确认：
-    - `data/exam-vocab/seed/confusion-groups.json` 的 `stationary-stationery.memberNotes` 里原本有 `a 可联想 stay` / `e 可联想 envelope`。
-    - `src/features/answering/build-system-prompt.test.ts` fixture 里也复制了这类 emphasis note。
-    - 模型不是凭空发明，而是 grounding 把这些 note 带给了 provider。
-  - 修改：
-    - `stationary` note 改为 `常见搭配 remain stationary，表示保持静止。`
-    - `stationery` note 改为 `常见搭配 stationery store，表示文具店。`
-    - `confusion_untangle` prompt 新增 guardrail：不要使用 `e= envelope` 这类牵强字母口诀，优先用语义、词性、搭配和场景做边界。
-    - 新增 retrieval 测试，锁定 `stationary/stationery` 不再暴露 `envelope` / `stay` note。
-  - 已执行 `corepack pnpm db:seed`，把 seed 变更灌回本地 Prisma dev 数据库。
-  - 验证：
-    - `corepack pnpm test src/features/answering/build-system-prompt.test.ts`：3 passed / 3 passed
-    - `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts`：33 passed / 33 passed
-    - `corepack pnpm eval:answer-style`：8 passed / 0 failed
-    - `corepack pnpm eval:shape`：34 passed / 0 failed
-    - `corepack pnpm exec eslint src/features/answering/build-system-prompt.ts src/features/answering/build-system-prompt.test.ts src/features/retrieval/retrieve-candidates.test.ts`：通过
-  - DeepSeek flash 单例验证：
-    - 问法：`stationary 和 stationery 哪个是文具`
-    - 输出不再包含 `envelope` 或 `stay`
-    - 当前回答：`为什么会混：stationary 和 stationery 只差 a/e，是经典形近拼写混淆。... 题里抓：stationary 搭配 remain；stationery 搭配 store。核心边界：stationary 是形容词表静止；stationery 是名词表文具。`
-    - 结果文件：[test-results/deepseek-stationery-no-mnemonic.json](/C:/Users/Chen/Desktop/EngGo/test-results/deepseek-stationery-no-mnemonic.json)
-
-- 2026-04-24 追加完成 few-shot 短答压缩：
-  - 在 [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts) 为两条真实回答主线加入短答 few-shot：
-    - `confusion_untangle` 示例固定为“为什么会混 / 先问一句 / 题里抓”三段。
-    - `root_family_summary` 示例固定为“碎片判断 / 家族地图 / 优先背 / 谨慎提醒”四段。
-    - 追加“超过 2 个词时，用公式行压缩”和“优先背最多 2 个”的约束，避免 DeepSeek 展开成长列表。
-  - TDD 红灯已确认：
-    - `corepack pnpm test src/features/answering/build-system-prompt.test.ts` 先因缺少 `短答示例` 失败。
-    - 追加公式化压缩约束时，该测试也先因缺少对应约束失败。
-  - 修改后验证：
-    - `corepack pnpm test src/features/answering/build-system-prompt.test.ts`：3 passed / 3 passed
-    - `corepack pnpm eval:answer-style`：8 passed / 0 failed
-    - `corepack pnpm test scripts/run-answer-style-provider-smoke.test.ts`：6 passed / 6 passed
-    - `corepack pnpm exec eslint src/features/answering/build-system-prompt.ts src/features/answering/build-system-prompt.test.ts`：通过
-  - 使用 DeepSeek flash 临时环境重跑真实 provider smoke：
-    - few-shot v1：4 pass / 5 manual / 0 fail，输出保存在 [test-results/deepseek-provider-smoke-fewshot.txt](/C:/Users/Chen/Desktop/EngGo/test-results/deepseek-provider-smoke-fewshot.txt)
-    - few-shot v2：4 pass / 5 manual / 0 fail，输出保存在 [test-results/deepseek-provider-smoke-fewshot-v2.txt](/C:/Users/Chen/Desktop/EngGo/test-results/deepseek-provider-smoke-fewshot-v2.txt)
-  - 当前判断：
-    - few-shot 明显改善了回答形态：`stationary/stationery`、`recent/resent`、`tempt` 等已接近或进入 pass。
-    - 剩余 manual 大多是轻微超当前严格字数阈值，例如 `stationary/stationery` 221 chars vs 220、`access/assess/excess` 270 vs 260。
-    - 不建议继续无限压 prompt；下一刀更适合重新校准 smoke 的 `maxAnswerChars`，或接受“稍长但仍像学生答疑”的真实输出。
-
-- 2026-04-24 追加完成真实 provider smoke 第一轮 prompt tuning：
-  - 修改 [src/features/answering/build-system-prompt.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.ts)：
-    - `confusion_untangle` / `root_family_summary` 不再套用通用“主答案 / 易混边界 / 范围提醒 / 下一步”四段标题。
-    - `confusion_untangle` 明确要求总长度 260 汉字以内、最多 3 段、只输出“为什么会混 / 先问一句 / 题里抓”，禁止例句、长列表和补充扩展。
-    - `root_family_summary` 明确要求总长度 280 汉字以内、最多 4 段、只输出“碎片判断 / 家族地图 / 优先背 / 谨慎提醒”，禁止词源长故事和完整列表。
-  - 修改 [scripts/run-answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-provider-smoke.ts)：
-    - 默认请求超时从 15s 提高到 45s。
-    - 新增 `ENGGO_PROVIDER_SMOKE_TIMEOUT_MS` 覆盖入口。
-  - 新增/更新测试覆盖：
-    - [src/features/answering/build-system-prompt.test.ts](/C:/Users/Chen/Desktop/EngGo/src/features/answering/build-system-prompt.test.ts)
-    - [scripts/run-answer-style-provider-smoke.test.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-provider-smoke.test.ts)
-  - TDD 红灯已确认：
-    - `corepack pnpm test src/features/answering/build-system-prompt.test.ts`：先因缺少限长/短段约束失败。
-    - `corepack pnpm test scripts/run-answer-style-provider-smoke.test.ts`：先因缺少 `resolveRequestTimeoutMs` 失败。
-  - 修改后验证：
-    - `corepack pnpm test src/features/answering/build-system-prompt.test.ts`：3 passed / 3 passed
-    - `corepack pnpm test scripts/run-answer-style-provider-smoke.test.ts`：6 passed / 6 passed
-    - `corepack pnpm eval:answer-style`：8 passed / 0 failed
-    - `corepack pnpm exec eslint src/features/answering/build-system-prompt.ts src/features/answering/build-system-prompt.test.ts scripts/run-answer-style-provider-smoke.ts scripts/run-answer-style-provider-smoke.test.ts`：通过
-  - 使用 DeepSeek flash 临时环境重跑真实 provider smoke：
-    - 第一刀后：2 pass / 5 manual / 2 fail；2 fail 均为旧 15s timeout。
-    - 改 runner 默认 45s 后：2 pass / 7 manual / 0 fail。
-    - 第二刀进一步收紧 prompt 后：3 pass / 6 manual / 0 fail，输出保存在 [test-results/deepseek-provider-smoke-after-prompt-v2.txt](/C:/Users/Chen/Desktop/EngGo/test-results/deepseek-provider-smoke-after-prompt-v2.txt)。
-  - 当前结论：
-    - 超时 hard fail 已解决；DeepSeek flash 对 9 条 provider smoke 能稳定跑完。
-    - prompt tuning 已明显缩短回答，但 DeepSeek 仍会在多数 resolved case 超过当前严格 `maxAnswerChars`，下一刀可二选一：继续压 prompt，或把 smoke 的长度阈值调整到更符合真实学生问答可读性的范围。
-
-- 2026-04-24 追加完成 DeepSeek flash 真实 provider smoke：
-  - 用户提供 DeepSeek 临时 key；本轮仅作为临时进程环境变量使用，未写入 `.env`、未写入仓库文件。
-  - 最小探测结果：
-    - `OPENAI_BASE_URL=https://api.deepseek.com/v1`
-    - `OPENAI_MODEL=deepseek-v4-flash`
-    - `deepseek-v4-flash`：`/chat/completions` 返回 200
-    - `DeepSeek-V4-Flash`：返回 400 `Model Not Exist`
-    - `deepseek-chat`：可用，但实际返回模型仍是 `deepseek-v4-flash`
-  - 串行 preflight：
-    - `corepack pnpm exec prisma dev ls`：`enggo` running
-    - `corepack pnpm eval:answer-style`：8 passed / 0 failed
-  - 使用现有 `corepack pnpm eval:answer-style:provider` 跑完整 9 条时，DeepSeek 链路已接通，但 runner 默认 15s timeout 偏紧：
-    - summary：2 pass / 5 manual / 2 fail
-    - 2 个 fail 均为 `request timed out after 15000ms`，不是 provider HTTP 错误或 grounding drift
-    - 5 个 manual 主要为回答超长，说明 DeepSeek 输出偏“讲义型”
-  - 改用 Node `fetch` 直接对本地 `/api/chat` 发 UTF-8 学生提问，并将单条超时放宽到 90s，结果写入 [test-results/deepseek-answer-style-smoke-node.json](/C:/Users/Chen/Desktop/EngGo/test-results/deepseek-answer-style-smoke-node.json)
-  - UTF-8 直连 9 条结果：
-    - `stationary 和 stationery 哪个是文具` -> `direct_compare/resolved/confusion_untangle`，provider called，757 chars
-    - `access assess excess 怎么区分` -> `direct_compare/resolved/confusion_untangle`，provider called，925 chars
-    - `跟 recent 很像的词有哪些` -> `shape_neighbor_search/resolved/confusion_untangle`，provider called，1205 chars
-    - `comply conform defer 怎么区分` -> `direct_compare/resolved/confusion_untangle`，provider called，609 chars
-    - `respect 那组词怎么分` -> `direct_compare/resolved/confusion_untangle`，provider called，1080 chars
-    - `stitute 是什么` -> `root_family_summary/resolved/root_family_summary`，provider called，1879 chars
-    - `tempt 这一族怎么记` -> `root_family_summary/resolved/root_family_summary`，provider called，1246 chars
-    - `re+con 的词根有什么词` -> `root_family_summary/no_match/root_family_summary`，provider skipped，87 chars
-    - `有个像 reqeust 的词` -> `fuzzy_recall/no_match/standard_lookup`，provider skipped，68 chars
-  - 结论：
-    - DeepSeek flash 可以作为真实 provider 跑通 EngGo 的 retrieval -> grounding -> prompt -> answer 主链路。
-    - 当前 hard grounding 目标全部命中；真正的产品问题是回答太长，下一刀优先做 prompt guardrail tuning，让 `confusion_untangle` 和 `root_family_summary` 更短、更像学生问答，而不是长讲义。
-    - 如果继续使用 `eval:answer-style:provider`，建议先把 runner timeout 做成可配置或提高到 45s，避免把 DeepSeek 慢响应误判为 hard fail。
-
-- 完成 `2026-04-24-enggo-answer-style-real-provider-smoke.md` Task 1：
-  - 新增 [scripts/lib/answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.ts)
-  - 新增 [scripts/lib/answer-style-provider-smoke.test.ts](/C:/Users/Chen/Desktop/EngGo/scripts/lib/answer-style-provider-smoke.test.ts)
-  - `vitest.config.ts` 现已纳入 `scripts/**/*.test.ts(x)`，计划命令可以直接命中新测试
-  - smoke 纯库现已覆盖：
-    - 9 条 provider smoke case 定义
-    - `queryMode` / `resolution` / `answerStyle` / `expectedGroundingIncludes` / `expectedRootFamilyViewId` drift fail
-    - `rootFamilyView.members` 聚合路径
-    - `status=200 + error` hard-fail
-    - `resolved` 必须有 `providerRequestId`
-    - `no_match` 必须无 `providerRequestId` 且 answer 非空
-    - `manualChecks` 与 `manualFlags` 分离
-- 本轮已实际验过 Task 1 的正式命令：
-  - `corepack pnpm test scripts/lib/answer-style-provider-smoke.test.ts`
-  - 当前状态：15 passed / 15 passed
-- 当前正在进入 Task 2：
-  - 目标是新增 `scripts/run-answer-style-provider-smoke.ts` 和 `eval:answer-style:provider`
-  - 继续保持串行，不把真实 provider smoke 接进 `verify`
-- 完成 `2026-04-24-enggo-answer-style-real-provider-smoke.md` Task 2：
-  - 新增 [scripts/run-answer-style-provider-smoke.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-provider-smoke.ts)
-  - 新增 [scripts/run-answer-style-provider-smoke.test.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-provider-smoke.test.ts)
-  - `package.json` 新增 `eval:answer-style:provider`
-  - runner 现已具备：
-    - 严格串行请求本地 `/api/chat`
-    - 复用 smoke library case / evaluator / summary
-    - 默认 `ENGGO_CHAT_BASE_URL || http://127.0.0.1:3000`
-    - 429 最多 2 次保守重试
-    - 单条请求超时保护，避免整轮挂死
-    - `providerCalled / providerSkipped / providerUnknown` 分桶，避免把 provider 失败误记成 skip
-    - 一行简洁输出 + `manual/fail` 详细展开 + summary `nextStep`
-- 本轮已实际验过 Task 2 的本地命令：
-  - `corepack pnpm test scripts/run-answer-style-provider-smoke.test.ts`
-  - 当前状态：4 passed / 4 passed
-  - `corepack pnpm test scripts/lib/answer-style-provider-smoke.test.ts`
-  - 当前状态：15 passed / 15 passed
-  - `corepack pnpm exec eslint scripts/run-answer-style-provider-smoke.ts scripts/run-answer-style-provider-smoke.test.ts`
-  - 当前状态：通过
-  - `corepack pnpm exec tsx --eval "(async () => { await import('./scripts/run-answer-style-provider-smoke.ts'); })()"`
-  - 当前状态：通过
-- Task 3 预检现状：
-  - `corepack pnpm exec prisma dev ls`：`enggo` running
-  - `.env`：`OPENAI_API_KEY / OPENAI_BASE_URL / OPENAI_MODEL` 均未配置
-  - 当前进程环境：`OPENAI_API_KEY / OPENAI_BASE_URL / OPENAI_MODEL` 也均未配置
-  - `http://127.0.0.1:3000`：本轮已临时启动并验证可访问，跑完 smoke 后已关闭
-  - 当前 blocker：要继续真实 provider smoke，必须先补 provider 环境变量
-- 本轮已实际执行 Task 3：
-  - `corepack pnpm exec prisma dev ls`
-  - 当前状态：`enggo` running
-  - `corepack pnpm eval:answer-style`
-  - 当前状态：8 passed / 0 failed
-  - 启动本地 app 后验证 `http://127.0.0.1:3000`
-  - 当前状态：200，可访问；跑完 smoke 后已手动关闭
-  - `corepack pnpm eval:answer-style:provider`
-  - 当前状态：2 pass / 0 manual / 7 fail
-  - fail 原因已明确收敛为同一外部 blocker：服务端返回 `503`，错误信息为 `OPENAI_API_KEY is not configured on the server.`
-  - 当前 summary：
-    - `resolved`: 0
-    - `no_match`: 2
-    - `providerCalled`: 0
-    - `providerSkipped`: 2
-    - `providerUnknown`: 7
-    - `nextStep`: 先处理 hard fail，再决定是否继续真实 smoke
-- Task 3 结论：
-  - 真实 smoke runner 本身已能跑通并输出稳定 summary
-  - 当前不能据此判断真实 provider 的回答风格，因为 provider 根本没有被调用成功
-  - 下一步不是调 retrieval / prompt，而是先把 provider 环境配好，再重跑 `corepack pnpm eval:answer-style:provider`
-
-- 重新阅读并确认当前阶段入口文档与相关计划：
-  - `progress.md`
-  - `bugs.md`
-  - `context.md`
-  - `docs/superpowers/specs/2026-04-21-exam-english-chat-design.md`
-  - `docs/superpowers/plans/2026-04-23-enggo-confusion-taxonomy-roadmap.md`
-  - `docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md`
-- 阅读真实 provider / eval 相关实现入口，确认下一刀可以复用现有链路，而不是先改 schema 或扩 root：
-  - `src/features/answering/chat-provider.ts`
-  - `src/features/answering/chat-provider.test.ts`
-  - `src/features/answering/chat-service.ts`
-  - `src/app/api/chat/route.ts`
-  - `scripts/run-answer-style-eval.ts`
-  - `scripts/run-chat-batch-eval.ts`
-  - `scripts/run-shape-neighbor-eval.ts`
-- 新建下一轮正式 implementation plan：
-  - [docs/superpowers/plans/2026-04-24-enggo-answer-style-real-provider-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-enggo-answer-style-real-provider-smoke.md)
-  - 目标：用 8-10 条真实 provider smoke 验证 `confusion_untangle` / `root_family_summary` / guarded `no_match` 的真实输出形态
-  - 明确暂不做：第二批 root prototype、root schema、typo 闸门放宽、把真实 smoke 接进 `verify`
-- 本次仅完成计划与交接更新，未运行新的代码测试或真实 provider 验证命令。
-
-- 先按用户要求做了 checkpoint commit：
-  - `40cc4a0 chore: checkpoint shape-neighbor p0 work`
-- 完成 `docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md` Task 1-5：
-  - `src/features/answering/build-grounding.ts` 新增 `answerStyle` / `rootFamilyView`
-  - `src/features/answering/build-system-prompt.ts` 按 `standard_lookup / confusion_untangle / root_family_summary` 分支出不同 prompt guardrails
-  - `src/features/retrieval/normalize-query.ts` 新增保守的 `root_family_summary` query-mode 识别
-  - 新增 [src/features/retrieval/root-family-prototypes.ts](/C:/Users/Chen/Desktop/EngGo/src/features/retrieval/root-family-prototypes.ts:1)，首批只覆盖 `root-stitute` / `root-tempt`
-  - `src/features/retrieval/retrieve-candidates.ts` 新增 `handleRootFamilySummary`
-  - `src/features/answering/chat-service.ts` 为 `root_family_summary + no_match` 增加“先不硬凑规律”的专属兜底文案
-  - 新增 [scripts/run-answer-style-eval.ts](/C:/Users/Chen/Desktop/EngGo/scripts/run-answer-style-eval.ts:1) 和 `corepack pnpm eval:answer-style`
-- 为新行为补齐并转绿测试 / eval：
-  - `corepack pnpm test src/features/answering/build-system-prompt.test.ts`：3 passed
-  - `corepack pnpm test src/features/answering/chat-service.test.ts`：4 passed
-  - `corepack pnpm test src/features/retrieval/root-family-prototypes.test.ts`：4 passed
-  - `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts`：32 passed
-  - `corepack pnpm eval:answer-style`：8 passed / 0 failed
-  - `corepack pnpm eval:shape`：34 passed / 0 failed
-- 同步更新了 `scripts/run-shape-neighbor-eval.ts` 的碎片输入预期：
-  - `re+con 的词根有什么词` 现在是 `root_family_summary -> no_match`
-  - 不再是旧的 `fuzzy_recall -> no_match`
-- 这轮验收中再次撞到已知 Prisma dev 环境毛刺：
-  - `corepack pnpm verify` 首次失败点：`src/features/content/seed-content.test.ts`
-  - 现象：`Received unexpected commandComplete message from backend`
-  - 处理：按 `bugs.md` 已知路径执行 `prisma dev rm enggo --force` -> `prisma dev -n enggo ...` -> `corepack pnpm db:migrate` -> `corepack pnpm db:seed`
-  - 恢复后 `seed-content.test.ts` 和整轮 `verify` 均通过
-- 本次接力先复跑健康基线：
-  - `corepack pnpm exec prisma dev ls`：`enggo` running
-  - `corepack pnpm exec tsx scripts/check-seed-content.ts`：82 entries / 31 confusion groups
-  - `corepack pnpm eval:shape`：34 passed / 0 failed，平均耗时约 131ms
-- 已按 `2026-04-23-enggo-confusion-taxonomy-roadmap.md` 创建正式 implementation plan：
-  - [docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md)
-  - 第一阶段限定为 answer style / query mode / minimal root prototype / deterministic eval
-  - 明确不新增 root 数据表、不扩 P1 seed、不放宽 `reqeust` / `recomand` typo 闸门
-- 已阅读相关代码入口并把计划落到具体文件：
-  - `src/features/answering/build-system-prompt.ts`
-  - `src/features/answering/build-grounding.ts`
-  - `src/features/answering/chat-service.ts`
-  - `src/features/retrieval/normalize-query.ts`
-  - `src/features/retrieval/retrieve-candidates.ts`
-  - `scripts/run-shape-neighbor-eval.ts`
-- 按交接先复跑基线：
-  - `corepack pnpm exec prisma dev ls`：`enggo` running
-  - `corepack pnpm db:seed`：成功
-  - `corepack pnpm eval:shape`：初始基线 9 passed / 0 failed
-- 创建下一轮 implementation plan：
-  - [docs/superpowers/plans/2026-04-23-shape-neighbor-p0-seed-expansion.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-shape-neighbor-p0-seed-expansion.md)
-  - 选择候选池 P0 全部 20 组入 seed，P1 暂不碰
-- 按 TDD 红灯先加覆盖：
-  - `scripts/run-shape-neighbor-eval.ts` 新增 25 个 P0 case：5 个 shape-neighbor list/misread case + 20 个 direct compare case
-  - `src/features/retrieval/retrieve-candidates.test.ts` 新增 2 个 P0 集成测试：`access / assess / excess` 和 `breath / breathe`
-  - 加 seed 前验证红灯：`eval:shape` 9 passed / 25 failed；retrieval test 24 passed / 2 failed，失败原因均为缺 seed grounding / comparisonView
-- 完成 P0 seed 扩样本：
-  - `data/exam-vocab/seed/entries.json` 新增 43 个词条
-  - `data/exam-vocab/seed/confusion-groups.json` 新增 20 个 P0 confusion groups
-  - 当前 seed 规模：82 entries / 31 confusion groups
-  - 覆盖范围仍包含 gaokao / cet4 / cet6 / postgrad
-- 修复扩样本后暴露的测试性能问题：
-  - `corepack pnpm verify` 首次在 `src/features/content/seed-content.test.ts` 超时失败
-  - 根因：该测试原本加载完整 seed 作为 broken fixture，P0 扩样本后执行时间超过 Vitest 默认 5s
-  - 修复：改成最小 broken seed fixture，不再依赖完整 seed 数据量
-  - 默认超时下该测试从 5s timeout 降到约 0.8s 通过
-- 更新并勾选 P0 implementation plan 的已完成步骤。
-- 结合真实 MiniMax smoke 和 DeepSeek 分享内容，整理下一阶段路线：
-  - DeepSeek 的 `stitute` / `tempt` / `re- + con- 同根` 词根地图有参考价值，但太容易发散。
-  - EngGo 应吸收“构词故事”和“不要硬凑规律”，同时收束成考试导向的结构化地图。
-  - 明确新增混淆 taxonomy：形近解团、词根地图、中文同义分流、词性派生树、搭配锁、前缀方向图、发音近似、碎片召回、场景错配、逻辑关系。
-
-## 当前结果
-- 形近词簇 seed 从 39 entries / 11 groups 扩到 82 entries / 31 groups。
-- 2026-04-24 至 2026-04-26 词库/RAG 方向已和用户口头对齐：
-  - `real-smoke` 已从 86 个精加工样品词扩到 546 个 source-backed entries；其中 34 个易混/记忆组仍是精修闭环，其余新增词条是“大而薄”的基础查询底座。
-  - 下一步仍不应手工给每个词量身定制混淆关系；应该继续分批铺基础词库，并只精修高频易混组。
-  - 基础词条最小字段：`lemma` / `pos` / `meaningZh` / `scopes`。
-  - EngGo 的 RAG 应定位为“结构化词库 RAG”，不是普通“长文档切块 + 向量搜索”RAG。
-  - LLM 负责讲清楚；词库负责范围、事实和候选词；检索层负责从当前考试范围内找相关词。
-  - 高频易混组只做少量精修，用来覆盖算法不好判断、考试高频、学生特别容易混的组。
-  - embedding 后续可作为辅助，优先解决“中文意思找英文词”“近义词辨析”等语义召回；不要把 embedding 当成形近词/考试范围过滤的主干。
-- 回答编排层现在有 3 种明确风格：
-  - `standard_lookup`
-  - `confusion_untangle`
-  - `root_family_summary`
-- `root_family_summary` 目前只做最小原型闭环：
-  - `stitute 是什么` -> `root-stitute` resolved
-  - `tempt 这一族怎么记` -> `root-tempt` resolved
-  - `re+con 的词根有什么词` -> `root_family_summary` 命中，但仍返回 `no_match`
-- P0 新增组：
-  - `access / assess / excess`
-  - `advice / advise`
-  - `accept / except`
-  - `aboard / abroad`
-  - `angel / angle / ankle`
-  - `assure / ensure / insure`
-  - `complement / compliment`
-  - `principal / principle`
-  - `personal / personnel`
-  - `economic / economical`
-  - `conscious / conscience`
-  - `precede / proceed`
-  - `perspective / prospective`
-  - `historic / historical`
-  - `sensible / sensitive`
-  - `considerable / considerate`
-  - `stationary / stationery`
-  - `device / devise`
-  - `loose / lose`
-  - `breath / breathe`
-- 当前形近词簇闭环仍复用现有数据结构：query mode -> `confusion_group` -> retrieval result -> grounding/prompt -> UI 多主答案展示。
-- 未新增表、未新增 `kind` 字段、未改变 UI 结构。
-- 未新增 root Prisma schema / table；root family 仍是代码内 prototype，不是长期数据模型。
-
-## 剩余关注点
-1. `root_family_summary` 目前只覆盖 `stitute` / `tempt` 两族，仍然是验证回答形态的最小原型，不是可扩展数据方案。
-2. 结构化词形过滤已支持 `prefix / suffix / contains / start_end / ordered_contains` 和多条件 AND；剩余不支持的是语义/词根理论类组合，例如 `re+con 的词根有什么词` 仍保持 no-match，不把它硬解释成稳定词根家族。
-3. `reqeust -> request`、`recomand -> recommend` 已通过第二层 typo fallback 处理；后续若继续扩 typo，只能继续走“唯一候选 + 明确拼写模式”的窄门，不要放宽全局相似度闸门。
-4. 真实 MiniMax `/anthropic/v1/messages` 已通过临时命令跑通；正式接入前仍建议补 Anthropic-compatible provider adapter，并用真实 provider 做一次 answer-style smoke。
-5. Windows + local Prisma Postgres (`prisma dev`) 仍不稳定；这轮 `verify` 过程中又复现了 backend protocol error，但已按 `bugs.md` 路径恢复。
-6. `corepack pnpm exec tsc --noEmit` 这轮仍未重跑；此前已知失败，属于既有工程债，不纳入本轮完成标准。
-
-## 下一 Session 第一件事
-- 本轮已修正“拆组”偏航：不要再按“长得不像就删成员”的逻辑清洗旧组；后续先判断这是普通查词、易混辨析、记忆地图还是中文表达召回。
-- `purposes` 用途层的首轮中文表达召回真实 provider smoke 已补跑；`expression_recall` smoke 字数阈值已从 280 放宽到 400，后续不建议继续为压字数牺牲可读性。
-- 普通查词真实 provider 小批验收入口已新增并跑通；后续如果继续查普通查词污染，优先在 `eval:standard-lookup:provider` 上小批复验，不要把它混进 root/confusion 调参。
-- 普通查词 exact 命中已不再自动带 `confusionBoundary`；`institute 是什么意思` 当前 grounding 只有 `institute`。后续不要再用 prompt 兜这个问题，优先检查 retrieval 是否又把裸 `confusion_group` 混进 ordinary lookup。
-- `root_family_summary` 仍有两个后续 prompt 收紧项：`stitute` 回答里不要直接点名 `restitute/prostitute` 这类范围外低频分支；`tempt` 回答必须承认 `tempt` 也是完整单词，不能只说成构词部件。
-- 当前旧 plan 已执行完成；不要再从以下 plan 的 Task 1 重开：
-  - [docs/superpowers/plans/2026-04-24-enggo-answer-style-real-provider-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-enggo-answer-style-real-provider-smoke.md)
-  - [docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-23-enggo-answer-style-and-root-map.md)
-- `real-vocab scope-aware lookalike smoke` plan 已完成 Task 7；不要再从 Task 1、Task 2、Task 3、Task 4、Task 5 或 Task 7 重开：
-  - [docs/superpowers/plans/2026-04-24-real-vocab-scope-aware-lookalike-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-real-vocab-scope-aware-lookalike-smoke.md)
-  - 已完成：Task 1 全部 Step 1-6；Task 2 Step 1-5；Task 3 Step 1-5；Task 4 Step 1-5；Task 5 Step 1-4；Task 6 Step 1-4；Task 7 Step 1-3。
-  - Task 6 Step 3 真实 provider smoke 已在 2026-04-25 补跑并勾选，当前不要再把它当未完成项重跑；后续只在改 prompt / retrieval 后按需复验。
-  - 当前 `real-smoke` 只覆盖 `gaokao` / `cet4` / `cet6`，`postgrad` 仍需等待 entry-level 可机读来源；不要为了 scope 完整性补伪造条目。
-- `real-smoke foundation vocab expansion` plan 已完成；不要再从 Task 1 重开：
-  - [docs/superpowers/plans/2026-04-24-real-smoke-foundation-vocab-expansion.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-real-smoke-foundation-vocab-expansion.md)
-  - 已完成 262 entries / 31 confusion groups；新增 checker guardrails 是 `--min-entries` 与 `--require-source-lemmas`。
-- `real-smoke foundation vocab batch 2` plan 已完成；不要再从 Task 1 重开：
-  - [docs/superpowers/plans/2026-04-24-real-smoke-foundation-vocab-batch-2.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-24-real-smoke-foundation-vocab-batch-2.md)
-  - 已完成 404 entries / 31 confusion groups。
-- `real-smoke foundation vocab batch 3` plan 已完成；不要再从 Task 1 重开：
-  - [docs/superpowers/plans/2026-04-26-real-smoke-foundation-vocab-batch-3.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-26-real-smoke-foundation-vocab-batch-3.md)
-  - 当前 `real-smoke` 为 546 entries / 34 confusion groups，已进入 `500-1000 词基础 RAG 词库 MVP` 区间。
-- `black-box product smoke` plan 已完成；不要再从 Task 1 重开：
-  - [docs/superpowers/plans/2026-04-26-black-box-product-smoke.md](/C:/Users/Chen/Desktop/EngGo/docs/superpowers/plans/2026-04-26-black-box-product-smoke.md)
-  - 当前 `eval:product-smoke` 为 27 total / 27 pass / 0 fail；已新增 `standard: institute` 防回归，且 `generte -> generate`、`horizen -> horizon`、`reqeust -> request`、`recomand -> recommend` 已通过窄门 typo fallback 修复。
-- 下一轮如果继续产品能力，建议先不要再扩 typo 闸门；优先二选一：
-  - 继续按小批真实 provider smoke 验收普通查词，观察是否还有其他裸组污染 exact lookup。
-  - 或在普通查词验收认可后，再决定是继续 batch 4 扩到 700+，还是转向泛化词根/碎片检索。
-  - 暂缓：全量几千词一次性导入、为每个词人工写易混关系、把 embedding 作为主检索方案。
-- 若继续本地验证，先检查 `corepack pnpm exec prisma dev ls`；一旦出现 backend protocol error，直接按 `bugs.md` 的 `enggo` 重建路径恢复。
-- 继续保持串行验证；不要并行跑 `verify`、`eval:shape`、`eval:answer-style`、`eval:lookalike:real-smoke`、`eval:answer-style:provider`。
+暂缓：
+- 全量几千词一次性导入
+- 为每个词人工写易混关系
+- 继续扩 typo 闸门
+- 把 embedding 作为主检索方案
+- 把 `re+con` 这类语义词根理论问题混入词形 parser
 
 ## 当前阻塞 / 风险
-- `real-smoke` 的高考 / 四级 / 六级来源 blocker 已解除；考研 `postgrad` 仍缺 entry-level 可机读官方词表，暂不进入 `real-smoke` scope。
-- 当前没有 shape-neighbor 测试阻塞。
-- 不建议本地并行跑 `verify` 和 `eval:shape` 这类会访问 Prisma dev 的命令。
-- 后续扩 `real-smoke` 时仍必须先过 source-backed 原则：不要抠商业词书完整释义/例句/辨析，不要为 `postgrad` 编造 scope。
-- 真实模型 batch eval 仍受 provider key、dev server、MiniMax 429 影响。
-- 2026-04-24 追加探测：用户提供的临时 MiniMax key 未写入仓库文件；直接探测 `https://api.minimaxi.com/v1/chat/completions` 与 `https://api.minimaxi.com/anthropic/v1/messages`，两把临时 key 均返回 `429 usage limit exceeded (2056)`；其中第一把对 `https://api.minimax.io/v1/chat/completions` 返回 `401`，说明 key 更像是 `api.minimaxi.com` 区域 key，但额度/限额不可用。本轮未继续跑 9 条真实 provider smoke，避免无效消耗限流窗口。
-- 若下一轮继续扩 seed，`seed-content.test.ts` 已改为最小 fixture，应不再随 seed 规模线性变慢；若再次超时，先按 `bugs.md` 的 Prisma dev 健康检查路径排查。
+- Windows + Prisma dev 不稳定；本地验证前先看 `bugs.md`。
+- 不建议并行跑会访问本地 Prisma dev 的命令，例如 `verify`、`eval:shape`、`eval:answer-style`、`eval:lookalike:real-smoke`、`eval:answer-style:provider`。
+- `postgrad` 缺 entry-level 可机读官方词表，暂不进入 `real-smoke` scope。
+- MiniMax 临时 key 历史上出现 429；真实 provider smoke 优先用当前可用 provider，并小批量串行跑。
+- `corepack pnpm exec tsc --noEmit` 仍是已知工程债，尚未纳入当前完成标准。
 
 ## 最近验证基线
-- 2026-04-27 root fragment condition parser 完成后：
+- 2026-05-03 Answer Policy / spelling-assist / UI smoke 后：
+  - `corepack pnpm test src/features/answering/chat-service.test.ts`
+    - 1 file / 12 tests passed
+  - `corepack pnpm test src/features/answering/chat-service.test.ts src/components/chat/chat-workspace.test.tsx src/components/chat/answer-actions.test.tsx`
+    - 3 files / 23 tests passed
+  - focused eslint
+    - 通过
+  - `corepack pnpm eval:product-smoke`
+    - 37 total / 37 pass / 0 fail
+  - API smoke：
+    - `你好` -> `plain` / no grounding / no provider
+    - `complex 和 complicate 是一个意思吗` -> `plain` / no grounding / provider called
+    - `reqxust 是什么意思` -> `plain` / no grounding / provider called / spelling candidates
+    - `tion 结尾的词有哪些` -> grounded resolved / 15 main answers
+    - `access assess excess 怎么区分` -> grounded resolved / 3 main answers
+    - `re+con 的词根有什么词` -> grounded no_match / no provider
+  - 移动宽度 UI smoke：
+    - 390px，无页面级横向溢出
+    - plain 分支不显示 `命中状态`、`暂未稳定命中`、收藏工具
+    - grounded 分支保留命中状态和收藏工具
+- 2026-04-27 root fragment condition parser 后：
   - `corepack pnpm test src/features/retrieval/root-fragment-recall.test.ts src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-system-prompt.test.ts scripts/lib/black-box-product-smoke.test.ts scripts/lib/answer-style-provider-smoke.test.ts`
-    - 当前状态：5 files / 107 tests passed
+    - 5 files / 107 tests passed
   - `corepack pnpm eval:answer-style`
-    - 当前状态：20 pass / 0 fail，新增 `tion` / `struct` / `con + re` / `re...ct` condition cases
-  - `corepack pnpm eval:product-smoke`
-    - 当前状态：37 total / 37 pass / 0 fail；root_family 9 total / 9 pass
+    - 20 pass / 0 fail
   - `corepack pnpm eval:answer-style:provider`
-    - 当前状态：16 total / 15 pass / 1 manual / 0 fail，`providerUnknown=0`；新增 `root: tion suffix fragment` 通过，manual 为旧 confusion 字数阈值复查
-  - `corepack pnpm exec eslint src/features/retrieval/root-fragment-recall.ts src/features/retrieval/normalize-query.ts src/features/retrieval/retrieve-candidates.ts src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-system-prompt.ts src/features/answering/build-system-prompt.test.ts scripts/run-answer-style-eval.ts scripts/lib/black-box-product-smoke.ts scripts/lib/black-box-product-smoke.test.ts scripts/lib/answer-style-provider-smoke.ts scripts/lib/answer-style-provider-smoke.test.ts`
-    - 当前状态：通过
-  - `git diff --check`
-    - 当前状态：通过
-- 2026-04-26 黑盒产品 smoke：
-  - `corepack pnpm eval:product-smoke`
-    - 当前状态：27 total / 27 pass / 0 fail；新增 `standard: institute` 防 ordinary boundary 回归；`generte -> generate`、`horizen -> horizon`、`reqeust -> request`、`recomand -> recommend` 已修复
-  - `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts src/features/answering/chat-service.test.ts src/features/answering/build-system-prompt.test.ts`
-    - 当前状态：已扩展合跑到 5 files / 88 tests passed（含 retrieval、chat-service、build-system-prompt、black-box smoke、provider-smoke 单测）
-  - `corepack pnpm eval:answer-style`
-    - 当前状态：13 pass / 0 fail，averageElapsedMs 112
-  - `corepack pnpm eval:standard-lookup:provider`
-    - 当前状态：8 total / 8 pass / 0 manual / 0 fail；averageElapsedMs 1849；standard_lookup 平均 22 字，最长 36 字；`institute` grounding 只有 `institute`
-  - `corepack pnpm test scripts/lib/black-box-product-smoke.test.ts`
-    - 当前状态：与 retrieval/provider-smoke 单测合跑为 3 files / 75 tests passed
-- 2026-04-26 batch-3 扩库后复验：
+    - 16 total / 15 pass / 1 manual / 0 fail
+- 2026-04-26 real-smoke batch 3 后：
   - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 500 --require-source-lemmas`
-    - 当前状态：546 entries / 34 confusion groups / scopes=gaokao, cet4, cet6
+    - 546 entries / 34 confusion groups / scopes=gaokao, cet4, cet6
   - `corepack pnpm eval:lookalike:real-smoke`
-    - 当前状态：14 pass / 0 fail，averageElapsedMs 106
-  - `corepack pnpm eval:answer-style`
-    - 当前状态：12 pass / 0 fail，averageElapsedMs 111
-  - `corepack pnpm test scripts/check-vocab-content.test.ts src/features/content/load-seed-content.test.ts src/features/retrieval/retrieve-candidates.test.ts`
-    - 当前状态：3 files / 62 tests passed
-- 2026-04-24 batch-2 扩库后复验：
-  - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 400 --require-source-lemmas`
-    - 当前状态：404 entries / 31 confusion groups / scopes=gaokao, cet4, cet6
-  - `corepack pnpm eval:lookalike:real-smoke`
-    - 当前状态：14 pass / 0 fail，averageElapsedMs 142
-  - `corepack pnpm eval:answer-style`
-    - 当前状态：8 pass / 0 fail，averageElapsedMs 126
-  - `corepack pnpm test scripts/check-vocab-content.test.ts src/features/content/load-seed-content.test.ts src/features/retrieval/retrieve-candidates.test.ts`
-    - 当前状态：3 files / 49 tests passed
-  - `corepack pnpm exec eslint scripts/check-vocab-content.ts scripts/check-vocab-content.test.ts`
-    - 当前状态：通过
-- 2026-04-24 扩库后复验：
-  - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 180 --require-source-lemmas`
-    - 当前状态：262 entries / 31 confusion groups / scopes=gaokao, cet4, cet6
-  - `corepack pnpm eval:lookalike:real-smoke`
-    - 当前状态：14 pass / 0 fail，averageElapsedMs 109
-  - `corepack pnpm eval:answer-style`
-    - 当前状态：8 pass / 0 fail，averageElapsedMs 98
-  - `corepack pnpm test scripts/check-vocab-content.test.ts src/features/content/load-seed-content.test.ts src/features/retrieval/retrieve-candidates.test.ts`
-    - 当前状态：3 files / 49 tests passed
-  - `corepack pnpm exec eslint scripts/check-vocab-content.ts scripts/check-vocab-content.test.ts`
-    - 当前状态：通过
-- 2026-04-24 收尾复验：
-  - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke`
-    - 当前状态：86 entries / 31 confusion groups / scopes=gaokao, cet4, cet6
-  - `corepack pnpm eval:lookalike:real-smoke`
-    - 当前状态：14 pass / 0 fail，averageElapsedMs 108
-  - `corepack pnpm eval:answer-style`
-    - 当前状态：8 passed / 0 failed，averageElapsedMs 93
-  - `corepack pnpm test src/features/content/load-seed-content.test.ts src/features/content/seed-content-rules.test.ts src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-system-prompt.test.ts src/features/answering/chat-service.test.ts scripts/run-real-vocab-lookalike-smoke.test.ts scripts/lib/answer-style-provider-smoke.test.ts`
-    - 当前状态：7 files / 69 tests passed
-  - `corepack pnpm exec eslint src/features/content/load-seed-content.ts src/features/content/load-seed-content.test.ts src/features/content/seed-content-rules.test.ts src/features/retrieval/retrieval-sql.ts src/features/retrieval/retrieve-candidates.ts src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-grounding.ts src/features/answering/build-system-prompt.ts src/features/answering/build-system-prompt.test.ts src/features/answering/chat-service.test.ts scripts/run-answer-style-eval.ts scripts/lib/answer-style-provider-smoke.ts scripts/lib/answer-style-provider-smoke.test.ts scripts/run-real-vocab-lookalike-smoke.ts scripts/run-real-vocab-lookalike-smoke.test.ts prisma/seed.ts`
-    - 当前状态：通过
-  - `git diff --check`
-    - 当前状态：通过；仅输出 Windows 工作区 LF/CRLF 提示
-- `corepack pnpm test src/features/content/load-seed-content.test.ts src/features/content/seed-cli.test.ts src/features/content/seed-content-rules.test.ts scripts/check-vocab-content.test.ts`
-  - 当前状态：4 files / 15 tests passed
-- `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset seed`
-  - 当前状态：82 entries / 31 confusion groups / scopes=gaokao, cet4, cet6, postgrad
-- `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke`
-  - 当前状态：86 entries / 31 confusion groups / scopes=gaokao, cet4, cet6
-- `corepack pnpm db:seed:real-smoke`
-  - 当前状态：通过；DB probe 为 86 entries / 31 groups / scopes: gaokao 47, cet4 78, cet6 86
-- `corepack pnpm test src/features/content/load-seed-content.test.ts scripts/check-vocab-content.test.ts`
-  - 当前状态：2 files / 10 tests passed
-- `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts src/features/answering/chat-service.test.ts`
-  - 当前状态：2 files / 40 tests passed
-- `corepack pnpm exec eslint src/features/retrieval/retrieval-sql.ts src/features/retrieval/retrieve-candidates.ts src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-grounding.ts src/features/answering/chat-service.test.ts`
-  - 当前状态：通过
-- `corepack pnpm test src/features/answering/build-system-prompt.test.ts scripts/lib/answer-style-provider-smoke.test.ts`
-  - 当前状态：2 files / 18 tests passed
-- `corepack pnpm eval:answer-style`
-  - 当前状态：8 passed / 0 failed，平均耗时约 91ms
-- `corepack pnpm exec eslint src/features/answering/build-system-prompt.ts src/features/answering/build-system-prompt.test.ts scripts/run-answer-style-eval.ts scripts/lib/answer-style-provider-smoke.ts scripts/lib/answer-style-provider-smoke.test.ts`
-  - 当前状态：通过
-- `corepack pnpm test scripts/run-real-vocab-lookalike-smoke.test.ts`
-  - 当前状态：1 file / 3 tests passed
-- `corepack pnpm eval:lookalike:real-smoke`
-  - 当前状态：14 pass / 0 fail，averageElapsedMs 102
-- `corepack pnpm exec eslint scripts/run-real-vocab-lookalike-smoke.ts scripts/run-real-vocab-lookalike-smoke.test.ts src/features/retrieval/retrieve-candidates.ts src/features/retrieval/retrieve-candidates.test.ts`
-  - 当前状态：通过
-- `corepack pnpm exec eslint src/features/content/load-seed-content.ts src/features/content/load-seed-content.test.ts src/features/retrieval/retrieval-sql.ts src/features/retrieval/retrieve-candidates.ts src/features/retrieval/retrieve-candidates.test.ts src/features/answering/build-grounding.ts src/features/answering/build-system-prompt.ts src/features/answering/build-system-prompt.test.ts src/features/answering/chat-service.test.ts scripts/run-answer-style-eval.ts scripts/lib/answer-style-provider-smoke.ts scripts/lib/answer-style-provider-smoke.test.ts scripts/run-real-vocab-lookalike-smoke.ts scripts/run-real-vocab-lookalike-smoke.test.ts prisma/seed.ts`
-  - 当前状态：通过
-- `corepack pnpm exec eslint src/features/content/load-seed-content.ts src/features/content/load-seed-content.test.ts src/features/content/seed-cli.test.ts prisma/seed.ts scripts/check-vocab-content.ts scripts/check-vocab-content.test.ts`
-  - 当前状态：通过
-- `corepack pnpm exec prisma dev ls`
-  - 当前状态：`enggo` running
-- `corepack pnpm db:seed`
-  - 当前状态：通过
-- `corepack pnpm exec tsx scripts/check-seed-content.ts`
-  - 当前状态：82 entries / 31 confusion groups
-- `corepack pnpm eval:shape`
-  - 当前状态：34 passed / 0 failed，平均耗时约 127ms
-- `corepack pnpm eval:answer-style`
-  - 当前状态：8 passed / 0 failed，平均耗时约 112ms
-- `corepack pnpm test src/features/answering/build-system-prompt.test.ts`
-  - 当前状态：3 passed / 3 passed
-- `corepack pnpm test src/features/answering/chat-service.test.ts`
-  - 当前状态：4 passed / 4 passed
-- `corepack pnpm test src/features/retrieval/root-family-prototypes.test.ts`
-  - 当前状态：4 passed / 4 passed
-- `corepack pnpm test src/features/content/seed-content.test.ts`
-  - 当前状态：1 passed / 1 passed
-- `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts`
-  - 当前状态：32 passed / 32 passed
-- `corepack pnpm exec eslint src/features/answering/build-grounding.ts src/features/answering/build-system-prompt.ts src/features/answering/build-system-prompt.test.ts src/features/answering/chat-service.ts src/features/answering/chat-service.test.ts src/features/retrieval/normalize-query.ts src/features/retrieval/retrieve-candidates.ts src/features/retrieval/retrieve-candidates.test.ts src/features/retrieval/root-family-prototypes.ts src/features/retrieval/root-family-prototypes.test.ts src/features/retrieval/types.ts scripts/run-answer-style-eval.ts scripts/run-shape-neighbor-eval.ts`
-  - 当前状态：通过
-- `corepack pnpm verify`
-  - 当前状态：通过（lint、unit、integration、默认 Chromium E2E 均通过）
-- `corepack pnpm exec tsc --noEmit`
-  - 当前状态：本 session 未重跑；此前已知失败，集中在既有测试 fixture 类型收窄、`use-chat-session` 响应联合类型、`pg` ESM 声明缺失和其连带 row 隐式 any
+    - 14 pass / 0 fail
+- 历史整体验证：
+  - `corepack pnpm verify`
+    - 曾通过 lint、unit、integration、默认 Chromium E2E
+  - `corepack pnpm exec tsc --noEmit`
+    - 已知未清，集中在测试 fixture 类型、`use-chat-session` 响应联合类型、`pg` ESM 声明缺失及其连带 row 隐式 any
