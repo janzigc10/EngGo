@@ -83,6 +83,18 @@ function buildNoMatchAnswer(query: string, grounding: AnswerGrounding) {
   return "当前词库暂未稳定定位到你说的词，为避免答错对象，这次先不硬猜。你可以再告诉我它的中文意思、词首或词尾，或者你容易把它和哪个词搞混。";
 }
 
+function shouldUseSpellingAssist(input: ChatServiceInput, grounding: AnswerGrounding) {
+  if (grounding.resolution !== "no_match") {
+    return false;
+  }
+
+  if (grounding.queryMode === "root_family_summary") {
+    return false;
+  }
+
+  return getSuspiciousSingleEnglishToken(input.query) !== null;
+}
+
 function shouldUsePlainFallback(input: ChatServiceInput, grounding: AnswerGrounding) {
   if (grounding.resolution !== "no_match") {
     return false;
@@ -125,6 +137,16 @@ function buildPlainFallbackPrompt() {
   ].join("\n");
 }
 
+function buildSpellingAssistPrompt() {
+  return [
+    "你是 EngGo 的拼写候选助手。用户输入的英文看起来可能不是稳定标准词。",
+    "请只做拼写候选确认，不要把用户输入直接当成标准词解释。",
+    "可以给出 1-3 个最可能的英文候选，每个候选只写一个很短的中文核心义。",
+    "必须提醒用户先确认拼写；不要声称来自当前考试词库、当前考试范围、RAG 命中或任何已收录证据。",
+    "回答要短，不要展开例句、用法或考试优先级。",
+  ].join("\n");
+}
+
 export function createChatService(options: CreateChatServiceOptions = {}) {
   const provider = options.provider ?? createOpenAiChatProvider();
   const createRequestIdImpl = options.createRequestId ?? createRequestId;
@@ -145,6 +167,22 @@ export function createChatService(options: CreateChatServiceOptions = {}) {
       });
 
       if (grounding.resolution === "no_match") {
+        if (shouldUseSpellingAssist(input, grounding)) {
+          const result = await provider.generateAnswer({
+            query: input.query,
+            history: input.history,
+            requestId,
+            systemPrompt: buildSpellingAssistPrompt(),
+          });
+
+          return {
+            answer: result.answer,
+            answerKind: "plain",
+            requestId,
+            providerRequestId: result.providerRequestId,
+          };
+        }
+
         if (shouldUsePlainFallback(input, grounding)) {
           const result = await provider.generateAnswer({
             query: input.query,

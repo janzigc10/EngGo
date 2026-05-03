@@ -300,16 +300,16 @@ describe("createChatService", () => {
 
     const result = await service.answer({
       activeExamTarget: "cet6",
-      query: "reqxust 是什么意思",
+      query: "recent 这个词什么意思",
       history: [],
       retrievalResult: {
         queryMode: "fuzzy_recall",
         normalizedQuery: {
-          raw: "reqxust 是什么意思",
-          normalizedText: "reqxust 是什么意思",
+          raw: "recent 这个词什么意思",
+          normalizedText: "recent 这个词什么意思",
           queryMode: "fuzzy_recall",
-          englishTerms: ["reqxust"],
-          meaningHint: "reqxust",
+          englishTerms: ["recent"],
+          meaningHint: "recent",
           compareTerms: [],
           groupSeedTerm: null,
         },
@@ -443,17 +443,22 @@ describe("createChatService", () => {
     expect(providerCalls[0]?.systemPrompt).toContain("通用英语学习问题");
   });
 
-  it("keeps suspicious single-token typos out of plain provider fallback", async () => {
-    let providerCalled = false;
+  it("uses spelling assist for suspicious single-token typo misses", async () => {
+    const providerCalls: Array<{
+      query: string;
+      systemPrompt: string;
+      grounding?: ReturnType<typeof buildGrounding>;
+    }> = [];
 
     const service = createChatService({
       provider: {
-        async generateAnswer() {
-          providerCalled = true;
+        async generateAnswer(input) {
+          providerCalls.push(input);
 
           return {
-            answer: "should not be used",
-            providerRequestId: "resp_unused_typo",
+            answer:
+              "这个拼写还不能稳定定位。你可能想问：request（请求）或 requisite（必需的）。请先确认是哪一个。",
+            providerRequestId: "resp_spelling_typo",
           };
         },
       },
@@ -484,26 +489,31 @@ describe("createChatService", () => {
       },
     });
 
-    expect(providerCalled).toBe(false);
-    expect(result.providerRequestId).toBeNull();
-    expect(result.answerKind).toBe("grounded");
-    expect(result.grounding?.resolution).toBe("no_match");
-    expect(result.answer).toContain("不硬猜");
-    expect(result.answer).toContain("拼写");
-    expect(result.answer).toContain("reqxust");
+    expect(providerCalls).toHaveLength(1);
+    expect(result.providerRequestId).toBe("resp_spelling_typo");
+    expect(result.answerKind).toBe("plain");
+    expect(result.grounding).toBeUndefined();
+    expect(result.answer).toContain("request");
+    expect(providerCalls[0]?.grounding).toBeUndefined();
+    expect(providerCalls[0]?.systemPrompt).toContain("拼写候选");
+    expect(providerCalls[0]?.systemPrompt).toContain("不要把用户输入直接当成标准词解释");
   });
 
-  it("keeps repeated suspicious typo tokens out of plain provider fallback", async () => {
-    let providerCalled = false;
+  it("uses spelling assist for repeated suspicious typo tokens", async () => {
+    const providerCalls: Array<{
+      query: string;
+      systemPrompt: string;
+      grounding?: ReturnType<typeof buildGrounding>;
+    }> = [];
 
     const service = createChatService({
       provider: {
-        async generateAnswer() {
-          providerCalled = true;
+        async generateAnswer(input) {
+          providerCalls.push(input);
 
           return {
-            answer: "should not be used",
-            providerRequestId: "resp_unused_repeated_typo",
+            answer: "可能是 request。请先确认拼写后我再解释。",
+            providerRequestId: "resp_repeated_spelling_typo",
           };
         },
       },
@@ -534,11 +544,11 @@ describe("createChatService", () => {
       },
     });
 
-    expect(providerCalled).toBe(false);
-    expect(result.providerRequestId).toBeNull();
-    expect(result.answerKind).toBe("grounded");
-    expect(result.answer).toContain("拼写");
-    expect(result.answer).toContain("reqxust");
+    expect(providerCalls).toHaveLength(1);
+    expect(result.providerRequestId).toBe("resp_repeated_spelling_typo");
+    expect(result.answerKind).toBe("plain");
+    expect(result.grounding).toBeUndefined();
+    expect(providerCalls[0]?.systemPrompt).toContain("拼写候选");
   });
 
   it("returns a root-specific no-match answer for unsupported root queries", async () => {
