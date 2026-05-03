@@ -7,6 +7,7 @@ export type ChatHistoryMessage = {
 
 export type ChatMessage = ChatHistoryMessage & {
   id: string;
+  answerKind?: "grounded" | "plain";
   grounding?: AnswerGrounding;
   requestId?: string;
   providerRequestId?: string | null;
@@ -14,7 +15,8 @@ export type ChatMessage = ChatHistoryMessage & {
 
 export type ChatApiSuccessResponse = {
   answer: string;
-  grounding: AnswerGrounding;
+  answerKind?: "grounded" | "plain";
+  grounding?: AnswerGrounding;
   requestId: string;
   providerRequestId: string | null;
 };

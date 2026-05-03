@@ -64,7 +64,7 @@ export function MessageThread({
                     暂未稳定命中
                   </p>
                   <p className="mt-1 text-sm text-slate-700">
-                    当前考试范围内暂时还没能稳定定位到对应词条，我先不硬猜，避免答错对象。
+                    当前词库暂未稳定定位到对应词条，我先不硬猜，避免答错对象。
                   </p>
                 </div>
               ) : (

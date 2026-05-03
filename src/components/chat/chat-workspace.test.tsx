@@ -164,6 +164,60 @@ describe("ChatWorkspace", () => {
     expect(screen.getByRole("button", { name: "展开收藏工具" })).toBeInTheDocument();
   });
 
+  it("renders plain greeting answers without grounded support tools", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer:
+          "你好。你可以直接问一个单词、两个易混词，或者给我一个中文意思，我会先帮你缩小备考范围。",
+        answerKind: "plain",
+        requestId: "req_greeting",
+        providerRequestId: null,
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "你好");
+    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+
+    expect(await screen.findByText(/你可以直接问一个单词/)).toBeInTheDocument();
+    expect(screen.queryByText("命中状态")).not.toBeInTheDocument();
+    expect(screen.queryByText("暂未稳定命中")).not.toBeInTheDocument();
+    expect(screen.queryByText("收藏工具")).not.toBeInTheDocument();
+    expect(screen.queryByText(/加入收藏/i)).not.toBeInTheDocument();
+  });
+
+  it("renders plain general-learning answers without grounded support tools", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer:
+          "不是一个意思。先按通用英语理解：complex 多表示“复杂的”，complicate 是“使复杂化”。",
+        answerKind: "plain",
+        requestId: "req_plain_general",
+        providerRequestId: "resp_plain_general",
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "complex 和 complicate 是一个意思吗");
+    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+
+    expect(await screen.findByText(/complex 多表示/)).toBeInTheDocument();
+    expect(screen.queryByText("命中状态")).not.toBeInTheDocument();
+    expect(screen.queryByText("暂未稳定命中")).not.toBeInTheDocument();
+    expect(screen.queryByText("收藏工具")).not.toBeInTheDocument();
+    expect(screen.queryByText(/加入收藏/i)).not.toBeInTheDocument();
+  });
+
   it("shows a staged loading state while the answer is being prepared", async () => {
     const user = userEvent.setup();
     let resolveResponse: (value: {

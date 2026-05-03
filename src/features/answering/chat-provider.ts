@@ -11,7 +11,7 @@ export type GenerateAnswerInput = {
   history: ChatHistoryMessage[];
   requestId: string;
   systemPrompt: string;
-  grounding: AnswerGrounding;
+  grounding?: AnswerGrounding;
 };
 
 export type GenerateAnswerResult = {
@@ -83,6 +83,10 @@ function trimTrailingSlashes(value: string) {
 }
 
 function buildUserMessage(input: GenerateAnswerInput) {
+  if (!input.grounding) {
+    return `用户当前问题：${input.query}`;
+  }
+
   return [
     `用户当前问题：${input.query}`,
     "",

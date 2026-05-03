@@ -281,7 +281,7 @@ describe("createChatService", () => {
     expect(providerCalls[0]?.history).toHaveLength(1);
   });
 
-  it("short-circuits provider calls for no-match grounding", async () => {
+  it("short-circuits provider calls for low-confidence no-match grounding", async () => {
     let providerCalled = false;
 
     const service = createChatService({
@@ -300,16 +300,178 @@ describe("createChatService", () => {
 
     const result = await service.answer({
       activeExamTarget: "cet6",
-      query: "recent 这个词什么意思",
+      query: "reqxust 是什么意思",
       history: [],
       retrievalResult: {
         queryMode: "fuzzy_recall",
         normalizedQuery: {
-          raw: "recent 这个词什么意思",
-          normalizedText: "recent 这个词什么意思",
+          raw: "reqxust 是什么意思",
+          normalizedText: "reqxust 是什么意思",
           queryMode: "fuzzy_recall",
-          englishTerms: ["recent"],
-          meaningHint: "recent",
+          englishTerms: ["reqxust"],
+          meaningHint: "reqxust",
+          compareTerms: [],
+          groupSeedTerm: null,
+        },
+        resolution: "no_match",
+        noMatchReason: "low_confidence",
+        comparisonView: null,
+        candidates: [],
+        mainAnswer: [],
+        confusionBoundary: [],
+      },
+    });
+
+    expect(providerCalled).toBe(false);
+    expect(result.requestId).toBe("req_no_match_123");
+    expect(result.providerRequestId).toBeNull();
+    expect(result.grounding.resolution).toBe("no_match");
+    expect(result.grounding.noMatchReason).toBe("low_confidence");
+    expect(result.answer).toContain("这次先不硬猜");
+    expect(result.grounding.followUpPrompt).toContain("中文义项");
+  });
+
+  it("uses a plain provider fallback for clear English-learning no-match questions", async () => {
+    const providerCalls: Array<{
+      query: string;
+      systemPrompt: string;
+      grounding?: ReturnType<typeof buildGrounding>;
+    }> = [];
+
+    const service = createChatService({
+      provider: {
+        async generateAnswer(input) {
+          providerCalls.push(input);
+
+          return {
+            answer:
+              "不是一个意思。complex 多表示“复杂的”，complicate 是“使复杂化”。这条先按通用英语解释。",
+            providerRequestId: "resp_plain_123",
+          };
+        },
+      },
+      createRequestId: () => "req_plain_123",
+    });
+
+    const result = await service.answer({
+      activeExamTarget: "cet6",
+      query: "complex 和 complicate 是一个意思吗",
+      history: [],
+      retrievalResult: {
+        queryMode: "fuzzy_recall",
+        normalizedQuery: {
+          raw: "complex 和 complicate 是一个意思吗",
+          normalizedText: "complex 和 complicate 是一个意思吗",
+          queryMode: "fuzzy_recall",
+          englishTerms: ["complex", "complicate"],
+          meaningHint: "",
+          compareTerms: [],
+          groupSeedTerm: null,
+        },
+        resolution: "no_match",
+        noMatchReason: "low_confidence",
+        comparisonView: null,
+        candidates: [],
+        mainAnswer: [],
+        confusionBoundary: [],
+      },
+    });
+
+    expect(providerCalls).toHaveLength(1);
+    expect(result.requestId).toBe("req_plain_123");
+    expect(result.providerRequestId).toBe("resp_plain_123");
+    expect(result.answer).toContain("complex");
+    expect(result.answerKind).toBe("plain");
+    expect(result.grounding).toBeUndefined();
+    expect(providerCalls[0]?.systemPrompt).toContain("通用英语学习问题");
+    expect(providerCalls[0]?.systemPrompt).toContain("不要声称来自当前考试词库");
+  });
+
+  it("uses a plain provider fallback for single-word English-learning no-match questions", async () => {
+    const providerCalls: Array<{
+      query: string;
+      systemPrompt: string;
+      grounding?: ReturnType<typeof buildGrounding>;
+    }> = [];
+
+    const service = createChatService({
+      provider: {
+        async generateAnswer(input) {
+          providerCalls.push(input);
+
+          return {
+            answer:
+              "complex 通常表示“复杂的”。这条当前还没绑定到词库命中结果，所以先按通用英语理解。",
+            providerRequestId: "resp_plain_single_123",
+          };
+        },
+      },
+      createRequestId: () => "req_plain_single_123",
+    });
+
+    const result = await service.answer({
+      activeExamTarget: "cet6",
+      query: "complex 是什么意思",
+      history: [],
+      retrievalResult: {
+        queryMode: "fuzzy_recall",
+        normalizedQuery: {
+          raw: "complex 是什么意思",
+          normalizedText: "complex 是什么意思",
+          queryMode: "fuzzy_recall",
+          englishTerms: ["complex"],
+          meaningHint: "complex",
+          compareTerms: [],
+          groupSeedTerm: null,
+        },
+        resolution: "no_match",
+        noMatchReason: "out_of_kb",
+        comparisonView: null,
+        candidates: [],
+        mainAnswer: [],
+        confusionBoundary: [],
+      },
+    });
+
+    expect(providerCalls).toHaveLength(1);
+    expect(result.requestId).toBe("req_plain_single_123");
+    expect(result.providerRequestId).toBe("resp_plain_single_123");
+    expect(result.answer).toContain("complex");
+    expect(result.answerKind).toBe("plain");
+    expect(result.grounding).toBeUndefined();
+    expect(providerCalls[0]?.grounding).toBeUndefined();
+    expect(providerCalls[0]?.systemPrompt).toContain("通用英语学习问题");
+  });
+
+  it("keeps suspicious single-token typos out of plain provider fallback", async () => {
+    let providerCalled = false;
+
+    const service = createChatService({
+      provider: {
+        async generateAnswer() {
+          providerCalled = true;
+
+          return {
+            answer: "should not be used",
+            providerRequestId: "resp_unused_typo",
+          };
+        },
+      },
+      createRequestId: () => "req_typo_out_of_kb_123",
+    });
+
+    const result = await service.answer({
+      activeExamTarget: "cet6",
+      query: "reqxust 是什么意思",
+      history: [],
+      retrievalResult: {
+        queryMode: "fuzzy_recall",
+        normalizedQuery: {
+          raw: "reqxust 是什么意思",
+          normalizedText: "reqxust 是什么意思",
+          queryMode: "fuzzy_recall",
+          englishTerms: ["reqxust"],
+          meaningHint: "reqxust",
           compareTerms: [],
           groupSeedTerm: null,
         },
@@ -323,12 +485,10 @@ describe("createChatService", () => {
     });
 
     expect(providerCalled).toBe(false);
-    expect(result.requestId).toBe("req_no_match_123");
     expect(result.providerRequestId).toBeNull();
-    expect(result.grounding.resolution).toBe("no_match");
-    expect(result.grounding.noMatchReason).toBe("out_of_kb");
-    expect(result.answer).toContain("这次先不硬猜");
-    expect(result.grounding.followUpPrompt).toContain("中文义项");
+    expect(result.answerKind).toBe("grounded");
+    expect(result.grounding?.resolution).toBe("no_match");
+    expect(result.answer).toContain("不硬猜");
   });
 
   it("returns a root-specific no-match answer for unsupported root queries", async () => {

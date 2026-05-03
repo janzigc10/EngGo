@@ -22,6 +22,10 @@ const chatRequestSchema = z.object({
     .default([]),
 });
 
+function isObviousGreeting(query: string) {
+  return /^(你好|您好|hi|hello|hey)[！!。.\s]*$/i.test(query.trim());
+}
+
 export async function POST(request: Request) {
   const requestId = createRequestId();
   const payload = await request.json().catch(() => null);
@@ -47,6 +51,24 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (isObviousGreeting(parsedRequest.data.query)) {
+      return NextResponse.json(
+        {
+          answer:
+            "你好。你可以直接问一个单词、两个易混词，或者给我一个中文意思，我会先帮你缩小备考范围。",
+          answerKind: "plain",
+          requestId,
+          providerRequestId: null,
+        },
+        {
+          status: 200,
+          headers: {
+            "x-request-id": requestId,
+          },
+        },
+      );
+    }
+
     const retrievalResult = await retrieveCandidates({
       activeExamTarget: parsedRequest.data.activeExamTarget,
       query: parsedRequest.data.query,

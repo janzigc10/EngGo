@@ -107,6 +107,7 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
           id: createMessageId("assistant"),
           role: "assistant",
           content: payload.answer,
+          answerKind: payload.answerKind,
           grounding: payload.grounding,
           requestId: payload.requestId,
           providerRequestId: payload.providerRequestId,
