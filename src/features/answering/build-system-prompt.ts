@@ -51,8 +51,19 @@ function buildClusterLabelInstruction(grounding: AnswerGrounding) {
   return instructions.join("\n");
 }
 
+function hasSourceLemmaMainAnswer(grounding: AnswerGrounding) {
+  return grounding.mainAnswer.some((candidate) => candidate.sourceKind === "source_lemma");
+}
+
 function buildStyleInstruction(grounding: AnswerGrounding) {
   if (grounding.answerStyle === "standard_lookup") {
+    const sourceLemmaInstruction = hasSourceLemmaMainAnswer(grounding)
+      ? [
+          "source lemma fallback: 本次主答案只来自 source lemma index，还没有人工结构化释义。",
+          "只能解释 grounding.mainAnswer[0].lemma 这个已确认词，不要判断范围，不要扩展相似词，不要生成易混组。",
+          "允许使用通用词典知识给一个很短的中文核心义；不要写 source lemma、例句、搭配、Markdown、范围提示或下一步追问。",
+        ].join("\n")
+      : "";
     const correctionInstruction = grounding.spellingCorrection
       ? [
           `本次是拼写纠错查词：用户输入 ${grounding.spellingCorrection.input}，grounding 主答案是 ${grounding.spellingCorrection.lemma}。`,
@@ -69,6 +80,7 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
       grounding.spellingCorrection
         ? "按信息顺序组织：先给拼写纠错提示，再解释当前词的核心义；没有 confusionBoundary 时不要补边界。"
         : "按信息顺序组织：先解释当前词的核心义，再在有 grounding.confusionBoundary 时补一句边界；本次不要主动写范围提醒。",
+      sourceLemmaInstruction,
       correctionInstruction,
       `最终答案不要出现 ${grounding.activeExamTargetLabel}、考试范围、范围内这类范围提示；范围只用于内部选词。`,
       "不要把“主答案”“易混边界”“范围提醒”写成可见小标题，也不要用 Markdown 加粗来造小标题。",

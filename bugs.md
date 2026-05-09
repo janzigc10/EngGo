@@ -64,6 +64,11 @@ Windows PowerShell 直接用 `Invoke-RestMethod` / `Invoke-WebRequest` 发中文
   - 回答出现 `CET` / 当前范围尾巴
   - 主动扩出未召回同义词
   - Markdown 加粗、`例如` 或“没有需要区分”等模板痕迹
+- Scheme C source lemma fallback 第一版只覆盖普通 exact 查词：
+  - source-only candidate 没有人工结构化 `meaningsZh`、例句、搭配或易混关系，provider 只能生成短释义。
+  - 不要把 source-only fallback 用到易混词辨析、词根家族、表达召回或向量语义召回。
+  - 当前没有 `generated_unreviewed` 持久化缓存，真实 provider 首次查未结构化词仍会有延迟、成本和输出波动。
+  - `postgrad` 仍无 entry-level 机器可读 source lemma，不要顺手扩到 postgrad。
 - `root_family_summary` 当前仍是最小原型：
   - `stitute` / `tempt` 两族可用
   - 结构化词形过滤可用

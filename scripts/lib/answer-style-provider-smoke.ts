@@ -121,6 +121,8 @@ const STANDARD_LOOKUP_FORBIDDEN_ANSWER_TEXT = [
   "#",
   "例如",
   "例句",
+  "source lemma",
+  "source lemma index",
 ];
 
 function standardLookupForbiddenAnswerText(...terms: string[]) {
@@ -372,6 +374,19 @@ export function buildStandardLookupProviderSmokeCases(): ProviderSmokeCase[] {
         "scholarly",
         "educational",
       ],
+      expectedComparisonViewId: null,
+      expectedRootFamilyViewId: null,
+      manualChecks: DEFAULT_STANDARD_LOOKUP_MANUAL_CHECKS,
+    }),
+    createCase({
+      name: "standard: source lemma accent lookup",
+      query: "accent",
+      activeExamTarget: "cet4",
+      expectedQueryMode: "direct_lookup",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "standard_lookup",
+      expectedGroundingIncludes: ["accent"],
+      forbiddenAnswerIncludes: STANDARD_LOOKUP_FORBIDDEN_ANSWER_TEXT,
       expectedComparisonViewId: null,
       expectedRootFamilyViewId: null,
       manualChecks: DEFAULT_STANDARD_LOOKUP_MANUAL_CHECKS,

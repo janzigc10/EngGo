@@ -7,6 +7,7 @@ import type {
   RootFamilyView,
   RetrievalResolution,
   RetrievalCandidate,
+  RetrievalMatchType,
 } from "@/features/retrieval/types";
 
 const examTargetLabels: Record<ExamScopeCode, string> = {
@@ -24,6 +25,7 @@ export type AnswerGrounding = {
   answerStyle: AnswerStyle;
   resolution: RetrievalResolution;
   noMatchReason: NoMatchReason | null;
+  matchType?: RetrievalMatchType | null;
   mainAnswer: RetrievalCandidate[];
   confusionBoundary: RetrievalCandidate[];
   scopeReminder: string;
@@ -42,6 +44,7 @@ type BuildGroundingInput = {
   queryMode: QueryMode;
   resolution: RetrievalResolution;
   noMatchReason: NoMatchReason | null;
+  matchType?: RetrievalMatchType | null;
   mainAnswer: RetrievalCandidate[];
   confusionBoundary: RetrievalCandidate[];
   comparisonView: ComparisonView | null;
@@ -166,6 +169,7 @@ export function buildGrounding(input: BuildGroundingInput): AnswerGrounding {
     answerStyle: deriveAnswerStyle(input.queryMode, input.comparisonView),
     resolution: input.resolution,
     noMatchReason: input.noMatchReason,
+    matchType: input.matchType ?? null,
     mainAnswer: input.mainAnswer,
     confusionBoundary: input.confusionBoundary,
     scopeReminder: buildScopeReminder(

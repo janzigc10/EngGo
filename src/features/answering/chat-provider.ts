@@ -107,6 +107,7 @@ function sanitizeCandidateForStandardLookup(
     lemma: candidate.lemma,
     meaningsZh: candidate.meaningsZh,
     matchedAlias: candidate.matchedAlias,
+    sourceKind: candidate.sourceKind,
   };
 }
 
@@ -117,6 +118,7 @@ function sanitizeStandardLookupGrounding(grounding: AnswerGrounding) {
     answerStyle: grounding.answerStyle,
     resolution: grounding.resolution,
     noMatchReason: grounding.noMatchReason,
+    matchType: grounding.matchType ?? null,
     mainAnswer: grounding.mainAnswer.map(sanitizeCandidateForStandardLookup),
     confusionBoundary: grounding.confusionBoundary.map(sanitizeCandidateForStandardLookup),
     comparisonView: grounding.comparisonView,

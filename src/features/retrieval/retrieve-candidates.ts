@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { findSourceLemmaMembershipsForLemma } from "@/features/content/source-lemma-sources";
 import type { ExamScopeCode } from "@/features/content/import-types";
 import {
   confusionClusterLabels,
@@ -29,6 +30,7 @@ import type {
   NoMatchReason,
   RankableCandidate,
   RankedCandidate,
+  RetrievalMatchType,
   RetrievalCandidate,
   RetrievalResult,
   RootFamilyView,
@@ -88,14 +90,14 @@ type RetrieveCandidatesInput = {
 
 type StableSelection = {
   candidate: RankedCandidate | null;
-  matchType: "exact" | "fuzzy" | null;
+  matchType: Extract<RetrievalMatchType, "exact" | "fuzzy"> | null;
   noMatchReason: NoMatchReason;
 };
 
 type TermResolution = {
   term: string;
   candidate: RankedCandidate | null;
-  matchType: "exact" | "fuzzy" | null;
+  matchType: Extract<RetrievalMatchType, "exact" | "fuzzy"> | null;
   noMatchReason: NoMatchReason;
   candidates: RankedCandidate[];
 };
@@ -172,6 +174,7 @@ function toRetrievalCandidate(candidate: RankedCandidate): RetrievalCandidate {
     inScope: candidate.inScope,
     reason: candidate.reason,
     score: candidate.score,
+    sourceKind: candidate.sourceKind,
   };
 }
 
@@ -348,6 +351,7 @@ function createNoMatchResult(
     normalizedQuery,
     resolution: "no_match",
     noMatchReason,
+    matchType: null,
     candidates: candidates.map(toRetrievalCandidate),
     mainAnswer: [],
     confusionBoundary: [],
@@ -363,12 +367,14 @@ function createResolvedResult(
   confusionBoundary: RetrievalCandidate[],
   comparisonView: ComparisonView | null,
   rootFamilyView: RootFamilyView | null = null,
+  matchType: RetrievalMatchType | null = null,
 ): RetrievalResult {
   return {
     queryMode: normalizedQuery.queryMode,
     normalizedQuery,
     resolution: "resolved",
     noMatchReason: null,
+    matchType,
     candidates: candidates.map(toRetrievalCandidate),
     mainAnswer,
     confusionBoundary,
@@ -680,6 +686,67 @@ async function findEnglishRankedCandidates(
         provenance,
       });
     }),
+  );
+}
+
+function uniqueSourceScopes(scopeCodes: ExamScopeCode[]) {
+  return uniqueValues(scopeCodes).sort(
+    (left, right) =>
+      ["gaokao", "cet4", "cet6", "postgrad"].indexOf(left)
+      - ["gaokao", "cet4", "cet6", "postgrad"].indexOf(right),
+  );
+}
+
+async function findSourceLemmaRankedCandidate(
+  activeExamTarget: ExamScopeCode,
+  needle: string,
+): Promise<RankedCandidate | null> {
+  if (activeExamTarget === "postgrad") {
+    return null;
+  }
+
+  const memberships = await findSourceLemmaMembershipsForLemma({ lemma: needle });
+
+  if (!memberships.some((membership) => membership.scopeCode === activeExamTarget)) {
+    return null;
+  }
+
+  const lemma = memberships[0]?.lemma ?? needle.toLowerCase();
+
+  return {
+    entryId: `source-lemma:${lemma}`,
+    lemma,
+    meaningsZh: [],
+    matchedAlias: null,
+    scopeCodes: uniqueSourceScopes(memberships.map((membership) => membership.scopeCode)),
+    confusionGroupIds: [],
+    exactLemma: true,
+    exactAlias: false,
+    textScore: 1,
+    meaningMatch: false,
+    fromConfusionGroup: false,
+    provenance: ["source_lemma"],
+    sourceKind: "source_lemma",
+    inScope: true,
+    reason: "source lemma exact match",
+    score: 18,
+  };
+}
+
+function shouldTrySourceLemmaFallback(
+  normalizedQuery: ReturnType<typeof normalizeQuery>,
+  needle: string,
+) {
+  if (
+    normalizedQuery.queryMode !== "direct_lookup"
+    && normalizedQuery.queryMode !== "fuzzy_recall"
+  ) {
+    return false;
+  }
+
+  return (
+    normalizedQuery.englishTerms.length === 1
+    && normalizedQuery.englishTerms[0] === needle
   );
 }
 
@@ -1239,6 +1306,25 @@ async function handleEnglishLookup(
       );
     }
 
+    if (shouldTrySourceLemmaFallback(normalizedQuery, needle)) {
+      const sourceLemmaCandidate = await findSourceLemmaRankedCandidate(
+        input.activeExamTarget,
+        needle,
+      );
+
+      if (sourceLemmaCandidate) {
+        return createResolvedResult(
+          normalizedQuery,
+          uniqueRankedCandidates([...rankedCandidates, sourceLemmaCandidate]),
+          [toRetrievalCandidate(sourceLemmaCandidate)],
+          [],
+          null,
+          null,
+          "source_lemma_exact",
+        );
+      }
+    }
+
     return createNoMatchResult(
       normalizedQuery,
       rankedCandidates,
@@ -1275,6 +1361,8 @@ async function handleEnglishLookup(
     mainAnswer,
     confusionBoundary,
     null,
+    null,
+    selection.matchType,
   );
 }
 

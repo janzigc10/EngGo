@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildGrounding } from "@/features/answering/build-grounding";
 import { createChatService } from "@/features/answering/chat-service";
+import type { GenerateAnswerInput } from "@/features/answering/chat-provider";
 import type { RetrievalResult } from "@/features/retrieval/types";
 
 function createMeaningLookupResult(): RetrievalResult {
@@ -291,6 +292,73 @@ describe("createChatService", () => {
     expect(result.answer).not.toContain("**");
     expect(result.answer).not.toContain("没有需要区分");
     expect(result.providerRequestId).toBe("resp_standard_lookup");
+  });
+
+  it("keeps source-lemma exact lookups inside the standard lookup boundary", async () => {
+    const providerCalls: GenerateAnswerInput[] = [];
+    const service = createChatService({
+      provider: {
+        async generateAnswer(input) {
+          providerCalls.push(input);
+
+          return {
+            answer:
+              "**accent** core meaning: accent or stress. CET-4 range note should be removed.",
+            providerRequestId: "resp_source_lemma",
+          };
+        },
+      },
+      createRequestId: () => "req_source_lemma",
+    });
+
+    const retrievalResult = {
+      queryMode: "direct_lookup",
+      normalizedQuery: {
+        raw: "accent",
+        normalizedText: "accent",
+        queryMode: "direct_lookup",
+        englishTerms: ["accent"],
+        meaningHint: "accent",
+        compareTerms: [],
+        groupSeedTerm: null,
+      },
+      resolution: "resolved",
+      noMatchReason: null,
+      comparisonView: null,
+      candidates: [],
+      mainAnswer: [
+        {
+          entryId: "source-lemma:accent",
+          lemma: "accent",
+          meaningsZh: [],
+          matchedAlias: null,
+          scopeCodes: ["gaokao", "cet4", "cet6"],
+          inScope: true,
+          reason: "source lemma exact match",
+          score: 18,
+          sourceKind: "source_lemma",
+        },
+      ],
+      confusionBoundary: [],
+      matchType: "source_lemma_exact",
+    } satisfies RetrievalResult;
+
+    const result = await service.answer({
+      activeExamTarget: "cet4",
+      query: "accent",
+      history: [],
+      retrievalResult,
+    });
+
+    expect(result.answer).not.toContain("**");
+    expect(result.answer).not.toContain("CET");
+    expect(result.answerKind).toBe("grounded");
+    expect(result.grounding?.answerStyle).toBe("standard_lookup");
+    expect(providerCalls[0]?.systemPrompt).toContain("source lemma");
+    expect(providerCalls[0]?.grounding?.mainAnswer[0]).toMatchObject({
+      lemma: "accent",
+      sourceKind: "source_lemma",
+    });
   });
 
   it("passes structured grounding and request ids into the provider", async () => {

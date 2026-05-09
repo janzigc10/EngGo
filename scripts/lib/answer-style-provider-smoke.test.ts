@@ -149,6 +149,7 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
 
     expect(cases.map((item) => item.name)).toEqual([
       "standard: academic lookup",
+      "standard: source lemma accent lookup",
       "standard: institute lookup",
       "standard: institution lookup",
       "standard: constitute lookup",
@@ -169,7 +170,7 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
       "standard: evidence lookup",
       "standard: significant lookup",
     ]);
-    expect(cases).toHaveLength(20);
+    expect(cases).toHaveLength(21);
     expect(cases.every((item) =>
       item.expectedAnswerStyle === "standard_lookup"
       && item.expectedResolution === "resolved"

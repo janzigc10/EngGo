@@ -17,7 +17,7 @@ export type BlackBoxProductSmokeCategory =
 export type BlackBoxProductSmokeCase = {
   name: string;
   category: BlackBoxProductSmokeCategory;
-  source: "existing" | "batch3" | "condition-parser";
+  source: "existing" | "batch3" | "condition-parser" | "source-lemma";
   query: string;
   activeExamTarget: ExamScopeCode;
   expectedQueryMode: QueryMode;
@@ -76,6 +76,17 @@ export function buildBlackBoxProductSmokeCases(): BlackBoxProductSmokeCase[] {
       expectedResolution: "resolved",
       expectedAnswerStyle: "standard_lookup",
       expectedGroundingIncludes: ["gain"],
+    }),
+    createCase({
+      name: "standard: source lemma accent",
+      category: "standard_lookup",
+      source: "source-lemma",
+      query: "accent",
+      activeExamTarget: "cet4",
+      expectedQueryMode: "direct_lookup",
+      expectedResolution: "resolved",
+      expectedAnswerStyle: "standard_lookup",
+      expectedGroundingIncludes: ["accent"],
     }),
     createCase({
       name: "standard: generate",

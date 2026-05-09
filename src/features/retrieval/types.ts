@@ -51,12 +51,15 @@ export type RetrievalResolution = "resolved" | "no_match";
 
 export type NoMatchReason = "low_confidence" | "out_of_kb";
 
+export type RetrievalMatchType = "exact" | "fuzzy" | "source_lemma_exact";
+
 export type CandidateProvenance =
   | "exact_lemma"
   | "exact_alias"
   | "fuzzy_text"
   | "meaning_match"
-  | "confusion_group";
+  | "confusion_group"
+  | "source_lemma";
 
 export type NormalizedQuery = {
   raw: string;
@@ -77,6 +80,7 @@ export type RetrievalCandidate = {
   inScope: boolean;
   reason: string;
   score: number;
+  sourceKind?: "structured" | "source_lemma";
 };
 
 export type ComparisonView = {
@@ -103,6 +107,7 @@ export type RetrievalResult = {
   normalizedQuery: NormalizedQuery;
   resolution: RetrievalResolution;
   noMatchReason: NoMatchReason | null;
+  matchType?: RetrievalMatchType | null;
   candidates: RetrievalCandidate[];
   mainAnswer: RetrievalCandidate[];
   confusionBoundary: RetrievalCandidate[];
@@ -123,6 +128,7 @@ export type RankableCandidate = {
   meaningMatch: boolean;
   fromConfusionGroup: boolean;
   provenance: CandidateProvenance[];
+  sourceKind?: "structured" | "source_lemma";
 };
 
 export type RankedCandidate = RankableCandidate & {

@@ -47,18 +47,20 @@ RAG / 词库负责提供证据、命中状态和收藏入口；它不应该成�
   - 已在 `chat-service` 的 `standard_lookup` 返回口做窄清理：移除 Markdown 装饰，并丢弃含范围提示、例句、下一步、无易混词说明的句子；只作用于普通查词。
   - 复跑 `corepack pnpm eval:standard-lookup:provider`：20 total / 20 pass / 0 fail。
   - 复跑 `corepack pnpm eval:product-smoke`：37 total / 37 pass / 0 fail。
+- 2026-05-09 Scheme C source lemma fallback 第一版：
+  - 新增文件级 source lemma loader，复用 `gaokao-2020-lemmas.txt` 和 `cet-2016-lemmas.tsv`；`cet4` sourceScope 同时计入 `cet4` 和 `cet6`，`cet6-extra` 只计入 `cet6`。
+  - 普通英文查词在 structured entry miss 后，会用 exact source lemma membership 兜底；例如 `accent` 在 CET-4 下返回 resolved source-only candidate。
+  - source-only 候选仍走 `standard_lookup`，不新增新的回答风格；provider grounding 只暴露窄字段和 `sourceKind`，不暴露 scope 元数据。
+  - 第一版不做持久化 generated profile cache、不做 source-only 易混词、不做 source-only 词根族、不做向量语义召回。
 
 ## 下一步建议
-普通查词现有 provider smoke 已清理到 20/20。下一步建议回到 source-backed 词库路线：先做 `real-smoke` batch 4 的小批候选池，不直接全量导入。
+普通查词现有 provider smoke 已清理到 20/20。词库扩容路线已从“继续人工 batch 4 结构化扩词”调整为 Scheme C：
 
-建议顺序：
-1. 先列 30-50 个来源可审计、考试高频的候选 lemma / confusion group。
-2. 从中选 15-20 个 P0 组或基础高频词进入 batch 4。
-3. 导入前跑内容检查，导入后串行跑：
-   - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 700 --require-source-lemmas`
-   - `corepack pnpm eval:lookalike:real-smoke`
-   - 新增 batch 4 可见价值 smoke，不只复跑旧集合。
-4. 若候选来源不稳，先停在候选池评审，不要为了凑 700+ 编造条目。
+1. 先用文件级 `source-lemmas` 做 source lemma membership，覆盖现有未结构化基础词。
+2. structured entry miss 后，只对普通英文 exact 查词启用 source lemma fallback。
+3. source-only 候选仍走 `standard_lookup`，不新增 answerStyle；候选标记 `sourceKind: "source_lemma"` 和 `matchType: "source_lemma_exact"`。
+4. provider 只负责给已确认 lemma 生成短释义，不判断范围、不扩词、不生成易混组。
+5. 下一步先验收 10-20 条未结构化 source lemma 普通查词 smoke，再决定是否加 `generated_unreviewed` 缓存。
 
 暂缓：
 - 全量几千词一次性导入
@@ -75,6 +77,17 @@ RAG / 词库负责提供证据、命中状态和收藏入口；它不应该成�
 - `corepack pnpm exec tsc --noEmit` 仍是已知工程债，尚未纳入当前完成标准。
 
 ## 最近验证基线
+- 2026-05-09 Scheme C source lemma fallback 后：
+  - `corepack pnpm test src/features/content/source-lemma-sources.test.ts scripts/check-vocab-content.test.ts src/features/retrieval/retrieve-candidates.test.ts src/features/answering/chat-service.test.ts src/features/answering/chat-provider.test.ts src/features/answering/build-system-prompt.test.ts scripts/lib/answer-style-provider-smoke.test.ts scripts/lib/black-box-product-smoke.test.ts`
+    - 8 files / 125 tests passed
+  - focused eslint on changed source/retrieval/answering/smoke files
+    - 通过
+  - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 500 --require-source-lemmas`
+    - 546 entries / 34 confusion groups / scopes=gaokao, cet4, cet6
+  - `corepack pnpm eval:product-smoke`
+    - 38 total / 38 pass / 0 fail（新增 source lemma `accent` case）
+  - `corepack pnpm eval:standard-lookup:provider`
+    - 21 total / 21 pass / 0 fail（新增 source lemma `accent` case）
 - 2026-05-08 普通查词 exact lookup 污染验收后：
   - `corepack pnpm test src/features/answering/chat-provider.test.ts src/features/answering/build-system-prompt.test.ts src/features/answering/chat-service.test.ts`
     - 3 files / 26 tests passed

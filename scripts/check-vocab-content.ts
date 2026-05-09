@@ -1,8 +1,8 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { loadVocabContent } from "../src/features/content/load-seed-content";
 import { summarizeSeedContent } from "../src/features/content/seed-content-rules";
+import { loadSourceLemmaMemberships } from "../src/features/content/source-lemma-sources";
 
 type CheckVocabContentOptions = {
   datasetName: string;
@@ -10,8 +10,6 @@ type CheckVocabContentOptions = {
   minEntries?: number;
   requireSourceLemmas?: boolean;
 };
-
-type SourceScope = "gaokao" | "cet4" | "cet6";
 
 const supportedFlags = new Set([
   "--dataset",
@@ -91,77 +89,6 @@ export function readDatasetName(argv: string[]) {
   return readCheckVocabContentOptions(argv).datasetName;
 }
 
-function addSourceScope(
-  sourceLemmaScopes: Map<string, Set<SourceScope>>,
-  lemma: string,
-  scope: SourceScope,
-) {
-  const normalizedLemma = lemma.trim().toLowerCase();
-
-  if (!normalizedLemma) {
-    return;
-  }
-
-  const scopes = sourceLemmaScopes.get(normalizedLemma) ?? new Set<SourceScope>();
-  scopes.add(scope);
-  sourceLemmaScopes.set(normalizedLemma, scopes);
-}
-
-async function loadSourceLemmaScopes(baseDir: string) {
-  const sourceDir = path.join(baseDir, "source-lemmas");
-  const sourceLemmaScopes = new Map<string, Set<SourceScope>>();
-  const [gaokaoRaw, cetRaw] = await Promise.all([
-    readFile(path.join(sourceDir, "gaokao-2020-lemmas.txt"), "utf8"),
-    readFile(path.join(sourceDir, "cet-2016-lemmas.tsv"), "utf8"),
-  ]);
-
-  for (const lemma of gaokaoRaw.split(/\r?\n/)) {
-    addSourceScope(sourceLemmaScopes, lemma, "gaokao");
-  }
-
-  for (const line of cetRaw.split(/\r?\n/)) {
-    const [lemma, sourceScope] = line.split("\t");
-
-    if (lemma === "lemma" || !sourceScope) {
-      continue;
-    }
-
-    if (sourceScope === "cet4") {
-      addSourceScope(sourceLemmaScopes, lemma, "cet4");
-      continue;
-    }
-
-    if (sourceScope === "cet6-extra") {
-      addSourceScope(sourceLemmaScopes, lemma, "cet6");
-    }
-  }
-
-  return sourceLemmaScopes;
-}
-
-function isExamScopeSourceBacked(
-  sourceScopes: Set<SourceScope> | undefined,
-  examScope: string,
-) {
-  if (!sourceScopes) {
-    return false;
-  }
-
-  if (examScope === "gaokao") {
-    return sourceScopes.has("gaokao");
-  }
-
-  if (examScope === "cet4") {
-    return sourceScopes.has("cet4");
-  }
-
-  if (examScope === "cet6") {
-    return sourceScopes.has("cet4") || sourceScopes.has("cet6");
-  }
-
-  return false;
-}
-
 async function ensureSourceLemmaCoverage({
   baseDir,
   entries,
@@ -169,12 +96,20 @@ async function ensureSourceLemmaCoverage({
   baseDir: string;
   entries: Awaited<ReturnType<typeof loadVocabContent>>["entries"];
 }) {
-  const sourceLemmaScopes = await loadSourceLemmaScopes(baseDir);
+  const memberships = await loadSourceLemmaMemberships({ baseDir });
+  const sourceLemmaScopes = new Map<string, Set<string>>();
+
+  for (const membership of memberships) {
+    const scopes = sourceLemmaScopes.get(membership.lemma) ?? new Set<string>();
+    scopes.add(membership.scopeCode);
+    sourceLemmaScopes.set(membership.lemma, scopes);
+  }
+
   const missing = entries.flatMap((entry) => {
     const sourceScopes = sourceLemmaScopes.get(entry.lemma.toLowerCase());
 
     return entry.examScopes
-      .filter((examScope) => !isExamScopeSourceBacked(sourceScopes, examScope))
+      .filter((examScope) => !sourceScopes?.has(examScope))
       .map((examScope) => `${entry.lemma}[${examScope}]`);
   });
 

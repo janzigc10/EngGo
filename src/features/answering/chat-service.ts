@@ -163,6 +163,8 @@ const standardLookupForbiddenAnswerFragments = [
   "您可",
   "你可以",
   "可根据语境",
+  "source lemma",
+  "source lemma index",
 ];
 
 function buildStandardLookupFallbackAnswer(grounding: AnswerGrounding) {
@@ -170,6 +172,10 @@ function buildStandardLookupFallbackAnswer(grounding: AnswerGrounding) {
 
   if (!mainAnswer) {
     return "";
+  }
+
+  if (mainAnswer.meaningsZh.length === 0 && mainAnswer.sourceKind === "source_lemma") {
+    return `${mainAnswer.lemma} 已在 source lemma 中命中，但这条还没有人工结构化释义。`;
   }
 
   const meanings = mainAnswer.meaningsZh.join("、");
@@ -190,7 +196,7 @@ function cleanStandardLookupAnswer(answer: string, grounding: AnswerGrounding) {
     .replace(/\s+/g, " ")
     .trim();
 
-  const sentences = withoutMarkdown.match(/[^。！？!?]+[。！？!?]?/g) ?? [];
+  const sentences = withoutMarkdown.match(/[^。！？.!?]+[。！？.!?]?/g) ?? [];
   const keptSentences = sentences
     .map((sentence) => sentence.trim())
     .filter(Boolean)
@@ -217,6 +223,7 @@ export function createChatService(options: CreateChatServiceOptions = {}) {
         queryMode: input.retrievalResult.queryMode,
         resolution: input.retrievalResult.resolution,
         noMatchReason: input.retrievalResult.noMatchReason,
+        matchType: input.retrievalResult.matchType ?? null,
         mainAnswer: input.retrievalResult.mainAnswer,
         confusionBoundary: input.retrievalResult.confusionBoundary,
         comparisonView: input.retrievalResult.comparisonView,

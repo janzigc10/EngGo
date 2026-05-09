@@ -193,6 +193,29 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     expect(horizonResult.mainAnswer[0]?.lemma).toBe("horizon");
   });
 
+  it("resolves exact source lemmas that do not have structured entries yet", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet4",
+      query: "accent",
+    });
+
+    expect(result.queryMode).toBe("direct_lookup");
+    expect(result.resolution).toBe("resolved");
+    expect(result.comparisonView).toBeNull();
+    expect(result.confusionBoundary).toHaveLength(0);
+    expect(result.mainAnswer).toHaveLength(1);
+    expect(result.mainAnswer[0]).toMatchObject({
+      entryId: "source-lemma:accent",
+      lemma: "accent",
+      meaningsZh: [],
+      matchedAlias: null,
+      scopeCodes: ["gaokao", "cet4", "cet6"],
+      inScope: true,
+      sourceKind: "source_lemma",
+    });
+    expect((result as { matchType?: string }).matchType).toBe("source_lemma_exact");
+  });
+
   it("resolves tight second-layer typo lookups inside the current exam scope", async () => {
     const requestResult = await retrieveCandidates({
       activeExamTarget: "cet6",
