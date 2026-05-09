@@ -54,6 +54,8 @@ RAG / 词库负责提供证据、命中状态和收藏入口；它不应该成�
   - source-only 普通查词提示词已从“极短核心义”收紧为学生友好的微词典模板：核心义 + 简单理解；真实 provider smoke 中 `accent` 输出为“核心义是……；简单理解……”。
   - 普通查词词性展示统一改为 `n. / v. / adj. / adv.` 等英文缩写；`standard_lookup` 返回口会兜底清理“名词/动词/形容词/副词”，并补拦“无需要区分/无需区分”等易混词污染话术。
   - source-only 抽样 provider smoke 跑了 22 个未结构化词；首轮发现 `emphasis -> emphasize`、`frequency -> frequent`、`journal -> journey` 的检索优先级错误，已改为 exact source lemma 优先于 structured fuzzy neighbor，保留 structured exact 优先。
+  - 新增 `eval:source-only:provider` 抽样工具：从 source lemma 中排除已结构化词和不适合 exact lookup 的短词/标点词，自动生成普通查词 provider cases，用于决定哪些词值得结构化。
+  - 首轮 source-only 工具发现 `a.m` 这类标点 lemma 不适合普通 exact 抽样，以及 provider 偶发“检索未提供/无法进一步解释”泄露；已通过抽样过滤、source-only prompt 和 `standard_lookup` 返回口清理修掉。
   - 第一版不做持久化 generated profile cache、不做 source-only 易混词、不做 source-only 词根族、不做向量语义召回。
 
 ## 下一步建议
@@ -63,7 +65,7 @@ RAG / 词库负责提供证据、命中状态和收藏入口；它不应该成�
 2. structured entry miss 后，只对普通英文 exact 查词启用 source lemma fallback。
 3. source-only 候选仍走 `standard_lookup`，不新增 answerStyle；候选标记 `sourceKind: "source_lemma"` 和 `matchType: "source_lemma_exact"`。
 4. provider 只负责给已确认 lemma 生成短释义，不判断范围、不扩词、不生成易混组。
-5. 下一步先扩到 10-20 条未结构化 source lemma 普通查词 smoke，再决定是否加 `generated_unreviewed` 缓存。
+5. 下一步用 `corepack pnpm eval:source-only:provider -- --limit 30 --offset 10` 扩大 source-only 抽样，按 fail 类型决定是补 prompt/清洗，还是把个别高价值词升级为 structured entry。
 
 暂缓：
 - 全量几千词一次性导入
@@ -80,6 +82,17 @@ RAG / 词库负责提供证据、命中状态和收藏入口；它不应该成�
 - `corepack pnpm exec tsc --noEmit` 仍是已知工程债，尚未纳入当前完成标准。
 
 ## 最近验证基线
+- 2026-05-09 source-only 普通查词抽样工具后：
+  - `corepack pnpm test scripts/lib/source-only-lookup-sample.test.ts scripts/lib/answer-style-provider-smoke.test.ts src/features/answering/build-system-prompt.test.ts src/features/answering/chat-service.test.ts scripts/run-answer-style-provider-smoke.test.ts`
+    - 5 files / 62 tests passed
+  - focused eslint on changed source-only sampling / answering / provider-smoke files
+    - 通过
+  - `corepack pnpm eval:source-only:provider -- --limit 10`
+    - 10 total / 10 pass / 0 fail；候选池显示 7404 个 lookup-friendly source-only lemmas；样例包括 `abbreviation`、`abide`、`abolish`、`about`
+  - `corepack pnpm eval:standard-lookup:provider`
+    - 21 total / 21 pass / 0 fail
+  - `corepack pnpm eval:product-smoke`
+    - 38 total / 38 pass / 0 fail
 - 2026-05-09 普通查词词性缩写与污染变体清理后：
   - `corepack pnpm test src/features/answering/build-system-prompt.test.ts src/features/answering/chat-service.test.ts scripts/lib/answer-style-provider-smoke.test.ts`
     - 3 files / 49 tests passed

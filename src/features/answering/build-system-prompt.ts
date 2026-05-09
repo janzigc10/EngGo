@@ -64,6 +64,7 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
           "词性只能来自通用词典知识，必须使用 n. / v. / adj. / adv. 等英文缩写；不要写“名词”“动词”“形容词”“副词”。",
           "不确定词性时省略词性，直接写“lemma 的核心义是...；简单理解就是...”。",
           "只能解释 grounding.mainAnswer[0].lemma 这个已确认词，不要判断范围，不要扩展相似词，不要生成易混组。",
+          "不要说检索未提供、无法解释或让用户补充查询；source-only 缺少人工释义时，也要用通用词典知识给短释义。",
           "允许使用通用词典知识给一个很短的中文核心义；不要写 source lemma、例句、搭配、Markdown、范围提示或下一步追问。",
         ].join("\n")
       : "";

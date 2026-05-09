@@ -140,6 +140,7 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("简单理解");
     expect(prompt).toContain("不确定词性时省略词性");
     expect(prompt).toContain("不要写 source lemma");
+    expect(prompt).toContain("不要说检索未提供、无法解释或让用户补充查询");
     expect(prompt).not.toContain("常见词性");
     expect(prompt).not.toContain("这次回答已优先锁定在 CET-4 范围内。");
   });

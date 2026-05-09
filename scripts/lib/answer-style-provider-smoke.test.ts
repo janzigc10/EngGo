@@ -289,7 +289,7 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
         rootFamilyView: null,
       },
       answer:
-        "主答案：academic 是学术的。无需要区分的易混词。它常见作形容词，也接近 scholarly。",
+        "主答案：academic 是学术的。无需要区分的易混词。当前检索未提供中文核心义。它常见作形容词，也接近 scholarly。",
     });
 
     expect(verdict.autoVerdict).toBe("fail");
@@ -297,6 +297,7 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
       expect.arrayContaining([
         "answer should not include 主答案",
         "answer should not include 无需要区分",
+        "answer should not include 当前检索",
         "answer should not include 形容词",
         "answer should not include scholarly",
       ]),

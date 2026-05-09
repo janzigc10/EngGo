@@ -58,3 +58,20 @@
 - [x] Run focused lint.
 - [x] Run `eval:product-smoke`.
 - [x] If local services are healthy, run `eval:standard-lookup:provider`.
+
+### Task 5: Source-Only Lookup Sampling
+
+**Files:**
+- Create: `scripts/lib/source-only-lookup-sample.ts`
+- Create: `scripts/lib/source-only-lookup-sample.test.ts`
+- Create: `scripts/run-source-only-lookup-sample.ts`
+- Modify: `scripts/lib/answer-style-provider-smoke.ts`
+- Modify: `package.json`
+- Modify: `progress.md`
+
+- [x] Write tests for filtering structured lemmas, de-duplicating source-only lemmas across scopes, and parsing sample runner options.
+- [x] Run the new tests and confirm they fail before implementation.
+- [x] Implement the source-only sample case builder.
+- [x] Add the provider runner and package script.
+- [x] Run focused tests and lint.
+- [x] Run a small source-only provider sample and record the result.

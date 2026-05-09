@@ -107,18 +107,24 @@ const DEFAULT_STANDARD_LOOKUP_MANUAL_CHECKS = [
   "检查回答是否像短查词，而不是百科讲义或易混词课",
 ];
 
-const STANDARD_LOOKUP_FORBIDDEN_ANSWER_TEXT = [
+export const STANDARD_LOOKUP_FORBIDDEN_ANSWER_TEXT = [
   "主答案",
   "易混边界",
   "范围提醒",
   "建议的范围提醒",
   "建议的下一步追问",
   "CET",
-  "范围",
   "后续",
   "没有需要区分",
   "无需要区分",
   "无需区分",
+  "当前检索",
+  "检索层",
+  "未提供中文核心义",
+  "未提供足够释义",
+  "无法进一步解释",
+  "无法解释",
+  "补充查询",
   "名词",
   "动词",
   "形容词",

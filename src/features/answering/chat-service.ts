@@ -159,6 +159,13 @@ const standardLookupForbiddenAnswerFragments = [
   "没有需要区分",
   "无需要区分",
   "无需区分",
+  "当前检索",
+  "检索层",
+  "未提供中文核心义",
+  "未提供足够释义",
+  "无法进一步解释",
+  "无法解释",
+  "补充查询",
   "例如",
   "例句",
   "下一步",
@@ -197,6 +204,19 @@ function normalizePartOfSpeechSlashSpacing(answer: string) {
   );
 }
 
+const partOfSpeechPeriodPlaceholder = "__ENGGO_POS_PERIOD__";
+
+function protectPartOfSpeechPeriods(answer: string) {
+  return answer.replace(
+    /\b(n|v|adj|adv)\./g,
+    `$1${partOfSpeechPeriodPlaceholder}`,
+  );
+}
+
+function restorePartOfSpeechPeriods(answer: string) {
+  return answer.replaceAll(partOfSpeechPeriodPlaceholder, ".");
+}
+
 function normalizePartOfSpeechLabels(answer: string) {
   return answer
     .replace(/形容词/g, "adj.")
@@ -206,7 +226,7 @@ function normalizePartOfSpeechLabels(answer: string) {
 }
 
 function cleanStandardLookupAnswer(answer: string, grounding: AnswerGrounding) {
-  const withoutMarkdown = answer
+  const withoutMarkdown = protectPartOfSpeechPeriods(answer)
     .replace(/\*\*/g, "")
     .replace(/^#+\s*/gm, "")
     .replace(/^\s*[-*]\s+/gm, "")
@@ -223,7 +243,9 @@ function cleanStandardLookupAnswer(answer: string, grounding: AnswerGrounding) {
       ),
     );
   const cleaned = normalizePartOfSpeechSlashSpacing(
-    normalizePartOfSpeechLabels(keptSentences.join("").trim()),
+    normalizePartOfSpeechLabels(
+      restorePartOfSpeechPeriods(keptSentences.join("").trim()),
+    ),
   );
 
   return cleaned || buildStandardLookupFallbackAnswer(grounding);

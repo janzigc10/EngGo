@@ -417,6 +417,63 @@ describe("createChatService", () => {
     expect(result.answer).not.toContain("CET");
   });
 
+  it("removes source-only retrieval internals from standard lookup answers", async () => {
+    const service = createChatService({
+      provider: {
+        async generateAnswer() {
+          return {
+            answer:
+              "abolish 常见作 v.，但当前检索未提供中文核心义，无法进一步解释。abolish 的核心义是“废除”。",
+            providerRequestId: "resp_source_lemma_retrieval_internal",
+          };
+        },
+      },
+      createRequestId: () => "req_source_lemma_retrieval_internal",
+    });
+
+    const result = await service.answer({
+      activeExamTarget: "cet4",
+      query: "abolish",
+      history: [],
+      retrievalResult: {
+        queryMode: "direct_lookup",
+        normalizedQuery: {
+          raw: "abolish",
+          normalizedText: "abolish",
+          queryMode: "direct_lookup",
+          englishTerms: ["abolish"],
+          meaningHint: "abolish",
+          compareTerms: [],
+          groupSeedTerm: null,
+        },
+        resolution: "resolved",
+        noMatchReason: null,
+        comparisonView: null,
+        candidates: [],
+        mainAnswer: [
+          {
+            entryId: "source-lemma:abolish",
+            lemma: "abolish",
+            meaningsZh: [],
+            matchedAlias: null,
+            scopeCodes: ["cet4", "cet6"],
+            inScope: true,
+            reason: "source lemma exact match",
+            score: 18,
+            sourceKind: "source_lemma",
+          },
+        ],
+        confusionBoundary: [],
+        matchType: "source_lemma_exact",
+      },
+    });
+
+    expect(result.answer).toBe("abolish 的核心义是“废除”。");
+    expect(result.answer).not.toContain("当前检索");
+    expect(result.answer).not.toContain("未提供中文核心义");
+    expect(result.answer).not.toContain("无法进一步解释");
+  });
+
   it("normalizes POS slash spacing in standard lookup answers", async () => {
     const service = createChatService({
       provider: {
