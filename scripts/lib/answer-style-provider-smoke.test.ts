@@ -192,6 +192,10 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
       cases.find((item) => item.name === "standard: effect lookup")
         ?.forbiddenGroundingIncludes,
     ).toEqual(expect.arrayContaining(["affect", "impact"]));
+    expect(
+      cases.find((item) => item.name === "standard: source lemma accent lookup")
+        ?.expectedAnswerIncludes,
+    ).toEqual(["核心义"]);
   });
 });
 

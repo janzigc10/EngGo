@@ -100,6 +100,46 @@ describe("buildSystemPrompt", () => {
     expect(prompt).not.toContain("这次回答已优先锁定在 CET-6 范围内。");
   });
 
+  it("guides source-lemma standard lookup as a student-facing micro dictionary entry", () => {
+    const grounding: AnswerGrounding = {
+      activeExamTarget: "cet4",
+      activeExamTargetLabel: "CET-4",
+      query: "accent",
+      queryMode: "direct_lookup",
+      answerStyle: "standard_lookup",
+      resolution: "resolved",
+      noMatchReason: null,
+      mainAnswer: [
+        {
+          entryId: "source-lemma:accent",
+          lemma: "accent",
+          meaningsZh: [],
+          matchedAlias: null,
+          scopeCodes: ["gaokao", "cet4", "cet6"],
+          inScope: true,
+          reason: "source lemma exact match",
+          score: 18,
+          sourceKind: "source_lemma",
+        },
+      ],
+      confusionBoundary: [],
+      scopeReminder: "这次回答已优先锁定在 CET-4 范围内。",
+      followUpPrompt: "如果你愿意，我可以继续把 accent 的常见用法拆开。",
+      comparisonView: null,
+      rootFamilyView: null,
+      matchType: "source_lemma_exact",
+    };
+
+    const prompt = buildSystemPrompt(grounding);
+
+    expect(prompt).toContain("source-only 查词输出模板");
+    expect(prompt).toContain("常见词性");
+    expect(prompt).toContain("简单理解");
+    expect(prompt).toContain("不确定词性时省略词性");
+    expect(prompt).toContain("不要写 source lemma");
+    expect(prompt).not.toContain("这次回答已优先锁定在 CET-4 范围内。");
+  });
+
   it("guides shape-neighbor answers as lookalike clusters", () => {
     const grounding: AnswerGrounding = {
       activeExamTarget: "cet6",

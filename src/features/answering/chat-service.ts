@@ -175,7 +175,7 @@ function buildStandardLookupFallbackAnswer(grounding: AnswerGrounding) {
   }
 
   if (mainAnswer.meaningsZh.length === 0 && mainAnswer.sourceKind === "source_lemma") {
-    return `${mainAnswer.lemma} 已在 source lemma 中命中，但这条还没有人工结构化释义。`;
+    return `${mainAnswer.lemma} 暂时没有人工结构化释义，这次先不展开。`;
   }
 
   const meanings = mainAnswer.meaningsZh.join("、");

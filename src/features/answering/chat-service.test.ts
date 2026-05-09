@@ -361,6 +361,61 @@ describe("createChatService", () => {
     });
   });
 
+  it("does not leak source-lemma internals when source-only provider output is filtered out", async () => {
+    const service = createChatService({
+      provider: {
+        async generateAnswer() {
+          return {
+            answer: "source lemma index only. CET-4 range note.",
+            providerRequestId: "resp_source_lemma_filtered",
+          };
+        },
+      },
+      createRequestId: () => "req_source_lemma_filtered",
+    });
+
+    const result = await service.answer({
+      activeExamTarget: "cet4",
+      query: "accent",
+      history: [],
+      retrievalResult: {
+        queryMode: "direct_lookup",
+        normalizedQuery: {
+          raw: "accent",
+          normalizedText: "accent",
+          queryMode: "direct_lookup",
+          englishTerms: ["accent"],
+          meaningHint: "accent",
+          compareTerms: [],
+          groupSeedTerm: null,
+        },
+        resolution: "resolved",
+        noMatchReason: null,
+        comparisonView: null,
+        candidates: [],
+        mainAnswer: [
+          {
+            entryId: "source-lemma:accent",
+            lemma: "accent",
+            meaningsZh: [],
+            matchedAlias: null,
+            scopeCodes: ["gaokao", "cet4", "cet6"],
+            inScope: true,
+            reason: "source lemma exact match",
+            score: 18,
+            sourceKind: "source_lemma",
+          },
+        ],
+        confusionBoundary: [],
+        matchType: "source_lemma_exact",
+      },
+    });
+
+    expect(result.answer).toBe("accent 暂时没有人工结构化释义，这次先不展开。");
+    expect(result.answer).not.toContain("source lemma");
+    expect(result.answer).not.toContain("CET");
+  });
+
   it("passes structured grounding and request ids into the provider", async () => {
     const providerCalls: Array<{
       query: string;

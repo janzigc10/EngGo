@@ -386,6 +386,7 @@ export function buildStandardLookupProviderSmokeCases(): ProviderSmokeCase[] {
       expectedResolution: "resolved",
       expectedAnswerStyle: "standard_lookup",
       expectedGroundingIncludes: ["accent"],
+      expectedAnswerIncludes: ["核心义"],
       forbiddenAnswerIncludes: STANDARD_LOOKUP_FORBIDDEN_ANSWER_TEXT,
       expectedComparisonViewId: null,
       expectedRootFamilyViewId: null,

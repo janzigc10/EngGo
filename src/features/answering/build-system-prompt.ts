@@ -60,6 +60,8 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
     const sourceLemmaInstruction = hasSourceLemmaMainAnswer(grounding)
       ? [
           "source lemma fallback: 本次主答案只来自 source lemma index，还没有人工结构化释义。",
+          "source-only 查词输出模板：优先写成“lemma 常见作[常见词性]，核心义是‘...’；简单理解就是...。”",
+          "常见词性只能来自通用词典知识；不确定词性时省略词性，直接写“lemma 的核心义是...；简单理解就是...”。",
           "只能解释 grounding.mainAnswer[0].lemma 这个已确认词，不要判断范围，不要扩展相似词，不要生成易混组。",
           "允许使用通用词典知识给一个很短的中文核心义；不要写 source lemma、例句、搭配、Markdown、范围提示或下一步追问。",
         ].join("\n")
