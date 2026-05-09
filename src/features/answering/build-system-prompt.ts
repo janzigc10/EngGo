@@ -60,8 +60,9 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
     const sourceLemmaInstruction = hasSourceLemmaMainAnswer(grounding)
       ? [
           "source lemma fallback: 本次主答案只来自 source lemma index，还没有人工结构化释义。",
-          "source-only 查词输出模板：优先写成“lemma 常见作[常见词性]，核心义是‘...’；简单理解就是...。”",
-          "常见词性只能来自通用词典知识；不确定词性时省略词性，直接写“lemma 的核心义是...；简单理解就是...”。",
+          "source-only 查词输出模板：优先写成“lemma 常见作 n. / v. / adj. / adv.，核心义是‘...’；简单理解就是...。”",
+          "词性只能来自通用词典知识，必须使用 n. / v. / adj. / adv. 等英文缩写；不要写“名词”“动词”“形容词”“副词”。",
+          "不确定词性时省略词性，直接写“lemma 的核心义是...；简单理解就是...”。",
           "只能解释 grounding.mainAnswer[0].lemma 这个已确认词，不要判断范围，不要扩展相似词，不要生成易混组。",
           "允许使用通用词典知识给一个很短的中文核心义；不要写 source lemma、例句、搭配、Markdown、范围提示或下一步追问。",
         ].join("\n")
@@ -88,6 +89,7 @@ function buildStyleInstruction(grounding: AnswerGrounding) {
       "不要把“主答案”“易混边界”“范围提醒”写成可见小标题，也不要用 Markdown 加粗来造小标题。",
       "最终答案不要出现“主答案”“易混边界”“范围提醒”“没有需要区分”这些字样。",
       "最终答案不要出现 Markdown 符号，比如 **、#、列表符号；不要把英文词加粗。",
+      "词性统一写 n. / v. / adj. / adv. 等英文缩写；不要写“名词”“动词”“形容词”“副词”。",
       "核心义只用 grounding 里的主答案和易混边界，先给 lemma + 中文核心义。",
       "如果用户问“是什么意思”，不要补搭配；如果用户问“怎么用”且 grounding 主答案里明确给出搭配，才可写一个短搭配。",
       "短搭配只写 phrase=中文义，不要使用“如”“例如”“常用搭配如”引出搭配；即使用户问“怎么用”，也不要写完整英文句子。",

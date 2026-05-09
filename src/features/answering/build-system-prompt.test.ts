@@ -39,6 +39,8 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("不要把“主答案”“易混边界”“范围提醒”写成可见小标题");
     expect(prompt).toContain("最终答案不要出现“主答案”“易混边界”“范围提醒”“没有需要区分”这些字样");
     expect(prompt).toContain("最终答案不要出现 Markdown 符号");
+    expect(prompt).toContain("词性统一写 n. / v. / adj. / adv. 等英文缩写");
+    expect(prompt).toContain("不要写“名词”“动词”“形容词”“副词”");
     expect(prompt).toContain("即使用户问“怎么用”，也不要写完整英文句子");
     expect(prompt).toContain("不要使用“如”“例如”“常用搭配如”引出搭配");
     expect(prompt).toContain("没有 confusionBoundary 时直接省略边界，不要写“没有需要区分的易混词”");
@@ -133,10 +135,12 @@ describe("buildSystemPrompt", () => {
     const prompt = buildSystemPrompt(grounding);
 
     expect(prompt).toContain("source-only 查词输出模板");
-    expect(prompt).toContain("常见词性");
+    expect(prompt).toContain("n. / v. / adj. / adv.");
+    expect(prompt).toContain("不要写“名词”“动词”“形容词”“副词”");
     expect(prompt).toContain("简单理解");
     expect(prompt).toContain("不确定词性时省略词性");
     expect(prompt).toContain("不要写 source lemma");
+    expect(prompt).not.toContain("常见词性");
     expect(prompt).not.toContain("这次回答已优先锁定在 CET-4 范围内。");
   });
 

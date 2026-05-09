@@ -52,6 +52,7 @@ RAG / 词库负责提供证据、命中状态和收藏入口；它不应该成�
   - 普通英文查词在 structured entry miss 后，会用 exact source lemma membership 兜底；例如 `accent` 在 CET-4 下返回 resolved source-only candidate。
   - source-only 候选仍走 `standard_lookup`，不新增新的回答风格；provider grounding 只暴露窄字段和 `sourceKind`，不暴露 scope 元数据。
   - source-only 普通查词提示词已从“极短核心义”收紧为学生友好的微词典模板：核心义 + 简单理解；真实 provider smoke 中 `accent` 输出为“核心义是……；简单理解……”。
+  - 普通查词词性展示统一改为 `n. / v. / adj. / adv.` 等英文缩写；`standard_lookup` 返回口会兜底清理“名词/动词/形容词/副词”，并补拦“无需要区分/无需区分”等易混词污染话术。
   - source-only 抽样 provider smoke 跑了 22 个未结构化词；首轮发现 `emphasis -> emphasize`、`frequency -> frequent`、`journal -> journey` 的检索优先级错误，已改为 exact source lemma 优先于 structured fuzzy neighbor，保留 structured exact 优先。
   - 第一版不做持久化 generated profile cache、不做 source-only 易混词、不做 source-only 词根族、不做向量语义召回。
 
@@ -79,6 +80,15 @@ RAG / 词库负责提供证据、命中状态和收藏入口；它不应该成�
 - `corepack pnpm exec tsc --noEmit` 仍是已知工程债，尚未纳入当前完成标准。
 
 ## 最近验证基线
+- 2026-05-09 普通查词词性缩写与污染变体清理后：
+  - `corepack pnpm test src/features/answering/build-system-prompt.test.ts src/features/answering/chat-service.test.ts scripts/lib/answer-style-provider-smoke.test.ts`
+    - 3 files / 49 tests passed
+  - focused eslint on changed answering/provider-smoke files
+    - 通过
+  - `corepack pnpm eval:standard-lookup:provider`
+    - 21 total / 21 pass / 0 fail；真实输出中 `institute n.机构；v.设立，制定。`，`accent` 使用 `n./v.`
+  - `corepack pnpm eval:product-smoke`
+    - 38 total / 38 pass / 0 fail
 - 2026-05-09 source-only exact 优先级修复后：
   - `corepack pnpm test src/features/retrieval/retrieve-candidates.test.ts src/features/answering/chat-service.test.ts scripts/lib/answer-style-provider-smoke.test.ts`
     - 3 files / 101 tests passed

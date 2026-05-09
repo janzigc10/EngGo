@@ -195,7 +195,7 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
     expect(
       cases.find((item) => item.name === "standard: source lemma accent lookup")
         ?.expectedAnswerIncludes,
-    ).toEqual(["核心义"]);
+    ).toEqual(["n.", "核心义"]);
   });
 });
 
@@ -288,13 +288,16 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
         comparisonView: null,
         rootFamilyView: null,
       },
-      answer: "主答案：academic 是学术的。它也接近 scholarly。",
+      answer:
+        "主答案：academic 是学术的。无需要区分的易混词。它常见作形容词，也接近 scholarly。",
     });
 
     expect(verdict.autoVerdict).toBe("fail");
     expect(verdict.hardFailures).toEqual(
       expect.arrayContaining([
         "answer should not include 主答案",
+        "answer should not include 无需要区分",
+        "answer should not include 形容词",
         "answer should not include scholarly",
       ]),
     );

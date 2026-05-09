@@ -245,7 +245,7 @@ describe("createChatService", () => {
         async generateAnswer() {
           return {
             answer:
-              "available 的核心义有两个：**可获得的**和**有空的**。您可根据语境选择对应含义。这里没有需要区分的易混词。",
+              "available 的核心义有两个：**可获得的**和**有空的**。您可根据语境选择对应含义。这里没有需要区分的易混词。无需要区分的易混词。",
             providerRequestId: "resp_standard_lookup",
           };
         },
@@ -291,6 +291,7 @@ describe("createChatService", () => {
     expect(result.answer).toBe("available 的核心义有两个：可获得的和有空的。");
     expect(result.answer).not.toContain("**");
     expect(result.answer).not.toContain("没有需要区分");
+    expect(result.answer).not.toContain("无需要区分");
     expect(result.providerRequestId).toBe("resp_standard_lookup");
   });
 
@@ -414,6 +415,116 @@ describe("createChatService", () => {
     expect(result.answer).toBe("accent 暂时没有人工结构化释义，这次先不展开。");
     expect(result.answer).not.toContain("source lemma");
     expect(result.answer).not.toContain("CET");
+  });
+
+  it("normalizes POS slash spacing in standard lookup answers", async () => {
+    const service = createChatService({
+      provider: {
+        async generateAnswer() {
+          return {
+            answer: "accent 常见作 n./ v.，核心义是“口音；重音”。",
+            providerRequestId: "resp_source_lemma_pos",
+          };
+        },
+      },
+      createRequestId: () => "req_source_lemma_pos",
+    });
+
+    const result = await service.answer({
+      activeExamTarget: "cet4",
+      query: "accent",
+      history: [],
+      retrievalResult: {
+        queryMode: "direct_lookup",
+        normalizedQuery: {
+          raw: "accent",
+          normalizedText: "accent",
+          queryMode: "direct_lookup",
+          englishTerms: ["accent"],
+          meaningHint: "accent",
+          compareTerms: [],
+          groupSeedTerm: null,
+        },
+        resolution: "resolved",
+        noMatchReason: null,
+        comparisonView: null,
+        candidates: [],
+        mainAnswer: [
+          {
+            entryId: "source-lemma:accent",
+            lemma: "accent",
+            meaningsZh: [],
+            matchedAlias: null,
+            scopeCodes: ["gaokao", "cet4", "cet6"],
+            inScope: true,
+            reason: "source lemma exact match",
+            score: 18,
+            sourceKind: "source_lemma",
+          },
+        ],
+        confusionBoundary: [],
+        matchType: "source_lemma_exact",
+      },
+    });
+
+    expect(result.answer).toContain("n./v.");
+    expect(result.answer).not.toContain("n./ v.");
+  });
+
+  it("normalizes Chinese POS labels in standard lookup answers", async () => {
+    const service = createChatService({
+      provider: {
+        async generateAnswer() {
+          return {
+            answer: "institute 既可作动词，也可作名词。academic 常见作形容词。",
+            providerRequestId: "resp_standard_lookup_pos_label",
+          };
+        },
+      },
+      createRequestId: () => "req_standard_lookup_pos_label",
+    });
+
+    const result = await service.answer({
+      activeExamTarget: "cet6",
+      query: "institute 是什么意思",
+      history: [],
+      retrievalResult: {
+        queryMode: "fuzzy_recall",
+        normalizedQuery: {
+          raw: "institute 是什么意思",
+          normalizedText: "institute 是什么意思",
+          queryMode: "fuzzy_recall",
+          englishTerms: ["institute"],
+          meaningHint: "institute",
+          compareTerms: [],
+          groupSeedTerm: null,
+        },
+        resolution: "resolved",
+        noMatchReason: null,
+        comparisonView: null,
+        candidates: [],
+        mainAnswer: [
+          {
+            entryId: "institute",
+            lemma: "institute",
+            meaningsZh: ["设立", "制定", "机构"],
+            matchedAlias: null,
+            scopeCodes: ["cet6"],
+            inScope: true,
+            reason: "当前考试范围命中",
+            score: 100,
+          },
+        ],
+        confusionBoundary: [],
+      },
+    });
+
+    expect(result.answer).toContain("v.");
+    expect(result.answer).toContain("n.");
+    expect(result.answer).toContain("adj.");
+    expect(result.answer).not.toContain("动词");
+    expect(result.answer).not.toContain("名词");
+    expect(result.answer).not.toContain("形容词");
   });
 
   it("passes structured grounding and request ids into the provider", async () => {

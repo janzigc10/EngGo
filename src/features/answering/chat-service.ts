@@ -157,6 +157,8 @@ const standardLookupForbiddenAnswerFragments = [
   "易混边界",
   "范围提醒",
   "没有需要区分",
+  "无需要区分",
+  "无需区分",
   "例如",
   "例句",
   "下一步",
@@ -188,6 +190,21 @@ function buildStandardLookupFallbackAnswer(grounding: AnswerGrounding) {
   return coreAnswer;
 }
 
+function normalizePartOfSpeechSlashSpacing(answer: string) {
+  return answer.replace(
+    /\b(n|v|adj|adv)\.\s*\/\s*(n|v|adj|adv)\./g,
+    "$1./$2.",
+  );
+}
+
+function normalizePartOfSpeechLabels(answer: string) {
+  return answer
+    .replace(/形容词/g, "adj.")
+    .replace(/副词/g, "adv.")
+    .replace(/名词/g, "n.")
+    .replace(/动词/g, "v.");
+}
+
 function cleanStandardLookupAnswer(answer: string, grounding: AnswerGrounding) {
   const withoutMarkdown = answer
     .replace(/\*\*/g, "")
@@ -205,7 +222,9 @@ function cleanStandardLookupAnswer(answer: string, grounding: AnswerGrounding) {
         sentence.includes(fragment),
       ),
     );
-  const cleaned = keptSentences.join("").trim();
+  const cleaned = normalizePartOfSpeechSlashSpacing(
+    normalizePartOfSpeechLabels(keptSentences.join("").trim()),
+  );
 
   return cleaned || buildStandardLookupFallbackAnswer(grounding);
 }
