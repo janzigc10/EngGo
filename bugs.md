@@ -90,6 +90,7 @@ Windows PowerShell 直接用 `Invoke-RestMethod` / `Invoke-WebRequest` 发中文
 - `standard_lookup` 已压住例句、范围尾巴、主动扩词、可见标签和 Markdown 加粗。
 - `standard_lookup` provider 输入已做普通查词专属收紧：不再向模型暴露 `activeExamTargetLabel`、`scopeCodes`、`reason`、`scopeReminder` 等范围元数据；返回口也会窄清理 Markdown、例句、范围提示、下一步和“没有需要区分”等污染句。
 - `institute 是什么意思` 当前 grounding 只有 `institute`，不再带出 `institution`。
+- source-only exact lookup 曾被 structured fuzzy neighbor 抢走，例如 `emphasis -> emphasize`、`frequency -> frequent`、`journal -> journey`；已改为 exact source lemma 优先于 structured fuzzy，structured exact 仍优先于 source-only。
 - 单编辑 typo 已处理：
   - `generte -> generate`
   - `horizen -> horizon`

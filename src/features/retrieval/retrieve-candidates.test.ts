@@ -216,6 +216,25 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     expect((result as { matchType?: string }).matchType).toBe("source_lemma_exact");
   });
 
+  it("prefers exact source lemmas over structured fuzzy neighbors", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet4",
+      query: "frequency",
+    });
+
+    expect(result.queryMode).toBe("direct_lookup");
+    expect(result.resolution).toBe("resolved");
+    expect(result.mainAnswer[0]).toMatchObject({
+      entryId: "source-lemma:frequency",
+      lemma: "frequency",
+      meaningsZh: [],
+      inScope: true,
+      sourceKind: "source_lemma",
+    });
+    expect(result.mainAnswer[0]?.lemma).not.toBe("frequent");
+    expect((result as { matchType?: string }).matchType).toBe("source_lemma_exact");
+  });
+
   it("resolves tight second-layer typo lookups inside the current exam scope", async () => {
     const requestResult = await retrieveCandidates({
       activeExamTarget: "cet6",

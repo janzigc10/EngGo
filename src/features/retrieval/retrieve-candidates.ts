@@ -1272,6 +1272,21 @@ async function handleEnglishLookup(
       ? directLookupThreshold
       : fuzzyRecallThreshold,
   );
+  const sourceLemmaCandidate = shouldTrySourceLemmaFallback(normalizedQuery, needle)
+    ? await findSourceLemmaRankedCandidate(input.activeExamTarget, needle)
+    : null;
+
+  if (sourceLemmaCandidate && selection.matchType !== "exact") {
+    return createResolvedResult(
+      normalizedQuery,
+      uniqueRankedCandidates([...rankedCandidates, sourceLemmaCandidate]),
+      [toRetrievalCandidate(sourceLemmaCandidate)],
+      [],
+      null,
+      null,
+      "source_lemma_exact",
+    );
+  }
 
   if (!selection.candidate) {
     const typoCandidate =
@@ -1304,25 +1319,6 @@ async function handleEnglishLookup(
         confusionBoundary,
         null,
       );
-    }
-
-    if (shouldTrySourceLemmaFallback(normalizedQuery, needle)) {
-      const sourceLemmaCandidate = await findSourceLemmaRankedCandidate(
-        input.activeExamTarget,
-        needle,
-      );
-
-      if (sourceLemmaCandidate) {
-        return createResolvedResult(
-          normalizedQuery,
-          uniqueRankedCandidates([...rankedCandidates, sourceLemmaCandidate]),
-          [toRetrievalCandidate(sourceLemmaCandidate)],
-          [],
-          null,
-          null,
-          "source_lemma_exact",
-        );
-      }
     }
 
     return createNoMatchResult(
