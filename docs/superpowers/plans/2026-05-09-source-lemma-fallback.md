@@ -75,3 +75,19 @@
 - [x] Add the provider runner and package script.
 - [x] Run focused tests and lint.
 - [x] Run a small source-only provider sample and record the result.
+
+### Task 6: Source-Only Lookup Scale Validation
+
+**Files:**
+- Modify: `scripts/lib/source-only-lookup-sample.ts`
+- Modify: `scripts/lib/source-only-lookup-sample.test.ts`
+- Modify: `scripts/run-source-only-lookup-sample.ts`
+- Modify: `progress.md`
+
+- [x] Write failing tests for deterministic stratified sampling, report classification, and output path options.
+- [x] Implement seeded stratified sampling across `gaokao` / `cet4` / `cet6`.
+- [x] Implement JSON and Markdown report generation for source-only sample results.
+- [x] Run focused tests and lint.
+- [x] Run a 300-case source-only provider sample with report output.
+- [x] Update `progress.md` with pass/fail summary and next decision.
+- [x] Commit the scale-validation tooling and report summary.

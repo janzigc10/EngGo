@@ -1,11 +1,12 @@
 import "dotenv/config";
 
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { loadSourceLemmaMemberships } from "../src/features/content/source-lemma-sources";
 import {
+  buildSourceOnlyLookupSampleReport,
   buildSourceOnlyLookupSamplePlan,
   parseSourceOnlyLookupSampleArgs,
 } from "./lib/source-only-lookup-sample";
@@ -31,6 +32,51 @@ async function loadStructuredLemmas(datasetName: string) {
     .filter(Boolean);
 }
 
+function createReportBaseName(options: ReturnType<typeof parseSourceOnlyLookupSampleArgs>) {
+  if (options.reportName) {
+    return options.reportName;
+  }
+
+  const timestamp = new Date()
+    .toISOString()
+    .replace(/[:.]/g, "-");
+
+  return [
+    "source-only",
+    options.sampleMode,
+    `limit-${options.limit}`,
+    `offset-${options.offset}`,
+    timestamp,
+  ].join("-");
+}
+
+async function writeSampleReports({
+  baseName,
+  outputDir,
+  json,
+  markdown,
+}: {
+  baseName: string;
+  outputDir: string;
+  json: unknown;
+  markdown: string;
+}) {
+  await mkdir(outputDir, { recursive: true });
+
+  const jsonPath = path.join(outputDir, `${baseName}.json`);
+  const markdownPath = path.join(outputDir, `${baseName}.md`);
+
+  await Promise.all([
+    writeFile(jsonPath, `${JSON.stringify(json, null, 2)}\n`, "utf8"),
+    writeFile(markdownPath, markdown, "utf8"),
+  ]);
+
+  return {
+    jsonPath,
+    markdownPath,
+  };
+}
+
 async function main() {
   const options = parseSourceOnlyLookupSampleArgs(process.argv);
   const [memberships, structuredLemmas] = await Promise.all([
@@ -43,6 +89,8 @@ async function main() {
     scopes: options.scopes,
     limit: options.limit,
     offset: options.offset,
+    sampleMode: options.sampleMode,
+    seed: options.seed,
   });
 
   console.log("=== SOURCE-ONLY LOOKUP SAMPLE PLAN ===");
@@ -53,6 +101,8 @@ async function main() {
         scopes: options.scopes,
         limit: options.limit,
         offset: options.offset,
+        sampleMode: options.sampleMode,
+        seed: options.seed,
         totalCandidates: samplePlan.totalCandidates,
         returnedCandidates: samplePlan.returnedCandidates,
         queries: samplePlan.cases.map((item) => item.query),
@@ -68,6 +118,23 @@ async function main() {
 
   console.log("\n=== SOURCE-ONLY LOOKUP SAMPLE SUMMARY ===");
   console.log(JSON.stringify(summary, null, 2));
+
+  const report = buildSourceOnlyLookupSampleReport({
+    generatedAt: new Date().toISOString(),
+    options,
+    plan: samplePlan,
+    results,
+    summary,
+  });
+  const reportPaths = await writeSampleReports({
+    baseName: createReportBaseName(options),
+    outputDir: options.outputDir,
+    json: report.json,
+    markdown: report.markdown,
+  });
+
+  console.log("\n=== SOURCE-ONLY LOOKUP SAMPLE REPORTS ===");
+  console.log(JSON.stringify(reportPaths, null, 2));
 
   if (results.some((item) => item.autoVerdict === "fail")) {
     process.exitCode = 1;

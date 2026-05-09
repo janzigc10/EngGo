@@ -56,6 +56,7 @@ RAG / 词库负责提供证据、命中状态和收藏入口；它不应该成�
   - source-only 抽样 provider smoke 跑了 22 个未结构化词；首轮发现 `emphasis -> emphasize`、`frequency -> frequent`、`journal -> journey` 的检索优先级错误，已改为 exact source lemma 优先于 structured fuzzy neighbor，保留 structured exact 优先。
   - 新增 `eval:source-only:provider` 抽样工具：从 source lemma 中排除已结构化词和不适合 exact lookup 的短词/标点词，自动生成普通查词 provider cases，用于决定哪些词值得结构化。
   - 首轮 source-only 工具发现 `a.m` 这类标点 lemma 不适合普通 exact 抽样，以及 provider 偶发“检索未提供/无法进一步解释”泄露；已通过抽样过滤、source-only prompt 和 `standard_lookup` 返回口清理修掉。
+  - 规模验收 v1 新增 seeded stratified sampling 和 JSON/Markdown 报告落盘；纯字母 source-only 候选池 7381 个，300 个分层真实 provider 抽样全部通过，说明普通查词不需要立刻大规模人工结构化。
   - 第一版不做持久化 generated profile cache、不做 source-only 易混词、不做 source-only 词根族、不做向量语义召回。
 
 ## 下一步建议
@@ -65,7 +66,7 @@ RAG / 词库负责提供证据、命中状态和收藏入口；它不应该成�
 2. structured entry miss 后，只对普通英文 exact 查词启用 source lemma fallback。
 3. source-only 候选仍走 `standard_lookup`，不新增 answerStyle；候选标记 `sourceKind: "source_lemma"` 和 `matchType: "source_lemma_exact"`。
 4. provider 只负责给已确认 lemma 生成短释义，不判断范围、不扩词、不生成易混组。
-5. 下一步用 `corepack pnpm eval:source-only:provider -- --limit 30 --offset 10` 扩大 source-only 抽样，按 fail 类型决定是补 prompt/清洗，还是把个别高价值词升级为 structured entry。
+5. 下一步不急着录词；优先考虑是否加 `generated_unreviewed` 缓存，或把结构化工作聚焦到中文召回、易混辨析和词根/表达召回真正需要的高价值词。
 
 暂缓：
 - 全量几千词一次性导入
@@ -82,6 +83,15 @@ RAG / 词库负责提供证据、命中状态和收藏入口；它不应该成�
 - `corepack pnpm exec tsc --noEmit` 仍是已知工程债，尚未纳入当前完成标准。
 
 ## 最近验证基线
+- 2026-05-09 source-only 规模验收 v1 后：
+  - `corepack pnpm test scripts/lib/source-only-lookup-sample.test.ts scripts/run-answer-style-provider-smoke.test.ts`
+    - 2 files / 16 tests passed
+  - focused eslint on source-only sampling files
+    - 通过
+  - `corepack pnpm eval:source-only:provider -- --limit 300 --report-name source-only-scale-v1-300-alpha`
+    - 300 total / 300 pass / 0 manual / 0 fail；candidate pool=7381；avgElapsedMs=3716；p90 answer length=57；structuredEntryCandidates=0
+    - 报告落盘：`output/source-only-lookup-sample/source-only-scale-v1-300-alpha.json` 和 `.md`
+  - 首次 300 样本中 `x-ray` 触发 root parser no_match，已收紧 sample filter 为纯字母 lemma；重跑后通过。
 - 2026-05-09 source-only 普通查词抽样工具后：
   - `corepack pnpm test scripts/lib/source-only-lookup-sample.test.ts scripts/lib/answer-style-provider-smoke.test.ts src/features/answering/build-system-prompt.test.ts src/features/answering/chat-service.test.ts scripts/run-answer-style-provider-smoke.test.ts`
     - 5 files / 62 tests passed

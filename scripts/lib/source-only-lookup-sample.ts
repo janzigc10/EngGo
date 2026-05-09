@@ -4,14 +4,28 @@ import {
   STANDARD_LOOKUP_FORBIDDEN_ANSWER_TEXT,
   type ProviderSmokeCase,
 } from "./answer-style-provider-smoke";
+import type {
+  RunnerCaseResult,
+  RunnerSummary,
+} from "../run-answer-style-provider-smoke";
 
 type SourceOnlySampleScope = Exclude<ExamScopeCode, "postgrad">;
+type SourceOnlySampleMode = "window" | "stratified";
+type SourceOnlyResultAction =
+  | "direct_usable"
+  | "prompt_or_cleaning_issue"
+  | "retrieval_or_source_issue"
+  | "structured_entry_candidate";
 
 export type SourceOnlyLookupSampleOptions = {
   datasetName: string;
   limit: number;
   offset: number;
   scopes: SourceOnlySampleScope[];
+  sampleMode: SourceOnlySampleMode;
+  seed: string;
+  outputDir: string;
+  reportName: string | null;
 };
 
 export type BuildSourceOnlyLookupSamplePlanOptions = {
@@ -20,12 +34,22 @@ export type BuildSourceOnlyLookupSamplePlanOptions = {
   scopes: SourceOnlySampleScope[];
   limit: number;
   offset: number;
+  sampleMode?: SourceOnlySampleMode;
+  seed?: string;
 };
 
 export type SourceOnlyLookupSamplePlan = {
   totalCandidates: number;
   returnedCandidates: number;
   cases: ProviderSmokeCase[];
+};
+
+export type BuildSourceOnlyLookupSampleReportOptions = {
+  generatedAt: string;
+  options: SourceOnlyLookupSampleOptions;
+  plan: SourceOnlyLookupSamplePlan;
+  results: RunnerCaseResult[];
+  summary: RunnerSummary;
 };
 
 type SourceOnlyCandidate = {
@@ -38,6 +62,10 @@ const DEFAULT_SAMPLE_OPTIONS: SourceOnlyLookupSampleOptions = {
   limit: 20,
   offset: 0,
   scopes: ["gaokao", "cet4", "cet6"],
+  sampleMode: "stratified",
+  seed: "source-only-scale-v1",
+  outputDir: "output/source-only-lookup-sample",
+  reportName: null,
 };
 
 const SAMPLE_SCOPES: SourceOnlySampleScope[] = ["gaokao", "cet4", "cet6"];
@@ -49,8 +77,19 @@ function normalizeLemma(lemma: string) {
   return lemma.trim().toLowerCase();
 }
 
+function hashString(value: string) {
+  let hash = 2166136261;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
+}
+
 function isLookupFriendlyLemma(lemma: string) {
-  return /^[a-z][a-z-]{2,}$/.test(lemma);
+  return /^[a-z]{3,}$/.test(lemma);
 }
 
 function parsePositiveIntegerOption(value: string | undefined, flagName: string) {
@@ -96,6 +135,14 @@ function parseScopes(rawValue: string | undefined) {
   return [...new Set(scopes)] as SourceOnlySampleScope[];
 }
 
+function parseSampleMode(rawValue: string | undefined) {
+  if (rawValue !== "window" && rawValue !== "stratified") {
+    throw new Error("Expected --sample to be window or stratified.");
+  }
+
+  return rawValue;
+}
+
 function compareSourceOnlyCandidates(
   left: SourceOnlyCandidate,
   right: SourceOnlyCandidate,
@@ -105,6 +152,44 @@ function compareSourceOnlyCandidates(
     || (SCOPE_PRIORITY.get(left.scopeCode) ?? 99)
       - (SCOPE_PRIORITY.get(right.scopeCode) ?? 99)
   );
+}
+
+function compareCandidatesBySeed(seed: string, scopeCode: SourceOnlySampleScope) {
+  return (left: SourceOnlyCandidate, right: SourceOnlyCandidate) => {
+    const leftScore = hashString(`${seed}:${scopeCode}:${left.lemma}`);
+    const rightScore = hashString(`${seed}:${scopeCode}:${right.lemma}`);
+
+    return leftScore - rightScore || compareSourceOnlyCandidates(left, right);
+  };
+}
+
+function applyStratifiedOrdering(
+  candidates: SourceOnlyCandidate[],
+  scopes: SourceOnlySampleScope[],
+  seed: string,
+) {
+  const groups = scopes.map((scopeCode) =>
+    candidates
+      .filter((candidate) => candidate.scopeCode === scopeCode)
+      .sort(compareCandidatesBySeed(seed, scopeCode))
+  );
+  const ordered: SourceOnlyCandidate[] = [];
+  const maxGroupSize = groups.reduce(
+    (max, group) => Math.max(max, group.length),
+    0,
+  );
+
+  for (let groupIndex = 0; groupIndex < maxGroupSize; groupIndex += 1) {
+    for (const group of groups) {
+      const candidate = group[groupIndex];
+
+      if (candidate) {
+        ordered.push(candidate);
+      }
+    }
+  }
+
+  return ordered;
 }
 
 function chooseBestMembership(
@@ -150,6 +235,8 @@ export function buildSourceOnlyLookupSamplePlan({
   scopes,
   limit,
   offset,
+  sampleMode = "window",
+  seed = DEFAULT_SAMPLE_OPTIONS.seed,
 }: BuildSourceOnlyLookupSamplePlanOptions): SourceOnlyLookupSamplePlan {
   const structuredLemmaSet = new Set(structuredLemmas.map(normalizeLemma));
   const membershipsByLemma = new Map<string, SourceLemmaMembership[]>();
@@ -177,13 +264,153 @@ export function buildSourceOnlyLookupSamplePlan({
     })
     .filter((candidate): candidate is SourceOnlyCandidate => Boolean(candidate))
     .sort(compareSourceOnlyCandidates);
+  const orderedCandidates = sampleMode === "stratified"
+    ? applyStratifiedOrdering(candidates, scopes, seed)
+    : candidates;
 
-  const selectedCandidates = candidates.slice(offset, offset + limit);
+  const selectedCandidates = orderedCandidates.slice(offset, offset + limit);
 
   return {
     totalCandidates: candidates.length,
     returnedCandidates: selectedCandidates.length,
     cases: selectedCandidates.map(toProviderSmokeCase),
+  };
+}
+
+export function classifySourceOnlyLookupResult(
+  result: RunnerCaseResult,
+): SourceOnlyResultAction {
+  if (result.autoVerdict === "pass") {
+    return "direct_usable";
+  }
+
+  if (result.autoVerdict === "manual" || result.manualFlags.length > 0) {
+    return "structured_entry_candidate";
+  }
+
+  if (
+    result.hardFailures.some((failure) =>
+      failure.includes("resolution expected")
+      || failure.includes("queryMode expected")
+      || failure.includes("grounding missing")
+      || failure.includes("status expected")
+    )
+  ) {
+    return "retrieval_or_source_issue";
+  }
+
+  if (
+    result.hardFailures.some((failure) =>
+      failure.includes("answer should not include")
+      || failure.includes("answer missing")
+      || failure.includes("resolved case should return")
+    )
+  ) {
+    return "prompt_or_cleaning_issue";
+  }
+
+  return "structured_entry_candidate";
+}
+
+function createActionCounts(results: RunnerCaseResult[]) {
+  const actionCounts: Record<SourceOnlyResultAction, number> = {
+    direct_usable: 0,
+    prompt_or_cleaning_issue: 0,
+    retrieval_or_source_issue: 0,
+    structured_entry_candidate: 0,
+  };
+
+  for (const result of results) {
+    actionCounts[classifySourceOnlyLookupResult(result)] += 1;
+  }
+
+  return actionCounts;
+}
+
+function formatReportIssue(result: RunnerCaseResult) {
+  return [
+    ...result.hardFailures,
+    ...result.manualFlags,
+    result.errorMessage,
+  ]
+    .filter((item): item is string => Boolean(item))
+    .join("; ");
+}
+
+export function buildSourceOnlyLookupSampleReport({
+  generatedAt,
+  options,
+  plan,
+  results,
+  summary,
+}: BuildSourceOnlyLookupSampleReportOptions) {
+  const actionCounts = createActionCounts(results);
+  const annotatedResults = results.map((result) => ({
+    name: result.name,
+    action: classifySourceOnlyLookupResult(result),
+    verdict: result.autoVerdict,
+    elapsedMs: result.elapsedMs,
+    answerChars: result.answerChars,
+    grounding: result.groundingSummary,
+    answerPreview: result.answerPreview,
+    issues: formatReportIssue(result),
+  }));
+  const structuredEntryCandidates = annotatedResults.filter(
+    (result) => result.action === "structured_entry_candidate",
+  );
+  const json = {
+    generatedAt,
+    options,
+    totalCandidates: plan.totalCandidates,
+    returnedCandidates: plan.returnedCandidates,
+    summary,
+    actionCounts,
+    results: annotatedResults,
+    structuredEntryCandidates,
+  };
+  const nonDirectResults = annotatedResults.filter(
+    (result) => result.action !== "direct_usable",
+  );
+  const markdown = [
+    "# Source-Only Lookup Sample Report",
+    "",
+    `Generated: ${generatedAt}`,
+    `Dataset: ${options.datasetName}`,
+    `Sample: ${options.sampleMode}, seed=${options.seed}, limit=${options.limit}, offset=${options.offset}`,
+    `Scopes: ${options.scopes.join(", ")}`,
+    `Candidate pool: ${plan.totalCandidates}; returned: ${plan.returnedCandidates}`,
+    "",
+    "## Summary",
+    "",
+    `- pass: ${summary.pass}/${summary.total}`,
+    `- manual: ${summary.manual}`,
+    `- fail: ${summary.fail}`,
+    `- avgElapsedMs: ${summary.avgElapsedMs}`,
+    "",
+    "## Action Counts",
+    "",
+    ...Object.entries(actionCounts).map(([action, count]) => `- ${action}: ${count}`),
+    "",
+    "## Non-Direct Results",
+    "",
+    ...(nonDirectResults.length === 0
+      ? ["- none"]
+      : nonDirectResults.map(
+          (result) =>
+            `- ${result.name}: ${result.action}; issues=${result.issues || "-"}`,
+        )),
+    "",
+    "## Structured Entry Candidates",
+    "",
+    ...(structuredEntryCandidates.length === 0
+      ? ["- none"]
+      : structuredEntryCandidates.map((result) => `- ${result.name}`)),
+    "",
+  ].join("\n");
+
+  return {
+    json,
+    markdown,
   };
 }
 
@@ -229,6 +456,48 @@ export function parseSourceOnlyLookupSampleArgs(
 
     if (arg === "--scopes") {
       options.scopes = parseScopes(args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--sample") {
+      options.sampleMode = parseSampleMode(args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--seed") {
+      const value = args[index + 1];
+
+      if (!value || value.startsWith("--")) {
+        throw new Error("Expected a seed after --seed.");
+      }
+
+      options.seed = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--output-dir") {
+      const value = args[index + 1];
+
+      if (!value || value.startsWith("--")) {
+        throw new Error("Expected an output directory after --output-dir.");
+      }
+
+      options.outputDir = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--report-name") {
+      const value = args[index + 1];
+
+      if (!value || value.startsWith("--")) {
+        throw new Error("Expected a report name after --report-name.");
+      }
+
+      options.reportName = value;
       index += 1;
       continue;
     }
