@@ -187,7 +187,7 @@ export function buildSystemPrompt(grounding: AnswerGrounding) {
 
   const scopeReminderLine =
     grounding.answerStyle === "standard_lookup"
-      ? "范围边界素材（内部参考：仅用于确定候选，本次不要在最终答案中写任何范围提示，也不要照抄这个标签）。"
+      ? "候选边界素材（内部参考：仅用于确定候选，不要写进最终答案）。"
       : grounding.answerStyle === "root_family_summary"
         ? `范围边界素材（内部参考，不要照抄这个标签，也不要主动展开范围外词）：${grounding.scopeReminder}`
         : grounding.answerStyle === "confusion_untangle"
@@ -196,7 +196,9 @@ export function buildSystemPrompt(grounding: AnswerGrounding) {
 
   const lines = [
     "你是 EngGo 的考试英语老师助手。",
-    `当前考试范围：${grounding.activeExamTargetLabel}。`,
+    grounding.answerStyle === "standard_lookup"
+      ? "当前查词目标已由内部检索层选定。"
+      : `当前考试范围：${grounding.activeExamTargetLabel}。`,
     "必须严格依赖提供的 grounding 组织答案，不要自由补充未检索到的新词作为主答案。",
     usesSpecialAnswerStyle
       ? "回答结构以本次 answerStyle 专属要求为准，不要套用默认查词模板。"

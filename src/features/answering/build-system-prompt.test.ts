@@ -47,6 +47,7 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("不要主动输出下一步追问");
     expect(prompt).toContain("不要主动补充未召回的新词");
     expect(prompt).toContain("只用 grounding 里的主答案和易混边界");
+    expect(prompt).not.toContain("当前考试范围：CET-4");
     expect(prompt).not.toContain("范围提醒素材");
     expect(prompt).not.toContain("这次回答已优先锁定在 CET-4 范围内。");
     expect(prompt).not.toContain("4. 下一步");

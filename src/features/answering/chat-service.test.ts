@@ -238,6 +238,61 @@ describe("buildGrounding", () => {
 });
 
 describe("createChatService", () => {
+  it("cleans provider decoration from standard lookup answers", async () => {
+    const service = createChatService({
+      provider: {
+        async generateAnswer() {
+          return {
+            answer:
+              "available 的核心义有两个：**可获得的**和**有空的**。您可根据语境选择对应含义。这里没有需要区分的易混词。",
+            providerRequestId: "resp_standard_lookup",
+          };
+        },
+      },
+      createRequestId: () => "req_standard_lookup",
+    });
+
+    const result = await service.answer({
+      activeExamTarget: "cet4",
+      query: "available 怎么用",
+      history: [],
+      retrievalResult: {
+        queryMode: "fuzzy_recall",
+        normalizedQuery: {
+          raw: "available 怎么用",
+          normalizedText: "available 怎么用",
+          queryMode: "fuzzy_recall",
+          englishTerms: ["available"],
+          meaningHint: "available",
+          compareTerms: [],
+          groupSeedTerm: null,
+        },
+        resolution: "resolved",
+        noMatchReason: null,
+        comparisonView: null,
+        candidates: [],
+        mainAnswer: [
+          {
+            entryId: "available",
+            lemma: "available",
+            meaningsZh: ["可获得的", "有空的"],
+            matchedAlias: null,
+            scopeCodes: ["cet4", "cet6"],
+            inScope: true,
+            reason: "当前考试范围命中",
+            score: 100,
+          },
+        ],
+        confusionBoundary: [],
+      },
+    });
+
+    expect(result.answer).toBe("available 的核心义有两个：可获得的和有空的。");
+    expect(result.answer).not.toContain("**");
+    expect(result.answer).not.toContain("没有需要区分");
+    expect(result.providerRequestId).toBe("resp_standard_lookup");
+  });
+
   it("passes structured grounding and request ids into the provider", async () => {
     const providerCalls: Array<{
       query: string;

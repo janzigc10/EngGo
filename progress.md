@@ -40,24 +40,25 @@ RAG / 词库负责提供证据、命中状态和收藏入口；它不应该成�
   - `complex 和 complicate 是一个意思吗`、`complex 是什么意思` 这类明确英语学习问题，在当前小词库未命中时可走 non-grounded provider fallback。
   - `reqxust 是什么意思` 这类疑似 typo no-match 已升级为 spelling-assist 候选确认，返回 `plain`，不带 grounding。
   - `re+con 的词根有什么词` 仍保守 no-match，不硬造词根家族。
+- 2026-05-08 普通查词 exact lookup 污染验收：
+  - 启动并复查本地 `enggo` Prisma dev；Next dev server 已用 `corepack pnpm dev --hostname 127.0.0.1 --port 3000` 跑通。
+  - 首轮 `eval:standard-lookup:provider` 暴露 `effect` 带 `CET-4 范围内`，以及 provider 偶发 `例如`、Markdown 加粗、`没有需要区分` 等输出污染。
+  - 已收紧 `standard_lookup` provider 输入：system prompt 不再直接暴露 `当前考试范围：CET-*`；发给 provider 的 standard lookup grounding 去掉 `activeExamTarget*`、`scopeCodes`、`reason`、`scopeReminder` 等范围元数据。
+  - 已在 `chat-service` 的 `standard_lookup` 返回口做窄清理：移除 Markdown 装饰，并丢弃含范围提示、例句、下一步、无易混词说明的句子；只作用于普通查词。
+  - 复跑 `corepack pnpm eval:standard-lookup:provider`：20 total / 20 pass / 0 fail。
+  - 复跑 `corepack pnpm eval:product-smoke`：37 total / 37 pass / 0 fail。
 
 ## 下一步建议
-优先做一轮普通查词 exact lookup 污染验收。
-
-原因：前几轮已经连续调整 answer policy、spelling-assist 和 UI plain branch，下一步最需要确认普通查词没有被 retrieval 或 prompt 又带回不该出现的裸 `confusion_group`、范围话术、主动扩词或可见 Markdown。
+普通查词现有 provider smoke 已清理到 20/20。下一步建议回到 source-backed 词库路线：先做 `real-smoke` batch 4 的小批候选池，不直接全量导入。
 
 建议顺序：
-1. 检查本地 Prisma dev 健康：
-   - `corepack pnpm exec prisma dev ls`
-2. 跑现有普通查词 provider smoke：
-   - `corepack pnpm eval:standard-lookup:provider`
-3. 如果现有 8 条全绿，再补 6-10 个普通查词 case，重点覆盖：
-   - exact 命中但附近存在易混组的词，例如 `institute`
-   - 普通高频词，例如 `available`、`evidence`、`significant`
-   - 不应出现 `CET` / 当前范围尾巴 / 主动扩未召回同义词 / Markdown 加粗
-4. 根据结果再决定：
-   - 若普通查词仍干净，再考虑 `real-smoke` batch 4 扩到 700+
-   - 若出现污染，优先修 retrieval ordinary lookup 边界，不用 prompt 兜
+1. 先列 30-50 个来源可审计、考试高频的候选 lemma / confusion group。
+2. 从中选 15-20 个 P0 组或基础高频词进入 batch 4。
+3. 导入前跑内容检查，导入后串行跑：
+   - `corepack pnpm exec tsx scripts/check-vocab-content.ts --dataset real-smoke --min-entries 700 --require-source-lemmas`
+   - `corepack pnpm eval:lookalike:real-smoke`
+   - 新增 batch 4 可见价值 smoke，不只复跑旧集合。
+4. 若候选来源不稳，先停在候选池评审，不要为了凑 700+ 编造条目。
 
 暂缓：
 - 全量几千词一次性导入
@@ -74,6 +75,15 @@ RAG / 词库负责提供证据、命中状态和收藏入口；它不应该成�
 - `corepack pnpm exec tsc --noEmit` 仍是已知工程债，尚未纳入当前完成标准。
 
 ## 最近验证基线
+- 2026-05-08 普通查词 exact lookup 污染验收后：
+  - `corepack pnpm test src/features/answering/chat-provider.test.ts src/features/answering/build-system-prompt.test.ts src/features/answering/chat-service.test.ts`
+    - 3 files / 26 tests passed
+  - focused eslint on changed answering files
+    - 通过
+  - `corepack pnpm eval:standard-lookup:provider`
+    - 20 total / 20 pass / 0 fail
+  - `corepack pnpm eval:product-smoke`
+    - 37 total / 37 pass / 0 fail
 - 2026-05-03 Answer Policy / spelling-assist / UI smoke 后：
   - `corepack pnpm test src/features/answering/chat-service.test.ts`
     - 1 file / 12 tests passed

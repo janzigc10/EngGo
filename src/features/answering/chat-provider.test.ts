@@ -28,6 +28,78 @@ function createInput() {
 }
 
 describe("createOpenAiChatProvider", () => {
+  it("does not expose exam scope metadata to standard lookup providers", async () => {
+    let requestBody = "";
+    const provider = createOpenAiChatProvider({
+      apiKey: "test-key",
+      endpoint: "https://api.example.com/v1/chat/completions",
+      fetchImpl: async (_url, init) => {
+        requestBody = String(init?.body ?? "");
+
+        return new Response(
+          JSON.stringify({
+            id: "chatcmpl_standard",
+            choices: [
+              {
+                message: {
+                  content: "effect 的核心义是效果、影响。",
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      },
+    });
+
+    await provider.generateAnswer({
+      query: "effect 是什么意思",
+      history: [],
+      requestId: "req_standard_lookup",
+      systemPrompt: "普通查词模式：不要输出范围提示。",
+      grounding: {
+        activeExamTarget: "cet4",
+        activeExamTargetLabel: "CET-4",
+        query: "effect 是什么意思",
+        queryMode: "fuzzy_recall",
+        resolution: "resolved",
+        noMatchReason: null,
+        answerStyle: "standard_lookup",
+        mainAnswer: [
+          {
+            entryId: "effect",
+            lemma: "effect",
+            meaningsZh: ["效果", "影响"],
+            matchedAlias: null,
+            scopeCodes: ["cet4", "cet6"],
+            inScope: true,
+            reason: "当前考试范围命中",
+            score: 100,
+          },
+        ],
+        confusionBoundary: [],
+        scopeReminder: "这次回答已优先锁定在 CET-4 范围内。",
+        followUpPrompt: "如果你愿意，我可以继续讲 affect 和 effect 的区别。",
+        comparisonView: null,
+        rootFamilyView: null,
+      },
+    });
+
+    const body = JSON.parse(requestBody) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    const userMessage = body.messages.at(-1)?.content ?? "";
+
+    expect(userMessage).toContain("effect");
+    expect(userMessage).not.toContain("CET-4");
+    expect(userMessage).not.toContain("activeExamTarget");
+    expect(userMessage).not.toContain("activeExamTargetLabel");
+    expect(userMessage).not.toContain("scopeReminder");
+    expect(userMessage).not.toContain("scopeCodes");
+    expect(userMessage).not.toContain("reason");
+    expect(userMessage).not.toContain("当前考试范围");
+  });
+
   it("parses OpenAI Responses output", async () => {
     const provider = createOpenAiChatProvider({
       apiKey: "test-key",

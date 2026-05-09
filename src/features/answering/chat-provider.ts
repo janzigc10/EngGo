@@ -87,12 +87,42 @@ function buildUserMessage(input: GenerateAnswerInput) {
     return `用户当前问题：${input.query}`;
   }
 
+  const grounding = input.grounding.answerStyle === "standard_lookup"
+    ? sanitizeStandardLookupGrounding(input.grounding)
+    : input.grounding;
+
   return [
     `用户当前问题：${input.query}`,
     "",
     "请严格根据下面的 grounding 回答：",
-    JSON.stringify(input.grounding, null, 2),
+    JSON.stringify(grounding, null, 2),
   ].join("\n");
+}
+
+function sanitizeCandidateForStandardLookup(
+  candidate: AnswerGrounding["mainAnswer"][number],
+) {
+  return {
+    entryId: candidate.entryId,
+    lemma: candidate.lemma,
+    meaningsZh: candidate.meaningsZh,
+    matchedAlias: candidate.matchedAlias,
+  };
+}
+
+function sanitizeStandardLookupGrounding(grounding: AnswerGrounding) {
+  return {
+    query: grounding.query,
+    queryMode: grounding.queryMode,
+    answerStyle: grounding.answerStyle,
+    resolution: grounding.resolution,
+    noMatchReason: grounding.noMatchReason,
+    mainAnswer: grounding.mainAnswer.map(sanitizeCandidateForStandardLookup),
+    confusionBoundary: grounding.confusionBoundary.map(sanitizeCandidateForStandardLookup),
+    comparisonView: grounding.comparisonView,
+    rootFamilyView: grounding.rootFamilyView,
+    spellingCorrection: grounding.spellingCorrection ?? null,
+  };
 }
 
 function stripThinkingContent(value: string) {

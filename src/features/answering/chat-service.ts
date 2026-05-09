@@ -147,6 +147,63 @@ function buildSpellingAssistPrompt() {
   ].join("\n");
 }
 
+const standardLookupForbiddenAnswerFragments = [
+  "CET",
+  "考试范围",
+  "范围内",
+  "当前范围",
+  "范围提示",
+  "主答案",
+  "易混边界",
+  "范围提醒",
+  "没有需要区分",
+  "例如",
+  "例句",
+  "下一步",
+  "您可",
+  "你可以",
+  "可根据语境",
+];
+
+function buildStandardLookupFallbackAnswer(grounding: AnswerGrounding) {
+  const mainAnswer = grounding.mainAnswer[0];
+
+  if (!mainAnswer) {
+    return "";
+  }
+
+  const meanings = mainAnswer.meaningsZh.join("、");
+  const coreAnswer = `${mainAnswer.lemma} 的核心义是${meanings}。`;
+
+  if (grounding.spellingCorrection) {
+    return `你可能想查的是 ${grounding.spellingCorrection.lemma}。${coreAnswer}`;
+  }
+
+  return coreAnswer;
+}
+
+function cleanStandardLookupAnswer(answer: string, grounding: AnswerGrounding) {
+  const withoutMarkdown = answer
+    .replace(/\*\*/g, "")
+    .replace(/^#+\s*/gm, "")
+    .replace(/^\s*[-*]\s+/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const sentences = withoutMarkdown.match(/[^。！？!?]+[。！？!?]?/g) ?? [];
+  const keptSentences = sentences
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .filter((sentence) =>
+      !standardLookupForbiddenAnswerFragments.some((fragment) =>
+        sentence.includes(fragment),
+      ),
+    );
+  const cleaned = keptSentences.join("").trim();
+
+  return cleaned || buildStandardLookupFallbackAnswer(grounding);
+}
+
 export function createChatService(options: CreateChatServiceOptions = {}) {
   const provider = options.provider ?? createOpenAiChatProvider();
   const createRequestIdImpl = options.createRequestId ?? createRequestId;
@@ -218,7 +275,9 @@ export function createChatService(options: CreateChatServiceOptions = {}) {
       });
 
       return {
-        answer: result.answer,
+        answer: grounding.answerStyle === "standard_lookup"
+          ? cleanStandardLookupAnswer(result.answer, grounding)
+          : result.answer,
         answerKind: "grounded",
         grounding,
         requestId,

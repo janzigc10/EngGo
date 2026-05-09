@@ -59,11 +59,11 @@ Windows PowerShell 直接用 `Invoke-RestMethod` / `Invoke-WebRequest` 发中文
 - 真实 provider smoke 尽量小批量串行跑。
 
 ## 当前产品侧残留
-- 普通查词 exact lookup 仍需要继续小批验收，重点防止：
+- 普通查词 exact lookup 现有 20 条 provider smoke 已通过；后续新增词库或改 prompt 时仍需小批防回归，重点防止：
   - exact 命中自动带出裸 `confusion_group`
   - 回答出现 `CET` / 当前范围尾巴
   - 主动扩出未召回同义词
-  - Markdown 加粗或模板痕迹
+  - Markdown 加粗、`例如` 或“没有需要区分”等模板痕迹
 - `root_family_summary` 当前仍是最小原型：
   - `stitute` / `tempt` 两族可用
   - 结构化词形过滤可用
@@ -83,6 +83,7 @@ Windows PowerShell 直接用 `Invoke-RestMethod` / `Invoke-WebRequest` 发中文
 - assistant answer 已改用 `AnswerContent` 渲染，不再把 Markdown 表格和 `###` 原样展示给用户。
 - 宽召回收藏工具超过 5 个默认折叠。
 - `standard_lookup` 已压住例句、范围尾巴、主动扩词、可见标签和 Markdown 加粗。
+- `standard_lookup` provider 输入已做普通查词专属收紧：不再向模型暴露 `activeExamTargetLabel`、`scopeCodes`、`reason`、`scopeReminder` 等范围元数据；返回口也会窄清理 Markdown、例句、范围提示、下一步和“没有需要区分”等污染句。
 - `institute 是什么意思` 当前 grounding 只有 `institute`，不再带出 `institution`。
 - 单编辑 typo 已处理：
   - `generte -> generate`
