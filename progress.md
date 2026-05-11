@@ -15,7 +15,12 @@
 - 本轮验证：
   - `corepack pnpm test src/components/chat/chat-workspace.test.tsx src/components/chat/answer-actions.test.tsx` -> 2 files / 15 tests passed。
   - `corepack pnpm lint src/components/chat/message-thread.tsx src/components/chat/answer-actions.tsx src/components/chat/chat-workspace.test.tsx src/components/chat/answer-actions.test.tsx src/features/retrieval/types.ts` -> passed。
-- 下一步建议：继续围绕移动端真实阅读做一轮 browser smoke，重点看 source-aware 文案在 390px 宽度下是否挤压、收藏工具是否仍保持可扫读。
+- 后续 390px browser smoke 已验收：
+  - 使用 `corepack pnpm dev:fastapi` 启动 FastAPI-first 本地栈；因沙箱读取 pnpm/tsx junction 触发 `EPERM`，本次按授权在真实工作区启动。
+  - `accent` -> `source_lemma_exact`：移动端显示“已命中 1 个来源词表词：accent”和“还不是 EngGo 人工结构化词条”说明，收藏卡显示“来源词表命中，待补结构化释义”；未见横向溢出。
+  - `make up` -> `external_dictionary_exact`：移动端显示“已找到 1 条外部基础释义：make up”和“来自外部基础词典”说明，收藏卡显示“外部基础词典释义：...”；长释义正常换行，按钮保持可扫读。
+  - 浏览器 console 未见 error。
+- 下一步建议：如果继续打磨聊天主舞台，优先看回答区的移动端纵向密度；当前来源身份文案已可进入后续功能迭代。
 
 ## 2026-05-11 FastAPI 开发流固化收口
 
