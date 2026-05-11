@@ -335,7 +335,7 @@ async function runCase(item: EvalCase): Promise<CaseResult> {
         systemPrompt = input.systemPrompt;
 
         return {
-          answer: `stub answer for ${input.grounding.query}`,
+          answer: `stub answer for ${input.grounding?.query ?? input.query}`,
           providerRequestId: "answer_style_eval_stub",
         };
       },
@@ -349,6 +349,7 @@ async function runCase(item: EvalCase): Promise<CaseResult> {
     history: [],
     retrievalResult,
   });
+  const answerGrounding = serviceResult.grounding;
 
   if (retrievalResult.queryMode !== item.expectedQueryMode) {
     failures.push(
@@ -362,22 +363,24 @@ async function runCase(item: EvalCase): Promise<CaseResult> {
     );
   }
 
-  if (serviceResult.grounding.answerStyle !== item.expectedAnswerStyle) {
+  if (!answerGrounding) {
+    failures.push("service result missing grounding");
+  } else if (answerGrounding.answerStyle !== item.expectedAnswerStyle) {
     failures.push(
-      `answerStyle expected ${item.expectedAnswerStyle}, received ${serviceResult.grounding.answerStyle}`,
+      `answerStyle expected ${item.expectedAnswerStyle}, received ${answerGrounding.answerStyle}`,
     );
   }
 
-  if ((serviceResult.grounding.rootFamilyView?.id ?? null) !== (item.expectedRootFamilyViewId ?? null)) {
+  if ((answerGrounding?.rootFamilyView?.id ?? null) !== (item.expectedRootFamilyViewId ?? null)) {
     failures.push(
       `rootFamilyView expected ${item.expectedRootFamilyViewId ?? "null"}, received ${
-        serviceResult.grounding.rootFamilyView?.id ?? "null"
+        answerGrounding?.rootFamilyView?.id ?? "null"
       }`,
     );
   }
 
   if ("expectedComparisonViewId" in item) {
-    const actualComparisonViewId = serviceResult.grounding.comparisonView?.id ?? null;
+    const actualComparisonViewId = answerGrounding?.comparisonView?.id ?? null;
 
     if (actualComparisonViewId !== (item.expectedComparisonViewId ?? null)) {
       failures.push(
@@ -389,13 +392,13 @@ async function runCase(item: EvalCase): Promise<CaseResult> {
   }
 
   for (const expectedLabel of item.expectedComparisonLabels ?? []) {
-    if (!serviceResult.grounding.comparisonView?.labels.includes(expectedLabel)) {
+    if (!answerGrounding?.comparisonView?.labels.includes(expectedLabel)) {
       failures.push(`comparison labels missing ${expectedLabel}`);
     }
   }
 
   for (const expectedPurpose of item.expectedComparisonPurposes ?? []) {
-    if (!serviceResult.grounding.comparisonView?.purposes.includes(expectedPurpose)) {
+    if (!answerGrounding?.comparisonView?.purposes.includes(expectedPurpose)) {
       failures.push(`comparison purposes missing ${expectedPurpose}`);
     }
   }
@@ -428,9 +431,9 @@ async function runCase(item: EvalCase): Promise<CaseResult> {
     activeExamTarget: item.activeExamTarget,
     queryMode: retrievalResult.queryMode,
     resolution: retrievalResult.resolution,
-    answerStyle: serviceResult.grounding.answerStyle,
-    rootFamilyViewId: serviceResult.grounding.rootFamilyView?.id ?? null,
-    comparisonViewId: serviceResult.grounding.comparisonView?.id ?? null,
+    answerStyle: (answerGrounding?.answerStyle ?? item.expectedAnswerStyle) as AnswerStyle,
+    rootFamilyViewId: answerGrounding?.rootFamilyView?.id ?? null,
+    comparisonViewId: answerGrounding?.comparisonView?.id ?? null,
     providerCalled,
     elapsedMs: Date.now() - startedAt,
     verdict: failures.length === 0 ? "pass" : "fail",

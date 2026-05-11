@@ -34,7 +34,7 @@ EngGo 是一个面向高考、四级、六级、考研用户的聊天式英语�
 ## 技术栈
 
 - **Frontend**：Next.js 16, React 19, Tailwind CSS
-- **Backend**：Next.js Route Handlers
+- **Backend**：Python FastAPI；Next.js `/api/chat` 仅作为前端侧薄代理
 - **Database**：PostgreSQL, Prisma 7
 - **LLM Provider**：OpenAI-compatible API abstraction
 - **Testing**：Vitest, React Testing Library, Playwright
@@ -44,19 +44,20 @@ EngGo 是一个面向高考、四级、六级、考研用户的聊天式英语�
 
 ```text
 User query
-  -> query normalization
-  -> retrieval candidates
-  -> grounding builder
-  -> answer-style prompt
-  -> provider / local fallback
+  -> Next.js UI
+  -> Next /api/chat proxy
+  -> FastAPI /api/chat
+  -> retrieval / grounding / answer policy
+  -> provider / deterministic fallback
   -> chat UI rendering
 ```
 
 关键目录：
 
-- `src/app/api/chat/route.ts`：聊天 API 入口。
-- `src/features/retrieval/`：query mode、候选召回、排序、词根/碎片检索。
-- `src/features/answering/`：grounding 构建、prompt 编排、provider 调用。
+- `src/app/api/chat/route.ts`：Next 前端侧聊天代理，默认转发到 `http://127.0.0.1:8000/api/chat`。
+- `backend/app/`：FastAPI 聊天后端，包含检索、grounding、answer policy 和 provider 调用。
+- `src/features/retrieval/`：legacy TypeScript 检索实现，保留作测试、对照和回滚参考，不再是 Next `/api/chat` 默认后端。
+- `src/features/answering/`：legacy TypeScript 回答实现，保留作测试、对照和回滚参考。
 - `src/components/chat/`：聊天界面、答案渲染、收藏动作。
 - `data/exam-vocab/`：seed 与 real-smoke 词库数据。
 - `scripts/`：内容校验、产品 smoke、provider smoke。
@@ -76,6 +77,7 @@ User query
 - Node.js 20+
 - pnpm 10.x
 - PostgreSQL
+- Python 3.12 或本机 Anaconda Python
 
 启用 Corepack：
 
@@ -105,10 +107,16 @@ pnpm db:migrate
 pnpm db:seed
 ```
 
-启动开发服务器：
+启动 FastAPI + Next 开发栈：
 
 ```bash
-corepack pnpm dev --hostname 127.0.0.1 --port 3000
+corepack pnpm dev:fastapi
+```
+
+默认端口：FastAPI `8000`，Next `3000`。如需覆盖：
+
+```bash
+ENGGO_FASTAPI_PORT=8010 ENGGO_NEXT_PORT=3010 corepack pnpm dev:fastapi
 ```
 
 ## 验证命令
@@ -123,6 +131,7 @@ pnpm verify
 
 ```bash
 corepack pnpm eval:product-smoke
+corepack pnpm eval:default-fastapi-smoke
 corepack pnpm eval:answer-style
 corepack pnpm eval:lookalike:real-smoke
 corepack pnpm eval:standard-lookup:provider
@@ -130,7 +139,8 @@ corepack pnpm eval:standard-lookup:provider
 
 最近一轮记录过的验证基线包括：
 
-- `corepack pnpm eval:product-smoke`：37 total / 37 pass / 0 fail
+- `corepack pnpm eval:default-fastapi-smoke`：13/13 migrated proxy smoke + 38/38 HTTP product proxy smoke
+- `corepack pnpm eval:product-smoke`：38 total / 38 pass / 0 fail
 - Answer Policy / spelling-assist 相关 focused tests：3 files / 23 tests passed
 - Root fragment condition parser focused tests：5 files / 107 tests passed
 - `real-smoke` 内容校验：546 entries / 34 confusion groups / scopes=gaokao, cet4, cet6

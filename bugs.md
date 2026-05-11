@@ -1,5 +1,55 @@
 # EngGo 已知问题与环境坑
 
+## 2026-05-10 FastAPI 迁移新增环境坑
+
+### Prisma dev 直连端口的 psycopg 瞬态连接失败
+FastAPI 通过 `psycopg` 复用现有 Prisma Postgres 时，长 smoke 中确认过偶发连接建立失败：
+- `expected authentication request from server, but received T`
+- `server closed the connection unexpectedly`
+- `could not receive data from server: Software caused connection abort`
+
+当前处理：`StructuredLookupRepository` 只在 `psycopg.connect()` 建立连接阶段重试，最终失败仍抛错；不要把查询 SQL 错误吞掉。
+
+### Provider timeout 不能冒泡成 FastAPI 500
+真实 provider smoke 中确认过 `httpx.ReadTimeout` 会在 Python provider 层出现。当前处理：`OpenAiChatProvider` 将 timeout 映射为 `ChatProviderError(status_code=504)`，其他 `httpx.HTTPError` 映射为 502，由 `/api/chat` 统一返回 `chat_generation_failed` error contract。
+
+### Next 默认 FastAPI smoke 启动方式
+Next `/api/chat` 已默认代理 `http://127.0.0.1:8000/api/chat`，因此 smoke 前必须先启动 FastAPI。只有需要改后端地址时，才临时设置 `.env.local` / 环境变量：
+```text
+ENGGO_BACKEND_URL=http://127.0.0.1:8000
+```
+
+优先入口：
+- `corepack pnpm dev:fastapi`：先启动 FastAPI，再启动 Next。
+- `corepack pnpm eval:default-fastapi-smoke`：验证默认 Next `/api/chat` 已穿到 FastAPI。
+
+Node 在 Windows 上不能直接 `spawn()` `corepack.cmd`。当前 `dev:fastapi` 与默认 smoke 聚合器都通过 `cmd.exe /d /s /c corepack ...` 包装 Corepack；不要退回 `shell: true`，否则 Node 24 会给出弃用/安全警告。
+
+完整 `eval:default-fastapi-smoke` 包含 provider-backed cases，本轮成功运行耗时约 209 秒；如果只给 180 秒左右可能会在请求仍持续返回 200 时被外部超时杀掉。判断失败前先看 Next/FastAPI 日志和最终 summary。
+
+Windows 上 `Start-Process corepack pnpm dev ...` 可能留下假启动或 `EADDRINUSE` 日志。可靠方式是：
+1. 用 `Start-Job` 启动 Next dev。
+2. 验证日志包含 `Ready`；如果用了 `.env.local`，还要确认日志包含 `Environments: .env.local, .env`。
+3. 结束时按 `Get-NetTCPConnection -LocalPort 3000` 的 `OwningProcess` 清理，而不是只停 wrapper 进程。
+
+### 后端 pytest 的 Windows Temp 权限
+本轮确认过 `C:\Users\Chen\AppData\Local\Temp\pytest-of-Chen` 和仓库 `.pytest_cache` 可能触发 `WinError 5`，导致 `tmp_path` fixture setup 失败；这不是后端业务测试失败。
+
+恢复方式：
+```powershell
+New-Item -ItemType Directory -Force -Path 'C:\tmp\enggo-pytest-tmp','C:\tmp\enggo-pytest-cache' | Out-Null
+$env:TMP = 'C:\tmp\enggo-pytest-tmp'
+$env:TEMP = 'C:\tmp\enggo-pytest-tmp'
+& 'C:\Users\Chen\anaconda3\python.exe' -m pytest -q backend/tests -o cache_dir='C:\tmp\enggo-pytest-cache'
+```
+
+### Vitest integration 会改变本地 DB 基线
+`corepack pnpm test` / retrieval integration test 跑完后，本地 Prisma DB 可能只剩小 fixture。跑 FastAPI direct/proxy product smoke 前必须重新执行：
+- `corepack pnpm db:seed:real-smoke`
+
+### Next build tracing warning
+`corepack pnpm run build` 已通过。默认 FastAPI 切流后，Next `/api/chat` 不再 import legacy TypeScript retrieval/service，之前经 `/api/chat` 触发的 `source-lemma-sources.ts` import trace 风险应被收窄；如后续 build 仍出现 Turbopack/NFT tracing warning，再按实际 import trace 处理。
+
 ## 环境恢复路径
 
 ### Windows + Prisma dev 不稳定
@@ -52,6 +102,24 @@ Windows PowerShell 直接用 `Invoke-RestMethod` / `Invoke-WebRequest` 发中文
 - `$OutputEncoding = [System.Text.UTF8Encoding]::new($false)`
 - `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)`
 
+### FastAPI / psycopg 读取现有 Prisma 环境
+FastAPI Stage 2 复用现有 `.env` 和 Prisma Postgres 时确认过两个兼容坑：
+
+- `.env` 文件带 UTF-8 BOM；Python 侧读取必须用 `utf-8-sig`，否则 `DATABASE_URL` 可能不会被识别。
+- Prisma 的 `DATABASE_URL` 可能带 `schema`、`connection_limit`、`pool_timeout`、`max_idle_connection_lifetime` 等 query 参数，`psycopg` 不接受；Python repository 连接前要剥离 Prisma-only 参数，只保留 libpq 支持的参数。
+- 本机 Prisma Postgres 当前只监听 `127.0.0.1:51214`，而 `.env` 使用 `localhost`；Python 侧连接前规范到 `127.0.0.1`，避免 IPv6/localhost 解析导致连接卡住。
+
+### FastAPI proxy smoke 与 Next dev 环境变量
+历史上在 Codex PowerShell `Start-Job` 里临时设置 `$env:ENGGO_BACKEND_URL` 后启动 `corepack pnpm dev`，Next 16 dev route worker 可能仍读不到该进程环境变量。当前 Next `/api/chat` 已默认走 FastAPI，所以不再依赖该变量切流；只有覆盖地址时才需要它。
+
+如果需要覆盖地址，可靠验证方式是临时创建被 `.gitignore` 忽略的 `.env.local`：
+
+```text
+ENGGO_BACKEND_URL=http://127.0.0.1:8000
+```
+
+启动 Next 后日志应显示 `Environments: .env.local, .env`；跑完 proxy smoke 后删除 `.env.local`。确认方法：FastAPI migrated smoke 里 `re+con 的词根有什么词` 必须按 FastAPI 当前行为返回预期结果；如果结果像旧 TypeScript route，先检查 Next 进程和地址覆盖。
+
 ### Provider 限流与超时
 - MiniMax 临时 key 历史上出现 `429 usage limit exceeded (2056)`，不要把 429 误判成 retrieval 回归。
 - DeepSeek flash 真实 provider smoke 已能跑通，但部分回答会超过 15s。
@@ -59,16 +127,23 @@ Windows PowerShell 直接用 `Invoke-RestMethod` / `Invoke-WebRequest` 发中文
 - 真实 provider smoke 尽量小批量串行跑。
 
 ## 当前产品侧残留
-- 普通查词 exact lookup 现有 20 条 provider smoke 已通过；后续新增词库或改 prompt 时仍需小批防回归，重点防止：
+- 普通查词 exact lookup 现有 21 条 provider smoke 已通过；后续新增词库或改 prompt 时仍需小批防回归，重点防止：
   - exact 命中自动带出裸 `confusion_group`
   - 回答出现 `CET` / 当前范围尾巴
   - 主动扩出未召回同义词
   - Markdown 加粗、`例如` 或“没有需要区分”等模板痕迹
 - Scheme C source lemma fallback 第一版只覆盖普通 exact 查词：
-  - source-only candidate 没有人工结构化 `meaningsZh`、例句、搭配或易混关系，provider 只能生成短释义。
+  - source-only candidate 没有人工结构化 `meaningsZh`、例句、搭配或易混关系；ECDICT 可用时走模板，缺失或不可用时才由 provider 生成短释义。
   - 不要把 source-only fallback 用到易混词辨析、词根家族、表达召回或向量语义召回。
   - 当前没有 `generated_unreviewed` 持久化缓存，真实 provider 首次查未结构化词仍会有延迟、成本和输出波动。
   - `postgrad` 仍无 entry-level 机器可读 source lemma，不要顺手扩到 postgrad。
+- ECDICT 基础释义源已接入普通查词主链路的窄入口：
+  - 在 `standard_lookup + source_lemma_exact` 命中可用 profile 时模板回答，并跳过 provider。
+  - direct spaced phrase 如果 structured/source lemma 都未命中，但 ECDICT 有 exact phrase profile，可走 `external_dictionary_exact` 基础释义；不要扩展成 fuzzy phrase 或无限制语义召回。
+  - 它适合做普通查词基础释义源，但不要直接升级为 EngGo 的高可信 structured entry。
+  - 主链路中必须保留 `external_dictionary_basic` / unreviewed 语义，不要让它产生易混组、词根族或考试优先级判断。
+  - `accordingto`、`oughtto`、`owingto` 已作为 explicit spaced phrase alias 处理；其他 source lemma 脏词或拼写错误，例如 `instalation`，后续扩展 alias 或清洗时必须继续过滤或单独处理。
+  - ECDICT 中仍有少量 domain-only 释义，例如 `[计]`、`[医]`、`[化]`；普通查词展示前必须经过清洗和抽检。
 - `root_family_summary` 当前仍是最小原型：
   - `stitute` / `tempt` 两族可用
   - 结构化词形过滤可用

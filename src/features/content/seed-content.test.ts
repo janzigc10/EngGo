@@ -1,9 +1,10 @@
 import "dotenv/config";
 
 import { Client } from "pg";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
 
 import { db } from "@/lib/db";
+import { loadVocabContent } from "@/features/content/load-seed-content";
 import { seedContent } from "@/features/content/seed-content";
 import type { SeedContent } from "@/features/content/seed-content-rules";
 
@@ -11,6 +12,12 @@ const sentinelEntryId = "sentinel-rollback-check";
 const validRollbackEntryId = "rollback-valid-entry";
 
 describe.skipIf(!process.env.DATABASE_URL)("seedContent", () => {
+  afterAll(async () => {
+    const realSmokeContent = await loadVocabContent({ datasetName: "real-smoke" });
+
+    await seedContent(db, realSmokeContent);
+  }, 60_000);
+
   afterEach(async () => {
     const client = new Client({ connectionString: process.env.DATABASE_URL });
 

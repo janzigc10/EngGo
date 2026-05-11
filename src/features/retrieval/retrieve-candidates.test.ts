@@ -34,6 +34,12 @@ describe("detectQueryMode", () => {
     expect(detectQueryMode("comply with")).toBe("direct_lookup");
   });
 
+  it("keeps ordinary hyphenated words in direct lookup mode", () => {
+    expect(detectQueryMode("well-known")).toBe("direct_lookup");
+    expect(detectQueryMode("x-ray")).toBe("direct_lookup");
+    expect(detectQueryMode("up-to-date")).toBe("direct_lookup");
+  });
+
   it("detects lookalike-cluster intent", () => {
     expect(detectQueryMode("跟 recent 很像的词有哪些")).toBe("shape_neighbor_search");
   });
@@ -193,6 +199,20 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
     expect(horizonResult.mainAnswer[0]?.lemma).toBe("horizon");
   });
 
+  it("keeps part-of-speech metadata on structured ordinary lookups", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet6",
+      query: "access 是什么意思",
+    });
+
+    expect(result.queryMode).toBe("fuzzy_recall");
+    expect(result.resolution).toBe("resolved");
+    expect(result.mainAnswer[0]).toMatchObject({
+      lemma: "access",
+      partOfSpeech: "n. / v.",
+    });
+  });
+
   it("resolves exact source lemmas that do not have structured entries yet", async () => {
     const result = await retrieveCandidates({
       activeExamTarget: "cet4",
@@ -214,6 +234,53 @@ describe.skipIf(!process.env.DATABASE_URL)("retrieveCandidates", () => {
       sourceKind: "source_lemma",
     });
     expect((result as { matchType?: string }).matchType).toBe("source_lemma_exact");
+  });
+
+  it("resolves exact hyphenated source lemmas as ordinary lookups", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet4",
+      query: "x-ray",
+    });
+
+    expect(result.queryMode).toBe("direct_lookup");
+    expect(result.resolution).toBe("resolved");
+    expect(result.mainAnswer[0]).toMatchObject({
+      entryId: "source-lemma:x-ray",
+      lemma: "x-ray",
+      meaningsZh: [],
+      inScope: true,
+      sourceKind: "source_lemma",
+    });
+    expect((result as { matchType?: string }).matchType).toBe("source_lemma_exact");
+  });
+
+  it("resolves explicit spaced phrase aliases through source lemma membership", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet4",
+      query: "according to",
+    });
+
+    expect(result.queryMode).toBe("direct_lookup");
+    expect(result.resolution).toBe("resolved");
+    expect(result.mainAnswer[0]).toMatchObject({
+      entryId: "source-lemma:accordingto",
+      lemma: "accordingto",
+      meaningsZh: [],
+      inScope: true,
+      sourceKind: "source_lemma",
+    });
+    expect((result as { matchType?: string }).matchType).toBe("source_lemma_exact");
+  });
+
+  it("does not fuzzy-match direct phrase lookups to unrelated single words", async () => {
+    const result = await retrieveCandidates({
+      activeExamTarget: "cet4",
+      query: "make up",
+    });
+
+    expect(result.queryMode).toBe("direct_lookup");
+    expect(result.resolution).toBe("no_match");
+    expect(result.mainAnswer).toHaveLength(0);
   });
 
   it("prefers exact source lemmas over structured fuzzy neighbors", async () => {

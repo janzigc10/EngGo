@@ -23,6 +23,11 @@ export type FindSourceLemmaMembershipOptions = LoadSourceLemmaMembershipsOptions
 };
 
 const sourceMembershipCache = new Map<string, Promise<SourceLemmaMembership[]>>();
+const explicitLookupAliases = new Map([
+  ["according to", "accordingto"],
+  ["ought to", "oughtto"],
+  ["owing to", "owingto"],
+]);
 
 function getDefaultBaseDir() {
   return path.join(process.cwd(), "data", "exam-vocab");
@@ -30,6 +35,13 @@ function getDefaultBaseDir() {
 
 function normalizeLemma(lemma: string) {
   return lemma.trim().toLowerCase();
+}
+
+function sourceLookupKeys(lemma: string) {
+  const normalizedLemma = normalizeLemma(lemma).replace(/\s+/g, " ");
+  const alias = explicitLookupAliases.get(normalizedLemma);
+
+  return [...new Set([normalizedLemma, alias].filter(Boolean))];
 }
 
 function addMembership(
@@ -160,6 +172,19 @@ export async function findSourceLemmaMembershipsForLemma({
   const memberships = await loadSourceLemmaMemberships({ baseDir });
 
   return memberships.filter((membership) => membership.lemma === normalizedLemma);
+}
+
+export async function findSourceLemmaMembershipsForLookup({
+  lemma,
+  baseDir,
+}: {
+  lemma: string;
+  baseDir?: string;
+}) {
+  const lookupKeys = new Set(sourceLookupKeys(lemma));
+  const memberships = await loadSourceLemmaMemberships({ baseDir });
+
+  return memberships.filter((membership) => lookupKeys.has(membership.lemma));
 }
 
 export async function findSourceLemmaMembership({

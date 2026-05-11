@@ -32,6 +32,7 @@ describe("black-box product smoke cases", () => {
           forbiddenGroundingIncludes: expect.arrayContaining(["institution"]),
           expectedComparisonViewId: null,
           expectedRootFamilyViewId: null,
+          expectedProviderCall: "absent",
         }),
         expect.objectContaining({
           name: "standard: institution",
@@ -104,6 +105,12 @@ describe("black-box product smoke cases", () => {
         }),
       ]),
     );
+    expect(cases
+      .filter((item) => item.category === "standard_lookup")
+      .every((item) =>
+        (item as { expectedProviderCall?: string }).expectedProviderCall
+          === "absent"
+      )).toBe(true);
   });
 
   it("summarizes verdicts by category", () => {
@@ -162,6 +169,76 @@ describe("black-box product smoke cases", () => {
       category: "standard_lookup",
       verdict: "fail",
       failures: ["grounding missing gain"],
+    });
+  });
+
+  it("allows deterministic resolved cases to skip provider when declared", () => {
+    const result = evaluateBlackBoxProductSmoke(
+      {
+        name: "standard: gain",
+        category: "standard_lookup",
+        source: "batch3",
+        query: "gain 是什么意思",
+        activeExamTarget: "cet6",
+        expectedQueryMode: "fuzzy_recall",
+        expectedResolution: "resolved",
+        expectedAnswerStyle: "standard_lookup",
+        expectedGroundingIncludes: ["gain"],
+        expectedProviderCall: "absent",
+      } as Parameters<typeof evaluateBlackBoxProductSmoke>[0] & {
+        expectedProviderCall: "absent";
+      },
+      {
+        queryMode: "fuzzy_recall",
+        resolution: "resolved",
+        answerStyle: "standard_lookup",
+        groundingLemmas: ["gain"],
+        comparisonViewId: null,
+        rootFamilyViewId: null,
+        providerCalled: false,
+      },
+    );
+
+    expect(result).toEqual({
+      name: "standard: gain",
+      category: "standard_lookup",
+      verdict: "pass",
+      failures: [],
+    });
+  });
+
+  it("fails when an absent-provider case reaches chat provider", () => {
+    const result = evaluateBlackBoxProductSmoke(
+      {
+        name: "standard: gain",
+        category: "standard_lookup",
+        source: "batch3",
+        query: "gain 是什么意思",
+        activeExamTarget: "cet6",
+        expectedQueryMode: "fuzzy_recall",
+        expectedResolution: "resolved",
+        expectedAnswerStyle: "standard_lookup",
+        expectedGroundingIncludes: ["gain"],
+        expectedProviderCall: "absent",
+      } as Parameters<typeof evaluateBlackBoxProductSmoke>[0] & {
+        expectedProviderCall: "absent";
+      },
+      {
+        queryMode: "fuzzy_recall",
+        resolution: "resolved",
+        answerStyle: "standard_lookup",
+        groundingLemmas: ["gain"],
+        comparisonViewId: null,
+        rootFamilyViewId: null,
+        providerCalled: true,
+      },
+    );
+
+    expect(result).toEqual({
+      name: "standard: gain",
+      category: "standard_lookup",
+      verdict: "fail",
+      failures: ["case should not reach chat provider"],
     });
   });
 });

@@ -9,6 +9,7 @@ export type ServerEnv = {
   openAiModel?: string;
   databaseUrl?: string;
   directUrl?: string;
+  enggoBackendUrl?: string;
   sentryDsn?: string;
 };
 
@@ -33,6 +34,7 @@ const serverEnvSchema = z
     OPENAI_MODEL: optionalTrimmedString,
     DATABASE_URL: optionalTrimmedString,
     DIRECT_URL: optionalTrimmedString,
+    ENGGO_BACKEND_URL: optionalTrimmedString,
     SENTRY_DSN: optionalTrimmedString,
   })
   .transform((value): ServerEnv => ({
@@ -42,6 +44,7 @@ const serverEnvSchema = z
     openAiModel: value.OPENAI_MODEL,
     databaseUrl: value.DATABASE_URL,
     directUrl: value.DIRECT_URL,
+    enggoBackendUrl: value.ENGGO_BACKEND_URL,
     sentryDsn: value.SENTRY_DSN,
   }));
 
@@ -52,5 +55,6 @@ export const env = serverEnvSchema.parse({
   OPENAI_MODEL: process.env.OPENAI_MODEL,
   DATABASE_URL: process.env.DATABASE_URL,
   DIRECT_URL: process.env.DIRECT_URL,
+  ENGGO_BACKEND_URL: process.env.ENGGO_BACKEND_URL,
   SENTRY_DSN: process.env.SENTRY_DSN,
 });

@@ -383,7 +383,7 @@ async function runChatLevelCheck(item: EvalCase, retrievalResult: RetrievalResul
         systemPrompt = input.systemPrompt;
 
         return {
-          answer: `stub answer for ${input.grounding.mainAnswer
+          answer: `stub answer for ${(input.grounding?.mainAnswer ?? [])
             .map((candidate) => candidate.lemma)
             .join(" / ")}`,
           providerRequestId: "shape_eval_stub",

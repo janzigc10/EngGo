@@ -105,6 +105,7 @@ function sanitizeCandidateForStandardLookup(
   return {
     entryId: candidate.entryId,
     lemma: candidate.lemma,
+    partOfSpeech: candidate.partOfSpeech,
     meaningsZh: candidate.meaningsZh,
     matchedAlias: candidate.matchedAlias,
     sourceKind: candidate.sourceKind,

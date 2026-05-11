@@ -258,7 +258,7 @@ function buildNextStep(summary: Omit<RunnerSummary, "nextStep">) {
 function wasProviderSkipped(result: RunnerCaseResult) {
   return (
     result.status === 200
-    && result.resolution === "no_match"
+    && !result.errorCode
     && !result.providerRequestId
   );
 }

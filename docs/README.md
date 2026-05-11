@@ -8,6 +8,10 @@
 - `context.md`：长期项目地图和代码地图。
 
 ## 当前有效设计
+- `docs/superpowers/specs/2026-05-10-fastapi-backend-split-design.md`
+  - Python FastAPI 后端拆分设计：Next 前端保留，`/api/chat` 当前默认代理 FastAPI；`ENGGO_BACKEND_URL` 仅用于覆盖默认后端地址。
+- `docs/superpowers/specs/2026-05-09-ecdict-basic-lookup-design.md`
+  - ECDICT 外部基础释义源、词/连字符词/短语边界，以及普通查词的 source priority。
 - `docs/superpowers/specs/2026-05-01-answer-policy-v1.md`
   - 当前 answer policy 产品原则：范围优先，不范围专制。
 - `docs/superpowers/specs/2026-04-30-chat-answer-display-tools.md`
@@ -26,6 +30,16 @@
 
 - `docs/superpowers/plans/2026-05-01-answer-policy-v1.md`
   - Answer Policy v1 loosening spike，已完成。
+- `docs/superpowers/plans/2026-05-09-ecdict-basic-lookup.md`
+  - ECDICT basic profile 与 source-lemma 普通查词接入，已完成。
+- `docs/superpowers/plans/2026-05-10-fastapi-backend-split-stage-1.md`
+  - FastAPI 后端拆分 Stage 1：FastAPI contract、health/chat 契约、Next optional proxy，已完成。
+- `docs/superpowers/plans/2026-05-10-fastapi-backend-split-stage-2.md`
+  - FastAPI 后端拆分 Stage 2：普通 exact lookup / source lemma / ECDICT basic / ordinary no-match 最小切片，已完成；compare/root/fragment/provider 仍留在后续阶段。
+- `docs/superpowers/plans/2026-05-10-fastapi-full-chat-backend-migration.md`
+  - FastAPI 全量 `/api/chat` 迁移，已完成；Next `/api/chat` 已默认代理 FastAPI，默认地址为 `http://127.0.0.1:8000`。
+- `docs/superpowers/plans/2026-05-11-fastapi-dev-workflow-hardening.md`
+  - FastAPI-first 开发启动、默认 smoke 和 legacy TypeScript 后端边界固化，当前正在执行。
 - `docs/superpowers/plans/2026-04-30-chat-answer-display-tools.md`
   - 聊天回答展示第二刀，已完成。
 - `docs/superpowers/plans/2026-04-27-root-fragment-condition-parser.md`

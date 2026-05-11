@@ -22,6 +22,7 @@ export type ProviderSmokeCase = {
   expectedComparisonLabels?: ConfusionClusterLabel[];
   expectedComparisonPurposes?: ConfusionClusterPurpose[];
   forbiddenAnswerIncludes?: string[];
+  expectedProviderRequest?: "required" | "absent" | "optional";
   maxAnswerChars: number;
   manualChecks: string[];
 };
@@ -371,7 +372,7 @@ export function buildAnswerStyleProviderSmokeCases(): ProviderSmokeCase[] {
 }
 
 export function buildStandardLookupProviderSmokeCases(): ProviderSmokeCase[] {
-  return [
+  const cases = [
     createCase({
       name: "standard: academic lookup",
       query: "academic 是什么意思",
@@ -398,7 +399,7 @@ export function buildStandardLookupProviderSmokeCases(): ProviderSmokeCase[] {
       expectedResolution: "resolved",
       expectedAnswerStyle: "standard_lookup",
       expectedGroundingIncludes: ["accent"],
-      expectedAnswerIncludes: ["n.", "核心义"],
+      expectedAnswerIncludes: ["n.", "重音"],
       forbiddenAnswerIncludes: STANDARD_LOOKUP_FORBIDDEN_ANSWER_TEXT,
       expectedComparisonViewId: null,
       expectedRootFamilyViewId: null,
@@ -725,6 +726,11 @@ export function buildStandardLookupProviderSmokeCases(): ProviderSmokeCase[] {
       manualChecks: DEFAULT_STANDARD_LOOKUP_MANUAL_CHECKS,
     }),
   ];
+
+  return cases.map((item) => ({
+    ...item,
+    expectedProviderRequest: "absent",
+  }));
 }
 
 function unique(values: Array<string | undefined>) {
@@ -836,7 +842,10 @@ export function evaluateAnswerStyleProviderSmoke(
     hardFailures.push("resolved case should return non-empty answer");
   }
 
-  if (caseDef.expectedResolution === "resolved" && !payload.providerRequestId) {
+  const expectedProviderRequest = caseDef.expectedProviderRequest
+    ?? (caseDef.expectedResolution === "no_match" ? "absent" : "required");
+
+  if (expectedProviderRequest === "required" && !payload.providerRequestId) {
     hardFailures.push("resolved case should return providerRequestId");
   }
 
@@ -844,8 +853,12 @@ export function evaluateAnswerStyleProviderSmoke(
     hardFailures.push("no_match case should return non-empty answer");
   }
 
-  if (caseDef.expectedResolution === "no_match" && payload.providerRequestId) {
-    hardFailures.push("no_match case should not return providerRequestId");
+  if (expectedProviderRequest === "absent" && payload.providerRequestId) {
+    hardFailures.push(
+      caseDef.expectedResolution === "no_match"
+        ? "no_match case should not return providerRequestId"
+        : "case should not return providerRequestId",
+    );
   }
 
   if (expectedRootFamilyViewId === null && rootFamilyView) {

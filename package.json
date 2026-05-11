@@ -5,6 +5,7 @@
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "next dev",
+    "dev:fastapi": "tsx scripts/dev-fastapi-stack.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -19,10 +20,16 @@
     "eval:shape": "tsx scripts/run-shape-neighbor-eval.ts",
     "eval:lookalike:real-smoke": "tsx scripts/run-real-vocab-lookalike-smoke.ts --dataset real-smoke",
     "eval:product-smoke": "tsx scripts/run-black-box-product-smoke.ts",
+    "eval:product-smoke:http": "tsx scripts/run-black-box-product-http-smoke.ts",
+    "eval:product-smoke:http:proxy": "tsx scripts/run-black-box-product-http-smoke.ts --base-url http://127.0.0.1:3000 --label next-proxy-product-http",
     "eval:answer-style": "tsx scripts/run-answer-style-eval.ts",
     "eval:answer-style:provider": "tsx scripts/run-answer-style-provider-smoke.ts",
     "eval:standard-lookup:provider": "tsx scripts/run-standard-lookup-provider-smoke.ts",
     "eval:source-only:provider": "tsx scripts/run-source-only-lookup-sample.ts",
+    "eval:ecdict:audit": "tsx scripts/run-ecdict-source-only-audit.ts",
+    "eval:fastapi:migrated-smoke": "tsx scripts/run-fastapi-migrated-slice-smoke.ts",
+    "eval:fastapi:migrated-smoke:proxy": "tsx scripts/run-fastapi-migrated-slice-smoke.ts --base-url http://127.0.0.1:3000 --label next-proxy",
+    "eval:default-fastapi-smoke": "tsx scripts/run-default-fastapi-smoke.ts",
     "verify": "corepack pnpm lint && corepack pnpm test:unit && corepack pnpm test:integration && corepack pnpm test:e2e"
   },
   "prisma": {

@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
-import { findSourceLemmaMembershipsForLemma } from "@/features/content/source-lemma-sources";
+import { findSourceLemmaMembershipsForLookup } from "@/features/content/source-lemma-sources";
 import type { ExamScopeCode } from "@/features/content/import-types";
 import {
   confusionClusterLabels,
@@ -150,6 +150,7 @@ function toRankableCandidate(
   return {
     entryId: entry.id,
     lemma: entry.lemma,
+    partOfSpeech: formatPartOfSpeech(entry.pos),
     meaningsZh: entry.meanings.map((meaning) => meaning.zh),
     matchedAlias: null,
     scopeCodes,
@@ -168,6 +169,7 @@ function toRetrievalCandidate(candidate: RankedCandidate): RetrievalCandidate {
   return {
     entryId: candidate.entryId,
     lemma: candidate.lemma,
+    partOfSpeech: candidate.partOfSpeech,
     meaningsZh: candidate.meaningsZh,
     matchedAlias: candidate.matchedAlias,
     scopeCodes: candidate.scopeCodes,
@@ -196,6 +198,7 @@ function createConfusionGroupCandidate(
   return {
     entryId: entry.id,
     lemma: entry.lemma,
+    partOfSpeech: formatPartOfSpeech(entry.pos),
     meaningsZh: entry.meanings.map((meaning) => meaning.zh),
     matchedAlias: null,
     scopeCodes: entry.scopes.map((scope) => scope.scopeCode as ExamScopeCode),
@@ -705,7 +708,7 @@ async function findSourceLemmaRankedCandidate(
     return null;
   }
 
-  const memberships = await findSourceLemmaMembershipsForLemma({ lemma: needle });
+  const memberships = await findSourceLemmaMembershipsForLookup({ lemma: needle });
 
   if (!memberships.some((membership) => membership.scopeCode === activeExamTarget)) {
     return null;
@@ -744,9 +747,21 @@ function shouldTrySourceLemmaFallback(
     return false;
   }
 
+  if (normalizedQuery.queryMode === "direct_lookup") {
+    return normalizedQuery.normalizedText === needle;
+  }
+
+  return normalizedQuery.englishTerms.length === 1 && normalizedQuery.englishTerms[0] === needle;
+}
+
+function isDirectMultiTermLookup(
+  normalizedQuery: ReturnType<typeof normalizeQuery>,
+  needle: string,
+) {
   return (
-    normalizedQuery.englishTerms.length === 1
-    && normalizedQuery.englishTerms[0] === needle
+    normalizedQuery.queryMode === "direct_lookup"
+    && normalizedQuery.englishTerms.length > 1
+    && normalizedQuery.normalizedText === needle
   );
 }
 
@@ -1266,12 +1281,20 @@ async function handleEnglishLookup(
       ? normalizedQuery.englishTerms.join(" ").trim() || normalizedQuery.normalizedText
       : normalizedQuery.englishTerms[0] ?? normalizedQuery.normalizedText;
   const rankedCandidates = await findEnglishRankedCandidates(input.activeExamTarget, needle);
-  const selection = selectStableEnglishCandidate(
+  const rawSelection = selectStableEnglishCandidate(
     rankedCandidates,
     normalizedQuery.queryMode === "direct_lookup"
       ? directLookupThreshold
       : fuzzyRecallThreshold,
   );
+  const selection = isDirectMultiTermLookup(normalizedQuery, needle)
+    && rawSelection.matchType === "fuzzy"
+    ? {
+        candidate: null,
+        matchType: null,
+        noMatchReason: rawSelection.noMatchReason,
+      }
+    : rawSelection;
   const sourceLemmaCandidate = shouldTrySourceLemmaFallback(normalizedQuery, needle)
     ? await findSourceLemmaRankedCandidate(input.activeExamTarget, needle)
     : null;

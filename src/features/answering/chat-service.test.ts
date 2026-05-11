@@ -362,6 +362,214 @@ describe("createChatService", () => {
     });
   });
 
+  it("answers source-lemma exact lookups from ECDICT before calling the provider", async () => {
+    let providerCalled = false;
+    const service = createChatService({
+      provider: {
+        async generateAnswer() {
+          providerCalled = true;
+
+          return {
+            answer: "should not be used",
+            providerRequestId: "resp_unused",
+          };
+        },
+      },
+      ecdictBasicProfileLookup: async (query) =>
+        query === "accent"
+          ? {
+              canonical: "accent",
+              lookupKey: "accent",
+              entryKind: "word",
+              matchKind: "exact",
+              meanings: ["n. 口音；重音"],
+              rawTranslation: "n. 口音；重音",
+              tag: "cet4",
+              sourceKind: "external_dictionary_basic",
+              reviewStatus: "unreviewed",
+            }
+          : null,
+      createRequestId: () => "req_source_lemma_ecdict",
+    });
+
+    const result = await service.answer({
+      activeExamTarget: "cet4",
+      query: "accent",
+      history: [],
+      retrievalResult: {
+        queryMode: "direct_lookup",
+        normalizedQuery: {
+          raw: "accent",
+          normalizedText: "accent",
+          queryMode: "direct_lookup",
+          englishTerms: ["accent"],
+          meaningHint: "accent",
+          compareTerms: [],
+          groupSeedTerm: null,
+        },
+        resolution: "resolved",
+        noMatchReason: null,
+        comparisonView: null,
+        candidates: [],
+        mainAnswer: [
+          {
+            entryId: "source-lemma:accent",
+            lemma: "accent",
+            meaningsZh: [],
+            matchedAlias: null,
+            scopeCodes: ["gaokao", "cet4", "cet6"],
+            inScope: true,
+            reason: "source lemma exact match",
+            score: 18,
+            sourceKind: "source_lemma",
+          },
+        ],
+        confusionBoundary: [],
+        matchType: "source_lemma_exact",
+      },
+    });
+
+    expect(providerCalled).toBe(false);
+    expect(result.answer).toBe([
+      "accent",
+      "",
+      "n. 口音；重音",
+    ].join("\n"));
+    expect(result.answerKind).toBe("grounded");
+    expect(result.providerRequestId).toBeNull();
+    expect(result.grounding?.answerStyle).toBe("standard_lookup");
+    expect(result.grounding?.matchType).toBe("source_lemma_exact");
+  });
+
+  it("answers direct phrase no-match lookups from ECDICT before returning no-match", async () => {
+    let providerCalled = false;
+    const service = createChatService({
+      provider: {
+        async generateAnswer() {
+          providerCalled = true;
+
+          return {
+            answer: "should not be used",
+            providerRequestId: "resp_unused",
+          };
+        },
+      },
+      ecdictBasicProfileLookup: async (query) =>
+        query === "make up"
+          ? {
+              canonical: "make up",
+              lookupKey: "make up",
+              entryKind: "phrase",
+              matchKind: "exact",
+              meanings: ["弥补, 赔偿, 组成, 和解"],
+              rawTranslation: "弥补, 赔偿, 组成, 和解",
+              tag: "",
+              sourceKind: "external_dictionary_basic",
+              reviewStatus: "unreviewed",
+            }
+          : null,
+      createRequestId: () => "req_phrase_ecdict",
+    });
+
+    const result = await service.answer({
+      activeExamTarget: "cet4",
+      query: "make up",
+      history: [],
+      retrievalResult: {
+        queryMode: "direct_lookup",
+        normalizedQuery: {
+          raw: "make up",
+          normalizedText: "make up",
+          queryMode: "direct_lookup",
+          englishTerms: ["make", "up"],
+          meaningHint: "make up",
+          compareTerms: [],
+          groupSeedTerm: null,
+        },
+        resolution: "no_match",
+        noMatchReason: "out_of_kb",
+        comparisonView: null,
+        candidates: [],
+        mainAnswer: [],
+        confusionBoundary: [],
+        matchType: null,
+      },
+    });
+
+    expect(providerCalled).toBe(false);
+    expect(result.answer).toBe([
+      "make up",
+      "",
+      "phr. 弥补；赔偿；组成；和解",
+    ].join("\n"));
+    expect(result.answerKind).toBe("grounded");
+    expect(result.providerRequestId).toBeNull();
+    expect(result.grounding?.answerStyle).toBe("standard_lookup");
+    expect(result.grounding?.resolution).toBe("resolved");
+  });
+
+  it("formats structured standard lookup answers as a compact block", async () => {
+    let providerCalled = false;
+    const service = createChatService({
+      provider: {
+        async generateAnswer() {
+          providerCalled = true;
+
+          return {
+            answer: "access n./v. 核心义为进入权、使用权、访问。",
+            providerRequestId: "resp_structured_standard_lookup",
+          };
+        },
+      },
+      createRequestId: () => "req_structured_standard_lookup",
+    });
+
+    const result = await service.answer({
+      activeExamTarget: "cet6",
+      query: "access 是什么意思",
+      history: [],
+      retrievalResult: {
+        queryMode: "fuzzy_recall",
+        normalizedQuery: {
+          raw: "access 是什么意思",
+          normalizedText: "access 是什么意思",
+          queryMode: "fuzzy_recall",
+          englishTerms: ["access"],
+          meaningHint: "access",
+          compareTerms: [],
+          groupSeedTerm: null,
+        },
+        resolution: "resolved",
+        noMatchReason: null,
+        comparisonView: null,
+        candidates: [],
+        mainAnswer: [
+          {
+            entryId: "access",
+            lemma: "access",
+            partOfSpeech: "n. / v.",
+            meaningsZh: ["进入权", "使用权", "访问"],
+            matchedAlias: null,
+            scopeCodes: ["cet6"],
+            inScope: true,
+            reason: "structured exact match",
+            score: 100,
+          },
+        ],
+        confusionBoundary: [],
+        matchType: "exact",
+      } as RetrievalResult,
+    });
+
+    expect(result.answer).toBe([
+      "access",
+      "",
+      "n./v. 进入权；使用权；访问",
+    ].join("\n"));
+    expect(providerCalled).toBe(false);
+    expect(result.providerRequestId).toBeNull();
+  });
+
   it("does not leak source-lemma internals when source-only provider output is filtered out", async () => {
     const service = createChatService({
       provider: {

@@ -27,6 +27,7 @@ export type BlackBoxProductSmokeCase = {
   forbiddenGroundingIncludes?: string[];
   expectedComparisonViewId?: string | null;
   expectedRootFamilyViewId?: string | null;
+  expectedProviderCall?: "required" | "absent" | "optional";
 };
 
 export type BlackBoxProductSmokeObservation = {
@@ -65,7 +66,7 @@ function createCase(item: BlackBoxProductSmokeCase) {
 }
 
 export function buildBlackBoxProductSmokeCases(): BlackBoxProductSmokeCase[] {
-  return [
+  const cases: BlackBoxProductSmokeCase[] = [
     createCase({
       name: "standard: gain",
       category: "standard_lookup",
@@ -537,6 +538,12 @@ export function buildBlackBoxProductSmokeCases(): BlackBoxProductSmokeCase[] {
       expectedGroundingIncludes: ["respect"],
     }),
   ];
+
+  return cases.map((item) =>
+    item.category === "standard_lookup"
+      ? { ...item, expectedProviderCall: "absent" }
+      : item
+  );
 }
 
 function addIfMismatch<T>(
@@ -609,12 +616,19 @@ export function evaluateBlackBoxProductSmoke(
     }
   }
 
-  if (caseDef.expectedResolution === "resolved" && !observation.providerCalled) {
+  const expectedProviderCall = caseDef.expectedProviderCall
+    ?? (caseDef.expectedResolution === "no_match" ? "absent" : "required");
+
+  if (expectedProviderCall === "required" && !observation.providerCalled) {
     failures.push("resolved case did not reach chat provider");
   }
 
-  if (caseDef.expectedResolution === "no_match" && observation.providerCalled) {
-    failures.push("no-match case should short-circuit chat provider");
+  if (expectedProviderCall === "absent" && observation.providerCalled) {
+    failures.push(
+      caseDef.expectedResolution === "no_match"
+        ? "no-match case should short-circuit chat provider"
+        : "case should not reach chat provider",
+    );
   }
 
   return {

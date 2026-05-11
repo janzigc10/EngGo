@@ -3,6 +3,7 @@ import "dotenv/config";
 import { pathToFileURL } from "node:url";
 
 import { createChatService } from "../src/features/answering/chat-service";
+import { createEcdictBasicProfileLookup } from "../src/features/content/ecdict-basic-profiles";
 import { db } from "../src/lib/db";
 import { retrieveCandidates } from "../src/features/retrieval/retrieve-candidates";
 import type { RetrievalResult } from "../src/features/retrieval/types";
@@ -14,6 +15,8 @@ import {
   type BlackBoxProductSmokeObservation,
   type BlackBoxProductSmokeResult,
 } from "./lib/black-box-product-smoke";
+
+const ecdictBasicProfileLookup = createEcdictBasicProfileLookup();
 
 type RunnerResult = BlackBoxProductSmokeResult & {
   query: string;
@@ -65,12 +68,13 @@ async function runCase(item: BlackBoxProductSmokeCase): Promise<RunnerResult> {
   let providerCalled = false;
 
   const service = createChatService({
+    ecdictBasicProfileLookup,
     provider: {
       async generateAnswer(input) {
         providerCalled = true;
 
         return {
-          answer: `stub answer for ${input.grounding.query}`,
+          answer: `stub answer for ${input.grounding?.query ?? input.query}`,
           providerRequestId: "black_box_product_smoke_stub",
         };
       },
@@ -84,13 +88,21 @@ async function runCase(item: BlackBoxProductSmokeCase): Promise<RunnerResult> {
     history: [],
     retrievalResult,
   });
+  const answerGrounding = serviceResult.grounding;
+
+  if (!answerGrounding) {
+    throw new Error(
+      `Product smoke case "${item.name}" returned a plain answer without grounding.`,
+    );
+  }
+
   const observation: BlackBoxProductSmokeObservation = {
     queryMode: retrievalResult.queryMode,
     resolution: retrievalResult.resolution,
-    answerStyle: serviceResult.grounding.answerStyle,
+    answerStyle: answerGrounding.answerStyle,
     groundingLemmas,
-    comparisonViewId: serviceResult.grounding.comparisonView?.id ?? null,
-    rootFamilyViewId: serviceResult.grounding.rootFamilyView?.id ?? null,
+    comparisonViewId: answerGrounding.comparisonView?.id ?? null,
+    rootFamilyViewId: answerGrounding.rootFamilyView?.id ?? null,
     providerCalled,
   };
   const result = evaluateBlackBoxProductSmoke(item, observation);
@@ -101,7 +113,7 @@ async function runCase(item: BlackBoxProductSmokeCase): Promise<RunnerResult> {
     route: [
       retrievalResult.queryMode,
       retrievalResult.resolution,
-      serviceResult.grounding.answerStyle,
+      answerGrounding.answerStyle,
     ].join("/"),
     grounding: formatGrounding(groundingLemmas),
     elapsedMs: Date.now() - startedAt,

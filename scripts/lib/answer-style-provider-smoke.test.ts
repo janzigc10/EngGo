@@ -195,7 +195,11 @@ describe("buildAnswerStyleProviderSmokeCases", () => {
     expect(
       cases.find((item) => item.name === "standard: source lemma accent lookup")
         ?.expectedAnswerIncludes,
-    ).toEqual(["n.", "核心义"]);
+    ).toEqual(["n.", "重音"]);
+    expect(cases.every((item) =>
+      (item as { expectedProviderRequest?: string }).expectedProviderRequest
+        === "absent"
+    )).toBe(true);
   });
 });
 
@@ -224,6 +228,60 @@ describe("evaluateAnswerStyleProviderSmoke", () => {
     expect(verdict.autoVerdict).toBe("fail");
     expect(verdict.hardFailures).toContain(
       "resolved case should return providerRequestId",
+    );
+  });
+
+  it("allows deterministic resolved cases to skip provider when declared", () => {
+    const caseDef = {
+      ...buildStandardLookupProviderSmokeCases()[0],
+      expectedProviderRequest: "absent",
+    } as Parameters<typeof evaluateAnswerStyleProviderSmoke>[0] & {
+      expectedProviderRequest: "absent";
+    };
+
+    const verdict = evaluateAnswerStyleProviderSmoke(caseDef, {
+      status: 200,
+      providerRequestId: null,
+      grounding: {
+        queryMode: "fuzzy_recall",
+        resolution: "resolved",
+        answerStyle: "standard_lookup",
+        mainAnswer: [{ lemma: "academic" }],
+        comparisonView: null,
+        rootFamilyView: null,
+      },
+      answer: "academic adj. 学术的；学校的",
+    });
+
+    expect(verdict.autoVerdict).toBe("pass");
+    expect(verdict.hardFailures).toEqual([]);
+  });
+
+  it("fails when an absent-provider case still returns providerRequestId", () => {
+    const caseDef = {
+      ...buildStandardLookupProviderSmokeCases()[0],
+      expectedProviderRequest: "absent",
+    } as Parameters<typeof evaluateAnswerStyleProviderSmoke>[0] & {
+      expectedProviderRequest: "absent";
+    };
+
+    const verdict = evaluateAnswerStyleProviderSmoke(caseDef, {
+      status: 200,
+      providerRequestId: "resp_should_not_exist",
+      grounding: {
+        queryMode: "fuzzy_recall",
+        resolution: "resolved",
+        answerStyle: "standard_lookup",
+        mainAnswer: [{ lemma: "academic" }],
+        comparisonView: null,
+        rootFamilyView: null,
+      },
+      answer: "academic adj. 学术的；学校的",
+    });
+
+    expect(verdict.autoVerdict).toBe("fail");
+    expect(verdict.hardFailures).toContain(
+      "case should not return providerRequestId",
     );
   });
 

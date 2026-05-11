@@ -28,6 +28,15 @@ The target architecture is:
 
 The first version should optimize for behavioral parity, not for new product features.
 
+## Current Migration Status
+
+As of 2026-05-10, the full chat backend migration is complete. Next `/api/chat` is now a thin proxy by default:
+
+- Without `ENGGO_BACKEND_URL`, Next forwards to `http://127.0.0.1:8000/api/chat`.
+- With `ENGGO_BACKEND_URL`, Next forwards to `${ENGGO_BACKEND_URL}/api/chat`.
+- The previous TypeScript chat service remains in the repository for tests, comparison, and rollback reference, but it is no longer the default Next route.
+- Local browser smoke must start FastAPI before Next, or `/api/chat` will return the proxy failure contract.
+
 ## API Contract
 
 FastAPI must accept the same chat request shape currently accepted by Next:
@@ -110,7 +119,7 @@ Add a FastAPI backend with:
 - request id propagation
 - Next `/api/chat` proxy support via an environment variable such as `ENGGO_BACKEND_URL`
 
-If `ENGGO_BACKEND_URL` is not configured, Next `/api/chat` must continue to use the existing TypeScript service. This keeps the current browser path and smoke baseline intact while the Python backend is incomplete.
+Historical stage note: while the Python backend was incomplete, `ENGGO_BACKEND_URL` opt-in protected the default TypeScript path. That migration guard has been retired after full parity smoke; the current default route is FastAPI-first.
 
 At this point, the proxy can be tested with fake FastAPI responses before the full retrieval port is complete. The default local development path should remain TypeScript until an explicit backend URL is provided.
 
@@ -204,6 +213,8 @@ Required migration gates:
 - `corepack pnpm eval:standard-lookup:provider`
 
 During migration, default smoke commands still exercise the Next `/api/chat` path. FastAPI proxy behavior should be tested only when `ENGGO_BACKEND_URL` is explicitly set, until the proxy becomes the default route.
+
+Current post-migration default: use `corepack pnpm dev:fastapi` for local development and `corepack pnpm eval:default-fastapi-smoke` to verify that Next `/api/chat` reaches FastAPI. The legacy TypeScript retrieval/answering modules remain available for comparison and tests, but they are not the Next route fallback.
 
 Before declaring the backend migration complete, also run the broader smoke set:
 

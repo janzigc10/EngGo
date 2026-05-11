@@ -1,5 +1,6 @@
 import type { ExamScopeCode } from "@/features/content/import-types";
-import type { RetrievalResult } from "@/features/retrieval/types";
+import type { EcdictBasicProfile } from "@/features/content/ecdict-basic-profiles";
+import type { RetrievalCandidate, RetrievalResult } from "@/features/retrieval/types";
 import {
   buildGrounding,
   type AnswerGrounding,
@@ -31,6 +32,9 @@ export type ChatServiceResult = {
 type CreateChatServiceOptions = {
   provider?: ChatProvider;
   createRequestId?: () => string;
+  ecdictBasicProfileLookup?: (
+    query: string,
+  ) => EcdictBasicProfile | null | Promise<EcdictBasicProfile | null>;
 };
 
 const learningIntentPattern =
@@ -251,9 +255,137 @@ function cleanStandardLookupAnswer(answer: string, grounding: AnswerGrounding) {
   return cleaned || buildStandardLookupFallbackAnswer(grounding);
 }
 
+function shouldUseEcdictBasicProfile(grounding: AnswerGrounding) {
+  const mainAnswer = grounding.mainAnswer[0];
+
+  return (
+    grounding.answerStyle === "standard_lookup"
+    && grounding.matchType === "source_lemma_exact"
+    && mainAnswer?.sourceKind === "source_lemma"
+  );
+}
+
+function stripAnswerEnding(value: string) {
+  return value.trim().replace(/[。！？.!?]+$/g, "");
+}
+
+function normalizeMeaningList(value: string) {
+  return stripAnswerEnding(value)
+    .replace(/\s*[,，;；]\s*/g, "；")
+    .replace(/；+/g, "；")
+    .replace(/^；|；$/g, "")
+    .trim();
+}
+
+function normalizePartOfSpeechForDisplay(value: string) {
+  return value
+    .trim()
+    .replace(/\s*\/\s*/g, "/")
+    .replace(/\bad\./gi, "adv.")
+    .replace(/\ba\./gi, "adj.");
+}
+
+const dictionaryPartOfSpeechPattern =
+  /\b(n|v|vt|vi|adj|adv|a|ad|prep|conj|pron|phr)\.\s*/gi;
+
+function splitDictionaryMeaningSections(value: string) {
+  const matches = [...value.matchAll(dictionaryPartOfSpeechPattern)];
+
+  if (matches.length === 0) {
+    return [{ partOfSpeech: null, meaning: value }];
+  }
+
+  return matches.map((match, index) => {
+    const nextMatch = matches[index + 1];
+    const start = (match.index ?? 0) + match[0].length;
+    const end = nextMatch?.index ?? value.length;
+
+    return {
+      partOfSpeech: match[1] ? `${match[1]}.` : null,
+      meaning: value.slice(start, end),
+    };
+  });
+}
+
+function formatOrdinaryLookupBlock(lemma: string, lines: string[]) {
+  return [lemma, "", ...lines.filter(Boolean)].join("\n");
+}
+
+function buildEcdictBasicProfileAnswer(profile: EcdictBasicProfile) {
+  const lines = profile.meanings
+    .flatMap(splitDictionaryMeaningSections)
+    .map((section) => {
+      const meaning = normalizeMeaningList(section.meaning);
+
+      if (!meaning) {
+        return "";
+      }
+
+      const partOfSpeech = section.partOfSpeech
+        ? normalizePartOfSpeechForDisplay(section.partOfSpeech)
+        : profile.entryKind === "phrase"
+          ? "phr."
+          : "";
+
+      return partOfSpeech ? `${partOfSpeech} ${meaning}` : meaning;
+    })
+    .filter(Boolean);
+
+  return formatOrdinaryLookupBlock(profile.canonical, lines);
+}
+
+function buildStructuredStandardLookupAnswer(grounding: AnswerGrounding) {
+  const mainAnswer = grounding.mainAnswer[0];
+
+  if (
+    !mainAnswer
+    || mainAnswer.meaningsZh.length === 0
+    || !mainAnswer.partOfSpeech
+    || grounding.spellingCorrection
+  ) {
+    return null;
+  }
+
+  const meaning = normalizeMeaningList(mainAnswer.meaningsZh.join("；"));
+
+  if (!meaning) {
+    return null;
+  }
+
+  const partOfSpeech = normalizePartOfSpeechForDisplay(mainAnswer.partOfSpeech);
+  const line = partOfSpeech && partOfSpeech !== "-"
+    ? `${partOfSpeech} ${meaning}`
+    : meaning;
+
+  return formatOrdinaryLookupBlock(mainAnswer.lemma, [line]);
+}
+
+function shouldUseEcdictDirectPhraseFallback(retrievalResult: RetrievalResult) {
+  return (
+    retrievalResult.resolution === "no_match"
+    && retrievalResult.queryMode === "direct_lookup"
+    && retrievalResult.normalizedQuery.englishTerms.length > 1
+  );
+}
+
+function buildEcdictBasicProfileCandidate(profile: EcdictBasicProfile): RetrievalCandidate {
+  return {
+    entryId: `external-dictionary-basic:${profile.canonical}`,
+    lemma: profile.canonical,
+    meaningsZh: profile.meanings,
+    matchedAlias: profile.matchKind === "joined_phrase_alias" ? profile.lookupKey : null,
+    scopeCodes: [],
+    inScope: true,
+    reason: "external dictionary basic exact match",
+    score: 12,
+    sourceKind: "external_dictionary_basic",
+  };
+}
+
 export function createChatService(options: CreateChatServiceOptions = {}) {
   const provider = options.provider ?? createOpenAiChatProvider();
   const createRequestIdImpl = options.createRequestId ?? createRequestId;
+  const ecdictBasicProfileLookup = options.ecdictBasicProfileLookup;
 
   return {
     async answer(input: ChatServiceInput): Promise<ChatServiceResult> {
@@ -272,6 +404,38 @@ export function createChatService(options: CreateChatServiceOptions = {}) {
       });
 
       if (grounding.resolution === "no_match") {
+        if (
+          ecdictBasicProfileLookup
+          && shouldUseEcdictDirectPhraseFallback(input.retrievalResult)
+        ) {
+          const profile = await ecdictBasicProfileLookup(
+            input.retrievalResult.normalizedQuery.normalizedText,
+          );
+
+          if (profile?.entryKind === "phrase") {
+            const dictionaryGrounding = buildGrounding({
+              activeExamTarget: input.activeExamTarget,
+              query: input.query,
+              queryMode: input.retrievalResult.queryMode,
+              resolution: "resolved",
+              noMatchReason: null,
+              matchType: "external_dictionary_exact",
+              mainAnswer: [buildEcdictBasicProfileCandidate(profile)],
+              confusionBoundary: [],
+              comparisonView: null,
+              rootFamilyView: null,
+            });
+
+            return {
+              answer: buildEcdictBasicProfileAnswer(profile),
+              answerKind: "grounded",
+              grounding: dictionaryGrounding,
+              requestId,
+              providerRequestId: null,
+            };
+          }
+        }
+
         if (shouldUseSpellingAssist(input, grounding)) {
           const result = await provider.generateAnswer({
             query: input.query,
@@ -313,6 +477,37 @@ export function createChatService(options: CreateChatServiceOptions = {}) {
         };
       }
 
+      if (ecdictBasicProfileLookup && shouldUseEcdictBasicProfile(grounding)) {
+        const mainAnswer = grounding.mainAnswer[0];
+        const profile = mainAnswer
+          ? await ecdictBasicProfileLookup(mainAnswer.lemma)
+          : null;
+
+        if (profile) {
+          return {
+            answer: buildEcdictBasicProfileAnswer(profile),
+            answerKind: "grounded",
+            grounding,
+            requestId,
+            providerRequestId: null,
+          };
+        }
+      }
+
+      const structuredStandardLookupAnswer = grounding.answerStyle === "standard_lookup"
+        ? buildStructuredStandardLookupAnswer(grounding)
+        : null;
+
+      if (structuredStandardLookupAnswer) {
+        return {
+          answer: structuredStandardLookupAnswer,
+          answerKind: "grounded",
+          grounding,
+          requestId,
+          providerRequestId: null,
+        };
+      }
+
       const systemPrompt = buildSystemPrompt(grounding);
       const result = await provider.generateAnswer({
         query: input.query,
@@ -324,7 +519,8 @@ export function createChatService(options: CreateChatServiceOptions = {}) {
 
       return {
         answer: grounding.answerStyle === "standard_lookup"
-          ? cleanStandardLookupAnswer(result.answer, grounding)
+          ? buildStructuredStandardLookupAnswer(grounding)
+            ?? cleanStandardLookupAnswer(result.answer, grounding)
           : result.answer,
         answerKind: "grounded",
         grounding,

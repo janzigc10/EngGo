@@ -34,11 +34,11 @@
 - Create: `backend/app/core/config.py`
 - Test: `backend/tests/test_health.py`
 
-- [ ] **Step 1: Add Python dependency manifest**
+- [x] **Step 1: Add Python dependency manifest**
 
 Create `backend/requirements.txt` with FastAPI, Uvicorn, Pydantic, pytest, and HTTPX/TestClient dependencies.
 
-- [ ] **Step 2: Install dependencies for local verification**
+- [x] **Step 2: Install dependencies for local verification**
 
 Run with the available Python executable:
 
@@ -48,7 +48,7 @@ Run with the available Python executable:
 
 Expected: dependencies installed or already satisfied.
 
-- [ ] **Step 3: Write failing health test**
+- [x] **Step 3: Write failing health test**
 
 Add a pytest that imports `create_app()` from `backend.app.main`, calls `GET /health`, and expects:
 
@@ -56,7 +56,7 @@ Add a pytest that imports `create_app()` from `backend.app.main`, calls `GET /he
 {"status": "ok", "service": "enggo-fastapi"}
 ```
 
-- [ ] **Step 4: Run health test and verify RED**
+- [x] **Step 4: Run health test and verify RED**
 
 Run:
 
@@ -66,11 +66,11 @@ Run:
 
 Expected: fail because `backend.app.main` or `create_app` is not implemented yet.
 
-- [ ] **Step 5: Implement minimal FastAPI app**
+- [x] **Step 5: Implement minimal FastAPI app**
 
 Create `create_app()` and `/health`.
 
-- [ ] **Step 6: Run health test and verify GREEN**
+- [x] **Step 6: Run health test and verify GREEN**
 
 Run the same pytest command.
 
@@ -85,7 +85,7 @@ Expected: pass.
 - Modify: `backend/app/main.py`
 - Test: `backend/tests/test_chat_contract.py`
 
-- [ ] **Step 1: Write failing chat validation tests**
+- [x] **Step 1: Write failing chat validation tests**
 
 Tests should cover:
 
@@ -94,7 +94,7 @@ Tests should cover:
 - non-greeting query returns 501 `not_implemented` with request id, because retrieval is Stage 2
 - response includes `requestId` and `x-request-id`
 
-- [ ] **Step 2: Run chat contract tests and verify RED**
+- [x] **Step 2: Run chat contract tests and verify RED**
 
 Run:
 
@@ -104,7 +104,7 @@ Run:
 
 Expected: fail because chat schema/router does not exist.
 
-- [ ] **Step 3: Implement Pydantic models and chat router**
+- [x] **Step 3: Implement Pydantic models and chat router**
 
 Implement only:
 
@@ -117,7 +117,7 @@ Implement only:
 
 Do not add retrieval, grounding DTOs, ECDICT, or provider calls in this task.
 
-- [ ] **Step 4: Run chat contract tests and verify GREEN**
+- [x] **Step 4: Run chat contract tests and verify GREEN**
 
 Run the same pytest command.
 
@@ -130,7 +130,7 @@ Expected: pass.
 - Modify: `src/app/api/chat/route.ts`
 - Create: `src/app/api/chat/route.test.ts`
 
-- [ ] **Step 1: Write failing Vitest tests for routing behavior**
+- [x] **Step 1: Write failing Vitest tests for routing behavior**
 
 Tests should prove:
 
@@ -141,7 +141,7 @@ Tests should prove:
 
 Use module/env isolation for this test, such as resetting modules before dynamic import, stubbing `process.env.ENGGO_BACKEND_URL`, mocking retrieval/service for the default path, and mocking global `fetch` for the proxy path.
 
-- [ ] **Step 2: Run route tests and verify RED**
+- [x] **Step 2: Run route tests and verify RED**
 
 Run:
 
@@ -151,11 +151,11 @@ corepack pnpm test src/app/api/chat/route.test.ts
 
 Expected: fail because optional proxy is not implemented.
 
-- [ ] **Step 3: Implement optional proxy helper**
+- [x] **Step 3: Implement optional proxy helper**
 
 Add `ENGGO_BACKEND_URL` to `src/lib/env.ts`. In `src/app/api/chat/route.ts`, if configured, forward the original JSON payload to FastAPI and return the FastAPI response. If not configured, keep the existing code path unchanged.
 
-- [ ] **Step 4: Run route tests and verify GREEN**
+- [x] **Step 4: Run route tests and verify GREEN**
 
 Run the same Vitest command.
 
@@ -167,11 +167,11 @@ Expected: pass.
 - Modify: `package.json` if a stable script can be added without hard-coding a machine-local Python path.
 - Test: existing route tests and manual local smoke.
 
-- [ ] **Step 1: Decide script shape**
+- [x] **Step 1: Decide script shape**
 
 If `python` is not on PATH in this workspace, do not add a brittle `backend:dev` package script. Prefer documenting the exact local command in `progress.md`.
 
-- [ ] **Step 2: Run FastAPI locally**
+- [x] **Step 2: Run FastAPI locally**
 
 Run:
 
@@ -181,19 +181,19 @@ Run:
 
 Expected: service listens at `http://127.0.0.1:8000`.
 
-- [ ] **Step 3: Smoke FastAPI directly**
+- [x] **Step 3: Smoke FastAPI directly**
 
 Call `POST http://127.0.0.1:8000/api/chat` with a greeting body.
 
 Expected: plain greeting response with request id.
 
-- [ ] **Step 4: Smoke Next proxy explicitly**
+- [x] **Step 4: Smoke Next proxy explicitly**
 
 Run Next with `ENGGO_BACKEND_URL=http://127.0.0.1:8000` and call `POST /api/chat`.
 
 Expected: Next returns the FastAPI greeting response and `x-request-id`.
 
-- [ ] **Step 5: Restore default route environment**
+- [x] **Step 5: Restore default route environment**
 
 Stop or restart Next with `ENGGO_BACKEND_URL` unset before running existing TypeScript smoke. Confirm the default path no longer proxies to FastAPI.
 
@@ -203,7 +203,7 @@ Stop or restart Next with `ENGGO_BACKEND_URL` unset before running existing Type
 - Modify: `progress.md`
 - Optionally modify: `bugs.md` only if a new confirmed environment pitfall appears.
 
-- [ ] **Step 1: Run Python backend tests**
+- [x] **Step 1: Run Python backend tests**
 
 Run:
 
@@ -213,7 +213,7 @@ Run:
 
 Expected: all backend tests pass.
 
-- [ ] **Step 2: Run focused TypeScript tests**
+- [x] **Step 2: Run focused TypeScript tests**
 
 Run:
 
@@ -223,7 +223,7 @@ corepack pnpm test src/app/api/chat/route.test.ts src/components/chat/chat-works
 
 Expected: all focused front-end/proxy tests pass.
 
-- [ ] **Step 3: Run existing smoke through default Next path**
+- [x] **Step 3: Run existing smoke through default Next path**
 
 Run:
 
@@ -234,7 +234,7 @@ corepack pnpm eval:standard-lookup:provider
 
 Expected: existing TypeScript default path remains green because `ENGGO_BACKEND_URL` is unset. Ensure the Next dev server used by these commands was started without `ENGGO_BACKEND_URL`.
 
-- [ ] **Step 4: Update progress**
+- [x] **Step 4: Update progress**
 
 Record:
 

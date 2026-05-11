@@ -15,7 +15,7 @@ const shapeNeighborCuePattern =
 const shapeNeighborListPattern = /(哪些|什么|哪几个|列举|举例|有什么)/i;
 const rootCuePattern =
   /(词根|前缀|后缀|同根|这一族|家族|派生|构词|组合|开头|结尾|词首|词尾)/i;
-const rootFragmentPattern = /[a-z]+\+[a-z]+|[a-z]+\.\.\.[a-z]+|-[a-z]+/i;
+const rootFragmentPattern = /[a-z]+\+[a-z]+|[a-z]+\.\.\.[a-z]+|(?:^|\s)-[a-z]+/i;
 const exactFragmentQuestionPattern = /^([a-z]{4,10})\s*(?:是(什么|啥)|什么意思)$/i;
 const standaloneRootFragments = new Set(["stitute"]);
 

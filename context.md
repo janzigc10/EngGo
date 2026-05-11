@@ -34,6 +34,7 @@ RAG / 词库是证据系统，不是回答许可系统。命中范围时要明�
   - `root_family_summary`
   - non-grounded `plain`
 - UI 已支持受控 Markdown 子集渲染、表格渲染、命中状态摘要和收藏工具折叠。
+- `/api/chat` 后端已迁移到 Python FastAPI；Next.js 仍负责前端页面与薄代理，不再默认执行 TypeScript chat service。
 
 ## 当前边界
 - 不把 `re+con` 这类语义/词根理论问题硬塞进词形过滤 parser；如果要支持，先定义产品边界。
@@ -44,15 +45,16 @@ RAG / 词库是证据系统，不是回答许可系统。命中范围时要明�
 - embedding 只能作为语义召回补充，不作为形近词、考试范围和基础释义的主干。
 
 ## 代码地图
-- `src/app/api/chat/route.ts`：聊天 API 入口，含 greeting short-circuit。
-- `src/features/retrieval/`：query normalize、候选召回、root fragment recall、SQL 辅助。
-- `src/features/answering/`：grounding 构建、system prompt、provider 调用、chat service。
+- `src/app/api/chat/route.ts`：Next 前端侧聊天代理，默认转发到 FastAPI `http://127.0.0.1:8000/api/chat`。
+- `backend/app/`：Python FastAPI 聊天后端，包含 query normalize、候选召回、grounding、answer policy 和 provider 调用。
+- `src/features/retrieval/`：legacy TypeScript 检索实现，保留作测试、对照和回滚参考。
+- `src/features/answering/`：legacy TypeScript 回答实现，保留作测试、对照和回滚参考。
 - `src/features/chat/`：聊天类型、前端 session hook。
 - `src/components/chat/`：聊天工作台、输入框、消息线程、答案渲染、收藏动作。
 - `data/exam-vocab/seed/`：开发基础词库。
 - `data/exam-vocab/real-smoke/`：source-backed 真实词库 smoke 数据。
 - `prisma/`：schema、migration、seed 入口。
-- `scripts/`：内容校验、deterministic eval、provider smoke runner。
+- `scripts/`：内容校验、deterministic eval、provider smoke runner，以及 FastAPI-first dev/smoke 入口。
 - `tests/e2e/`：Playwright e2e。
 
 ## 文档地图

@@ -22,6 +22,12 @@ const defaultExamplePrompts = [
 ];
 const genericChatErrorMessage = "当前回答服务暂时不可用，请稍后再试。";
 
+type ChatApiErrorResponse = {
+  error?: {
+    message?: string;
+  };
+};
+
 function createMessageId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -31,6 +37,16 @@ function toHistory(messages: ChatMessage[]): ChatHistoryMessage[] {
     role: message.role,
     content: message.content,
   }));
+}
+
+function getChatErrorMessage(
+  payload: ChatApiSuccessResponse | ChatApiErrorResponse,
+) {
+  if ("error" in payload) {
+    return payload.error?.message ?? genericChatErrorMessage;
+  }
+
+  return genericChatErrorMessage;
 }
 
 type UseChatSessionOptions = {
@@ -91,14 +107,10 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
 
       const payload = (await response.json()) as
         | ChatApiSuccessResponse
-        | {
-            error?: {
-              message?: string;
-            };
-          };
+        | ChatApiErrorResponse;
 
       if (!response.ok || !("answer" in payload)) {
-        throw new Error(payload.error?.message ?? genericChatErrorMessage);
+        throw new Error(getChatErrorMessage(payload));
       }
 
       setMessages((previousMessages) => [

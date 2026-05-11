@@ -51,7 +51,11 @@ export type RetrievalResolution = "resolved" | "no_match";
 
 export type NoMatchReason = "low_confidence" | "out_of_kb";
 
-export type RetrievalMatchType = "exact" | "fuzzy" | "source_lemma_exact";
+export type RetrievalMatchType =
+  | "exact"
+  | "fuzzy"
+  | "source_lemma_exact"
+  | "external_dictionary_exact";
 
 export type CandidateProvenance =
   | "exact_lemma"
@@ -74,13 +78,14 @@ export type NormalizedQuery = {
 export type RetrievalCandidate = {
   entryId: string;
   lemma: string;
+  partOfSpeech?: string;
   meaningsZh: string[];
   matchedAlias: string | null;
   scopeCodes: ExamScopeCode[];
   inScope: boolean;
   reason: string;
   score: number;
-  sourceKind?: "structured" | "source_lemma";
+  sourceKind?: "structured" | "source_lemma" | "external_dictionary_basic";
 };
 
 export type ComparisonView = {
@@ -118,6 +123,7 @@ export type RetrievalResult = {
 export type RankableCandidate = {
   entryId: string;
   lemma: string;
+  partOfSpeech?: string;
   meaningsZh: string[];
   matchedAlias: string | null;
   scopeCodes: ExamScopeCode[];

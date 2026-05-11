@@ -304,6 +304,56 @@ describe("runAnswerStyleProviderSmoke", () => {
     });
   });
 
+  it("counts deterministic resolved cases without providerRequestId as skipped", async () => {
+    const transport: ChatSmokeTransport = vi.fn(async () => ({
+      status: 200,
+      payload: {
+        answer: "academic adj. 学术的；学校的",
+        requestId: "req_deterministic",
+        providerRequestId: null,
+        grounding: {
+          queryMode: "fuzzy_recall",
+          resolution: "resolved",
+          answerStyle: "standard_lookup",
+          mainAnswer: [{ lemma: "academic" }],
+          comparisonView: null,
+          rootFamilyView: null,
+        },
+      },
+    }));
+
+    const result = await runAnswerStyleProviderSmoke({
+      cases: [
+        {
+          name: "standard: academic lookup",
+          query: "academic 是什么意思",
+          activeExamTarget: "cet4",
+          expectedQueryMode: "fuzzy_recall",
+          expectedResolution: "resolved",
+          expectedAnswerStyle: "standard_lookup",
+          expectedGroundingIncludes: ["academic"],
+          expectedComparisonViewId: null,
+          expectedRootFamilyViewId: null,
+          expectedProviderRequest: "absent",
+          maxAnswerChars: 220,
+          manualChecks: ["check compact lookup"],
+        } as Parameters<typeof runAnswerStyleProviderSmoke>[0]["cases"] extends Array<infer T>
+          ? T & { expectedProviderRequest: "absent" }
+          : never,
+      ],
+      requestChat: transport,
+    });
+
+    expect(result.summary).toMatchObject({
+      total: 1,
+      pass: 1,
+      fail: 0,
+      providerCalled: 0,
+      providerSkipped: 1,
+      providerUnknown: 0,
+    });
+  });
+
   it("summarizes answer length distribution by answer style", async () => {
     const transport: ChatSmokeTransport = vi.fn(async ({ item }) => ({
       status: 200,
