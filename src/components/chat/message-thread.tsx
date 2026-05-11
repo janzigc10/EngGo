@@ -10,12 +10,59 @@ type MessageThreadProps = {
   isLoading: boolean;
 };
 
-function buildHitSummary(count: number, firstLemma?: string) {
+function hasExternalDictionarySource(grounding: NonNullable<ChatMessage["grounding"]>) {
+  return (
+    grounding.matchType === "external_dictionary_exact"
+    || grounding.mainAnswer.some(
+      (candidate) => candidate.sourceKind === "external_dictionary_basic",
+    )
+  );
+}
+
+function hasSourceLemmaSource(grounding: NonNullable<ChatMessage["grounding"]>) {
+  return (
+    grounding.matchType === "source_lemma_exact"
+    || grounding.mainAnswer.some((candidate) => candidate.sourceKind === "source_lemma")
+  );
+}
+
+function buildHitSummary(grounding: NonNullable<ChatMessage["grounding"]>) {
+  const count = grounding.mainAnswer.length;
+  const firstLemma = grounding.mainAnswer[0]?.lemma;
+
+  if (hasExternalDictionarySource(grounding)) {
+    if (count === 1 && firstLemma) {
+      return `已找到 1 条外部基础释义：${firstLemma}`;
+    }
+
+    return `已找到 ${count} 条外部基础释义`;
+  }
+
+  if (hasSourceLemmaSource(grounding)) {
+    if (count === 1 && firstLemma) {
+      return `已命中 1 个来源词表词：${firstLemma}`;
+    }
+
+    return `已命中 ${count} 个来源词表词`;
+  }
+
   if (count === 1 && firstLemma) {
     return `已命中 1 个当前范围词：${firstLemma}`;
   }
 
   return `已命中 ${count} 个当前范围词`;
+}
+
+function buildSourceNote(grounding: NonNullable<ChatMessage["grounding"]>) {
+  if (hasExternalDictionarySource(grounding)) {
+    return "来自外部基础词典，适合先理解意思；暂不产生易混词、词根族或考试优先级判断。";
+  }
+
+  if (hasSourceLemmaSource(grounding)) {
+    return "这个词在当前考试来源词表内，但还不是 EngGo 人工结构化词条；释义先按基础释义理解。";
+  }
+
+  return null;
 }
 
 export function MessageThread({
@@ -74,12 +121,19 @@ export function MessageThread({
                       命中状态
                     </p>
                     <p className="mt-1 text-sm text-slate-700">
-                      {buildHitSummary(
-                        message.grounding.mainAnswer.length,
-                        message.grounding.mainAnswer[0]?.lemma,
-                      )}
+                      {buildHitSummary(message.grounding)}
                     </p>
                   </div>
+                  {buildSourceNote(message.grounding) ? (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        来源说明
+                      </p>
+                      <p className="mt-1 text-sm text-slate-700">
+                        {buildSourceNote(message.grounding)}
+                      </p>
+                    </div>
+                  ) : null}
                   {message.grounding.confusionBoundary.length > 0 ? (
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">

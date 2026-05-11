@@ -105,4 +105,81 @@ describe("AnswerActions", () => {
     expect(screen.getAllByRole("button", { name: "加入收藏" })).toHaveLength(8);
     expect(screen.getByText("word8")).toBeInTheDocument();
   });
+
+  it("uses a learner-facing note for source-lemma candidates without meanings", () => {
+    render(
+      <AnswerActions
+        grounding={{
+          activeExamTarget: "cet4",
+          activeExamTargetLabel: "CET-4",
+          query: "accent",
+          queryMode: "direct_lookup",
+          answerStyle: "standard_lookup",
+          resolution: "resolved",
+          noMatchReason: null,
+          matchType: "source_lemma_exact",
+          mainAnswer: [
+            {
+              entryId: "source-lemma:accent",
+              lemma: "accent",
+              meaningsZh: [],
+              matchedAlias: null,
+              scopeCodes: ["cet4", "cet6"],
+              inScope: true,
+              reason: "source lemma exact match",
+              score: 18,
+              sourceKind: "source_lemma",
+            },
+          ],
+          confusionBoundary: [],
+          scopeReminder: "scope reminder",
+          followUpPrompt: "follow-up",
+          comparisonView: null,
+          rootFamilyView: null,
+        }}
+      />,
+    );
+
+    expect(screen.getByText("来源词表命中，待补结构化释义")).toBeInTheDocument();
+    expect(screen.queryByText("source lemma exact match")).not.toBeInTheDocument();
+  });
+
+  it("labels external dictionary collection notes as basic dictionary definitions", () => {
+    render(
+      <AnswerActions
+        grounding={{
+          activeExamTarget: "cet4",
+          activeExamTargetLabel: "CET-4",
+          query: "make up",
+          queryMode: "direct_lookup",
+          answerStyle: "standard_lookup",
+          resolution: "resolved",
+          noMatchReason: null,
+          matchType: "external_dictionary_exact",
+          mainAnswer: [
+            {
+              entryId: "external-dictionary-basic:make up",
+              lemma: "make up",
+              meaningsZh: ["phr. 组成；编造；化妆；弥补"],
+              matchedAlias: null,
+              scopeCodes: [],
+              inScope: true,
+              reason: "external dictionary basic exact match",
+              score: 12,
+              sourceKind: "external_dictionary_basic",
+            },
+          ],
+          confusionBoundary: [],
+          scopeReminder: "scope reminder",
+          followUpPrompt: "follow-up",
+          comparisonView: null,
+          rootFamilyView: null,
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByText("外部基础词典释义：phr. 组成；编造；化妆；弥补"),
+    ).toBeInTheDocument();
+  });
 });

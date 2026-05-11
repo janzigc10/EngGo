@@ -1,5 +1,22 @@
 # EngGo 滚动交接
 
+## 2026-05-11 聊天支持面板来源感知
+
+- 本轮从 FastAPI-first 默认路径回到聊天主舞台体验，新增 source-aware 支持面板：
+  - structured / 普通结构化命中保留原有 compact 命中状态。
+  - `source_lemma_exact` / `sourceKind=source_lemma` 显示“来源词表词”，并说明它还不是 EngGo 人工结构化词条。
+  - `external_dictionary_exact` / `sourceKind=external_dictionary_basic` 显示“外部基础释义”，并说明它来自外部基础词典，不产生易混词、词根族或考试优先级判断。
+- 收藏动作说明同步收口：
+  - source-only 且无释义时显示“来源词表命中，待补结构化释义”，不再暴露 `source lemma exact match`。
+  - 外部词典候选显示“外部基础词典释义：...”，避免看起来像人工结构化释义。
+- 新增设计与计划文档：
+  - `docs/superpowers/specs/2026-05-11-source-aware-chat-support-panel-design.md`
+  - `docs/superpowers/plans/2026-05-11-source-aware-chat-support-panel.md`
+- 本轮验证：
+  - `corepack pnpm test src/components/chat/chat-workspace.test.tsx src/components/chat/answer-actions.test.tsx` -> 2 files / 15 tests passed。
+  - `corepack pnpm lint src/components/chat/message-thread.tsx src/components/chat/answer-actions.tsx src/components/chat/chat-workspace.test.tsx src/components/chat/answer-actions.test.tsx src/features/retrieval/types.ts` -> passed。
+- 下一步建议：继续围绕移动端真实阅读做一轮 browser smoke，重点看 source-aware 文案在 390px 宽度下是否挤压、收藏工具是否仍保持可扫读。
+
 ## 2026-05-11 FastAPI 开发流固化收口
 
 - 本轮在全量迁移基础上补齐了默认 FastAPI 开发工作流：

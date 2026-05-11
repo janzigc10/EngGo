@@ -16,6 +16,8 @@
   - 当前 answer policy 产品原则：范围优先，不范围专制。
 - `docs/superpowers/specs/2026-04-30-chat-answer-display-tools.md`
   - 聊天回答展示、命中状态、收藏工具折叠。
+- `docs/superpowers/specs/2026-05-11-source-aware-chat-support-panel-design.md`
+  - FastAPI 迁移后，聊天支持面板区分结构化词条、来源词表命中和外部基础词典释义。
 - `docs/superpowers/specs/2026-04-27-root-fragment-condition-parser.md`
   - 结构化词形过滤：`prefix / suffix / contains / start_end / ordered_contains`。
 - `docs/superpowers/specs/2026-04-25-confusion-cluster-layering-design.md`
@@ -39,7 +41,9 @@
 - `docs/superpowers/plans/2026-05-10-fastapi-full-chat-backend-migration.md`
   - FastAPI 全量 `/api/chat` 迁移，已完成；Next `/api/chat` 已默认代理 FastAPI，默认地址为 `http://127.0.0.1:8000`。
 - `docs/superpowers/plans/2026-05-11-fastapi-dev-workflow-hardening.md`
-  - FastAPI-first 开发启动、默认 smoke 和 legacy TypeScript 后端边界固化，当前正在执行。
+  - FastAPI-first 开发启动、默认 smoke 和 legacy TypeScript 后端边界固化，已完成。
+- `docs/superpowers/plans/2026-05-11-source-aware-chat-support-panel.md`
+  - 聊天支持面板来源感知与收藏说明，已完成。
 - `docs/superpowers/plans/2026-04-30-chat-answer-display-tools.md`
   - 聊天回答展示第二刀，已完成。
 - `docs/superpowers/plans/2026-04-27-root-fragment-condition-parser.md`

@@ -86,6 +86,7 @@ export type RetrievalCandidate = {
   reason: string;
   score: number;
   sourceKind?: "structured" | "source_lemma" | "external_dictionary_basic";
+  reviewStatus?: "unreviewed";
 };
 
 export type ComparisonView = {

@@ -164,6 +164,114 @@ describe("ChatWorkspace", () => {
     expect(screen.getByRole("button", { name: "展开收藏工具" })).toBeInTheDocument();
   });
 
+  it("explains source-lemma lookup as source-list material instead of structured content", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer: "accent\n\nn. 重音；口音；特点；注重点",
+        answerKind: "grounded",
+        requestId: "req_source_lemma",
+        providerRequestId: null,
+        grounding: {
+          activeExamTarget: "cet4",
+          activeExamTargetLabel: "CET-4",
+          query: "accent",
+          queryMode: "direct_lookup",
+          answerStyle: "standard_lookup",
+          resolution: "resolved",
+          noMatchReason: null,
+          matchType: "source_lemma_exact",
+          mainAnswer: [
+            {
+              entryId: "source-lemma:accent",
+              lemma: "accent",
+              meaningsZh: [],
+              matchedAlias: null,
+              scopeCodes: ["cet4", "cet6"],
+              inScope: true,
+              reason: "source lemma exact match",
+              score: 18,
+              sourceKind: "source_lemma",
+            },
+          ],
+          confusionBoundary: [],
+          scopeReminder: "scope",
+          followUpPrompt: "follow-up",
+          comparisonView: null,
+          rootFamilyView: null,
+        },
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "accent");
+    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+
+    expect(await screen.findByText("已命中 1 个来源词表词：accent")).toBeInTheDocument();
+    expect(screen.getByText("来源说明")).toBeInTheDocument();
+    expect(
+      screen.getByText(/还不是 EngGo 人工结构化词条/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("已命中 1 个当前范围词：accent")).not.toBeInTheDocument();
+  });
+
+  it("explains external dictionary lookup as a basic unreviewed definition", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer: "make up\n\nphr. 组成；编造；化妆；弥补",
+        answerKind: "grounded",
+        requestId: "req_external_dictionary",
+        providerRequestId: null,
+        grounding: {
+          activeExamTarget: "cet4",
+          activeExamTargetLabel: "CET-4",
+          query: "make up",
+          queryMode: "direct_lookup",
+          answerStyle: "standard_lookup",
+          resolution: "resolved",
+          noMatchReason: null,
+          matchType: "external_dictionary_exact",
+          mainAnswer: [
+            {
+              entryId: "external-dictionary-basic:make up",
+              lemma: "make up",
+              meaningsZh: ["phr. 组成；编造；化妆；弥补"],
+              matchedAlias: null,
+              scopeCodes: [],
+              inScope: true,
+              reason: "external dictionary basic exact match",
+              score: 12,
+              sourceKind: "external_dictionary_basic",
+            },
+          ],
+          confusionBoundary: [],
+          scopeReminder: "scope",
+          followUpPrompt: "follow-up",
+          comparisonView: null,
+          rootFamilyView: null,
+        },
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "make up");
+    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+
+    expect(await screen.findByText("已找到 1 条外部基础释义：make up")).toBeInTheDocument();
+    expect(screen.getByText("来源说明")).toBeInTheDocument();
+    expect(screen.getByText(/来自外部基础词典/)).toBeInTheDocument();
+    expect(screen.queryByText("已命中 1 个当前范围词：make up")).not.toBeInTheDocument();
+  });
+
   it("renders plain greeting answers without grounded support tools", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockResolvedValue({

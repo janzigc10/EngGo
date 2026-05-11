@@ -11,15 +11,31 @@ type AnswerActionsProps = {
 
 const collapsedMainAnswerLimit = 5;
 
-function buildCollectionNote(meaning: string[] | undefined, reason: string) {
+function buildCollectionNote(candidate: AnswerGrounding["mainAnswer"][number]) {
   const normalizedMeaning =
-    meaning?.map((item) => item.trim()).filter(Boolean) ?? [];
+    candidate.meaningsZh?.map((item) => item.trim()).filter(Boolean) ?? [];
+
+  if (candidate.sourceKind === "external_dictionary_basic") {
+    if (normalizedMeaning.length > 0) {
+      return `外部基础词典释义：${normalizedMeaning.join(" / ")}`;
+    }
+
+    return "外部基础词典释义，待补人工校验";
+  }
+
+  if (candidate.sourceKind === "source_lemma") {
+    if (normalizedMeaning.length > 0) {
+      return `来源词表命中：${normalizedMeaning.join(" / ")}`;
+    }
+
+    return "来源词表命中，待补结构化释义";
+  }
 
   if (normalizedMeaning.length > 0) {
     return normalizedMeaning.join(" / ");
   }
 
-  return reason;
+  return candidate.reason;
 }
 
 export function AnswerActions({ grounding }: AnswerActionsProps) {
@@ -135,7 +151,7 @@ export function AnswerActions({ grounding }: AnswerActionsProps) {
       </div>
       <div className="space-y-3">
         {visibleCandidates.map((candidate) => {
-          const note = buildCollectionNote(candidate.meaningsZh, candidate.reason);
+          const note = buildCollectionNote(candidate);
           const isSaved = collectedLemmas.has(candidate.lemma);
 
           return (
