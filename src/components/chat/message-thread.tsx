@@ -53,16 +53,36 @@ function buildHitSummary(grounding: NonNullable<ChatMessage["grounding"]>) {
   return `已命中 ${count} 个当前范围词`;
 }
 
-function buildSourceNote(grounding: NonNullable<ChatMessage["grounding"]>) {
+function buildCompactSourceSummary(grounding: NonNullable<ChatMessage["grounding"]>) {
   if (hasExternalDictionarySource(grounding)) {
-    return "来自外部基础词典，适合先理解意思；暂不产生易混词、词根族或考试优先级判断。";
+    return "外部基础词典 · 不参与易混词/词根/考试优先级判断";
   }
 
   if (hasSourceLemmaSource(grounding)) {
-    return "这个词在当前考试来源词表内，但还不是 EngGo 人工结构化词条；释义先按基础释义理解。";
+    return "来源词表命中 · 待补人工结构化词条";
   }
 
-  return null;
+  return buildHitSummary(grounding);
+}
+
+function isCompactDictionaryLookup(grounding: NonNullable<ChatMessage["grounding"]>) {
+  return (
+    grounding.resolution === "resolved"
+    && grounding.answerStyle === "standard_lookup"
+    && (hasExternalDictionarySource(grounding) || hasSourceLemmaSource(grounding))
+  );
+}
+
+function shouldShowFollowUp(grounding: NonNullable<ChatMessage["grounding"]>) {
+  if (grounding.resolution === "no_match") {
+    return true;
+  }
+
+  if (isCompactDictionaryLookup(grounding) && grounding.confusionBoundary.length === 0) {
+    return false;
+  }
+
+  return true;
 }
 
 export function MessageThread({
@@ -104,9 +124,9 @@ export function MessageThread({
           </p>
           <AnswerContent content={message.content} />
           {message.role === "assistant" && message.grounding ? (
-            <div className="mt-4 space-y-3 rounded-[1.25rem] border border-slate-100 bg-slate-50 p-4">
+            <div className="mt-4 space-y-3">
               {message.grounding.resolution === "no_match" ? (
-                <div>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                     暂未稳定命中
                   </p>
@@ -116,26 +136,11 @@ export function MessageThread({
                 </div>
               ) : (
                 <>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                      命中状态
-                    </p>
-                    <p className="mt-1 text-sm text-slate-700">
-                      {buildHitSummary(message.grounding)}
-                    </p>
-                  </div>
-                  {buildSourceNote(message.grounding) ? (
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                        来源说明
-                      </p>
-                      <p className="mt-1 text-sm text-slate-700">
-                        {buildSourceNote(message.grounding)}
-                      </p>
-                    </div>
-                  ) : null}
+                  <p className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
+                    {buildCompactSourceSummary(message.grounding)}
+                  </p>
                   {message.grounding.confusionBoundary.length > 0 ? (
-                    <div>
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                         易混边界
                       </p>
@@ -148,14 +153,16 @@ export function MessageThread({
                   ) : null}
                 </>
               )}
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  下一步
-                </p>
-                <p className="mt-1 text-sm text-slate-700">
-                  {message.grounding.followUpPrompt}
-                </p>
-              </div>
+              {shouldShowFollowUp(message.grounding) ? (
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    下一步
+                  </p>
+                  <p className="mt-1 text-sm text-slate-700">
+                    {message.grounding.followUpPrompt}
+                  </p>
+                </div>
+              ) : null}
               <AnswerActions grounding={message.grounding} />
             </div>
           ) : null}

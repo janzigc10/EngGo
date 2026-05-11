@@ -1,5 +1,25 @@
 # EngGo 滚动交接
 
+## 2026-05-11 聊天支持面板轻量化
+
+- 本轮在 source-aware 支持面板基础上继续收紧聊天主舞台的纵向密度，只改前端渲染，不改检索、FastAPI、answer policy 或返回契约。
+- assistant grounded 支撑区已从“命中状态 / 来源说明 / 下一步”大卡片改为更轻的一行来源提示：
+  - `source_lemma_exact` 显示“来源词表命中 · 待补人工结构化词条”。
+  - `external_dictionary_exact` 显示“外部基础词典 · 不参与易混词/词根/考试优先级判断”。
+  - no-match 提示和 broad multi-answer 的折叠收藏工具保持原有信息量。
+- 单候选收藏动作已改为紧凑行：
+  - source lemma 显示“来源词表命中，待补结构化释义” + `加入收藏`。
+  - external dictionary 显示“外部基础词典释义” + `加入收藏`；真正收藏入 localStorage 的 note 仍保留完整释义。
+- 新增计划文档：`docs/superpowers/plans/2026-05-11-compact-chat-support-panel.md`。
+- 本轮验证：
+  - `corepack pnpm test src/components/chat/chat-workspace.test.tsx src/components/chat/answer-actions.test.tsx` -> 2 files / 15 tests passed。
+  - `corepack pnpm lint src/components/chat/message-thread.tsx src/components/chat/answer-actions.tsx src/components/chat/chat-workspace.test.tsx src/components/chat/answer-actions.test.tsx` -> passed。
+- 390px 真实页面截图已补：
+  - `accent` -> 截图落盘 `output/playwright/compact-source-accent-mobile.png`，显示“来源词表命中 · 待补人工结构化词条”和紧凑收藏行；browser console 无 error。
+  - `make up` -> 截图落盘 `output/playwright/compact-external-make-up-mobile.png`，显示“外部基础词典 · 不参与易混词/词根/考试优先级判断”和紧凑收藏行；browser console 无 error。
+- 截图验证时遇到一次环境坑：FastAPI/Next 先于 Prisma dev 启动会导致 `/api/chat` 请求卡住；按本地恢复路径启动 Prisma dev、执行 `corepack pnpm db:migrate` 和 `corepack pnpm db:seed:real-smoke` 后重启 FastAPI-first 栈即可恢复。
+- 下一步建议：如果继续打磨聊天主舞台，优先进入回答展示/收藏入口/复习入口的下一轮细节，而不是继续扩大词库或改后端路由。
+
 ## 2026-05-11 聊天支持面板来源感知
 
 - 本轮从 FastAPI-first 默认路径回到聊天主舞台体验，新增 source-aware 支持面板：

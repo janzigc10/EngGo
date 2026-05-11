@@ -44,6 +44,8 @@
   - FastAPI-first 开发启动、默认 smoke 和 legacy TypeScript 后端边界固化，已完成。
 - `docs/superpowers/plans/2026-05-11-source-aware-chat-support-panel.md`
   - 聊天支持面板来源感知与收藏说明，已完成。
+- `docs/superpowers/plans/2026-05-11-compact-chat-support-panel.md`
+  - 聊天支持面板轻量化：来源提示一行化、单候选收藏动作紧凑化，已完成。
 - `docs/superpowers/plans/2026-04-30-chat-answer-display-tools.md`
   - 聊天回答展示第二刀，已完成。
 - `docs/superpowers/plans/2026-04-27-root-fragment-condition-parser.md`

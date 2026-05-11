@@ -38,6 +38,22 @@ function buildCollectionNote(candidate: AnswerGrounding["mainAnswer"][number]) {
   return candidate.reason;
 }
 
+function buildCompactCollectionNote(candidate: AnswerGrounding["mainAnswer"][number]) {
+  if (candidate.sourceKind === "external_dictionary_basic") {
+    return "外部基础词典释义";
+  }
+
+  if (candidate.sourceKind === "source_lemma" && candidate.meaningsZh.length === 0) {
+    return "来源词表命中，待补结构化释义";
+  }
+
+  if (candidate.sourceKind === "source_lemma") {
+    return "来源词表命中";
+  }
+
+  return buildCollectionNote(candidate);
+}
+
 export function AnswerActions({ grounding }: AnswerActionsProps) {
   const collectedWordsJson = useSyncExternalStore(
     subscribeCollectionChanges,
@@ -93,6 +109,7 @@ export function AnswerActions({ grounding }: AnswerActionsProps) {
     shouldCollapse && !isExpanded
       ? grounding.mainAnswer.slice(0, collapsedMainAnswerLimit)
       : grounding.mainAnswer;
+  const shouldRenderCompactSingle = !shouldCollapse && visibleCandidates.length === 1;
 
   if (shouldStartCompact) {
     return (
@@ -112,6 +129,37 @@ export function AnswerActions({ grounding }: AnswerActionsProps) {
             className="rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-900 transition hover:border-sky-300 hover:bg-sky-50"
           >
             展开收藏工具
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (shouldRenderCompactSingle) {
+    const candidate = visibleCandidates[0];
+    const note = buildCollectionNote(candidate);
+    const compactNote = buildCompactCollectionNote(candidate);
+    const isSaved = collectedLemmas.has(candidate.lemma);
+
+    return (
+      <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 text-sm text-slate-600">
+          <span className="font-semibold text-slate-900">{candidate.lemma}</span>
+          <span className="text-slate-400"> · </span>
+          <span>{compactNote}</span>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          {statusMessage ? (
+            <p className="text-sm font-medium text-emerald-700" aria-live="polite">
+              {statusMessage}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => handleCollect(candidate.lemma, note)}
+            className="inline-flex items-center justify-center rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-900 transition hover:border-sky-300 hover:bg-sky-50"
+          >
+            {isSaved ? "已收藏" : "加入收藏"}
           </button>
         </div>
       </div>

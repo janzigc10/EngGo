@@ -211,11 +211,10 @@ describe("ChatWorkspace", () => {
     await user.type(screen.getByTestId("chat-input"), "accent");
     await user.click(screen.getByRole("button", { name: /开始提问/i }));
 
-    expect(await screen.findByText("已命中 1 个来源词表词：accent")).toBeInTheDocument();
-    expect(screen.getByText("来源说明")).toBeInTheDocument();
     expect(
-      screen.getByText(/还不是 EngGo 人工结构化词条/),
+      await screen.findByText("来源词表命中 · 待补人工结构化词条"),
     ).toBeInTheDocument();
+    expect(screen.queryByText("来源说明")).not.toBeInTheDocument();
     expect(screen.queryByText("已命中 1 个当前范围词：accent")).not.toBeInTheDocument();
   });
 
@@ -266,9 +265,10 @@ describe("ChatWorkspace", () => {
     await user.type(screen.getByTestId("chat-input"), "make up");
     await user.click(screen.getByRole("button", { name: /开始提问/i }));
 
-    expect(await screen.findByText("已找到 1 条外部基础释义：make up")).toBeInTheDocument();
-    expect(screen.getByText("来源说明")).toBeInTheDocument();
-    expect(screen.getByText(/来自外部基础词典/)).toBeInTheDocument();
+    expect(
+      await screen.findByText("外部基础词典 · 不参与易混词/词根/考试优先级判断"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("来源说明")).not.toBeInTheDocument();
     expect(screen.queryByText("已命中 1 个当前范围词：make up")).not.toBeInTheDocument();
   });
 

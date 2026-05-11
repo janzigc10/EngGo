@@ -141,6 +141,8 @@ describe("AnswerActions", () => {
     );
 
     expect(screen.getByText("来源词表命中，待补结构化释义")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "加入收藏" })).toBeInTheDocument();
+    expect(screen.queryByText("收藏动作")).not.toBeInTheDocument();
     expect(screen.queryByText("source lemma exact match")).not.toBeInTheDocument();
   });
 
@@ -178,8 +180,8 @@ describe("AnswerActions", () => {
       />,
     );
 
-    expect(
-      screen.getByText("外部基础词典释义：phr. 组成；编造；化妆；弥补"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("外部基础词典释义")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "加入收藏" })).toBeInTheDocument();
+    expect(screen.queryByText("收藏动作")).not.toBeInTheDocument();
   });
 });
