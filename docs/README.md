@@ -8,6 +8,8 @@
 - `context.md`：长期项目地图和代码地图。
 
 ## 当前有效设计
+- `docs/superpowers/specs/2026-05-12-dynamic-light-grounding-design.md`
+  - 8k 词库后的 dynamic light grounding 设计：用动态候选 grounding 接管泛问主流程，旧 `confusion_group` / `root_family` 只做 boost、fixture 和 regression baseline。
 - `docs/superpowers/specs/2026-05-10-fastapi-backend-split-design.md`
   - Python FastAPI 后端拆分设计：Next 前端保留，`/api/chat` 当前默认代理 FastAPI；`ENGGO_BACKEND_URL` 仅用于覆盖默认后端地址。
 - `docs/superpowers/specs/2026-05-09-ecdict-basic-lookup-design.md`
@@ -30,6 +32,8 @@
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。
 
+- `docs/superpowers/plans/2026-05-12-dynamic-light-grounding.md`
+  - Dynamic light grounding 第一刀实现计划：后端动态候选 builder、`broad_vocab_summary` grounding、direct compare / advanced lookup 接入，已完成。
 - `docs/superpowers/plans/2026-05-01-answer-policy-v1.md`
   - Answer Policy v1 loosening spike，已完成。
 - `docs/superpowers/plans/2026-05-09-ecdict-basic-lookup.md`
@@ -46,6 +50,8 @@
   - 聊天支持面板来源感知与收藏说明，已完成。
 - `docs/superpowers/plans/2026-05-11-compact-chat-support-panel.md`
   - 聊天支持面板轻量化：来源提示一行化、单候选收藏动作紧凑化，已完成。
+- `docs/superpowers/plans/2026-05-11-grounding-strategy-probe.md`
+  - 学生泛问场景下 current grounded / model direct / light grounding + model 三路对比实验，已完成。
 - `docs/superpowers/plans/2026-04-30-chat-answer-display-tools.md`
   - 聊天回答展示第二刀，已完成。
 - `docs/superpowers/plans/2026-04-27-root-fragment-condition-parser.md`

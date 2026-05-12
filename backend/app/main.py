@@ -51,12 +51,14 @@ def create_app(
         app.state.direct_compare_service = DirectCompareService(
             repository=repository,
             provider=provider,
+            source_lemma_base_dir=settings.source_lemma_base_dir,
         )
 
     if app.state.advanced_lookup_service is None and repository:
         app.state.advanced_lookup_service = AdvancedLookupService(
             repository=repository,
             provider=provider,
+            source_lemma_base_dir=settings.source_lemma_base_dir,
         )
 
     @app.middleware("http")

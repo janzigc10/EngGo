@@ -63,7 +63,7 @@ function uniqueValues(values: string[]) {
   return [...new Set(values)];
 }
 
-function toObservation(
+export function toObservation(
   response: Response,
   payload: Record<string, unknown>,
 ): FastApiMigratedSliceSmokeObservation {
@@ -87,6 +87,7 @@ function toObservation(
     groundingLemmas: uniqueValues([
       ...collectLemmasFromRecords(grounding.mainAnswer),
       ...collectLemmasFromRecords(grounding.confusionBoundary),
+      ...collectLemmasFromRecords(grounding.lightCandidates),
       ...collectLemmasFromRecords(comparisonView.members),
       ...collectLemmasFromRecords(rootFamilyView.members),
     ]),

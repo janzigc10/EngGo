@@ -77,3 +77,11 @@ def test_combined_fragment_query_is_detected_as_root_family_summary():
     assert result.query_mode == "root_family_summary"
     assert result.english_terms == ["con", "re"]
     assert result.is_supported_ordinary_lookup is False
+
+
+def test_standalone_fragment_query_is_detected_as_root_family_summary():
+    result = normalize_query("spect 这串相关的词怎么整理")
+
+    assert result.query_mode == "root_family_summary"
+    assert result.english_terms == ["spect"]
+    assert result.is_supported_ordinary_lookup is False

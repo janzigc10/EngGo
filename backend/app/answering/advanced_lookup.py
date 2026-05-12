@@ -1,6 +1,12 @@
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
+from backend.app.answering.broad_vocab import (
+    build_broad_vocab_answer,
+    build_broad_vocab_grounding,
+    build_broad_vocab_system_prompt,
+)
 from backend.app.answering.direct_compare import (
     build_boundary_candidates,
     build_comparison_view,
@@ -14,6 +20,11 @@ from backend.app.answering.ordinary_lookup import (
     build_no_match_answer,
 )
 from backend.app.retrieval.normalize_query import NormalizedQuery, normalize_query
+from backend.app.retrieval.dynamic_light_grounding import (
+    build_light_grounding_candidates,
+    merge_dynamic_vocabulary,
+    source_lemma_vocabulary,
+)
 from backend.app.retrieval.types import ConfusionGroup, RetrievalCandidate
 from backend.app.schemas.chat import ChatSuccessResponse
 
@@ -426,9 +437,10 @@ def build_root_family_view(
 
 
 class AdvancedLookupService:
-    def __init__(self, *, repository, provider=None):
+    def __init__(self, *, repository, provider=None, source_lemma_base_dir: Path | str | None = None):
         self.repository = repository
         self.provider = provider
+        self.source_lemma_base_dir = Path(source_lemma_base_dir) if source_lemma_base_dir else None
 
     def answer(
         self,
@@ -439,6 +451,16 @@ class AdvancedLookupService:
         history: list[dict[str, str]] | None = None,
     ) -> AdvancedLookupResult:
         normalized_query = normalize_query(query)
+
+        broad_result = self.answer_broad_vocab_if_possible(
+            active_exam_target=active_exam_target,
+            query=query,
+            request_id=request_id,
+            history=history or [],
+            normalized_query=normalized_query,
+        )
+        if broad_result:
+            return broad_result
 
         if normalized_query.query_mode == "meaning_lookup":
             return self.answer_meaning(
@@ -468,6 +490,78 @@ class AdvancedLookupService:
             )
 
         raise UnsupportedQueryMode(normalized_query.query_mode)
+
+    def dynamic_vocabulary(self, active_exam_target: str) -> list[RetrievalCandidate]:
+        structured = (
+            self.repository.find_in_scope_entries(active_exam_target)
+            if hasattr(self.repository, "find_in_scope_entries")
+            else []
+        )
+        source = source_lemma_vocabulary(
+            active_exam_target=active_exam_target,
+            source_lemma_base_dir=self.source_lemma_base_dir,
+        )
+
+        return merge_dynamic_vocabulary(structured, source)
+
+    def answer_broad_vocab_if_possible(
+        self,
+        *,
+        active_exam_target: str,
+        query: str,
+        request_id: str,
+        history: list[dict[str, str]],
+        normalized_query: NormalizedQuery,
+    ) -> AdvancedLookupResult | None:
+        if not self.provider or normalized_query.query_mode not in {
+            "meaning_lookup",
+            "shape_neighbor_search",
+            "root_family_summary",
+        }:
+            return None
+
+        vocabulary = self.dynamic_vocabulary(active_exam_target)
+        if not vocabulary:
+            return None
+
+        groups = self.repository.find_confusion_groups_for_entry_ids(
+            active_exam_target,
+            [
+                candidate.entry_id
+                for candidate in vocabulary
+                if candidate.source_kind == "structured"
+            ],
+        )
+        candidates = build_light_grounding_candidates(
+            query=query,
+            active_exam_target=active_exam_target,
+            vocabulary=vocabulary,
+            groups=groups,
+        )
+
+        if len(candidates) < 2:
+            return None
+
+        grounding = build_broad_vocab_grounding(
+            active_exam_target=active_exam_target,
+            query=query,
+            normalized_query=normalized_query,
+            candidates=candidates,
+        )
+
+        return AdvancedLookupResult(
+            status_code=200,
+            payload=provider_or_fallback(
+                provider=self.provider,
+                answer=build_broad_vocab_answer(candidates),
+                answer_kind="grounded",
+                grounding=grounding,
+                query=query,
+                history=history,
+                request_id=request_id,
+                system_prompt=build_broad_vocab_system_prompt(),
+            ),
+        )
 
     def answer_meaning(
         self,

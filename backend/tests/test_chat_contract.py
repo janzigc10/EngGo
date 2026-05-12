@@ -124,6 +124,54 @@ def test_chat_returns_grounded_ordinary_lookup_from_fastapi_service(tmp_path):
     assert payload["grounding"]["matchType"] == "exact"
 
 
+def test_chat_keeps_ordinary_exact_lookup_before_broad_services(tmp_path):
+    class FailingIfCalled:
+        def answer(self, **_kwargs):
+            raise AssertionError("ordinary exact lookup should stop routing")
+
+    service = OrdinaryLookupService(
+        repository=FakeRepository(
+            {
+                "access": RetrievalCandidate(
+                    entry_id="access",
+                    lemma="access",
+                    part_of_speech="n. / v.",
+                    meanings_zh=["进入权", "使用权", "访问"],
+                    matched_alias=None,
+                    scope_codes=["cet4", "cet6"],
+                    in_scope=True,
+                    reason="structured exact match",
+                    score=100,
+                    source_kind="structured",
+                ),
+            },
+        ),
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda _query: None,
+    )
+    client = create_client(
+        ordinary_lookup_service=service,
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "access 是什么意思",
+            "history": [],
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answer"] == "access\n\nn./v. 进入权；使用权；访问"
+    assert payload["grounding"]["answerStyle"] == "standard_lookup"
+    assert payload["grounding"]["matchType"] == "exact"
+
+
 def test_chat_routes_direct_compare_after_ordinary_lookup_rejects_mode(tmp_path):
     access = RetrievalCandidate(
         entry_id="access",

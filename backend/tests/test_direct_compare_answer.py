@@ -23,9 +23,10 @@ def candidate(lemma, *, in_scope=True):
 
 
 class FakeRepository:
-    def __init__(self, candidates, groups=None):
+    def __init__(self, candidates, groups=None, in_scope_entries=None):
         self.candidates = candidates
         self.groups = groups or []
+        self.in_scope_entries = in_scope_entries or []
         self.lookups = []
         self.group_entry_ids = None
 
@@ -37,6 +38,9 @@ class FakeRepository:
         assert active_exam_target in {"cet4", "cet6", "postgrad", "gaokao"}
         self.group_entry_ids = entry_ids
         return self.groups
+
+    def find_in_scope_entries(self, _active_exam_target):
+        return self.in_scope_entries
 
 
 class FakeProvider:
@@ -232,3 +236,66 @@ def test_direct_compare_no_match_when_less_than_two_terms_resolve():
     assert result.payload.grounding["resolution"] == "no_match"
     assert result.payload.grounding["noMatchReason"] == "low_confidence"
     assert result.payload.grounding["mainAnswer"] == []
+
+
+def test_direct_compare_dynamic_fallback_requires_two_explicit_terms():
+    access = candidate("access")
+    assess = candidate("assess")
+    excess = candidate("excess")
+    provider = FakeProvider()
+    service = DirectCompareService(
+        repository=FakeRepository(
+            {
+                "access": access,
+            },
+            in_scope_entries=[access, assess, excess],
+        ),
+        provider=provider,
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="access zzzzword 怎么区分",
+        request_id="req_no_broad_for_missing_term",
+    )
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert result.payload.grounding["resolution"] == "no_match"
+    assert result.payload.grounding["mainAnswer"] == []
+
+
+def test_direct_compare_can_use_dynamic_light_pool_when_exact_entries_are_missing():
+    commend = candidate("commend")
+    comment = candidate("comment")
+    command = candidate("command")
+    provider = FakeProvider()
+    service = DirectCompareService(
+        repository=FakeRepository(
+            {},
+            in_scope_entries=[commend, comment, command],
+        ),
+        provider=provider,
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="commend comment command 怎么区分",
+        request_id="req_compare_broad",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId == "provider_req_compare"
+    assert grounding["queryMode"] == "direct_compare"
+    assert grounding["broadQueryMode"] == "broad_vocab"
+    assert grounding["answerStyle"] == "broad_vocab_summary"
+    assert grounding["groundingStrength"] == "light"
+    assert [item["lemma"] for item in grounding["lightCandidates"][:3]] == [
+        "commend",
+        "comment",
+        "command",
+    ]
+    assert provider.calls[0]["grounding"]["answerStyle"] == "broad_vocab_summary"

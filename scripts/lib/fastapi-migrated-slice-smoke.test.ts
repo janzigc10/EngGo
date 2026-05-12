@@ -6,6 +6,7 @@ import {
   parseFastApiMigratedSliceSmokeArgs,
   summarizeFastApiMigratedSliceSmoke,
 } from "./fastapi-migrated-slice-smoke";
+import { toObservation } from "../run-fastapi-migrated-slice-smoke";
 
 describe("fastapi migrated-slice smoke", () => {
   it("defines the Stage 2 migrated ordinary lookup matrix", () => {
@@ -79,8 +80,7 @@ describe("fastapi migrated-slice smoke", () => {
         name: "shape recent lookalikes",
         query: "跟 recent 很像的词有哪些",
         expectedStatus: 200,
-        expectedAnswerStyle: "confusion_untangle",
-        expectedComparisonViewId: "recent-resent",
+        expectedAnswerStyle: "broad_vocab_summary",
         expectedGroundingIncludes: ["recent", "resent"],
         expectedProviderRequest: "required",
       }),
@@ -88,9 +88,7 @@ describe("fastapi migrated-slice smoke", () => {
         name: "root institute memory group",
         query: "跟 institute 一样那几个词怎么记",
         expectedStatus: 200,
-        expectedAnswerStyle: "root_family_summary",
-        expectedRootFamilyViewId: "root-stitute",
-        expectedComparisonViewId: "root-stitute",
+        expectedAnswerStyle: "broad_vocab_summary",
         expectedGroundingIncludes: ["institute", "institution", "constitute", "substitute"],
         expectedProviderRequest: "required",
       }),
@@ -98,19 +96,18 @@ describe("fastapi migrated-slice smoke", () => {
         name: "root con prefix re contains",
         query: "con 开头 re 相关的词",
         expectedStatus: 200,
-        expectedAnswerStyle: "root_family_summary",
-        expectedRootFamilyViewId: "fragment-prefix-con-contains-re",
+        expectedAnswerStyle: "broad_vocab_summary",
         expectedGroundingIncludes: ["conference"],
         expectedProviderRequest: "required",
       }),
       expect.objectContaining({
-        name: "unsupported root boundary",
+        name: "dynamic re+con broad grounding",
         query: "re+con 的词根有什么词",
         expectedStatus: 200,
-        expectedAnswerStyle: "root_family_summary",
-        expectedResolution: "no_match",
-        expectedRootFamilyViewId: null,
-        expectedProviderRequest: "absent",
+        expectedAnswerStyle: "broad_vocab_summary",
+        expectedResolution: "resolved",
+        expectedGroundingIncludes: ["reconcile", "conform"],
+        expectedProviderRequest: "required",
       }),
     ]);
   });
@@ -223,6 +220,30 @@ describe("fastapi migrated-slice smoke", () => {
       verdict: "pass",
       failures: [],
     });
+  });
+
+  it("collects broad light candidates into grounding lemmas", () => {
+    const observation = toObservation(
+      new Response("{}", {
+        status: 200,
+        headers: { "x-request-id": "req_123" },
+      }),
+      {
+        requestId: "req_123",
+        answerKind: "grounded",
+        providerRequestId: "provider_req_light",
+        grounding: {
+          answerStyle: "broad_vocab_summary",
+          resolution: "resolved",
+          lightCandidates: [
+            { lemma: "conference" },
+            { lemma: "conform" },
+          ],
+        },
+      },
+    );
+
+    expect(observation.groundingLemmas).toEqual(["conference", "conform"]);
   });
 
   it("fails when a plain fallback unexpectedly contains grounding", () => {

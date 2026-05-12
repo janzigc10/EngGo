@@ -85,6 +85,7 @@ function collectGroundingLemmas(grounding: Record<string, unknown>) {
   return unique([
     ...collectLemmas(grounding.mainAnswer),
     ...collectLemmas(grounding.confusionBoundary),
+    ...collectLemmas(grounding.lightCandidates),
     ...collectLemmas(comparisonView.members),
     ...collectLemmas(rootFamilyView.members),
   ]);

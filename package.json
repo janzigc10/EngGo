@@ -27,6 +27,7 @@
     "eval:standard-lookup:provider": "tsx scripts/run-standard-lookup-provider-smoke.ts",
     "eval:source-only:provider": "tsx scripts/run-source-only-lookup-sample.ts",
     "eval:ecdict:audit": "tsx scripts/run-ecdict-source-only-audit.ts",
+    "eval:grounding-strategy:probe": "tsx scripts/run-grounding-strategy-probe.ts",
     "eval:fastapi:migrated-smoke": "tsx scripts/run-fastapi-migrated-slice-smoke.ts",
     "eval:fastapi:migrated-smoke:proxy": "tsx scripts/run-fastapi-migrated-slice-smoke.ts --base-url http://127.0.0.1:3000 --label next-proxy",
     "eval:default-fastapi-smoke": "tsx scripts/run-default-fastapi-smoke.ts",

@@ -240,6 +240,41 @@ def test_shape_neighbor_dynamic_lookalikes_keep_confusion_style():
     ]
 
 
+def test_shape_neighbor_can_return_broad_vocab_summary_from_dynamic_pool():
+    recent = candidate("recent", ["最近的"], part_of_speech="adj.")
+    resent = candidate("resent", ["怨恨"], part_of_speech="v.")
+    decent = candidate("decent", ["得体的"], part_of_speech="adj.")
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            exact_entries={"recent": recent},
+            in_scope_entries=[recent, resent, decent],
+        ),
+        provider=provider,
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="recent 这个词我总看错，附近有哪些像它的词",
+        request_id="req_shape_broad",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId == "provider_req_advanced"
+    assert grounding["queryMode"] == "shape_neighbor_search"
+    assert grounding["broadQueryMode"] == "broad_vocab"
+    assert grounding["answerStyle"] == "broad_vocab_summary"
+    assert grounding["groundingStrength"] == "light"
+    assert grounding["supportLabel"] == "基于 CET-6 词库候选总结"
+    assert [item["lemma"] for item in grounding["lightCandidates"][:2]] == [
+        "recent",
+        "resent",
+    ]
+    assert provider.calls[0]["grounding"]["answerStyle"] == "broad_vocab_summary"
+
+
 def test_root_family_summary_uses_known_family_and_provider():
     candidates = [
         candidate("institute", ["建立；学院"]),
@@ -332,6 +367,73 @@ def test_semantic_root_boundary_returns_root_no_match_without_provider():
     assert grounding["answerStyle"] == "root_family_summary"
     assert grounding["resolution"] == "no_match"
     assert grounding["mainAnswer"] == []
+
+
+def test_semantic_root_boundary_can_use_dynamic_light_candidates():
+    reconcile = candidate("reconcile", ["使和解；调和"])
+    reconciliation = candidate("reconciliation", ["和解"], part_of_speech="n.")
+    confirm = candidate("confirm", ["确认"])
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            in_scope_entries=[reconcile, reconciliation, confirm],
+        ),
+        provider=provider,
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="re+con 的词根有什么词",
+        request_id="req_re_con_broad",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId == "provider_req_advanced"
+    assert grounding["queryMode"] == "root_family_summary"
+    assert grounding["broadQueryMode"] == "broad_vocab"
+    assert grounding["answerStyle"] == "broad_vocab_summary"
+    assert grounding["groundingStrength"] == "light"
+    assert [item["lemma"] for item in grounding["lightCandidates"][:2]] == [
+        "reconcile",
+        "reconciliation",
+    ]
+
+
+def test_standalone_fragment_query_can_use_dynamic_light_candidates():
+    inspect = candidate("inspect", ["检查"], part_of_speech="v.")
+    respect = candidate("respect", ["尊重"], part_of_speech="v. / n.")
+    suspect = candidate("suspect", ["怀疑"], part_of_speech="v. / n.")
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            in_scope_entries=[inspect, respect, suspect],
+        ),
+        provider=provider,
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="spect 这串相关的词怎么整理",
+        request_id="req_spect_broad",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId == "provider_req_advanced"
+    assert grounding["queryMode"] == "root_family_summary"
+    assert grounding["broadQueryMode"] == "broad_vocab"
+    assert grounding["answerStyle"] == "broad_vocab_summary"
+    assert {
+        item["lemma"]
+        for item in grounding["lightCandidates"][:3]
+    } == {"inspect", "respect", "suspect"}
+    assert all(
+        any(signal["type"] == "fragment" for signal in item["signals"])
+        for item in grounding["lightCandidates"][:3]
+    )
 
 
 def test_root_fragment_contains_constraint_returns_matching_family_view():

@@ -17,6 +17,10 @@ root_fragment_pattern = re.compile(
     r"[a-z]+\+[a-z]+|[a-z]+\.\.\.[a-z]+|(?:^|\s)-[a-z]+",
     re.IGNORECASE,
 )
+standalone_fragment_recall_pattern = re.compile(
+    r"\b[a-z]{3,12}\s*(?:这串|这段|这个片段|相关.*(?:词|整理)|怎么整理)",
+    re.IGNORECASE,
+)
 exact_fragment_question_pattern = re.compile(
     r"^([a-z]{4,10})\s*(?:是(什么|啥)|什么意思)$",
     re.IGNORECASE,
@@ -129,6 +133,9 @@ def contains_known_root_family_cue(normalized_text: str, english_terms: list[str
 
 def contains_root_fragment_recall_pattern(normalized_text: str) -> bool:
     text = normalized_text.lower()
+
+    if standalone_fragment_recall_pattern.search(text):
+        return True
 
     if re.search(r"\b[a-z]{1,8}\+[a-z]{1,8}\b", text) and "词根" in text:
         return False

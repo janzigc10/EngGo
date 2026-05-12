@@ -21,7 +21,8 @@ export type AnswerStyle =
   | "standard_lookup"
   | "confusion_untangle"
   | "root_family_summary"
-  | "expression_recall";
+  | "expression_recall"
+  | "broad_vocab_summary";
 
 export type RootFamilyPriority =
   | "must_memorize"

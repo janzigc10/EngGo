@@ -1,5 +1,120 @@
 # EngGo 滚动交接
 
+## 2026-05-12 Dynamic Light Grounding 真实链路验收
+
+- 本轮继续上一轮 plan 后的验收，重点验证新 dynamic light grounding 在真实 FastAPI/Next proxy 链路里的效果。
+- 环境恢复：
+  - `corepack pnpm exec prisma dev ls` 显示 `enggo not_running` 后，按 `bugs.md` 路径启动 Prisma dev。
+  - 非授权沙箱下 `corepack pnpm db:migrate` 命中 pnpm junction 的 `@prisma/engines` 解析失败；按授权在真实工作区重跑后通过，结果为 `No pending migrations to apply`。
+  - `corepack pnpm db:seed:real-smoke` 通过。
+  - `corepack pnpm dev:fastapi` 启动后 FastAPI `/health` 200，Next ready。
+- 小批 HTTP spot check 结论：
+  - `commend、comment、command 这几个很像，怎么区分` -> `direct_compare / broad_vocab_summary / light`，候选前列为 `commend/comment/command`，provider 参与生成总结。
+  - `re+con 的词根有什么词` -> `root_family_summary / broad_vocab_summary / light`，候选包含 `reconcile/reconciliation/reconciliatory/conform/...`，不再是旧保守 no-match。
+  - `recent 和 resent 很像，怎么区分` 仍走既有 `confusion_untangle` 结构化辨析。
+  - `access 是什么意思` 仍走 `standard_lookup + exact`，`providerRequestId=null`。
+- 同步更新 regression handles：
+  - `scripts/lib/fastapi-migrated-slice-smoke.ts` / `.test.ts`：把已改道的新 broad cases 更新为 `broad_vocab_summary`，并收集 `lightCandidates` 作为 grounding lemmas。
+  - `scripts/lib/black-box-product-smoke.ts` / `.test.ts` 与 `scripts/run-black-box-product-http-smoke.ts`：把 FastAPI 产品矩阵里的泛形近、泛词根/片段、`要求怎么说`、`re+con` 等 case 更新为 light broad 行为；新增 `跟 qzxqzz 很像的词有哪些` 作为真正空池 no-match 保护。
+  - `src/features/retrieval/types.ts` 已把 `broad_vocab_summary` 纳入前端可读 `AnswerStyle`。
+- 本轮验证：
+  - `corepack pnpm test scripts/lib/black-box-product-smoke.test.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 2 files / 13 tests passed。
+  - `corepack pnpm lint scripts/lib/black-box-product-smoke.ts scripts/lib/black-box-product-smoke.test.ts scripts/lib/fastapi-migrated-slice-smoke.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts scripts/run-black-box-product-http-smoke.ts scripts/run-fastapi-migrated-slice-smoke.ts src/features/retrieval/types.ts` -> passed。
+  - `corepack pnpm eval:standard-lookup:provider` -> 21 total / 21 pass / 0 fail，`providerCalled=0`，`providerSkipped=21`，说明普通 exact lookup 没被 broad grounding 污染。
+  - `corepack pnpm eval:fastapi:migrated-smoke:proxy` -> 13 total / 13 pass / 0 fail。
+  - `corepack pnpm eval:product-smoke:http:proxy` -> 39 total / 39 pass / 0 fail。
+  - `corepack pnpm eval:default-fastapi-smoke` -> migrated proxy 13/13 pass；product HTTP proxy 39/39 pass。
+- 观察：
+  - 新 grounding 的产品形态基本符合设计：泛问/片段/前后缀问题进入“基于考试词表候选总结”，普通查词仍保持确定性模板。
+  - 当前候选池能把 `temptation`、`international`、`interpret`、`interrupt`、`conference` 等放入 `lightCandidates`，但 `mainAnswer` 只取前几项；后续如果打磨 UI 或模型提示，要注意不要只看 `mainAnswer` 判断候选覆盖。
+
+## 2026-05-12 Dynamic Light Grounding 第一刀实现
+
+- 本轮按 `docs/superpowers/specs/2026-05-12-dynamic-light-grounding-design.md` 新增第一版 FastAPI 后端实现，不改普通 exact lookup 模板和前端 UI。
+- 新增计划文档：`docs/superpowers/plans/2026-05-12-dynamic-light-grounding.md`。
+- 新增动态候选 builder：`backend/app/retrieval/dynamic_light_grounding.py`。
+  - 当前按 query 激活 exact、edit distance、ngram overlap、common prefix、prefix、suffix、fragment、meaning keyword、structured group boost 等信号。
+  - 只保留当前考试范围内候选。
+  - 旧 curated group 只加 `structured_group` boost，不再作为候选存在的前置 gate。
+  - source lemma 词表已可合并进动态候选池；structured 候选优先覆盖同 lemma 的 source-only 候选。
+- 新增 broad summary helper：`backend/app/answering/broad_vocab.py`。
+  - grounding 标记 `broadQueryMode=broad_vocab`、`answerStyle=broad_vocab_summary`、`groundingStrength=light`。
+  - UI/调用层可读 `supportLabel=基于 CET-6 词库候选总结`，避免伪装成“已整理易混组”。
+- 接入服务层：
+  - `AdvancedLookupService` 在 provider 可用时，优先对 `meaning_lookup` / `shape_neighbor_search` / `root_family_summary` 尝试 dynamic light grounding；候选不足时回到旧保守路径。
+  - `DirectCompareService` 在显式多词 compare 的 exact entries 不足时，尝试 dynamic light grounding 兜底，覆盖 `commend comment command 怎么区分` 这类未人工结构化场景。
+  - `create_app()` 已把 `settings.source_lemma_base_dir` 注入 direct compare 与 advanced lookup 服务。
+- Review 后补强：
+  - `structured_group` 现在只给已有 query 信号的候选加权，不能单独把旧人工组成员推入 dynamic pool。
+  - Direct compare 的 dynamic fallback 必须覆盖至少两个用户显式 compare terms，避免 `access zzzzword 怎么区分` 这类半命中查询误生成 broad answer。
+  - `spect 这串相关的词怎么整理` 已归入 broad/root path，并按片段信号生成 dynamic candidates。
+  - `LightGroundingSignal` 已改为结构化 dataclass，`to_json()` 仍输出前端可读的 signal 字段。
+- 本轮 focused 验证：
+  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_dynamic_light_grounding.py backend/tests/test_advanced_lookup.py backend/tests/test_direct_compare_answer.py` -> 22 passed。
+  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_dynamic_light_grounding.py backend/tests/test_advanced_lookup.py backend/tests/test_direct_compare_answer.py backend/tests/test_chat_contract.py` -> 30 passed。
+  - Review 修复后：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_dynamic_light_grounding.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_normalize_query.py backend/tests/test_chat_contract.py` -> 46 passed。
+  - `corepack pnpm lint` -> passed。
+- 下一步建议：
+  - 如果要验真实链路，先按 `bugs.md` 恢复 Prisma dev / seed，再用 `corepack pnpm dev:fastapi` 和小批 HTTP smoke 看 `commend/comment/command`、`re+con`、`recent`、`access 是什么意思`。
+  - 第二刀再考虑给 source-only dynamic candidates 补 ECDICT meaning，不要在这一刀里扩大到 UI 重写或删除旧 group。
+
+## 2026-05-12 Dynamic Light Grounding 设计交接
+
+- 本轮只写设计文档，不改 runtime 代码。
+- 新增中文设计文档：`docs/superpowers/specs/2026-05-12-dynamic-light-grounding-design.md`。
+- 设计方向已按用户最新判断调整：
+  - dynamic light grounding 应接管泛问、易混、词形、前缀、后缀、片段和中文语义召回主流程。
+  - 旧 `confusion_group` / `root_family` 不再作为“能不能答”的 gate。
+  - 旧人工组只保留为 ranking boost、golden fixture 和 regression baseline。
+  - ordinary exact lookup 仍保持结构化 / ECDICT / source lemma 模板化回答，不进入模型总结。
+- 新模式核心链路：
+  - query router 判断普通查词还是 broad vocab。
+  - broad vocab 进入 dynamic candidate grounding。
+  - 按 query 部分激活 experts：exact、shape、n-gram、prefix/suffix、fragment、meaning keyword、structured group boost、ECDICT meaning。
+  - 从当前考试范围内动态生成 12-18 个候选，只把候选池喂给模型。
+  - 模型主答案只能围绕候选池，UI 标注“基于考试词表候选总结”，不能伪装成“已整理易混组”。
+- 下一步建议新 session：
+  - 先读本文档和 `docs/superpowers/plans/2026-05-11-grounding-strategy-probe.md`。
+  - 再写 implementation plan。
+  - 第一刀优先做 retrieval 层 dynamic candidate builder 与 focused tests，不直接重写 UI 或删除旧分组。
+
+## 2026-05-11 Broad Student Grounding Strategy Probe
+
+- 本轮按学生真实学习时的泛问法，新增并运行 grounding 策略对比实验，用来判断“继续大规模人工结构化易混/同根组”是否必要。
+- 新增脚本：
+  - `scripts/lib/grounding-strategy-probe.ts`
+  - `scripts/lib/grounding-strategy-probe.test.ts`
+  - `scripts/run-grounding-strategy-probe.ts`
+  - package script：`corepack pnpm eval:grounding-strategy:probe`
+- 评测问题刻意覆盖泛问和未完全结构化场景，例如：
+  - `commend、comment、command 这几个很像，怎么区分`
+  - `有没有和 command 长得很像、容易看错的词`
+  - `com 开头那些词老是混，能不能帮我整理一下`
+  - `re/con 开头那些很像的单词怎么整理，别太理论`
+  - `表示评论、评价的词有哪些容易混`
+  - `re+con 的词根有什么词`
+- 每条问题并排比较三列：
+  - current grounded：当前 `/api/chat` 完整 grounding 路径
+  - model direct：只把学生问题直接丢给模型
+  - light grounding + model：先从 source lemmas / structured real-smoke 做轻候选池，再让模型总结
+- 最终报告：
+  - JSON：`output/grounding-strategy-probe/broad-student-v2.json`
+  - Markdown：`output/grounding-strategy-probe/broad-student-v2.md`
+- 关键发现：
+  - 普通 exact lookup 仍应继续确定性模板，不需要回到模型自由生成。
+  - 泛形近/前缀/词根问题上，current grounded 对已结构化 root family 表现稳定，但对 `commend/comment/command`、`command` 附近词、`recommend/commend`、中文语义泛问等未打组场景会保守 no-match。
+  - model direct 能答出不少有用内容，但更容易扩到候选外、讲理论或给出不受词库约束的词，例如 `com-`、`re-`、`re+con` 类问题。
+  - light grounding + model 的性价比最高：不需要提前人工打完所有 confusion/root 标签，只要给模型一个考试词库候选池，就能在 `commend/comment/command`、`con-`、`re-`、`recent`、`stitute`、`require/request/demand` 等问题上生成更贴近学习场景的答案。
+  - 轻候选池本身还要继续打磨：中文语义泛问和双前缀问题需要更好的候选平衡与过滤；不要把 `belief/attitude` 这类相关但非动作词混进“评论/评价”核心组太靠前。
+- 下一步建议：
+  - 不要继续尝试人工穷尽所有易混组/同根组。
+  - 保留少量高价值 structured groups 作为黄金样例和回归基线。
+  - 下一轮主线应设计一个“light grounding broad answer”路径：词库候选池负责边界，模型负责总结，报告/评测负责防跑偏。
+- 本轮验证：
+  - `corepack pnpm test scripts/lib/grounding-strategy-probe.test.ts` -> 1 file / 4 tests passed。
+  - `corepack pnpm lint scripts/lib/grounding-strategy-probe.ts scripts/lib/grounding-strategy-probe.test.ts scripts/run-grounding-strategy-probe.ts` -> passed。
+  - `corepack pnpm eval:grounding-strategy:probe -- --current-base-url http://127.0.0.1:3000 --report-name broad-student-v2 --timeout-ms 90000` -> 14 cases completed；current/direct/light 三列均产出结果。
+
 ## 2026-05-11 聊天支持面板轻量化
 
 - 本轮在 source-aware 支持面板基础上继续收紧聊天主舞台的纵向密度，只改前端渲染，不改检索、FastAPI、answer policy 或返回契约。
