@@ -1,5 +1,6 @@
 from backend.app.answering.advanced_lookup import AdvancedLookupService
 from backend.app.answering.provider import GenerateAnswerResult
+from backend.app.content.ecdict import EcdictBasicProfile
 from backend.app.retrieval.types import (
     ConfusionGroup,
     ConfusionGroupMember,
@@ -98,6 +99,30 @@ class FakeProvider:
             answer=self.answer,
             provider_request_id="provider_req_advanced",
         )
+
+
+def ecdict_profile(lemma: str, meanings: list[str]) -> EcdictBasicProfile:
+    return EcdictBasicProfile(
+        canonical=lemma,
+        lookup_key=lemma,
+        entry_kind="word",
+        match_kind="exact",
+        meanings=meanings,
+        raw_translation="\n".join(meanings),
+        tag="",
+    )
+
+
+def write_source_lemma_fixture(base_dir, lemmas: list[str]) -> None:
+    source_dir = base_dir / "source-lemmas"
+    source_dir.mkdir()
+    (source_dir / "gaokao-2020-lemmas.txt").write_text("", encoding="utf-8")
+    (source_dir / "cet-2016-lemmas.tsv").write_text(
+        "lemma\tsource_scope\n"
+        + "\n".join(f"{lemma}\tcet6-extra" for lemma in lemmas)
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def test_meaning_lookup_uses_expression_group_and_provider():
@@ -272,7 +297,46 @@ def test_shape_neighbor_can_return_broad_vocab_summary_from_dynamic_pool():
         "recent",
         "resent",
     ]
-    assert provider.calls[0]["grounding"]["answerStyle"] == "broad_vocab_summary"
+    provider_grounding = provider.calls[0]["grounding"]
+    assert provider_grounding["answerStyle"] == "broad_vocab_summary"
+    assert "activeExamTargetLabel" not in provider_grounding
+    assert "supportLabel" not in provider_grounding
+    assert "scopeReminder" not in provider_grounding
+    assert "scopeCodes" not in provider_grounding["mainAnswer"][0]
+
+
+def test_broad_collection_source_lemmas_use_ecdict_basic_meanings(tmp_path):
+    write_source_lemma_fixture(tmp_path, ["command", "commend", "comment"])
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=provider,
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda lemma: ecdict_profile(
+            lemma,
+            [f"n. {lemma} basic meaning"],
+        ),
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="comm 开头的单词总结",
+        request_id="req_comm_source_ecdict",
+    )
+
+    grounding = result.payload.grounding
+    plan = grounding["broadAnswerPlan"]
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId == "provider_req_advanced"
+    assert plan["style"] == "collection_map"
+    assert plan["answerableLemmas"] == ["command", "commend", "comment"]
+    assert plan["candidateOnlyLemmas"] == []
+    assert [item["meaningsZh"] for item in grounding["mainAnswer"]] == [
+        ["n. command basic meaning"],
+        ["n. commend basic meaning"],
+        ["n. comment basic meaning"],
+    ]
 
 
 def test_root_family_summary_uses_known_family_and_provider():

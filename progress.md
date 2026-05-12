@@ -1,5 +1,71 @@
 # EngGo 滚动交接
 
+## 2026-05-12 Light Grounding source-only ECDICT 补义
+
+- 本轮继续打磨 `broad_vocab_summary` 输出质量，重点解决集合型问题里 source-only 候选只能列形式、不能给基础义的问题。
+- `source_lemma_vocabulary()` 现在可接收 lazy `ecdict_lookup`：
+  - source lemma 仍保持 `sourceKind=source_lemma`，不伪装成高可信 structured entry。
+  - ECDICT exact 命中时，只把基础释义补到 `meaningsZh`，让 `collection_map` 可把这些词纳入 `answerableLemmas`。
+  - ECDICT 未命中时仍保持空释义，并由 `candidateOnlyLemmas` 约束模型不能硬编定义。
+- `create_app()` 现在复用同一个 lazy ECDICT lookup 注入 ordinary lookup、direct compare、advanced broad path；不扩大 ordinary exact lookup 的短路边界。
+- 新增回归用例：只靠 source lemma 文件命中 `command/commend/comment` 时，`comm 开头的单词总结` 会在 `broadAnswerPlan.answerableLemmas` 中携带 ECDICT 基础义，而不是降级为 candidate-only。
+- 真实 provider 样例继续暴露了输出格式问题后，本轮又补了一层 broad 输出契约：
+  - provider 侧使用 sanitized broad grounding，不再暴露 `activeExamTargetLabel`、`supportLabel`、`scopeReminder` 和候选 `scopeCodes`，避免正文重复 `CET-6`。
+  - `broadAnswerPlan.rules` 与 system prompt 明确要求短分组 bullet，不用 markdown table / 横线，不加搭配列、例句、派生词或候选外词。
+  - 每个 answerable term 要带一个来自 `meaningsZh` 的短义；candidate-only 只列候选，不补定义。
+- 用户指出样例缺词性后，本轮补了词性契约：
+  - dynamic source-only 候选会从 ECDICT 基础释义开头抽 `partOfSpeech`，例如 `command -> n. / v.`、`action -> n. / vt.`。
+  - broad prompt / plan 要求每个 answerable term 输出 `partOfSpeech + meaningsZh` 的短格式。
+- 真实链路抽样：
+  - `comm 开头的单词总结` -> 16 个 answerable，`command/commend/commence/commander/commemorate/...` 均通过 ECDICT 补上基础义；最终输出为 5 个学习组，每词带短义，无表格、无尾巴邀请，`comply/curb` 仍在 suppressed。
+  - `tion 结尾的词有哪些` -> 17 个 answerable + `ination` candidate-only；最终输出为 4 个学习组，每词带短义，`ination` 单独标为“仅匹配候选（无定义）”，无表格、无横线、无候选外搭配，正文不再出现 `CET-6`。
+  - 补词性后复抽 `comm 开头的单词总结`：最终答案已显示 `common – adj. 共同的`、`comment – n./v. 评论`、`command – n./v. 命令`、`commend – vt. 嘉奖`、`commute – vt./vi. 通勤` 等词性+短义。
+  - 本轮样例跑完后已停止 FastAPI/Next，并执行 `node_modules\.bin\prisma.CMD dev stop enggo`；确认 `enggo not_running`，3000/8000 无监听残留。
+- 本轮验证：
+  - 红测：`backend/tests/test_advanced_lookup.py::test_broad_collection_source_lemmas_use_ecdict_basic_meanings` 先因 `AdvancedLookupService.__init__()` 不接收 `ecdict_lookup` 失败。
+  - 绿测：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_advanced_lookup.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 14 passed，仍有 pytest cache permission warning。
+  - 格式契约红测：新增 prompt/plan/provider-grounding 断言后，先因未禁止表格/未移除 scope 元数据失败，再实现 sanitized broad provider grounding 后转绿。
+  - 最终 Python focused：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_advanced_lookup.py backend/tests/test_direct_compare_answer.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_chat_contract.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 51 passed，仍有 pytest cache permission warning。
+  - 补词性后 Python focused：同一 focused 命令 -> 52 passed，仍有 pytest cache permission warning。
+  - `corepack pnpm test scripts/lib/black-box-product-smoke.test.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 2 files / 13 tests passed。
+  - `corepack pnpm lint scripts/lib/black-box-product-smoke.ts scripts/lib/black-box-product-smoke.test.ts scripts/lib/fastapi-migrated-slice-smoke.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts scripts/run-black-box-product-http-smoke.ts scripts/run-fastapi-migrated-slice-smoke.ts src/features/retrieval/types.ts` -> passed。
+  - `git diff --check` -> exit 0，仅 CRLF warning。
+- 下一步建议：
+  - 可以先 commit 当前 light grounding 输出打磨。
+  - 后续再小批看 `re+con`、中文义召回和精确 compare 的最终措辞；如果还机械，再打磨 `candidateSections` 的分组命名/顺序，不急着扩大人工分组。
+
+## 2026-05-12 Light Grounding 输出契约收口
+
+- 本轮基于真实输出观察，收紧 `broad_vocab_summary` 的回答契约，不扩词库、不新增人工分组、不改 UI。
+- 新增 `backend/tests/test_broad_vocab_answer.py`，用 TDD 固定三类边界：
+  - `comm 开头的单词总结` 这类集合型问题走 `collection_map`，目标是 3-5 个学习组、12-20 个候选词，而不是硬截 3-5 个词或 dump 全表。
+  - `commend/comment/command 怎么区分` 这类精确辨析走 `focused_compare`，用户点名词优先，最多补少量旁支。
+  - 弱形近噪声和 source-only 无释义候选要分层：`answerableLemmas` 可解释，`candidateOnlyLemmas` 只能列形式，`suppressedCandidateLemmas` 不应进入答案。
+- `backend/app/answering/broad_vocab.py` 现在会在 grounding 中写入 `broadAnswerPlan`：
+  - `style`: `collection_map` / `focused_compare` / `meaning_core` / `semantic_root_boundary`
+  - `candidateBudget`
+  - `answerableLemmas`
+  - `candidateOnlyLemmas`
+  - `suppressedCandidateLemmas`
+  - `candidateSections`
+- system prompt 同步收紧：
+  - 不要发明助记、押韵、练习题、记忆卡结尾。
+  - 不要以“如果你愿意...”结尾。
+  - 不要用 emoji、装饰 icon、横线。
+  - 不要解释 `suppressedCandidateLemmas`。
+  - 对无释义 source-only 候选只能标为候选，不能装作完整词条解释。
+- 真实链路抽样观察：
+  - `comm 开头的单词总结` -> `collection_map`，`comply/curb` 被压到 `suppressedCandidateLemmas`，最终答案变成分组地图；source-only 的 `command/commend/...` 只列形式不补释义。
+  - `commend、comment、command 这几个很像，怎么区分` -> `focused_compare`，最终答案集中解释三词，并只轻量提到 `commence/common`。
+  - `re+con` 抽样过程中 provider 曾出现 504；该问题的 plan 已能分出 direct fragment matches 与 related candidates，但本轮未把 504 作为逻辑失败处理。
+- 本轮验证：
+  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_advanced_lookup.py backend/tests/test_direct_compare_answer.py backend/tests/test_normalize_query.py backend/tests/test_chat_contract.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 51 passed，仍有 pytest cache permission warning。
+  - `corepack pnpm test scripts/lib/black-box-product-smoke.test.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 2 files / 13 tests passed。
+  - `corepack pnpm lint scripts/lib/black-box-product-smoke.ts scripts/lib/black-box-product-smoke.test.ts scripts/lib/fastapi-migrated-slice-smoke.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts scripts/run-black-box-product-http-smoke.ts scripts/run-fastapi-migrated-slice-smoke.ts src/features/retrieval/types.ts` -> passed。
+- 下一步建议：
+  - 如果继续打磨输出质量，优先给 dynamic source-only candidates 补 ECDICT 基础释义或低风险释义字段，避免 `command/commend` 在集合型答案里只能列形式。
+  - 再用小批真实 provider 样例验证 `tion`、`re+con`、中文义召回是否稳定不出尾巴邀请和候选外例子。
+
 ## 2026-05-12 Dynamic Light Grounding 真实链路验收
 
 - 本轮继续上一轮 plan 后的验收，重点验证新 dynamic light grounding 在真实 FastAPI/Next proxy 链路里的效果。

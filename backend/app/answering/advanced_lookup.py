@@ -5,6 +5,7 @@ from pathlib import Path
 from backend.app.answering.broad_vocab import (
     build_broad_vocab_answer,
     build_broad_vocab_grounding,
+    build_broad_vocab_provider_grounding,
     build_broad_vocab_system_prompt,
 )
 from backend.app.answering.direct_compare import (
@@ -76,6 +77,7 @@ def provider_or_fallback(
     history: list[dict[str, str]],
     request_id: str,
     system_prompt: str,
+    provider_grounding: dict[str, object] | None = None,
 ) -> ChatSuccessResponse:
     if not provider:
         return ChatSuccessResponse(
@@ -91,7 +93,7 @@ def provider_or_fallback(
         history=history,
         request_id=request_id,
         system_prompt=system_prompt,
-        grounding=grounding,
+        grounding=provider_grounding or grounding,
     )
 
     return ChatSuccessResponse(
@@ -437,10 +439,18 @@ def build_root_family_view(
 
 
 class AdvancedLookupService:
-    def __init__(self, *, repository, provider=None, source_lemma_base_dir: Path | str | None = None):
+    def __init__(
+        self,
+        *,
+        repository,
+        provider=None,
+        source_lemma_base_dir: Path | str | None = None,
+        ecdict_lookup=None,
+    ):
         self.repository = repository
         self.provider = provider
         self.source_lemma_base_dir = Path(source_lemma_base_dir) if source_lemma_base_dir else None
+        self.ecdict_lookup = ecdict_lookup
 
     def answer(
         self,
@@ -500,6 +510,7 @@ class AdvancedLookupService:
         source = source_lemma_vocabulary(
             active_exam_target=active_exam_target,
             source_lemma_base_dir=self.source_lemma_base_dir,
+            ecdict_lookup=self.ecdict_lookup,
         )
 
         return merge_dynamic_vocabulary(structured, source)
@@ -560,6 +571,7 @@ class AdvancedLookupService:
                 history=history,
                 request_id=request_id,
                 system_prompt=build_broad_vocab_system_prompt(),
+                provider_grounding=build_broad_vocab_provider_grounding(grounding),
             ),
         )
 

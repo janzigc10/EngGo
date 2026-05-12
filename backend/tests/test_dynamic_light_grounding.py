@@ -1,3 +1,4 @@
+from backend.app.content.ecdict import EcdictBasicProfile
 from backend.app.retrieval.dynamic_light_grounding import (
     LightGroundingSignal,
     build_light_grounding_candidates,
@@ -60,6 +61,18 @@ def group(group_id, members):
 
 def signal_types(light_candidate):
     return {signal.type for signal in light_candidate.signals}
+
+
+def ecdict_profile(lemma: str, meanings: list[str]) -> EcdictBasicProfile:
+    return EcdictBasicProfile(
+        canonical=lemma,
+        lookup_key=lemma,
+        entry_kind="word",
+        match_kind="exact",
+        meanings=meanings,
+        raw_translation="\n".join(meanings),
+        tag="",
+    )
 
 
 def test_explicit_shape_terms_rank_first_with_shape_signals():
@@ -224,3 +237,32 @@ def test_source_lemma_vocabulary_and_structured_merge(tmp_path):
         active_exam_target="postgrad",
         source_lemma_base_dir=tmp_path,
     ) == []
+
+
+def test_source_lemma_vocabulary_derives_pos_from_ecdict_meanings(tmp_path):
+    source_dir = tmp_path / "source-lemmas"
+    source_dir.mkdir()
+    (source_dir / "gaokao-2020-lemmas.txt").write_text("", encoding="utf-8")
+    (source_dir / "cet-2016-lemmas.tsv").write_text(
+        "lemma\tsource_scope\ncommand\tcet6-extra\naction\tcet6-extra\n",
+        encoding="utf-8",
+    )
+
+    source_candidates = source_lemma_vocabulary(
+        active_exam_target="cet6",
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda lemma: {
+            "command": ecdict_profile(
+                "command",
+                ["n. 命令, 指挥", "v. 命令, 指挥"],
+            ),
+            "action": ecdict_profile(
+                "action",
+                ["n. 行动, 动作", "vt. 对...起诉"],
+            ),
+        }.get(lemma),
+    )
+    source_by_lemma = {item.lemma: item for item in source_candidates}
+
+    assert source_by_lemma["command"].part_of_speech == "n. / v."
+    assert source_by_lemma["action"].part_of_speech == "n. / vt."

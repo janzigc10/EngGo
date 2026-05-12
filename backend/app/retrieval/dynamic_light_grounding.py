@@ -1,7 +1,9 @@
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from backend.app.content.ecdict import EcdictBasicProfile
 from backend.app.content.source_lemmas import load_source_lemma_memberships
 from backend.app.retrieval.types import ConfusionGroup, RetrievalCandidate
 
@@ -57,6 +59,10 @@ class LightGroundingCandidate:
 
 
 english_token_pattern = re.compile(r"[a-z]+(?:-[a-z]+)?", re.IGNORECASE)
+ecdict_part_of_speech_pattern = re.compile(
+    r"^\s*((?:n|v|vt|vi|adj|adv|prep|conj|pron|num|art|int|interj|phr)\.)",
+    re.IGNORECASE,
+)
 prefix_hint_pattern = re.compile(r"\b([a-z]{2,8})\s*(?:开头|词首|前缀)", re.IGNORECASE)
 suffix_hint_pattern = re.compile(r"\b([a-z]{2,8})\s*(?:结尾|词尾|后缀)", re.IGNORECASE)
 contains_hint_pattern = re.compile(
@@ -99,6 +105,27 @@ def extract_english_tokens(query: str) -> list[str]:
         tokens.append(token)
 
     return tokens
+
+
+def infer_ecdict_part_of_speech(profile: EcdictBasicProfile | None) -> str | None:
+    if not profile:
+        return None
+
+    parts: list[str] = []
+    seen: set[str] = set()
+    for meaning in profile.meanings:
+        match = ecdict_part_of_speech_pattern.match(meaning)
+        if not match:
+            continue
+
+        part = match.group(1).lower()
+        if part in seen:
+            continue
+
+        seen.add(part)
+        parts.append(part)
+
+    return " / ".join(parts) if parts else None
 
 
 def common_prefix_length(left: str, right: str) -> int:
@@ -373,6 +400,7 @@ def source_lemma_vocabulary(
     *,
     active_exam_target: str,
     source_lemma_base_dir: Path | str | None,
+    ecdict_lookup: Callable[[str], EcdictBasicProfile | None] | None = None,
 ) -> list[RetrievalCandidate]:
     if not source_lemma_base_dir or active_exam_target == "postgrad":
         return []
@@ -381,21 +409,34 @@ def source_lemma_vocabulary(
     for membership in load_source_lemma_memberships(base_dir=source_lemma_base_dir):
         memberships_by_lemma.setdefault(membership.lemma, set()).add(membership.scope_code)
 
-    return [
-        RetrievalCandidate(
-            entry_id=f"source-lemma:{lemma}",
-            lemma=lemma,
-            meanings_zh=[],
-            matched_alias=None,
-            scope_codes=sorted(scope_codes),
-            in_scope=active_exam_target in scope_codes,
-            reason="source lemma broad candidate",
-            score=18,
-            source_kind="source_lemma",
+    result: list[RetrievalCandidate] = []
+
+    for lemma, scope_codes in memberships_by_lemma.items():
+        if active_exam_target not in scope_codes:
+            continue
+
+        profile = ecdict_lookup(lemma) if ecdict_lookup else None
+        meanings = profile.meanings if profile else []
+        reason = "source lemma broad candidate"
+        if profile:
+            reason = f"{reason}; external dictionary basic meanings"
+
+        result.append(
+            RetrievalCandidate(
+                entry_id=f"source-lemma:{lemma}",
+                lemma=lemma,
+                meanings_zh=meanings,
+                matched_alias=None,
+                scope_codes=sorted(scope_codes),
+                in_scope=active_exam_target in scope_codes,
+                reason=reason,
+                score=18,
+                part_of_speech=infer_ecdict_part_of_speech(profile),
+                source_kind="source_lemma",
+            ),
         )
-        for lemma, scope_codes in memberships_by_lemma.items()
-        if active_exam_target in scope_codes
-    ]
+
+    return result
 
 
 def merge_dynamic_vocabulary(

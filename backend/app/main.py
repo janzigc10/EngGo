@@ -36,14 +36,15 @@ def create_app(
         base_url=settings.openai_base_url,
         model=settings.openai_model or "gpt-5.4",
     )
+    ecdict_lookup = create_ecdict_basic_profile_lookup(
+        dictionary_path=settings.ecdict_dictionary_path,
+    )
 
     if app.state.ordinary_lookup_service is None and repository:
         app.state.ordinary_lookup_service = OrdinaryLookupService(
             repository=repository,
             source_lemma_base_dir=settings.source_lemma_base_dir,
-            ecdict_lookup=create_ecdict_basic_profile_lookup(
-                dictionary_path=settings.ecdict_dictionary_path,
-            ),
+            ecdict_lookup=ecdict_lookup,
             provider=provider,
         )
 
@@ -52,6 +53,7 @@ def create_app(
             repository=repository,
             provider=provider,
             source_lemma_base_dir=settings.source_lemma_base_dir,
+            ecdict_lookup=ecdict_lookup,
         )
 
     if app.state.advanced_lookup_service is None and repository:
@@ -59,6 +61,7 @@ def create_app(
             repository=repository,
             provider=provider,
             source_lemma_base_dir=settings.source_lemma_base_dir,
+            ecdict_lookup=ecdict_lookup,
         )
 
     @app.middleware("http")

@@ -3,6 +3,7 @@ from pathlib import Path
 
 from backend.app.answering.broad_vocab import (
     build_broad_vocab_grounding,
+    build_broad_vocab_provider_grounding,
     build_broad_vocab_system_prompt,
 )
 from backend.app.answering.ordinary_lookup import (
@@ -173,10 +174,18 @@ def covered_exact_compare_terms(candidates, compare_terms: list[str]) -> set[str
 
 
 class DirectCompareService:
-    def __init__(self, *, repository, provider=None, source_lemma_base_dir: Path | str | None = None):
+    def __init__(
+        self,
+        *,
+        repository,
+        provider=None,
+        source_lemma_base_dir: Path | str | None = None,
+        ecdict_lookup=None,
+    ):
         self.repository = repository
         self.provider = provider
         self.source_lemma_base_dir = Path(source_lemma_base_dir) if source_lemma_base_dir else None
+        self.ecdict_lookup = ecdict_lookup
 
     def answer(
         self,
@@ -304,6 +313,7 @@ class DirectCompareService:
         source = source_lemma_vocabulary(
             active_exam_target=active_exam_target,
             source_lemma_base_dir=self.source_lemma_base_dir,
+            ecdict_lookup=self.ecdict_lookup,
         )
 
         return merge_dynamic_vocabulary(structured, source)
@@ -362,7 +372,7 @@ class DirectCompareService:
             history=history,
             request_id=request_id,
             system_prompt=build_broad_vocab_system_prompt(),
-            grounding=grounding,
+            grounding=build_broad_vocab_provider_grounding(grounding),
         )
 
         return DirectCompareResult(
