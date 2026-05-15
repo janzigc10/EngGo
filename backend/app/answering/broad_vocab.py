@@ -1,3 +1,5 @@
+import re
+
 from backend.app.answering.ordinary_lookup import exam_target_labels
 from backend.app.retrieval.dynamic_light_grounding import LightGroundingCandidate
 
@@ -14,9 +16,36 @@ strong_collection_signals = {
     "meaning_keyword",
 }
 
+confusion_core_signals = {
+    "exact",
+    "edit_distance",
+    "ngram_overlap",
+    "common_prefix",
+    "structured_group",
+}
+
+supplemental_form_signals = {
+    "prefix",
+    "suffix",
+    "fragment",
+    "meaning_keyword",
+}
+
+collection_confusion_cue_pattern = re.compile(
+    r"(容易.*混|很像|形近|看错|看成|区分|怎么分|分不清|辨析)",
+    re.IGNORECASE,
+)
+
 
 def signal_types(candidate: LightGroundingCandidate) -> set[str]:
     return {signal.type for signal in candidate.signals}
+
+
+def signal_strength(
+    candidate: LightGroundingCandidate,
+    signal_names: set[str],
+) -> int:
+    return len(signal_types(candidate) & signal_names)
 
 
 def signal_details(candidate: LightGroundingCandidate, signal_type: str) -> set[str]:
@@ -70,6 +99,16 @@ def broad_answer_style(normalized_query) -> str:
     return "collection_map"
 
 
+def collection_presentation(normalized_query) -> str | None:
+    if broad_answer_style(normalized_query) != "collection_map":
+        return None
+
+    if collection_confusion_cue_pattern.search(normalized_query.normalized_text):
+        return "confusion_organizer"
+
+    return "inventory_table"
+
+
 def main_answer_limit(style: str) -> int:
     if style in {"focused_compare", "meaning_core"}:
         return 5
@@ -80,12 +119,22 @@ def main_answer_limit(style: str) -> int:
     return 18
 
 
-def candidate_budget(style: str) -> dict[str, str]:
+def candidate_budget(
+    style: str,
+    presentation: str | None = None,
+) -> dict[str, str]:
     if style == "collection_map":
+        if presentation == "inventory_table":
+            return {
+                "groups": "0",
+                "terms": "12-20",
+                "rule": "Use a compact inventory table; add only light easy-to-confuse notes.",
+            }
+
         return {
             "groups": "3-5",
             "terms": "12-20",
-            "rule": "Build a learning map, not a dictionary dump.",
+            "rule": "Prioritize the most confusable core group, then list bounded same-form supplements.",
         }
 
     if style == "semantic_root_boundary":
@@ -123,6 +172,7 @@ def candidates_with_signal(
 def build_candidate_sections(
     *,
     style: str,
+    presentation: str | None,
     candidates: list[LightGroundingCandidate],
     answerable: list[LightGroundingCandidate],
     candidate_only: list[LightGroundingCandidate],
@@ -171,31 +221,54 @@ def build_candidate_sections(
             },
         ]
 
-    signal_order = [
-        ("prefix_candidates", "prefix"),
-        ("suffix_candidates", "suffix"),
-        ("fragment_candidates", "fragment"),
-        ("meaning_candidates", "meaning_keyword"),
-    ]
     sections: list[dict[str, object]] = []
     seen: set[str] = set()
 
-    for role, signal_type in signal_order:
-        section_candidates = [
-            candidate
-            for candidate in candidates_with_signal(answerable, signal_type)
-            if candidate.lemma not in seen
-        ]
-        if not section_candidates:
-            continue
+    if presentation == "inventory_table":
+        if answerable:
+            sections.append(
+                {
+                    "role": "inventory_terms",
+                    "lemmas": candidate_lemmas(answerable[:18]),
+                },
+            )
+        if candidate_only:
+            sections.append(
+                {
+                    "role": "candidate_only_no_reviewed_meaning",
+                    "lemmas": candidate_lemmas(candidate_only[:8]),
+                },
+            )
+        return sections
 
+    core_candidates = [
+        candidate
+        for candidate in answerable
+        if signal_strength(candidate, confusion_core_signals) >= 1
+    ]
+    if core_candidates:
         sections.append(
             {
-                "role": role,
-                "lemmas": candidate_lemmas(section_candidates[:8]),
+                "role": "confusable_core_terms",
+                "lemmas": candidate_lemmas(core_candidates[:5]),
             },
         )
-        seen.update(candidate.lemma for candidate in section_candidates)
+        seen.update(candidate.lemma for candidate in core_candidates[:5])
+
+    supplemental_candidates = [
+        candidate
+        for candidate in answerable
+        if candidate.lemma not in seen
+        and has_any_signal(candidate, supplemental_form_signals)
+    ]
+    if supplemental_candidates:
+        sections.append(
+            {
+                "role": "supplemental_same_form_candidates",
+                "lemmas": candidate_lemmas(supplemental_candidates[:12]),
+            },
+        )
+        seen.update(candidate.lemma for candidate in supplemental_candidates[:12])
 
     if candidate_only:
         sections.append(
@@ -303,33 +376,45 @@ def build_broad_answer_plan(
     candidates: list[LightGroundingCandidate],
 ) -> dict[str, object]:
     style = broad_answer_style(normalized_query)
+    presentation = collection_presentation(normalized_query)
     answerable, candidate_only, suppressed = build_answer_material(
         style=style,
         candidates=candidates,
     )
+    rules = [
+        "Use only grounding.lightCandidates as answer material.",
+        "Use broadAnswerPlan.answerableLemmas for the main answer.",
+        "Mention broadAnswerPlan.candidateOnlyLemmas only as matched candidates; do not supply definitions for them.",
+        "Do not mention suppressedCandidateLemmas.",
+    ]
 
-    return {
-        "style": style,
-        "candidateBudget": candidate_budget(style),
-        "answerableLemmas": candidate_lemmas(answerable),
-        "candidateOnlyLemmas": candidate_lemmas(candidate_only),
-        "suppressedCandidateLemmas": candidate_lemmas(suppressed),
-        "candidateSections": build_candidate_sections(
-            style=style,
-            candidates=candidates,
-            answerable=answerable,
-            candidate_only=candidate_only,
-        ),
-        "rules": [
-            "Use only grounding.lightCandidates as answer material.",
-            "Use broadAnswerPlan.answerableLemmas for the main answer.",
-            "Mention broadAnswerPlan.candidateOnlyLemmas only as matched candidates; do not supply definitions for them.",
-            "Do not mention suppressedCandidateLemmas.",
-            "For collection_map, return 3-5 learning groups with 12-20 total terms when enough candidates exist.",
+    if style == "collection_map" and presentation == "inventory_table":
+        rules.extend(
+            [
+                "For inventory_table, use a compact markdown table: 单词 | 词性 | 核心义 | 备注.",
+                "Do not split inventory answers into semantic group headings.",
+                "Use the 备注 column only for light hints, such as easy-to-confuse pairs or shared word-family notes.",
+                "In inventory remarks, mention only terms from answerableLemmas or candidateOnlyLemmas.",
+                "Use — when there is no useful remark; do not add etymology or self-comparison notes.",
+                "Do not claim same-root, derivation, or etymology in inventory remarks.",
+            ],
+        )
+    elif style == "collection_map":
+        rules.extend(
+            [
+                "For collection_map, return 3-5 learning groups with 12-20 total terms when enough candidates exist.",
+                "Start with the most confusable core group.",
+                "For the core group, include one short core difference sentence.",
+                "Use supplemental candidates only after the core group.",
+                "Do not invent broad semantic category titles for weakly related candidates.",
+            ],
+        )
+
+    rules.extend(
+        [
             "For focused_compare, answer explicit user terms first and keep related terms optional.",
             "For meaning_core, keep only the core expressions and usage boundary.",
             "For semantic_root_boundary, say when this is not a stable root family and separate direct matches from loose related candidates.",
-            "Use short grouped bullet lists; do not use markdown tables.",
             "Do not add collocations, usage columns, example phrases, or derived forms.",
             "Do not repeat activeExamTargetLabel or supportLabel in the answer body.",
             "For each answerable term, include partOfSpeech plus one short meaning from meaningsZh.",
@@ -337,6 +422,23 @@ def build_broad_answer_plan(
             "Do not invent mnemonics, rhymes, practice questions, or memory-card endings.",
             "Do not end with a follow-up invitation.",
         ],
+    )
+
+    return {
+        "style": style,
+        "presentation": presentation,
+        "candidateBudget": candidate_budget(style, presentation),
+        "answerableLemmas": candidate_lemmas(answerable),
+        "candidateOnlyLemmas": candidate_lemmas(candidate_only),
+        "suppressedCandidateLemmas": candidate_lemmas(suppressed),
+        "candidateSections": build_candidate_sections(
+            style=style,
+            presentation=presentation,
+            candidates=candidates,
+            answerable=answerable,
+            candidate_only=candidate_only,
+        ),
+        "rules": rules,
     }
 
 
@@ -360,7 +462,10 @@ def build_broad_vocab_system_prompt() -> str:
         "这些候选来自当前考试词表，不代表完整人工易混组。"
         "主答案只能围绕 grounding.lightCandidates；优先讲用户明确提到的词。"
         "必须读取 grounding.broadAnswerPlan，并按其中 style 控制信息密度："
-        "collection_map = 3-5 learning groups, 12-20 terms, learning map not dictionary dump；"
+        "collection_map + inventory_table = use a compact table with columns 单词 | 词性 | 核心义 | 备注; Do not split inventory answers into semantic group headings；"
+        "For inventory_table remarks, mention only terms from answerableLemmas or candidateOnlyLemmas, and use — when there is no useful remark；"
+        "Do not claim same-root, derivation, or etymology in inventory_table remarks；"
+        "collection_map + confusion_organizer = first explain the confusable core group with POS, short meanings, and one short core difference, then list supplemental candidates only if useful；"
         "focused_compare = explicit terms first, only 1-2 optional related terms；"
         "meaning_core = 3-5 core expressions with usage boundaries；"
         "semantic_root_boundary = separate direct fragment matches from loose related candidates, and say it is not a stable root family when needed。"
@@ -370,8 +475,9 @@ def build_broad_vocab_system_prompt() -> str:
         "Mention broadAnswerPlan.candidateOnlyLemmas only as matched candidates, without definitions. "
         "Do not mention suppressedCandidateLemmas. "
         "Do not mention vocabulary outside answerableLemmas or candidateOnlyLemmas, even as examples. "
-        "Use short grouped bullet lists; Do not use markdown tables. "
+        "Use markdown tables only when broadAnswerPlan.presentation is inventory_table. "
         "Do not add collocations, usage columns, example phrases, or derived forms. "
+        "Do not invent broad semantic category titles for weakly related candidates. "
         "Do not repeat activeExamTargetLabel or supportLabel in the answer body. "
         "For each answerable term, include partOfSpeech plus one short meaning from meaningsZh. "
         "For each answerable term, include one short meaning from meaningsZh. "

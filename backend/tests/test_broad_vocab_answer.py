@@ -50,10 +50,120 @@ def test_collection_queries_get_map_budget_instead_of_six_item_slice():
     plan = grounding["broadAnswerPlan"]
 
     assert plan["style"] == "collection_map"
-    assert plan["candidateBudget"]["groups"] == "3-5"
+    assert plan["presentation"] == "inventory_table"
+    assert plan["candidateBudget"]["groups"] == "0"
     assert plan["candidateBudget"]["terms"] == "12-20"
     assert len(grounding["mainAnswer"]) == 14
     assert grounding["selectedMainTerms"] == [item.lemma for item in candidates]
+
+
+def test_collection_plan_defaults_to_inventory_table_without_forced_groups():
+    query = "\u0063\u006f\u006d\u006d \u5f00\u5934\u7684\u5355\u8bcd\u603b\u7ed3"
+    candidates = [
+        light_candidate(
+            "command",
+            meanings=["\u547d\u4ee4\uff1b\u6307\u6325"],
+            part_of_speech="n./v.",
+            signals=[
+                LightGroundingSignal("prefix", 110, "comm"),
+                LightGroundingSignal("common_prefix", 60, "comm"),
+                LightGroundingSignal("ngram_overlap", 45, "command/comment"),
+            ],
+        ),
+        light_candidate(
+            "comment",
+            meanings=["\u8bc4\u8bba"],
+            part_of_speech="n./v.",
+            signals=[
+                LightGroundingSignal("prefix", 109, "comm"),
+                LightGroundingSignal("common_prefix", 60, "comm"),
+                LightGroundingSignal("ngram_overlap", 45, "comment/command"),
+            ],
+        ),
+        light_candidate(
+            "commend",
+            meanings=["\u79f0\u8d5e\uff1b\u63a8\u8350"],
+            part_of_speech="vt.",
+            signals=[
+                LightGroundingSignal("prefix", 108, "comm"),
+                LightGroundingSignal("common_prefix", 60, "comm"),
+                LightGroundingSignal("ngram_overlap", 44, "commend/comment"),
+            ],
+        ),
+        light_candidate(
+            "commander",
+            signals=[LightGroundingSignal("prefix", 80, "comm")],
+        ),
+        light_candidate(
+            "commemorate",
+            signals=[LightGroundingSignal("prefix", 79, "comm")],
+        ),
+    ]
+
+    grounding = build_broad_vocab_grounding(
+        active_exam_target="cet6",
+        query=query,
+        normalized_query=normalize_query(query),
+        candidates=candidates,
+    )
+
+    plan = grounding["broadAnswerPlan"]
+    sections = plan["candidateSections"]
+
+    assert plan["presentation"] == "inventory_table"
+    assert sections[0]["role"] == "inventory_terms"
+    assert sections[0]["lemmas"] == [
+        "command",
+        "comment",
+        "commend",
+        "commander",
+        "commemorate",
+    ]
+    assert (
+        plan["candidateBudget"]["rule"]
+        == "Use a compact inventory table; add only light easy-to-confuse notes."
+    )
+
+
+def test_collection_plan_uses_confusion_organizer_only_for_explicit_confusion_cues():
+    query = "\u0063\u006f\u006d\u006d \u5f00\u5934\u54ea\u4e9b\u8bcd\u5bb9\u6613\u6df7"
+    grounding = build_broad_vocab_grounding(
+        active_exam_target="cet6",
+        query=query,
+        normalized_query=normalize_query(query),
+        candidates=[
+            light_candidate(
+                "command",
+                signals=[
+                    LightGroundingSignal("prefix", 110, "comm"),
+                    LightGroundingSignal("ngram_overlap", 45, "command/comment"),
+                ],
+            ),
+            light_candidate(
+                "comment",
+                signals=[
+                    LightGroundingSignal("prefix", 109, "comm"),
+                    LightGroundingSignal("ngram_overlap", 45, "comment/command"),
+                ],
+            ),
+            light_candidate(
+                "community",
+                signals=[LightGroundingSignal("prefix", 80, "comm")],
+            ),
+        ],
+    )
+
+    plan = grounding["broadAnswerPlan"]
+
+    assert plan["presentation"] == "confusion_organizer"
+    assert plan["candidateSections"][0]["role"] == "confusable_core_terms"
+    assert plan["candidateSections"][0]["lemmas"] == ["command", "comment"]
+    assert plan["candidateSections"][1]["role"] == "supplemental_same_form_candidates"
+    assert plan["candidateSections"][1]["lemmas"] == ["community"]
+    assert (
+        plan["candidateBudget"]["rule"]
+        == "Prioritize the most confusable core group, then list bounded same-form supplements."
+    )
 
 
 def test_focused_compare_queries_keep_explicit_terms_tight():
@@ -97,12 +207,45 @@ def test_focused_compare_queries_keep_explicit_terms_tight():
         "common",
     ]
     assert plan["candidateOnlyLemmas"] == []
+    assert plan["candidateSections"][0]["role"] == "primary_terms"
     assert [item["lemma"] for item in grounding["mainAnswer"]] == [
         "commend",
         "comment",
         "command",
         "commence",
         "common",
+    ]
+
+
+def test_semantic_root_boundary_keeps_direct_fragment_matches_first():
+    query = "\u0072\u0065+\u0063\u006f\u006e \u7684\u8bcd\u6839\u6709\u4ec0\u4e48\u8bcd"
+    grounding = build_broad_vocab_grounding(
+        active_exam_target="cet6",
+        query=query,
+        normalized_query=normalize_query(query),
+        candidates=[
+            light_candidate(
+                "reconcile",
+                signals=[LightGroundingSignal("fragment", 110, "re+con")],
+            ),
+            light_candidate(
+                "reconciliation",
+                signals=[LightGroundingSignal("fragment", 109, "re+con")],
+            ),
+            light_candidate(
+                "conform",
+                signals=[LightGroundingSignal("prefix", 80, "con")],
+            ),
+        ],
+    )
+
+    plan = grounding["broadAnswerPlan"]
+
+    assert plan["style"] == "semantic_root_boundary"
+    assert plan["candidateSections"][0]["role"] == "direct_ordered_fragment_matches"
+    assert plan["candidateSections"][0]["lemmas"] == [
+        "reconcile",
+        "reconciliation",
     ]
 
 
@@ -113,14 +256,20 @@ def test_broad_prompt_blocks_learning_card_tail_and_invented_mnemonics():
     assert "focused_compare" in prompt
     assert "Do not invent mnemonics" in prompt
     assert "Do not end with a follow-up invitation" in prompt
-    assert "3-5 learning groups" in prompt
     assert "Do not use emoji" in prompt
     assert "Do not mention suppressedCandidateLemmas" in prompt
-    assert "Do not use markdown tables" in prompt
     assert "Do not add collocations, usage columns, example phrases, or derived forms" in prompt
     assert "Do not repeat activeExamTargetLabel or supportLabel" in prompt
     assert "include partOfSpeech" in prompt
     assert "include one short meaning from meaningsZh" in prompt
+    assert "inventory_table" in prompt
+    assert "confusion_organizer" in prompt
+    assert "单词 | 词性 | 核心义 | 备注" in prompt
+    assert "Do not split inventory answers into semantic group headings" in prompt
+    assert "confusable core group" in prompt
+    assert "one short core difference" in prompt
+    assert "supplemental candidates" in prompt
+    assert "Do not invent broad semantic category titles" in prompt
 
 
 def test_broad_plan_blocks_tables_collocations_and_scope_repetition():
@@ -143,11 +292,47 @@ def test_broad_plan_blocks_tables_collocations_and_scope_repetition():
 
     rules = "\n".join(grounding["broadAnswerPlan"]["rules"])
 
-    assert "Use short grouped bullet lists; do not use markdown tables." in rules
+    assert "For inventory_table, use a compact markdown table: 单词 | 词性 | 核心义 | 备注." in rules
+    assert "Do not split inventory answers into semantic group headings." in rules
+    assert "In inventory remarks, mention only terms from answerableLemmas or candidateOnlyLemmas." in rules
+    assert "Use — when there is no useful remark; do not add etymology or self-comparison notes." in rules
+    assert "Do not claim same-root, derivation, or etymology in inventory remarks." in rules
     assert "Do not add collocations, usage columns, example phrases, or derived forms." in rules
     assert "Do not repeat activeExamTargetLabel or supportLabel in the answer body." in rules
     assert "For each answerable term, include partOfSpeech plus one short meaning from meaningsZh." in rules
     assert "For each answerable term, include one short meaning from meaningsZh." in rules
+
+
+def test_collection_confusion_plan_requires_core_difference_and_rejects_loose_category_titles():
+    query = "\u0063\u006f\u006d\u006d \u5f00\u5934\u54ea\u4e9b\u8bcd\u5bb9\u6613\u6df7"
+    grounding = build_broad_vocab_grounding(
+        active_exam_target="cet6",
+        query=query,
+        normalized_query=normalize_query(query),
+        candidates=[
+            light_candidate(
+                "command",
+                signals=[
+                    LightGroundingSignal("prefix", 110, "comm"),
+                    LightGroundingSignal("ngram_overlap", 45, "command/comment"),
+                ],
+            ),
+            light_candidate(
+                "comment",
+                signals=[
+                    LightGroundingSignal("prefix", 109, "comm"),
+                    LightGroundingSignal("ngram_overlap", 45, "comment/command"),
+                ],
+            ),
+        ],
+    )
+
+    rules = "\n".join(grounding["broadAnswerPlan"]["rules"])
+
+    assert "Start with the most confusable core group." in rules
+    assert "For the core group, include one short core difference sentence." in rules
+    assert "Use supplemental candidates only after the core group." in rules
+    assert "Do not invent broad semantic category titles for weakly related candidates." in rules
 
 
 def test_collection_plan_suppresses_weak_shape_noise():
@@ -173,6 +358,9 @@ def test_collection_plan_suppresses_weak_shape_noise():
 
     assert plan["answerableLemmas"] == ["comment"]
     assert plan["suppressedCandidateLemmas"] == ["comply", "curb"]
+    assert plan["candidateSections"] == [
+        {"role": "inventory_terms", "lemmas": ["comment"]},
+    ]
 
 
 def test_collection_plan_keeps_source_only_no_meaning_as_candidate_only():

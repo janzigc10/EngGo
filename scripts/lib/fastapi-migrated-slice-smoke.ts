@@ -223,6 +223,18 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedProviderRequestId: null,
     },
     {
+      name: "root comm prefix organizer",
+      query: "comm 开头的单词总结",
+      activeExamTarget: "cet6",
+      expectedStatus: 200,
+      expectedAnswerKind: "grounded",
+      expectedAnswerStyle: "broad_vocab_summary",
+      expectedResolution: "resolved",
+      expectedGroundingIncludes: ["command", "comment", "commend"],
+      expectedProviderRequest: "required",
+      expectedProviderRequestId: null,
+    },
+    {
       name: "dynamic re+con broad grounding",
       query: "re+con 的词根有什么词",
       activeExamTarget: "cet6",

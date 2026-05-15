@@ -1,5 +1,32 @@
 # EngGo 滚动交接
 
+## 当前下一步开发方向（2026-05-15 明确）
+
+- 主线优先级：`broad_vocab_summary` 的集合型输出已从“强行易混分组”调整为默认 inventory table；`comm 开头` 真实 provider spot 已基本收稳。`tion 结尾` 这类 suffix inventory 太低级，后续不再作为主要产品验收样例；下一步聚焦显式易混措辞、`要求` / `评论评价` 这类中文义召回，再决定是否回聊天主舞台 UI。
+- 已完成 plan：`docs/superpowers/plans/2026-05-15-broad-vocab-confusion-organizer.md`。本轮只改 broad answer 计划/提示和回归句柄，未改普通 `standard_lookup` 模板。
+- 产品目标：让 `comm 开头`、`commend/comment/command 怎么区分`、`re+con`、中文义召回这类集合型问题更像学生复习材料：默认同形列表用紧凑 inventory table；只有用户明确问“容易混/怎么区分”时，才先指出最容易混的一组，再给 `词性 + 短义 + 一句核心区别`。`tion 结尾` 仅保留为低价值 sanity 信号，不继续放在产品 smoke 主样例里。
+- 本轮完成：
+  1. 已补 `backend/tests/test_broad_vocab_answer.py` 红测，锁住 `confusable_core_terms` / `supplemental_same_form_candidates` / 核心区别句规则，并完成红绿验证。
+  2. 已调整 `broadAnswerPlan.candidateSections`、`candidateBudget` 和 prompt 任务语义，让 `collection_map` 先输出易混核心组，再输出补充同形候选。
+  3. 已验证 focused compare、semantic root 和 ordinary lookup 边界，并补上 `comm 开头的单词总结` product smoke 句柄。
+  4. 最终验证已过：focused backend suite 55 passed；product smoke unit handles 2 files / 13 tests passed；touched TS lint passed；`git diff --check` exit 0，仅 CRLF warning。
+- 真实 provider phrasing 小批验收与后续修正（2026-05-15）：
+  1. 先用 FastAPI `TestClient` 跑中文 query，发现 PowerShell here-string 会把中文变成 `????`；改用 Unicode escape 后请求有效。
+  2. 沙箱内 5 条 provider-backed broad query 全部返回 502；按授权重跑真实权限后出站可用。
+  3. 首轮 `comm 开头的单词总结` 命中 `collection_map` 和新 section，但最终答案仍出现松散语义标题（如“交流/社区/商业组”“行动/事件/位置组”）并以“如需进一步区分...”结尾。
+  4. 根据用户判断调整方向：`comm 开头` / `tion 结尾` 这类集合型问题默认不是“易混核心组”，而是同形词表 inventory；只有用户明确问“容易混/怎么区分”才进入 confusion organizer。
+  5. 已在 `broadAnswerPlan` 加 `presentation`: `inventory_table` / `confusion_organizer`；默认 inventory 输出 `inventory_terms`，并要求表格列 `单词 | 词性 | 核心义 | 备注`。
+  6. 真实复查 `comm 开头的单词总结`：输出已变为紧凑表格，无松散语义分组，无尾巴邀请；备注只提表内词，如 `command/commend`、`commune/commute`、`commit/committee`，没有再扩到候选外词。
+  7. 继续从用户视角加测 10 条：`comm` / `tion` / `inter` / `struct` inventory 都能稳定出表格；用户判断 `tion 结尾` 太低级，已从产品 smoke 主样例中移除；`comm 开头哪些词容易混` 能切到 `confusion_organizer`，但补充候选仍说“因前缀相同也容易混淆”，偏宽；`command/comment/commend 怎么区分` 可接受；`要求怎么说` 已给语气差异；`评论评价` 仍有 `attitude/belief` 候选偏宽；`re+con` 可接受但仍有总结尾句；假词 no-match 正常。
+  8. 当前真实输出主要残留：inventory 备注偶尔会写搭配或过强关系（例如 `commit crime`、`同族`），需要继续压备注列；explicit confusion 的补充候选不能笼统说“都容易混”；中文义召回排序仍需单独调。
+- 建议下一步：
+  1. 继续压 inventory 备注列：不写搭配、例子、同根/派生/同族这类过强关系；没必要就 `—`。
+  2. 对中文义召回另列小任务：先调 meaning keyword / candidate ranking，避免 `attitude/belief` 这类相关但非“评论/评价动作词”的词太靠前。
+  3. 如果显式易混措辞与中文义召回都收稳，再回到聊天主舞台 UI：移动端阅读、收藏动作、复习入口。
+- 明确暂不做：不把 ECDICT 升级成高可信 structured entry；不继续人工穷尽易混组；不把 `re+con` 这类语义/词根理论硬塞进词形 parser；不动普通 `standard_lookup` 的确定性模板。
+- 排在后面但仍有效的方向：聊天主舞台里的移动端阅读、命中状态/外部词典身份区分、收藏动作和复习入口，等 broad answer 这一刀收稳后再继续。
+- 交接文档规则已收紧到 `AGENTS.md`：以后更新 `progress.md` 不能只追加流水账，要同步重审已完成、取消和延期项，防止旧“下一步”误导新 session。
+
 ## 2026-05-12 Light Grounding source-only ECDICT 补义
 
 - 本轮继续打磨 `broad_vocab_summary` 输出质量，重点解决集合型问题里 source-only 候选只能列形式、不能给基础义的问题。
@@ -31,9 +58,9 @@
   - `corepack pnpm lint scripts/lib/black-box-product-smoke.ts scripts/lib/black-box-product-smoke.test.ts scripts/lib/fastapi-migrated-slice-smoke.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts scripts/run-black-box-product-http-smoke.ts scripts/run-fastapi-migrated-slice-smoke.ts src/features/retrieval/types.ts` -> passed。
   - `git diff --check` -> exit 0，仅 CRLF warning。
 - 下一步建议：
-  - 可以先 commit 当前 light grounding 输出打磨。
+  - 已在本文顶部固化为当前开发方向：下一刀先做 `broad_vocab_summary` 的“易混词整理”第二刀。
   - 最新产品判断：`comm 开头` 这类集合型问题不需要追求硬核词源分类名，也不要强行给每组起漂亮但很松的语义标题。核心工作是帮学生整理“哪些词容易混、哪些最该一起看、怎么区分”。
-  - 下一刀方向：把 `collection_map` 从“语义分类地图”调整为“易混词整理”。优先输出最容易混的一组，给 `词性 + 短义 + 一句核心区别`；剩余同前缀/同后缀词作为补充候选，不硬凑分类。
+  - 实现重点：把 `collection_map` 从“语义分类地图”调整为“易混词整理”。优先输出最容易混的一组，给 `词性 + 短义 + 一句核心区别`；剩余同前缀/同后缀词作为补充候选，不硬凑分类。
   - 后续再小批看 `re+con`、中文义召回和精确 compare 的最终措辞；如果还机械，优先改 `candidateSections` 的任务语义和排序，而不是扩大人工分组。
 
 ## 2026-05-12 Light Grounding 输出契约收口

@@ -76,13 +76,13 @@ describe("black-box product smoke cases", () => {
           ]),
         }),
         expect.objectContaining({
-          name: "root: tion suffix fragment",
+          name: "root: comm prefix organizer",
           expectedResolution: "resolved",
           expectedAnswerStyle: "broad_vocab_summary",
           expectedGroundingIncludes: expect.arrayContaining([
-            "institution",
-            "temptation",
-            "tuition",
+            "command",
+            "comment",
+            "commend",
           ]),
         }),
         expect.objectContaining({

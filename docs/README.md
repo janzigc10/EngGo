@@ -32,6 +32,8 @@
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。
 
+- `docs/superpowers/plans/2026-05-15-broad-vocab-confusion-organizer.md`
+  - Broad vocab 易混词整理第二刀：把 `collection_map` 从 loose learning map 收敛为“先易混核心组，再补充同形候选”的回答契约，已完成；只改 broad answer 计划/提示和回归句柄，未改普通 `standard_lookup` 模板。
 - `docs/superpowers/plans/2026-05-12-dynamic-light-grounding.md`
   - Dynamic light grounding 第一刀实现计划：后端动态候选 builder、`broad_vocab_summary` grounding、direct compare / advanced lookup 接入，已完成。
 - `docs/superpowers/plans/2026-05-01-answer-policy-v1.md`
