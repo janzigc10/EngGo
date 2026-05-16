@@ -121,7 +121,7 @@ def test_direct_compare_returns_comparison_grounding_without_provider():
     assert "excess" in result.payload.answer
 
 
-def test_direct_compare_uses_provider_when_available_for_comparison_answer():
+def test_direct_compare_uses_deterministic_short_answer_when_provider_available():
     access = candidate("access")
     assess = candidate("assess")
     provider = FakeProvider()
@@ -143,12 +143,15 @@ def test_direct_compare_uses_provider_when_available_for_comparison_answer():
         history=[{"role": "user", "content": "previous"}],
     )
 
-    assert result.payload.answer == "provider compare answer"
-    assert result.payload.providerRequestId == "provider_req_compare"
-    assert provider.calls[0]["query"] == "access assess 怎么区分"
-    assert provider.calls[0]["history"] == [{"role": "user", "content": "previous"}]
-    assert provider.calls[0]["request_id"] == "req_compare_provider"
-    assert provider.calls[0]["grounding"]["comparisonView"]["id"] == "access-assess-excess"
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert result.payload.answer == (
+        "access n. access meaning\n"
+        "assess n. assess meaning\n\n"
+        "注意：access is entry, assess is judge, excess is extra"
+    )
+    assert "**" not in result.payload.answer
+    assert "\n-" not in result.payload.answer
 
 
 def test_direct_compare_adds_unasked_group_members_to_boundary():
@@ -274,7 +277,13 @@ def test_direct_compare_can_use_dynamic_light_pool_when_exact_entries_are_missin
     service = DirectCompareService(
         repository=FakeRepository(
             {},
-            in_scope_entries=[commend, comment, command],
+            in_scope_entries=[
+                commend,
+                comment,
+                command,
+                candidate("contend"),
+                candidate("content"),
+            ],
         ),
         provider=provider,
     )
@@ -288,7 +297,8 @@ def test_direct_compare_can_use_dynamic_light_pool_when_exact_entries_are_missin
     grounding = result.payload.grounding
 
     assert result.status_code == 200
-    assert result.payload.providerRequestId == "provider_req_compare"
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
     assert grounding["queryMode"] == "direct_compare"
     assert grounding["broadQueryMode"] == "broad_vocab"
     assert grounding["answerStyle"] == "broad_vocab_summary"
@@ -298,4 +308,11 @@ def test_direct_compare_can_use_dynamic_light_pool_when_exact_entries_are_missin
         "comment",
         "command",
     ]
-    assert provider.calls[0]["grounding"]["answerStyle"] == "broad_vocab_summary"
+    assert result.payload.answer.splitlines()[:3] == [
+        "commend n. commend meaning",
+        "comment n. comment meaning",
+        "command n. command meaning",
+    ]
+    assert "contend" not in result.payload.answer
+    assert "content" not in result.payload.answer
+    assert "\n-" not in result.payload.answer

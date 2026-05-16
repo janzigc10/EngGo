@@ -30,11 +30,11 @@ family_recall_cue_pattern = re.compile(
     re.IGNORECASE,
 )
 shape_neighbor_cue_pattern = re.compile(
-    r"(很像|形近|长得像|看错|看成|容易.*混|拼写.{0,4}(像|近|相似))",
+    r"(很像|比较像|相像|类似|形近|长得像|看错|看成|易混词?|容易.*混|拼写.{0,4}(像|近|相似))",
     re.IGNORECASE,
 )
 shape_neighbor_list_pattern = re.compile(
-    r"(哪些|什么|哪几个|列举|举例|有什么)",
+    r"(哪些|什么|哪几个|列举|举例|有什么|帮我找|找一下|找找|易混词?)",
     re.IGNORECASE,
 )
 meaning_noise_pattern = re.compile(r"(是什么意思|怎么说|什么意思|是什么|啥意思|英文|英语|单词|有个|像|的词)")
@@ -109,7 +109,7 @@ def contains_shape_neighbor_cue(normalized_text: str) -> bool:
 
     return (
         shape_neighbor_list_pattern.search(normalized_text) is not None
-        or re.search(r"(看错|看成|形近)", normalized_text, re.IGNORECASE) is not None
+        or re.search(r"(看错|看成|形近|易混|很像|比较像|类似)", normalized_text, re.IGNORECASE) is not None
     )
 
 

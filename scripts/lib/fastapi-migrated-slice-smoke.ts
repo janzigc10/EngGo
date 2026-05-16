@@ -157,7 +157,7 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedResolution: "resolved",
       expectedMatchType: null,
       expectedComparisonViewId: "access-assess-excess",
-      expectedProviderRequest: "required",
+      expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
     {
@@ -170,7 +170,7 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedResolution: "resolved",
       expectedMatchType: null,
       expectedComparisonViewId: "restrain-constrain-curb",
-      expectedProviderRequest: "required",
+      expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
     {
@@ -195,7 +195,7 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedAnswerStyle: "broad_vocab_summary",
       expectedResolution: "resolved",
       expectedGroundingIncludes: ["recent", "resent"],
-      expectedProviderRequest: "required",
+      expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
     {
@@ -204,8 +204,9 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       activeExamTarget: "cet6",
       expectedStatus: 200,
       expectedAnswerKind: "grounded",
-      expectedAnswerStyle: "broad_vocab_summary",
+      expectedAnswerStyle: "root_family_summary",
       expectedResolution: "resolved",
+      expectedRootFamilyViewId: "root-stitute",
       expectedGroundingIncludes: ["institute", "institution", "constitute", "substitute"],
       expectedProviderRequest: "required",
       expectedProviderRequestId: null,
@@ -219,7 +220,7 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedAnswerStyle: "broad_vocab_summary",
       expectedResolution: "resolved",
       expectedGroundingIncludes: ["conference"],
-      expectedProviderRequest: "required",
+      expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
     {
@@ -231,7 +232,7 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedAnswerStyle: "broad_vocab_summary",
       expectedResolution: "resolved",
       expectedGroundingIncludes: ["command", "comment", "commend"],
-      expectedProviderRequest: "required",
+      expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
     {
@@ -243,7 +244,7 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedAnswerStyle: "broad_vocab_summary",
       expectedResolution: "resolved",
       expectedGroundingIncludes: ["reconcile", "conform"],
-      expectedProviderRequest: "required",
+      expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
   ];

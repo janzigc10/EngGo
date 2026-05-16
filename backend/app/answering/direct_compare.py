@@ -2,9 +2,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from backend.app.answering.broad_vocab import (
+    build_broad_vocab_answer,
     build_broad_vocab_grounding,
-    build_broad_vocab_provider_grounding,
-    build_broad_vocab_system_prompt,
 )
 from backend.app.answering.ordinary_lookup import (
     UnsupportedQueryMode,
@@ -20,6 +19,7 @@ from backend.app.retrieval.dynamic_light_grounding import (
 from backend.app.retrieval.types import (
     ConfusionGroup,
     RetrievalCandidate,
+    normalize_part_of_speech_label,
 )
 from backend.app.schemas.chat import ChatSuccessResponse
 
@@ -148,17 +148,20 @@ def build_direct_compare_answer(
     comparison_view: dict[str, object] | None,
 ) -> str:
     candidates = [*main_answer, *confusion_boundary]
-    lemmas = " / ".join(candidate.lemma for candidate in candidates)
-    lines = [lemmas]
-
-    quick_distinction = comparison_view.get("quickDistinction") if comparison_view else None
-    if isinstance(quick_distinction, str) and quick_distinction.strip():
-        lines.extend(["", quick_distinction.strip()])
+    lines: list[str] = []
 
     for candidate in candidates:
         meaning = "；".join(candidate.meanings_zh[:2])
-        part_of_speech = f"{candidate.part_of_speech} " if candidate.part_of_speech else ""
-        lines.append(f"- {candidate.lemma}: {part_of_speech}{meaning}".strip())
+        part_of_speech = normalize_part_of_speech_label(candidate.part_of_speech)
+        lines.append(
+            f"{candidate.lemma} {part_of_speech} {meaning}".strip()
+            if part_of_speech
+            else f"{candidate.lemma} {meaning}".strip(),
+        )
+
+    quick_distinction = comparison_view.get("quickDistinction") if comparison_view else None
+    if isinstance(quick_distinction, str) and quick_distinction.strip():
+        lines.extend(["", f"注意：{quick_distinction.strip()}"])
 
     return "\n".join(lines)
 
@@ -266,29 +269,6 @@ class DirectCompareService:
             candidates=ranked_candidates,
         )
 
-        if self.provider:
-            provider_result = self.provider.generate_answer(
-                query=query,
-                history=history or [],
-                request_id=request_id,
-                system_prompt=(
-                    "你是 EngGo 的易混词辨析助手。请严格根据 grounding 回答，"
-                    "先给核心区别，再给每个词的短边界。"
-                ),
-                grounding=grounding,
-            )
-
-            return DirectCompareResult(
-                status_code=200,
-                payload=ChatSuccessResponse(
-                    answer=provider_result.answer,
-                    answerKind="grounded",
-                    grounding=grounding,
-                    requestId=request_id,
-                    providerRequestId=provider_result.provider_request_id,
-                ),
-            )
-
         return DirectCompareResult(
             status_code=200,
             payload=ChatSuccessResponse(
@@ -327,30 +307,15 @@ class DirectCompareService:
         history: list[dict[str, str]],
         normalized_query: NormalizedQuery,
     ) -> DirectCompareResult | None:
-        if not self.provider:
-            return None
-
         vocabulary = self.dynamic_vocabulary(active_exam_target)
         if not vocabulary:
             return None
 
-        groups = (
-            self.repository.find_confusion_groups_for_entry_ids(
-                active_exam_target,
-                [
-                    candidate.entry_id
-                    for candidate in vocabulary
-                    if candidate.source_kind == "structured"
-                ],
-            )
-            if hasattr(self.repository, "find_confusion_groups_for_entry_ids")
-            else []
-        )
         candidates = build_light_grounding_candidates(
             query=query,
             active_exam_target=active_exam_target,
             vocabulary=vocabulary,
-            groups=groups,
+            groups=[],
         )
 
         if len(candidates) < 2:
@@ -367,22 +332,15 @@ class DirectCompareService:
             normalized_query=normalized_query,
             candidates=candidates,
         )
-        provider_result = self.provider.generate_answer(
-            query=query,
-            history=history,
-            request_id=request_id,
-            system_prompt=build_broad_vocab_system_prompt(),
-            grounding=build_broad_vocab_provider_grounding(grounding),
-        )
 
         return DirectCompareResult(
             status_code=200,
             payload=ChatSuccessResponse(
-                answer=provider_result.answer,
+                answer=build_broad_vocab_answer(candidates, normalized_query),
                 answerKind="grounded",
                 grounding=grounding,
                 requestId=request_id,
-                providerRequestId=provider_result.provider_request_id,
+                providerRequestId=None,
             ),
         )
 

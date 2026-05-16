@@ -224,6 +224,28 @@ def test_ordinary_no_match_suspicious_typo_uses_spelling_assist(tmp_path):
     assert "拼写候选" in provider.calls[0]["system_prompt"]
 
 
+def test_ordinary_no_match_random_blob_does_not_call_provider(tmp_path):
+    provider = FakeProvider("maybe squeeze")
+    service = OrdinaryLookupService(
+        repository=FakeRepository({}),
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda _query: None,
+        provider=provider,
+    )
+
+    result = service.answer(
+        active_exam_target="cet4",
+        query="zzqvwm 是什么意思",
+        request_id="req_random_blob",
+    )
+
+    assert "先不硬猜" in result.payload.answer
+    assert result.payload.answerKind == "grounded"
+    assert result.payload.providerRequestId is None
+    assert result.payload.grounding["resolution"] == "no_match"
+    assert provider.calls == []
+
+
 def test_fuzzy_typo_resolution_uses_grounded_provider_correction(tmp_path):
     provider = FakeProvider("you probably mean generate")
     generate = RetrievalCandidate(

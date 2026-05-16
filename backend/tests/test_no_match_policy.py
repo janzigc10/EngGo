@@ -32,6 +32,17 @@ def test_clear_single_word_learning_question_uses_plain_fallback():
     ) is True
 
 
+def test_known_looking_word_with_y_is_not_treated_as_random_blob():
+    normalized_query = normalize_query("photosynthesis 是什么意思")
+
+    assert should_use_plain_fallback(
+        query="photosynthesis 是什么意思",
+        normalized_query=normalized_query,
+        resolution="no_match",
+        no_match_reason="out_of_kb",
+    ) is True
+
+
 def test_comparison_low_confidence_uses_plain_fallback():
     normalized_query = normalize_query("complex 和 complicate 是一个意思吗")
 
@@ -53,6 +64,22 @@ def test_suspicious_typo_uses_spelling_assist_instead_of_plain_fallback():
     ) is True
     assert should_use_plain_fallback(
         query="reqxust 是什么意思",
+        normalized_query=normalized_query,
+        resolution="no_match",
+        no_match_reason="out_of_kb",
+    ) is False
+
+
+def test_random_consonant_blob_does_not_use_spelling_or_plain_provider():
+    normalized_query = normalize_query("zzqvwm 是什么意思")
+
+    assert should_use_spelling_assist(
+        query="zzqvwm 是什么意思",
+        normalized_query=normalized_query,
+        resolution="no_match",
+    ) is False
+    assert should_use_plain_fallback(
+        query="zzqvwm 是什么意思",
         normalized_query=normalized_query,
         resolution="no_match",
         no_match_reason="out_of_kb",

@@ -2,6 +2,7 @@ import re
 
 from backend.app.answering.ordinary_lookup import exam_target_labels
 from backend.app.retrieval.dynamic_light_grounding import LightGroundingCandidate
+from backend.app.retrieval.types import normalize_part_of_speech_label
 
 
 focused_answer_styles = {
@@ -99,18 +100,32 @@ def broad_answer_style(normalized_query) -> str:
     return "collection_map"
 
 
-def collection_presentation(normalized_query) -> str | None:
-    if broad_answer_style(normalized_query) != "collection_map":
-        return None
+def answer_presentation(normalized_query) -> str | None:
+    style = broad_answer_style(normalized_query)
 
-    if collection_confusion_cue_pattern.search(normalized_query.normalized_text):
-        return "confusion_organizer"
+    if style == "collection_map":
+        return "inventory_table"
 
-    return "inventory_table"
+    if (
+        style == "meaning_core"
+        and collection_confusion_cue_pattern.search(normalized_query.normalized_text)
+    ):
+        return "meaning_confusion_list"
+
+    return None
 
 
-def main_answer_limit(style: str) -> int:
-    if style in {"focused_compare", "meaning_core"}:
+def main_answer_limit(style: str, normalized_query=None) -> int:
+    if style == "focused_compare":
+        if (
+            normalized_query is not None
+            and normalized_query.query_mode == "shape_neighbor_search"
+        ):
+            return 6
+
+        return 5
+
+    if style == "meaning_core":
         return 5
 
     if style == "semantic_root_boundary":
@@ -119,16 +134,24 @@ def main_answer_limit(style: str) -> int:
     return 18
 
 
+def is_direct_compare_query(normalized_query) -> bool:
+    return (
+        normalized_query is not None
+        and normalized_query.query_mode == "direct_compare"
+    )
+
+
 def candidate_budget(
     style: str,
     presentation: str | None = None,
+    normalized_query=None,
 ) -> dict[str, str]:
     if style == "collection_map":
         if presentation == "inventory_table":
             return {
                 "groups": "0",
                 "terms": "12-20",
-                "rule": "Use a compact inventory table; add only light easy-to-confuse notes.",
+                "rule": "Use a compact inventory table with word, POS, and meaning only.",
             }
 
         return {
@@ -145,10 +168,24 @@ def candidate_budget(
         }
 
     if style == "meaning_core":
+        if presentation == "meaning_confusion_list":
+            return {
+                "groups": "1",
+                "terms": "3-5",
+                "rule": "Use a compact word + POS + short meaning list, then one 注意 sentence.",
+            }
+
         return {
             "groups": "1",
             "terms": "3-5",
             "rule": "Explain only the core expressions and their usage boundary.",
+        }
+
+    if style == "focused_compare" and is_direct_compare_query(normalized_query):
+        return {
+            "groups": "1",
+            "terms": "explicit terms only",
+            "rule": "Answer only the exact user-mentioned terms.",
         }
 
     return {
@@ -166,6 +203,27 @@ def candidates_with_signal(
         candidate
         for candidate in candidates
         if signal_type in signal_types(candidate)
+    ]
+
+
+def exact_compare_candidates(
+    normalized_query,
+    candidates: list[LightGroundingCandidate],
+) -> list[LightGroundingCandidate]:
+    compare_terms = {
+        term.lower()
+        for term in getattr(normalized_query, "compare_terms", [])
+    }
+    if not compare_terms:
+        return []
+
+    return [
+        candidate
+        for candidate in candidates
+        if any(
+            signal.type == "exact" and signal.detail.lower() in compare_terms
+            for signal in candidate.signals
+        )
     ]
 
 
@@ -284,6 +342,7 @@ def build_candidate_sections(
 def build_answer_material(
     *,
     style: str,
+    normalized_query,
     candidates: list[LightGroundingCandidate],
 ) -> tuple[
     list[LightGroundingCandidate],
@@ -313,7 +372,11 @@ def build_answer_material(
         )
 
     if style == "focused_compare":
-        limited = candidates[:main_answer_limit(style)]
+        limited = (
+            exact_compare_candidates(normalized_query, candidates)
+            if is_direct_compare_query(normalized_query)
+            else candidates[:main_answer_limit(style, normalized_query)]
+        )
         material_lemmas = {candidate.lemma for candidate in limited}
 
         return (
@@ -327,7 +390,7 @@ def build_answer_material(
         )
 
     if style == "semantic_root_boundary":
-        limited = candidates[:main_answer_limit(style)]
+        limited = candidates[:main_answer_limit(style, normalized_query)]
         direct_matches = [
             candidate
             for candidate in limited
@@ -355,7 +418,7 @@ def build_answer_material(
             ],
         )
 
-    limited = candidates[:main_answer_limit(style)]
+    limited = candidates[:main_answer_limit(style, normalized_query)]
     answerable, candidate_only = split_meaning_confidence(limited)
     material_lemmas = {candidate.lemma for candidate in limited}
 
@@ -376,9 +439,10 @@ def build_broad_answer_plan(
     candidates: list[LightGroundingCandidate],
 ) -> dict[str, object]:
     style = broad_answer_style(normalized_query)
-    presentation = collection_presentation(normalized_query)
+    presentation = answer_presentation(normalized_query)
     answerable, candidate_only, suppressed = build_answer_material(
         style=style,
+        normalized_query=normalized_query,
         candidates=candidates,
     )
     rules = [
@@ -391,12 +455,12 @@ def build_broad_answer_plan(
     if style == "collection_map" and presentation == "inventory_table":
         rules.extend(
             [
-                "For inventory_table, use a compact markdown table: 单词 | 词性 | 核心义 | 备注.",
+                "For inventory_table, use a compact markdown table: 单词 | 词性 | 核心义.",
                 "Do not split inventory answers into semantic group headings.",
-                "Use the 备注 column only for light hints, such as easy-to-confuse pairs or shared word-family notes.",
-                "In inventory remarks, mention only terms from answerableLemmas or candidateOnlyLemmas.",
-                "Use — when there is no useful remark; do not add etymology or self-comparison notes.",
-                "Do not claim same-root, derivation, or etymology in inventory remarks.",
+                "Do not add a fourth column, reason column, notes column, or dash placeholders.",
+                "Do not add remarks, reasons, notes, explanations, or wrap-up sentences.",
+                "Do not claim same-root, derivation, or etymology in inventory answers.",
+                "Do not invent broad semantic category titles for weakly related candidates.",
             ],
         )
     elif style == "collection_map":
@@ -410,15 +474,27 @@ def build_broad_answer_plan(
             ],
         )
 
+    if style == "meaning_core" and presentation == "meaning_confusion_list":
+        rules.extend(
+            [
+                "For meaning_confusion_list, list each term as word + POS + short meaning.",
+                "Put each term on its own line; do not combine multiple terms in one sentence.",
+                "After the list, add exactly one 注意 sentence for the core boundary.",
+                "Do not add an opening sentence, examples, collocations, or paragraph-style explanations.",
+            ],
+        )
+
     rules.extend(
         [
-            "For focused_compare, answer explicit user terms first and keep related terms optional.",
+            "For direct_compare focused_compare, answer only the exact user-mentioned terms.",
+            "For shape_neighbor focused_compare, answer a compact lookalike candidate list.",
             "For meaning_core, keep only the core expressions and usage boundary.",
             "For semantic_root_boundary, say when this is not a stable root family and separate direct matches from loose related candidates.",
             "Do not add collocations, usage columns, example phrases, or derived forms.",
             "Do not repeat activeExamTargetLabel or supportLabel in the answer body.",
             "For each answerable term, include partOfSpeech plus one short meaning from meaningsZh.",
             "For each answerable term, include one short meaning from meaningsZh.",
+            "Use POS abbreviations like n., v., adj.; do not expand them to noun, verb, adjective.",
             "Do not invent mnemonics, rhymes, practice questions, or memory-card endings.",
             "Do not end with a follow-up invitation.",
         ],
@@ -427,7 +503,7 @@ def build_broad_answer_plan(
     return {
         "style": style,
         "presentation": presentation,
-        "candidateBudget": candidate_budget(style, presentation),
+        "candidateBudget": candidate_budget(style, presentation, normalized_query),
         "answerableLemmas": candidate_lemmas(answerable),
         "candidateOnlyLemmas": candidate_lemmas(candidate_only),
         "suppressedCandidateLemmas": candidate_lemmas(suppressed),
@@ -442,16 +518,56 @@ def build_broad_answer_plan(
     }
 
 
-def build_broad_vocab_answer(candidates: list[LightGroundingCandidate]) -> str:
-    lines = [
-        " / ".join(candidate.lemma for candidate in candidates[:18]),
-        "",
-    ]
+def format_broad_candidate_line(candidate: LightGroundingCandidate) -> str:
+    meaning = "；".join(candidate.meanings_zh[:2]) or "释义待补"
+    part_of_speech = normalize_part_of_speech_label(candidate.part_of_speech)
 
-    for candidate in candidates[:18]:
-        meaning = "；".join(candidate.meanings_zh[:2]) or "暂无结构化中文释义"
-        part_of_speech = f"{candidate.part_of_speech} " if candidate.part_of_speech else ""
-        lines.append(f"- {candidate.lemma}: {part_of_speech}{meaning}".strip())
+    if part_of_speech:
+        return f"{candidate.lemma} {part_of_speech} {meaning}".strip()
+
+    return f"{candidate.lemma} {meaning}".strip()
+
+
+def build_broad_vocab_answer(
+    candidates: list[LightGroundingCandidate],
+    normalized_query=None,
+) -> str:
+    if not normalized_query:
+        selected = candidates[:18]
+        return "\n".join(format_broad_candidate_line(candidate) for candidate in selected)
+
+    answer_plan = build_broad_answer_plan(
+        normalized_query=normalized_query,
+        candidates=candidates,
+    )
+    material_lemmas = [
+        *answer_plan["answerableLemmas"],
+        *answer_plan["candidateOnlyLemmas"],
+    ]
+    material_lemma_set = set(material_lemmas)
+    selected = [
+        candidate
+        for candidate in candidates
+        if candidate.lemma in material_lemma_set
+    ][:len(material_lemmas)]
+    lines = [format_broad_candidate_line(candidate) for candidate in selected]
+
+    if answer_plan["style"] == "focused_compare":
+        note = (
+            "注意：先按这几个词的核心义区分。"
+            if is_direct_compare_query(normalized_query)
+            else "注意：这些是按当前词书候选和词形相近度整理的初步候选，先看核心义差别。"
+        )
+        lines.extend(
+            [
+                "",
+                note,
+            ],
+        )
+    elif answer_plan["presentation"] == "meaning_confusion_list":
+        lines.extend(["", "注意：先按中文核心义区分这些词。"])
+    elif answer_plan["style"] == "semantic_root_boundary":
+        lines.extend(["", "注意：这里先按词形命中整理，不硬说成固定词根。"])
 
     return "\n".join(lines)
 
@@ -462,12 +578,13 @@ def build_broad_vocab_system_prompt() -> str:
         "这些候选来自当前考试词表，不代表完整人工易混组。"
         "主答案只能围绕 grounding.lightCandidates；优先讲用户明确提到的词。"
         "必须读取 grounding.broadAnswerPlan，并按其中 style 控制信息密度："
-        "collection_map + inventory_table = use a compact table with columns 单词 | 词性 | 核心义 | 备注; Do not split inventory answers into semantic group headings；"
-        "For inventory_table remarks, mention only terms from answerableLemmas or candidateOnlyLemmas, and use — when there is no useful remark；"
-        "Do not claim same-root, derivation, or etymology in inventory_table remarks；"
-        "collection_map + confusion_organizer = first explain the confusable core group with POS, short meanings, and one short core difference, then list supplemental candidates only if useful；"
-        "focused_compare = explicit terms first, only 1-2 optional related terms；"
+        "collection_map + inventory_table = use only a compact table with columns 单词 | 词性 | 核心义; Do not split inventory answers into semantic group headings；"
+        "For collection_map, do not add a fourth column, reason column, notes column, dash placeholders, explanations, comparison sentences, or wrap-up sentences；"
+        "Do not claim same-root, derivation, or etymology in inventory_table answers；"
+        "direct_compare + focused_compare = only exact user-mentioned terms；"
+        "shape_neighbor + focused_compare = compact lookalike candidate list；"
         "meaning_core = 3-5 core expressions with usage boundaries；"
+        "meaning_core + meaning_confusion_list = list each term as word + POS + short meaning, put each term on its own line, then exactly one 注意 sentence for the core boundary；"
         "semantic_root_boundary = separate direct fragment matches from loose related candidates, and say it is not a stable root family when needed。"
         "不要把候选外词作为主答案，不要声称这些就是全部同根词或全部易混词，"
         "也不要讲过度词源理论。候选质量弱时，要说明这是基于词库候选的初步整理。"
@@ -476,11 +593,15 @@ def build_broad_vocab_system_prompt() -> str:
         "Do not mention suppressedCandidateLemmas. "
         "Do not mention vocabulary outside answerableLemmas or candidateOnlyLemmas, even as examples. "
         "Use markdown tables only when broadAnswerPlan.presentation is inventory_table. "
+        "Do not add remarks, reasons, notes, explanations, or wrap-up sentences for inventory_table. "
         "Do not add collocations, usage columns, example phrases, or derived forms. "
+        "For meaning_confusion_list: Do not add an opening sentence, examples, collocations, or paragraph-style explanations. "
+        "Put each term on its own line; do not combine multiple terms in one sentence. "
         "Do not invent broad semantic category titles for weakly related candidates. "
         "Do not repeat activeExamTargetLabel or supportLabel in the answer body. "
         "For each answerable term, include partOfSpeech plus one short meaning from meaningsZh. "
         "For each answerable term, include one short meaning from meaningsZh. "
+        "Use POS abbreviations like n., v., adj.; do not expand them to noun, verb, adjective. "
         "Do not invent mnemonics, rhymes, practice questions, or memory-card endings. "
         "Do not end with a follow-up invitation. "
         "Do not use emoji, decorative icons, or horizontal rules. "
@@ -539,7 +660,7 @@ def build_broad_vocab_grounding(
         candidate
         for candidate in candidates
         if candidate.lemma in material_lemma_set
-    ][:main_answer_limit(answer_plan["style"])]
+    ][:len(material_lemmas)]
     support_label = f"基于 {exam_target_labels[active_exam_target]} 词库候选总结"
 
     return {

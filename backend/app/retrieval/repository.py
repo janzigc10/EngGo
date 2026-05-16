@@ -9,6 +9,7 @@ from backend.app.retrieval.types import (
     ConfusionGroup,
     ConfusionGroupMember,
     RetrievalCandidate,
+    normalize_part_of_speech_label,
 )
 
 
@@ -16,7 +17,9 @@ def format_part_of_speech(parts: list[str] | tuple[str, ...] | None) -> str | No
     if not parts:
         return None
 
-    return " / ".join(part.strip() for part in parts if part and part.strip())
+    return normalize_part_of_speech_label(
+        " / ".join(part.strip() for part in parts if part and part.strip()),
+    )
 
 
 def candidate_from_row(row, *, reason: str, score: int) -> RetrievalCandidate:

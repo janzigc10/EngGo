@@ -63,6 +63,7 @@ $env:TEMP = 'C:\tmp\enggo-pytest-tmp'
 - `read ECONNRESET`
 - `prisma dev ls` 显示 `running`，但实际 TCP 连接不健康
 - `corepack pnpm exec prisma dev ...` 报 `%TEMP%\\@prisma\\cli-dev@latest-*` 的 `EPERM, Permission denied`
+- 本机其它程序占用 Prisma dev 固定端口，例如 WeGame 使用本地 `51219` 外连时，`node_modules\\.bin\\prisma.CMD dev ...` 会报 `listen EACCES: permission denied 127.0.0.1:51219`；即使改 `-p/-P/--shadow-db-port` 也绕不过 CLI 自身端口。当前 Codex 无权限停止该 WeGame 进程，需要用户手动关闭后再启动 Prisma dev。
 
 优先恢复路径：
 1. 先检查：
@@ -86,6 +87,7 @@ $env:TEMP = 'C:\tmp\enggo-pytest-tmp'
 非 escalated shell 里，pnpm junction 依赖可能被映射到 sandbox 路径，导致 `@prisma/debug` 明明存在却报：
 - `MODULE_NOT_FOUND`
 - `EPERM package.json access denied`
+- 2026-05-16 又确认过 `@prisma/engines/package.json` 在非 escalated shell 中会触发 `EPERM`，进而影响 `corepack pnpm db:migrate`；需要在真实工作区权限下重跑 Prisma 相关命令。
 
 遇到时不要先删 `node_modules`。先在真实工作区权限下复查：
 - `node -e "require.resolve('@prisma/debug')"`
@@ -127,6 +129,8 @@ ENGGO_BACKEND_URL=http://127.0.0.1:8000
 - 真实 provider smoke 尽量小批量串行跑。
 
 ## 当前产品侧残留
+- 2026-05-16 全流程复测新增：
+  - 短语普通查词加中文查询后缀时会掉出 deterministic ordinary lookup。复现：裸 `make up` -> `external_dictionary_exact` / no provider；`make up 是什么意思` -> `plain` + provider，带加粗和例句。裸 `according to` -> `source_lemma_exact` / no provider；`according to 是什么意思` -> `plain` + provider，并出现“当前无词库绑定”。根因待查，优先看普通查询归一化是否没有把英文短语 + `是什么意思/什么意思` 剥回 phrase lookup。
 - 普通查词 exact lookup 现有 21 条 provider smoke 已通过；后续新增词库或改 prompt 时仍需小批防回归，重点防止：
   - exact 命中自动带出裸 `confusion_group`
   - 回答出现 `CET` / 当前范围尾巴
@@ -148,7 +152,7 @@ ENGGO_BACKEND_URL=http://127.0.0.1:8000
   - `stitute` / `tempt` 两族可用
   - 结构化词形过滤可用
   - 泛化语义词根理论仍未定义
-- `re+con 的词根有什么词` 仍应保持保守 no-match；如果要支持，先写产品定义，不要在 parser 里加特例。
+- `re+con 的词根有什么词` 当前按 broad fragment / related prefix 支持，但不要说成稳定词根家族；后续如继续扩展，先写产品定义，不要在 parser 里加硬特例。
 - `postgrad` 缺 entry-level 可机读官方词表，不要为了 scope 完整性补伪造条目。
 - `corepack pnpm exec tsc --noEmit` 仍是已知工程债，主要集中在：
   - 测试 fixture 的 `activeExamTarget` / `examScopes` 被推宽为 `string`
@@ -174,6 +178,12 @@ ENGGO_BACKEND_URL=http://127.0.0.1:8000
   - `reqeust -> request`
   - `recomand -> recommend`
 - `reqxust 是什么意思` 已从保守 no-match 升级为 spelling-assist 候选确认，但仍不带 grounding。
+- exact direct compare 已改为确定性短模板，不再在 grounding 足够时调用 provider 自由成文；防回归样例：`access assess excess 怎么区分` 应为三行 `word + POS + 短义` + 一句 `注意`，且 `providerRequestId=null`。
+- 随机英文串已从 spelling-assist/plain provider 中排除；防回归样例：`zzqvwm 是什么意思` 应返回 grounded no-match，且 `providerRequestId=null`，不要猜成 `squeeze` 或其它弱相关词。
+- 形近/易混自然中文 cue 已统一路由到 `shape_neighbor_search` / light grounding；防回归样例：`帮我找一下和access比较像的易混词` 不应走 `standard_lookup`，且应优先召回 `access/assess/excess`。
+- broad / shape / direct-broad 已改为后端确定性短行 renderer，provider 不再负责自由改版式或漏列候选；防回归样例：`comm 开头的单词总结`、`inter 开头的词有哪些`、`跟 recent 很像的词有哪些` 应为 `providerRequestId=null`。
+- dynamic direct-broad 已收紧为只答用户点名词；防回归样例：`commend comment command 怎么区分` 不应补 `contend/content` 等旁支词。
+- dynamic light grounding runtime 已不再接收 `confusion_group` 作为候选输入或排序特权；旧 group 可作为 legacy exact 辨析/测试 fixture 暂存，但不能重新变成 broad 候选主机制。
 - `stationary/stationery` 的牵强字母口诀已移除；后续新增 confusion groups 不要写 `e -> envelope` 这类绕一层的助记。
 - `tempt` 作为 root family 片段时，必须承认它也是完整单词，不能只说成构词部件。
 - `confusion_untangle` 已从过度压缩回调到四段辨析卡；后续不要把“更短”当成唯一胜利标准。

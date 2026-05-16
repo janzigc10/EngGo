@@ -82,7 +82,7 @@ def test_exact_lookup_maps_structured_entry_candidate():
         {
             "entry_id": "access",
             "lemma": "access",
-            "part_of_speech": ["n.", "v."],
+            "part_of_speech": ["noun", "verb"],
             "matched_alias": None,
             "meanings_zh": ["进入权", "使用权", "访问"],
             "scope_codes": ["cet4", "cet6"],

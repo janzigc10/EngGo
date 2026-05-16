@@ -58,6 +58,7 @@ describe("black-box product smoke cases", () => {
         expect.objectContaining({
           name: "root: inter prefix fragment",
           expectedAnswerStyle: "broad_vocab_summary",
+          expectedProviderCall: "absent",
           expectedGroundingIncludes: expect.arrayContaining([
             "international",
             "interpret",
@@ -79,6 +80,7 @@ describe("black-box product smoke cases", () => {
           name: "root: comm prefix organizer",
           expectedResolution: "resolved",
           expectedAnswerStyle: "broad_vocab_summary",
+          expectedProviderCall: "absent",
           expectedGroundingIncludes: expect.arrayContaining([
             "command",
             "comment",
@@ -118,6 +120,13 @@ describe("black-box product smoke cases", () => {
         (item as { expectedProviderCall?: string }).expectedProviderCall
           === "absent"
       )).toBe(true);
+    expect(cases
+      .filter((item) =>
+        item.category === "shape_neighbor"
+        || item.category === "confusion"
+        || item.expectedAnswerStyle === "broad_vocab_summary"
+      )
+      .every((item) => item.expectedProviderCall === "absent")).toBe(true);
   });
 
   it("summarizes verdicts by category", () => {

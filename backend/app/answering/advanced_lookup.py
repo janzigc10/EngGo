@@ -5,8 +5,6 @@ from pathlib import Path
 from backend.app.answering.broad_vocab import (
     build_broad_vocab_answer,
     build_broad_vocab_grounding,
-    build_broad_vocab_provider_grounding,
-    build_broad_vocab_system_prompt,
 )
 from backend.app.answering.direct_compare import (
     build_boundary_candidates,
@@ -524,30 +522,34 @@ class AdvancedLookupService:
         history: list[dict[str, str]],
         normalized_query: NormalizedQuery,
     ) -> AdvancedLookupResult | None:
-        if not self.provider or normalized_query.query_mode not in {
+        if normalized_query.query_mode not in {
             "meaning_lookup",
             "shape_neighbor_search",
             "root_family_summary",
         }:
             return None
 
+        if (
+            normalized_query.query_mode == "root_family_summary"
+            and not self.provider
+            and not self.source_lemma_base_dir
+        ):
+            return None
+
+        if normalized_query.query_mode == "root_family_summary":
+            _root_id, known_root_family = root_family_for_query(normalized_query.normalized_text)
+            if known_root_family:
+                return None
+
         vocabulary = self.dynamic_vocabulary(active_exam_target)
         if not vocabulary:
             return None
 
-        groups = self.repository.find_confusion_groups_for_entry_ids(
-            active_exam_target,
-            [
-                candidate.entry_id
-                for candidate in vocabulary
-                if candidate.source_kind == "structured"
-            ],
-        )
         candidates = build_light_grounding_candidates(
             query=query,
             active_exam_target=active_exam_target,
             vocabulary=vocabulary,
-            groups=groups,
+            groups=[],
         )
 
         if len(candidates) < 2:
@@ -562,16 +564,12 @@ class AdvancedLookupService:
 
         return AdvancedLookupResult(
             status_code=200,
-            payload=provider_or_fallback(
-                provider=self.provider,
-                answer=build_broad_vocab_answer(candidates),
-                answer_kind="grounded",
+            payload=ChatSuccessResponse(
+                answer=build_broad_vocab_answer(candidates, normalized_query),
+                answerKind="grounded",
                 grounding=grounding,
-                query=query,
-                history=history,
-                request_id=request_id,
-                system_prompt=build_broad_vocab_system_prompt(),
-                provider_grounding=build_broad_vocab_provider_grounding(grounding),
+                requestId=request_id,
+                providerRequestId=None,
             ),
         )
 

@@ -411,7 +411,7 @@ export function buildBlackBoxProductSmokeCases(): BlackBoxProductSmokeCase[] {
       activeExamTarget: "cet6",
       expectedQueryMode: "root_family_summary",
       expectedResolution: "resolved",
-      expectedAnswerStyle: "broad_vocab_summary",
+      expectedAnswerStyle: "root_family_summary",
       expectedGroundingIncludes: ["institute", "institution", "constitute", "substitute"],
     }),
     createCase({
@@ -422,7 +422,7 @@ export function buildBlackBoxProductSmokeCases(): BlackBoxProductSmokeCase[] {
       activeExamTarget: "cet6",
       expectedQueryMode: "root_family_summary",
       expectedResolution: "resolved",
-      expectedAnswerStyle: "broad_vocab_summary",
+      expectedAnswerStyle: "root_family_summary",
       expectedGroundingIncludes: ["attempt", "tempt", "temptation", "contempt"],
     }),
     createCase({
@@ -537,11 +537,18 @@ export function buildBlackBoxProductSmokeCases(): BlackBoxProductSmokeCase[] {
     }),
   ];
 
-  return cases.map((item) =>
-    item.category === "standard_lookup"
-      ? { ...item, expectedProviderCall: "absent" }
-      : item
-  );
+  return cases.map((item) => {
+    if (
+      item.category === "standard_lookup"
+      || item.category === "shape_neighbor"
+      || item.category === "confusion"
+      || item.expectedAnswerStyle === "broad_vocab_summary"
+    ) {
+      return { ...item, expectedProviderCall: "absent" };
+    }
+
+    return item;
+  });
 }
 
 function addIfMismatch<T>(

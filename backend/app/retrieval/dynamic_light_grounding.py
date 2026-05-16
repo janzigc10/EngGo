@@ -6,6 +6,7 @@ from pathlib import Path
 from backend.app.content.ecdict import EcdictBasicProfile
 from backend.app.content.source_lemmas import load_source_lemma_memberships
 from backend.app.retrieval.types import ConfusionGroup, RetrievalCandidate
+from backend.app.retrieval.types import normalize_part_of_speech_label
 
 
 @dataclass(frozen=True)
@@ -50,7 +51,11 @@ class LightGroundingCandidate:
         }
 
         if self.part_of_speech is not None:
-            payload["partOfSpeech"] = self.part_of_speech
+            normalized_part_of_speech = normalize_part_of_speech_label(
+                self.part_of_speech,
+            )
+            if normalized_part_of_speech:
+                payload["partOfSpeech"] = normalized_part_of_speech
 
         if self.source_kind is not None:
             payload["sourceKind"] = self.source_kind
@@ -60,7 +65,7 @@ class LightGroundingCandidate:
 
 english_token_pattern = re.compile(r"[a-z]+(?:-[a-z]+)?", re.IGNORECASE)
 ecdict_part_of_speech_pattern = re.compile(
-    r"^\s*((?:n|v|vt|vi|adj|adv|prep|conj|pron|num|art|int|interj|phr)\.)",
+    r"^\s*((?:interj|adj|adv|prep|conj|pron|num|art|phr|vt|vi|ad|int|n|v|a)\.)\s*",
     re.IGNORECASE,
 )
 prefix_hint_pattern = re.compile(r"\b([a-z]{2,8})\s*(?:开头|词首|前缀)", re.IGNORECASE)
@@ -74,7 +79,9 @@ standalone_fragment_hint_pattern = re.compile(
     re.IGNORECASE,
 )
 ordered_fragment_pattern = re.compile(r"\b([a-z]{1,8}(?:\+[a-z]{1,8})+)\b", re.IGNORECASE)
-shape_hint_pattern = re.compile(r"(很像|形近|长得像|看错|容易.*混|怎么区分|怎么分|分不清)")
+shape_hint_pattern = re.compile(
+    r"(很像|比较像|相像|类似|形近|长得像|看错|看成|易混词?|容易.*混|怎么区分|怎么分|分不清)",
+)
 
 semantic_hint_groups = [
     {
@@ -118,7 +125,9 @@ def infer_ecdict_part_of_speech(profile: EcdictBasicProfile | None) -> str | Non
         if not match:
             continue
 
-        part = match.group(1).lower()
+        part = normalize_part_of_speech_label(match.group(1).lower())
+        if not part:
+            continue
         if part in seen:
             continue
 
@@ -128,11 +137,33 @@ def infer_ecdict_part_of_speech(profile: EcdictBasicProfile | None) -> str | Non
     return " / ".join(parts) if parts else None
 
 
+def clean_ecdict_broad_meanings(profile: EcdictBasicProfile | None) -> list[str]:
+    if not profile:
+        return []
+
+    meanings: list[str] = []
+    for meaning in profile.meanings:
+        cleaned = ecdict_part_of_speech_pattern.sub("", meaning, count=1).strip()
+        meanings.append(cleaned or meaning)
+
+    return meanings
+
+
 def common_prefix_length(left: str, right: str) -> int:
     length = 0
     max_length = min(len(left), len(right))
 
     while length < max_length and left[length] == right[length]:
+        length += 1
+
+    return length
+
+
+def common_suffix_length(left: str, right: str) -> int:
+    length = 0
+    max_length = min(len(left), len(right))
+
+    while length < max_length and left[-(length + 1)] == right[-(length + 1)]:
         length += 1
 
     return length
@@ -248,6 +279,12 @@ def score_candidate(
             add_signal(signals, signal_type="common_prefix", weight=weight, detail=token)
             score += weight
 
+        suffix_length = common_suffix_length(lemma, token)
+        if suffix_length >= 3 and token != lemma:
+            weight = 22 + suffix_length * 2
+            add_signal(signals, signal_type="common_suffix", weight=weight, detail=token)
+            score += weight
+
         if len(token) >= 4 and len(lemma) >= 4:
             distance = bounded_edit_distance(token, lemma, 3)
             if 0 < distance <= 3:
@@ -308,6 +345,9 @@ def score_candidate(
             continue
 
         for keyword in group["keywords"]:
+            if keyword == "看法" and keyword not in query:
+                continue
+
             if any(keyword in meaning for meaning in candidate.meanings_zh):
                 weight = 140 if keyword in {"强烈要求", "要求", "请求"} else 105
                 add_signal(signals, signal_type="meaning_keyword", weight=weight, detail=keyword)
@@ -349,7 +389,40 @@ def score_candidate(
     )
 
 
-def sort_key(candidate: LightGroundingCandidate, token_order: dict[str, int]):
+def best_edit_distance(candidate: LightGroundingCandidate) -> int:
+    distances: list[int] = []
+
+    for signal in candidate.signals:
+        if signal.type != "edit_distance":
+            continue
+
+        parts = signal.detail.rsplit(":", 1)
+        if len(parts) != 2 or not parts[1].isdigit():
+            continue
+
+        distances.append(int(parts[1]))
+
+    return min(distances or [99])
+
+
+def has_signal(candidate: LightGroundingCandidate, signal_type: str) -> bool:
+    return any(signal.type == signal_type for signal in candidate.signals)
+
+
+def min_token_length_gap(candidate: LightGroundingCandidate, tokens: list[str]) -> int:
+    return min(
+        [abs(len(candidate.lemma) - len(token)) for token in tokens]
+        or [0],
+    )
+
+
+def sort_key(
+    candidate: LightGroundingCandidate,
+    token_order: dict[str, int],
+    *,
+    tokens: list[str],
+    shape_query: bool,
+):
     exact_details = [
         signal.detail
         for signal in candidate.signals
@@ -359,6 +432,18 @@ def sort_key(candidate: LightGroundingCandidate, token_order: dict[str, int]):
         [token_order[detail] for detail in exact_details if detail in token_order]
         or [999],
     )
+
+    if shape_query and tokens:
+        return (
+            exact_index,
+            best_edit_distance(candidate),
+            min_token_length_gap(candidate, tokens),
+            0 if has_signal(candidate, "common_suffix") else 1,
+            0 if has_signal(candidate, "common_prefix") else 1,
+            0 if has_signal(candidate, "ngram_overlap") else 1,
+            -candidate.score,
+            candidate.lemma,
+        )
 
     return (
         exact_index,
@@ -377,6 +462,7 @@ def build_light_grounding_candidates(
 ) -> list[LightGroundingCandidate]:
     tokens = extract_english_tokens(query)
     token_order = {token: index for index, token in enumerate(tokens)}
+    shape_query = shape_hint_pattern.search(query) is not None
     group_ids = group_ids_by_entry_id(groups or [])
     scored: list[LightGroundingCandidate] = []
 
@@ -393,7 +479,15 @@ def build_light_grounding_candidates(
         if candidate is not None:
             scored.append(candidate)
 
-    return sorted(scored, key=lambda candidate: sort_key(candidate, token_order))[:limit]
+    return sorted(
+        scored,
+        key=lambda candidate: sort_key(
+            candidate,
+            token_order,
+            tokens=tokens,
+            shape_query=shape_query,
+        ),
+    )[:limit]
 
 
 def source_lemma_vocabulary(
@@ -416,7 +510,7 @@ def source_lemma_vocabulary(
             continue
 
         profile = ecdict_lookup(lemma) if ecdict_lookup else None
-        meanings = profile.meanings if profile else []
+        meanings = clean_ecdict_broad_meanings(profile)
         reason = "source lemma broad candidate"
         if profile:
             reason = f"{reason}; external dictionary basic meanings"

@@ -1,6 +1,80 @@
 from dataclasses import dataclass
 
 
+part_of_speech_aliases = {
+    "noun": "n.",
+    "n": "n.",
+    "n.": "n.",
+    "verb": "v.",
+    "v": "v.",
+    "v.": "v.",
+    "vt": "vt.",
+    "vt.": "vt.",
+    "vi": "vi.",
+    "vi.": "vi.",
+    "adjective": "adj.",
+    "adj": "adj.",
+    "adj.": "adj.",
+    "a": "adj.",
+    "a.": "adj.",
+    "adverb": "adv.",
+    "adv": "adv.",
+    "adv.": "adv.",
+    "ad": "adv.",
+    "ad.": "adv.",
+    "preposition": "prep.",
+    "prep": "prep.",
+    "prep.": "prep.",
+    "conjunction": "conj.",
+    "conj": "conj.",
+    "conj.": "conj.",
+    "pronoun": "pron.",
+    "pron": "pron.",
+    "pron.": "pron.",
+    "numeral": "num.",
+    "number": "num.",
+    "num": "num.",
+    "num.": "num.",
+    "article": "art.",
+    "art": "art.",
+    "art.": "art.",
+    "interjection": "interj.",
+    "interj": "interj.",
+    "interj.": "interj.",
+    "int": "interj.",
+    "int.": "interj.",
+    "phrase": "phr.",
+    "phr": "phr.",
+    "phr.": "phr.",
+}
+
+
+def normalize_part_of_speech_label(value: str | None) -> str | None:
+    if not value:
+        return None
+
+    parts: list[str] = []
+    seen: set[str] = set()
+    normalized_value = (
+        value.replace(",", "/")
+        .replace(";", "/")
+        .replace("；", "/")
+    )
+    for raw_part in normalized_value.split("/"):
+        part = " ".join(raw_part.strip().lower().split())
+        if not part:
+            continue
+
+        normalized = part_of_speech_aliases.get(part, raw_part.strip())
+        if normalized in seen:
+            continue
+
+        seen.add(normalized)
+        parts.append(normalized)
+
+    return " / ".join(parts) if parts else None
+
+
 ExamScopeCode = str
 QueryMode = str
 RetrievalResolution = str
@@ -37,7 +111,11 @@ class RetrievalCandidate:
         }
 
         if self.part_of_speech is not None:
-            payload["partOfSpeech"] = self.part_of_speech
+            normalized_part_of_speech = normalize_part_of_speech_label(
+                self.part_of_speech,
+            )
+            if normalized_part_of_speech:
+                payload["partOfSpeech"] = normalized_part_of_speech
 
         if self.source_kind is not None:
             payload["sourceKind"] = self.source_kind

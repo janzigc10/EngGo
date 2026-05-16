@@ -266,43 +266,64 @@ def test_shape_neighbor_dynamic_lookalikes_keep_confusion_style():
 
 
 def test_shape_neighbor_can_return_broad_vocab_summary_from_dynamic_pool():
-    recent = candidate("recent", ["最近的"], part_of_speech="adj.")
-    resent = candidate("resent", ["怨恨"], part_of_speech="v.")
-    decent = candidate("decent", ["得体的"], part_of_speech="adj.")
+    access = candidate("access", ["使用权；访问"], part_of_speech="n. / v.")
+    accept = candidate("accept", ["接受"], part_of_speech="v.")
+    accessory = candidate("accessory", ["附件；附属的"], part_of_speech="n. / adj.")
+    accent = candidate("accent", ["重音；口音"], part_of_speech="n.")
+    accuse = candidate("accuse", ["指责；控告"], part_of_speech="v.")
+    across = candidate("across", ["越过；穿过"], part_of_speech="prep. / adv.")
+    assess = candidate("assess", ["评价；评估"], part_of_speech="v.")
+    excess = candidate("excess", ["超过；过度的"], part_of_speech="n. / adj.")
+    success = candidate("success", ["成功"], part_of_speech="n.")
     provider = FakeProvider()
     service = AdvancedLookupService(
         repository=FakeRepository(
-            exact_entries={"recent": recent},
-            in_scope_entries=[recent, resent, decent],
+            exact_entries={"access": access},
+            in_scope_entries=[
+                access,
+                accept,
+                accessory,
+                accent,
+                accuse,
+                across,
+                assess,
+                excess,
+                success,
+            ],
         ),
         provider=provider,
     )
 
     result = service.answer(
         active_exam_target="cet6",
-        query="recent 这个词我总看错，附近有哪些像它的词",
+        query="帮我找一下和access比较像的易混词",
         request_id="req_shape_broad",
     )
 
     grounding = result.payload.grounding
 
     assert result.status_code == 200
-    assert result.payload.providerRequestId == "provider_req_advanced"
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
     assert grounding["queryMode"] == "shape_neighbor_search"
     assert grounding["broadQueryMode"] == "broad_vocab"
     assert grounding["answerStyle"] == "broad_vocab_summary"
     assert grounding["groundingStrength"] == "light"
     assert grounding["supportLabel"] == "基于 CET-6 词库候选总结"
-    assert [item["lemma"] for item in grounding["lightCandidates"][:2]] == [
-        "recent",
-        "resent",
+    answer_lemmas = [
+        line.split(" ", 1)[0]
+        for line in result.payload.answer.splitlines()
+        if line and not line.startswith("注意")
     ]
-    provider_grounding = provider.calls[0]["grounding"]
-    assert provider_grounding["answerStyle"] == "broad_vocab_summary"
-    assert "activeExamTargetLabel" not in provider_grounding
-    assert "supportLabel" not in provider_grounding
-    assert "scopeReminder" not in provider_grounding
-    assert "scopeCodes" not in provider_grounding["mainAnswer"][0]
+    assert answer_lemmas[0] == "access"
+    assert "assess" in answer_lemmas
+    assert "excess" in answer_lemmas
+    assert "accessory" not in answer_lemmas
+    assert result.payload.answer.splitlines()[:1] == [
+        "access n. / v. 使用权；访问",
+    ]
+    assert "\n-" not in result.payload.answer
+    assert "**" not in result.payload.answer
 
 
 def test_broad_collection_source_lemmas_use_ecdict_basic_meanings(tmp_path):
@@ -328,14 +349,20 @@ def test_broad_collection_source_lemmas_use_ecdict_basic_meanings(tmp_path):
     plan = grounding["broadAnswerPlan"]
 
     assert result.status_code == 200
-    assert result.payload.providerRequestId == "provider_req_advanced"
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
     assert plan["style"] == "collection_map"
     assert plan["answerableLemmas"] == ["command", "commend", "comment"]
     assert plan["candidateOnlyLemmas"] == []
     assert [item["meaningsZh"] for item in grounding["mainAnswer"]] == [
-        ["n. command basic meaning"],
-        ["n. commend basic meaning"],
-        ["n. comment basic meaning"],
+        ["command basic meaning"],
+        ["commend basic meaning"],
+        ["comment basic meaning"],
+    ]
+    assert [item["partOfSpeech"] for item in grounding["mainAnswer"]] == [
+        "n.",
+        "n.",
+        "n.",
     ]
 
 
@@ -454,7 +481,8 @@ def test_semantic_root_boundary_can_use_dynamic_light_candidates():
     grounding = result.payload.grounding
 
     assert result.status_code == 200
-    assert result.payload.providerRequestId == "provider_req_advanced"
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
     assert grounding["queryMode"] == "root_family_summary"
     assert grounding["broadQueryMode"] == "broad_vocab"
     assert grounding["answerStyle"] == "broad_vocab_summary"
@@ -486,7 +514,8 @@ def test_standalone_fragment_query_can_use_dynamic_light_candidates():
     grounding = result.payload.grounding
 
     assert result.status_code == 200
-    assert result.payload.providerRequestId == "provider_req_advanced"
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
     assert grounding["queryMode"] == "root_family_summary"
     assert grounding["broadQueryMode"] == "broad_vocab"
     assert grounding["answerStyle"] == "broad_vocab_summary"

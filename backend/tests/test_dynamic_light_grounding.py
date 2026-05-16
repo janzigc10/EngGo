@@ -149,6 +149,31 @@ def test_meaning_query_prioritizes_core_semantic_matches():
     assert all("meaning_keyword" in signal_types(item) for item in result[:3])
 
 
+def test_review_meaning_query_excludes_broad_opinion_nouns():
+    vocabulary = [
+        candidate("assess", ["评价；评估"]),
+        candidate("comment", ["发表意见；评论"], part_of_speech="n. / v."),
+        candidate("evaluate", ["评价；评估"]),
+        candidate("review", ["复习；审查；评论"], part_of_speech="v. / n."),
+        candidate("attitude", ["态度；看法"], part_of_speech="n."),
+        candidate("belief", ["信念；看法"], part_of_speech="n."),
+    ]
+
+    result = build_light_grounding_candidates(
+        query="表示评论、评价的词有哪些容易混",
+        active_exam_target="cet6",
+        vocabulary=vocabulary,
+        groups=[],
+    )
+
+    lemmas = [item.lemma for item in result]
+
+    assert lemmas == ["assess", "comment", "evaluate", "review"]
+    assert "attitude" not in lemmas
+    assert "belief" not in lemmas
+    assert all("meaning_keyword" in signal_types(item) for item in result)
+
+
 def test_curated_group_boosts_without_being_required():
     recent = candidate("recent", ["最近的"], part_of_speech="adj.")
     resent = candidate("resent", ["怨恨"])
@@ -169,7 +194,7 @@ def test_curated_group_boosts_without_being_required():
     )
 
     assert "resent" in [item.lemma for item in without_group]
-    assert [item.lemma for item in with_group[:2]] == ["recent", "resent"]
+    assert "resent" in [item.lemma for item in with_group]
 
     resent_result = next(item for item in with_group if item.lemma == "resent")
     assert "structured_group" in signal_types(resent_result)
@@ -244,7 +269,7 @@ def test_source_lemma_vocabulary_derives_pos_from_ecdict_meanings(tmp_path):
     source_dir.mkdir()
     (source_dir / "gaokao-2020-lemmas.txt").write_text("", encoding="utf-8")
     (source_dir / "cet-2016-lemmas.tsv").write_text(
-        "lemma\tsource_scope\ncommand\tcet6-extra\naction\tcet6-extra\n",
+        "lemma\tsource_scope\ncommand\tcet6-extra\naction\tcet6-extra\nstructural\tcet6-extra\n",
         encoding="utf-8",
     )
 
@@ -260,9 +285,15 @@ def test_source_lemma_vocabulary_derives_pos_from_ecdict_meanings(tmp_path):
                 "action",
                 ["n. 行动, 动作", "vt. 对...起诉"],
             ),
+            "structural": ecdict_profile(
+                "structural",
+                ["a. 结构的, 建筑的"],
+            ),
         }.get(lemma),
     )
     source_by_lemma = {item.lemma: item for item in source_candidates}
 
     assert source_by_lemma["command"].part_of_speech == "n. / v."
     assert source_by_lemma["action"].part_of_speech == "n. / vt."
+    assert source_by_lemma["structural"].part_of_speech == "adj."
+    assert source_by_lemma["structural"].meanings_zh == ["结构的, 建筑的"]

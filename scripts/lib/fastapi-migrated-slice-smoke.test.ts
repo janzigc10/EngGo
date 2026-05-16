@@ -57,7 +57,7 @@ describe("fastapi migrated-slice smoke", () => {
         expectedStatus: 200,
         expectedAnswerStyle: "confusion_untangle",
         expectedComparisonViewId: "access-assess-excess",
-        expectedProviderRequest: "required",
+        expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
         name: "compare restrain constrain",
@@ -65,7 +65,7 @@ describe("fastapi migrated-slice smoke", () => {
         expectedStatus: 200,
         expectedAnswerStyle: "confusion_untangle",
         expectedComparisonViewId: "restrain-constrain-curb",
-        expectedProviderRequest: "required",
+        expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
         name: "expression comply conform defer",
@@ -82,13 +82,14 @@ describe("fastapi migrated-slice smoke", () => {
         expectedStatus: 200,
         expectedAnswerStyle: "broad_vocab_summary",
         expectedGroundingIncludes: ["recent", "resent"],
-        expectedProviderRequest: "required",
+        expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
         name: "root institute memory group",
         query: "跟 institute 一样那几个词怎么记",
         expectedStatus: 200,
-        expectedAnswerStyle: "broad_vocab_summary",
+        expectedAnswerStyle: "root_family_summary",
+        expectedRootFamilyViewId: "root-stitute",
         expectedGroundingIncludes: ["institute", "institution", "constitute", "substitute"],
         expectedProviderRequest: "required",
       }),
@@ -98,7 +99,7 @@ describe("fastapi migrated-slice smoke", () => {
         expectedStatus: 200,
         expectedAnswerStyle: "broad_vocab_summary",
         expectedGroundingIncludes: ["conference"],
-        expectedProviderRequest: "required",
+        expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
         name: "root comm prefix organizer",
@@ -106,7 +107,7 @@ describe("fastapi migrated-slice smoke", () => {
         expectedStatus: 200,
         expectedAnswerStyle: "broad_vocab_summary",
         expectedGroundingIncludes: ["command", "comment", "commend"],
-        expectedProviderRequest: "required",
+        expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
         name: "dynamic re+con broad grounding",
@@ -115,7 +116,7 @@ describe("fastapi migrated-slice smoke", () => {
         expectedAnswerStyle: "broad_vocab_summary",
         expectedResolution: "resolved",
         expectedGroundingIncludes: ["reconcile", "conform"],
-        expectedProviderRequest: "required",
+        expectedProviderRequest: "absent",
       }),
     ]);
   });
@@ -155,7 +156,7 @@ describe("fastapi migrated-slice smoke", () => {
     });
   });
 
-  it("passes a provider-backed migrated observation when provider id is present", () => {
+  it("passes a deterministic migrated observation when provider is skipped", () => {
     const result = evaluateFastApiMigratedSliceSmoke(
       {
         name: "compare access assess excess",
@@ -166,7 +167,7 @@ describe("fastapi migrated-slice smoke", () => {
         expectedAnswerStyle: "confusion_untangle",
         expectedResolution: "resolved",
         expectedComparisonViewId: "access-assess-excess",
-        expectedProviderRequest: "required",
+        expectedProviderRequest: "absent",
         expectedProviderRequestId: null,
       },
       {
@@ -179,7 +180,7 @@ describe("fastapi migrated-slice smoke", () => {
         comparisonViewId: "access-assess-excess",
         rootFamilyViewId: null,
         groundingLemmas: ["access", "assess", "excess"],
-        providerRequestId: "provider_req_123",
+        providerRequestId: null,
         hasGrounding: true,
         requestIdMatchesHeader: true,
       },

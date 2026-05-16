@@ -1,31 +1,29 @@
 # EngGo 滚动交接
 
-## 当前下一步开发方向（2026-05-15 明确）
+## 当前下一步开发方向（2026-05-16 路由与 presentation 统一后）
 
-- 主线优先级：`broad_vocab_summary` 的集合型输出已从“强行易混分组”调整为默认 inventory table；`comm 开头` 真实 provider spot 已基本收稳。`tion 结尾` 这类 suffix inventory 太低级，后续不再作为主要产品验收样例；下一步聚焦显式易混措辞、`要求` / `评论评价` 这类中文义召回，再决定是否回聊天主舞台 UI。
-- 已完成 plan：`docs/superpowers/plans/2026-05-15-broad-vocab-confusion-organizer.md`。本轮只改 broad answer 计划/提示和回归句柄，未改普通 `standard_lookup` 模板。
-- 产品目标：让 `comm 开头`、`commend/comment/command 怎么区分`、`re+con`、中文义召回这类集合型问题更像学生复习材料：默认同形列表用紧凑 inventory table；只有用户明确问“容易混/怎么区分”时，才先指出最容易混的一组，再给 `词性 + 短义 + 一句核心区别`。`tion 结尾` 仅保留为低价值 sanity 信号，不继续放在产品 smoke 主样例里。
-- 本轮完成：
-  1. 已补 `backend/tests/test_broad_vocab_answer.py` 红测，锁住 `confusable_core_terms` / `supplemental_same_form_candidates` / 核心区别句规则，并完成红绿验证。
-  2. 已调整 `broadAnswerPlan.candidateSections`、`candidateBudget` 和 prompt 任务语义，让 `collection_map` 先输出易混核心组，再输出补充同形候选。
-  3. 已验证 focused compare、semantic root 和 ordinary lookup 边界，并补上 `comm 开头的单词总结` product smoke 句柄。
-  4. 最终验证已过：focused backend suite 55 passed；product smoke unit handles 2 files / 13 tests passed；touched TS lint passed；`git diff --check` exit 0，仅 CRLF warning。
-- 真实 provider phrasing 小批验收与后续修正（2026-05-15）：
-  1. 先用 FastAPI `TestClient` 跑中文 query，发现 PowerShell here-string 会把中文变成 `????`；改用 Unicode escape 后请求有效。
-  2. 沙箱内 5 条 provider-backed broad query 全部返回 502；按授权重跑真实权限后出站可用。
-  3. 首轮 `comm 开头的单词总结` 命中 `collection_map` 和新 section，但最终答案仍出现松散语义标题（如“交流/社区/商业组”“行动/事件/位置组”）并以“如需进一步区分...”结尾。
-  4. 根据用户判断调整方向：`comm 开头` / `tion 结尾` 这类集合型问题默认不是“易混核心组”，而是同形词表 inventory；只有用户明确问“容易混/怎么区分”才进入 confusion organizer。
-  5. 已在 `broadAnswerPlan` 加 `presentation`: `inventory_table` / `confusion_organizer`；默认 inventory 输出 `inventory_terms`，并要求表格列 `单词 | 词性 | 核心义 | 备注`。
-  6. 真实复查 `comm 开头的单词总结`：输出已变为紧凑表格，无松散语义分组，无尾巴邀请；备注只提表内词，如 `command/commend`、`commune/commute`、`commit/committee`，没有再扩到候选外词。
-  7. 继续从用户视角加测 10 条：`comm` / `tion` / `inter` / `struct` inventory 都能稳定出表格；用户判断 `tion 结尾` 太低级，已从产品 smoke 主样例中移除；`comm 开头哪些词容易混` 能切到 `confusion_organizer`，但补充候选仍说“因前缀相同也容易混淆”，偏宽；`command/comment/commend 怎么区分` 可接受；`要求怎么说` 已给语气差异；`评论评价` 仍有 `attitude/belief` 候选偏宽；`re+con` 可接受但仍有总结尾句；假词 no-match 正常。
-  8. 当前真实输出主要残留：inventory 备注偶尔会写搭配或过强关系（例如 `commit crime`、`同族`），需要继续压备注列；explicit confusion 的补充候选不能笼统说“都容易混”；中文义召回排序仍需单独调。
-- 建议下一步：
-  1. 继续压 inventory 备注列：不写搭配、例子、同根/派生/同族这类过强关系；没必要就 `—`。
-  2. 对中文义召回另列小任务：先调 meaning keyword / candidate ranking，避免 `attitude/belief` 这类相关但非“评论/评价动作词”的词太靠前。
-  3. 如果显式易混措辞与中文义召回都收稳，再回到聊天主舞台 UI：移动端阅读、收藏动作、复习入口。
-- 明确暂不做：不把 ECDICT 升级成高可信 structured entry；不继续人工穷尽易混组；不把 `re+con` 这类语义/词根理论硬塞进词形 parser；不动普通 `standard_lookup` 的确定性模板。
-- 排在后面但仍有效的方向：聊天主舞台里的移动端阅读、命中状态/外部词典身份区分、收藏动作和复习入口，等 broad answer 这一刀收稳后再继续。
-- 交接文档规则已收紧到 `AGENTS.md`：以后更新 `progress.md` 不能只追加流水账，要同步重审已完成、取消和延期项，防止旧“下一步”误导新 session。
+- 本轮已落地的产品方向：
+  1. `比较像`、`和 X 比较像`、`找一下和 X 像/易混词` 等中文 cue 已统一进入 `shape_neighbor_search` / light grounding，不再被 ordinary lookup 抢成 `standard_lookup`。
+  2. broad / shape / direct-broad 现在优先由后端确定性 renderer 输出 `word + pos + 短义` 行，最多加一句 `注意`；不再依赖 provider 自由成文来决定表格、bullet、例句或候选覆盖。
+  3. `confusion_group` 已从 dynamic light grounding 的 runtime 候选输入中下线；旧 structured exact / legacy 辨析路径仍可暂存，但不再代表完整易混集合，也不再影响形近/宽召回排序。
+  4. `structured exact` 继续负责确认词条身份和高可信释义；source lemma / ECDICT 负责补基础义；`light grounding` 负责几千词候选池里的形近、前缀、片段和宽召回。
+  5. 已保留 `stitute` / `tempt` 这类明确 root family 的旧稳定路径，避免被 broad light grounding 抢走；`inter`、`struct`、`comm`、`re+con` 这类泛片段/前缀仍走 broad。
+- 真实链路抽样确认：
+  1. `帮我找一下和access比较像的易混词` -> `providerRequestId=null`，候选前列为 `access/assess/excess/accept/accent/...`，输出为短行列表 + 一句 `注意`。
+  2. `access assess excess 怎么区分` -> `providerRequestId=null`，只输出三行 `access / assess / excess` + 一句 `注意`，不再有加粗、bullet、搭配或例句。
+  3. `commend comment command 怎么区分` -> `providerRequestId=null`，只列用户点名的 `commend/comment/command` 三词 + 一句 `注意`；dynamic broad 不再补 `contend/content` 等旁支词。
+  4. `zzqvwm 是什么意思` -> grounded no-match，`providerRequestId=null`，不再猜成 `squeeze` 或其它弱相关词。
+  5. `photosynthesis 是什么意思` 仍允许 plain fallback，避免随机串闸门误伤正常库外英文词。
+- 本轮验证：
+  1. Python focused：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_direct_compare_answer.py backend\tests\test_no_match_policy.py backend\tests\test_ordinary_lookup_answer.py backend\tests\test_broad_vocab_answer.py backend\tests\test_dynamic_light_grounding.py backend\tests\test_advanced_lookup.py backend\tests\test_chat_contract.py backend\tests\test_repository.py backend\tests\test_normalize_query.py -o cache_dir='C:\Users\Chen\Desktop\EngGo\.pytest-cache-codex'` -> 85 passed。
+  2. TS smoke unit：`corepack pnpm test scripts/lib/black-box-product-smoke.test.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 2 files / 13 tests passed。
+  3. 默认 FastAPI 真实链路：`corepack pnpm eval:default-fastapi-smoke` -> migrated proxy 14/14 pass，product HTTP proxy 39/39 pass。
+  4. 本轮曾跑 `corepack pnpm eval:product-smoke` 命中旧 TypeScript direct path/DB 基线问题；当前默认运行时是 FastAPI + Next proxy，判断产品链路以 `eval:default-fastapi-smoke` 为准。
+- 当前剩余优先级：
+  1. 修普通短语查词归一化：`make up 是什么意思`、`according to 是什么意思` 应命中与裸短语相同的 deterministic ordinary lookup，而不是 plain provider。
+  2. UI 层补“当前词书”轻标签：范围仍由 `activeExamTarget` 绑定后端检索，答案正文不写 CET-4/CET-6。
+  3. 后续再回到移动端阅读、收藏动作和复习入口；不要在本轮 broad/route 收口尚热时扩新词库或重写 ECDICT 语义层。
+- 明确暂不做：不把 ECDICT 升级成高可信 structured entry；不继续人工新增/维护 `confusion_group`；不把 `re+con` 这类语义/词根理论硬塞进词形 parser；不把范围信息塞进答案正文表格。
 
 ## 2026-05-12 Light Grounding source-only ECDICT 补义
 

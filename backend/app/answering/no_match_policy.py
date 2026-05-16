@@ -14,6 +14,8 @@ comparison_intent_pattern = re.compile(
     re.IGNORECASE,
 )
 english_token_pattern = re.compile(r"[A-Za-z][A-Za-z'-]*")
+long_consonant_run_pattern = re.compile(r"[bcdfghjklmnpqrstvwxz]{5,}", re.IGNORECASE)
+vowel_pattern = re.compile(r"[aeiouy]", re.IGNORECASE)
 
 
 def get_unique_english_tokens(query: str) -> list[str]:
@@ -34,10 +36,22 @@ def get_unique_english_tokens(query: str) -> list[str]:
 def is_suspicious_single_english_token(token: str) -> bool:
     normalized = token.lower()
 
-    return re.search(r"q(?!u)", normalized) is not None or re.search(
-        r"[bcdfghjklmnpqrstvwxyz]{5,}",
-        normalized,
-    ) is not None
+    return (
+        re.search(r"q(?!u)", normalized) is not None
+        or long_consonant_run_pattern.search(normalized) is not None
+    )
+
+
+def is_random_like_single_english_token(token: str) -> bool:
+    normalized = token.lower()
+
+    return (
+        len(normalized) >= 5
+        and (
+            long_consonant_run_pattern.search(normalized) is not None
+            or vowel_pattern.search(normalized) is None
+        )
+    )
 
 
 def should_use_spelling_assist(
@@ -57,6 +71,7 @@ def should_use_spelling_assist(
     return (
         len(english_tokens) == 1
         and is_suspicious_single_english_token(english_tokens[0])
+        and not is_random_like_single_english_token(english_tokens[0])
     )
 
 
