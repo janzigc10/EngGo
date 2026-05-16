@@ -36,7 +36,7 @@ describe("ChatWorkspace", () => {
     firstRender.unmount();
     render(<ChatWorkspace />);
 
-    expect(screen.getByTestId("active-exam-target")).toHaveTextContent("考研");
+    expect(screen.getByTestId("active-exam-target")).toHaveTextContent("当前词书：考研");
   });
 
   it("submits the prompt and renders the structured answer", async () => {

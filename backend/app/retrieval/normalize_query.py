@@ -103,6 +103,22 @@ def build_meaning_hint(normalized_text: str) -> str:
     return re.sub(r"\s+", " ", meaning_noise_pattern.sub("", normalized_text)).strip()
 
 
+def is_phrase_lookup_with_chinese_suffix(
+    *,
+    normalized_text: str,
+    english_terms: list[str],
+    meaning_hint: str,
+    has_chinese: bool,
+) -> bool:
+    if not has_chinese or len(english_terms) < 2:
+        return False
+
+    if meaning_hint != " ".join(english_terms):
+        return False
+
+    return re.search(r"(是什么意思|什么意思|是什么|啥意思)", normalized_text) is not None
+
+
 def contains_shape_neighbor_cue(normalized_text: str) -> bool:
     if shape_neighbor_cue_pattern.search(normalized_text) is None:
         return False
@@ -163,6 +179,7 @@ def normalize_query(query: str) -> NormalizedQuery:
     normalized_text = normalize_ascii(query)
     english_terms = extract_english_terms(normalized_text)
     has_chinese = chinese_pattern.search(normalized_text) is not None
+    meaning_hint = build_meaning_hint(normalized_text)
     is_root_query = (
         root_cue_pattern.search(normalized_text) is not None
         or root_fragment_pattern.search(normalized_text) is not None
@@ -185,6 +202,13 @@ def normalize_query(query: str) -> NormalizedQuery:
         query_mode = "direct_compare"
     elif len(english_terms) == 1 and contains_shape_neighbor_cue(normalized_text):
         query_mode = "shape_neighbor_search"
+    elif is_phrase_lookup_with_chinese_suffix(
+        normalized_text=normalized_text,
+        english_terms=english_terms,
+        meaning_hint=meaning_hint,
+        has_chinese=has_chinese,
+    ):
+        query_mode = "direct_lookup"
     elif english_terms and not has_chinese:
         query_mode = "direct_lookup"
     elif english_terms:
@@ -195,7 +219,7 @@ def normalize_query(query: str) -> NormalizedQuery:
         normalized_text=normalized_text,
         query_mode=query_mode,
         english_terms=english_terms,
-        meaning_hint=build_meaning_hint(normalized_text),
+        meaning_hint=meaning_hint,
         compare_terms=compare_terms,
         group_seed_term=None,
         is_supported_ordinary_lookup=query_mode in {"direct_lookup", "fuzzy_recall"},

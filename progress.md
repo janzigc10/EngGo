@@ -14,15 +14,15 @@
   3. `commend comment command 怎么区分` -> `providerRequestId=null`，只列用户点名的 `commend/comment/command` 三词 + 一句 `注意`；dynamic broad 不再补 `contend/content` 等旁支词。
   4. `zzqvwm 是什么意思` -> grounded no-match，`providerRequestId=null`，不再猜成 `squeeze` 或其它弱相关词。
   5. `photosynthesis 是什么意思` 仍允许 plain fallback，避免随机串闸门误伤正常库外英文词。
+  6. `make up 是什么意思` -> `direct_lookup / external_dictionary_exact`，`according to 是什么意思` -> `direct_lookup / source_lemma_exact`；两者均为 deterministic standard lookup，`providerRequestId=null`。
+  7. UI 顶部范围提示已改为轻标签文案 `当前词书：CET-6`，范围信息继续只显示在界面状态，不写进答案正文。
 - 本轮验证：
   1. Python focused：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_direct_compare_answer.py backend\tests\test_no_match_policy.py backend\tests\test_ordinary_lookup_answer.py backend\tests\test_broad_vocab_answer.py backend\tests\test_dynamic_light_grounding.py backend\tests\test_advanced_lookup.py backend\tests\test_chat_contract.py backend\tests\test_repository.py backend\tests\test_normalize_query.py -o cache_dir='C:\Users\Chen\Desktop\EngGo\.pytest-cache-codex'` -> 85 passed。
   2. TS smoke unit：`corepack pnpm test scripts/lib/black-box-product-smoke.test.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 2 files / 13 tests passed。
   3. 默认 FastAPI 真实链路：`corepack pnpm eval:default-fastapi-smoke` -> migrated proxy 14/14 pass，product HTTP proxy 39/39 pass。
   4. 本轮曾跑 `corepack pnpm eval:product-smoke` 命中旧 TypeScript direct path/DB 基线问题；当前默认运行时是 FastAPI + Next proxy，判断产品链路以 `eval:default-fastapi-smoke` 为准。
 - 当前剩余优先级：
-  1. 修普通短语查词归一化：`make up 是什么意思`、`according to 是什么意思` 应命中与裸短语相同的 deterministic ordinary lookup，而不是 plain provider。
-  2. UI 层补“当前词书”轻标签：范围仍由 `activeExamTarget` 绑定后端检索，答案正文不写 CET-4/CET-6。
-  3. 后续再回到移动端阅读、收藏动作和复习入口；不要在本轮 broad/route 收口尚热时扩新词库或重写 ECDICT 语义层。
+  1. 后续回到移动端阅读、收藏动作和复习入口；不要在本轮 broad/route 收口尚热时扩新词库或重写 ECDICT 语义层。
 - 明确暂不做：不把 ECDICT 升级成高可信 structured entry；不继续人工新增/维护 `confusion_group`；不把 `re+con` 这类语义/词根理论硬塞进词形 parser；不把范围信息塞进答案正文表格。
 
 ## 2026-05-12 Light Grounding source-only ECDICT 补义

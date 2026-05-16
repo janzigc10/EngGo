@@ -43,7 +43,7 @@ def source_fixture(base_dir: Path):
     source_dir.mkdir(parents=True)
     (source_dir / "gaokao-2020-lemmas.txt").write_text("accent\n", encoding="utf-8")
     (source_dir / "cet-2016-lemmas.tsv").write_text(
-        "lemma\tsourceScope\naccent\tcet4\n",
+        "lemma\tsourceScope\naccent\tcet4\naccordingto\tcet4\n",
         encoding="utf-8",
     )
 
@@ -152,6 +152,67 @@ def test_exact_phrase_no_match_uses_ecdict_phrase_fallback(tmp_path):
     assert result.payload.grounding["mainAnswer"][0]["sourceKind"] == (
         "external_dictionary_basic"
     )
+
+
+def test_phrase_lookup_with_chinese_suffix_uses_ecdict_phrase_fallback(tmp_path):
+    provider = FakeProvider("provider should not answer phrase")
+    service = OrdinaryLookupService(
+        repository=FakeRepository({}),
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda query: profile(
+            "make up",
+            ["v. 组成；编造；化妆；和解"],
+            entry_kind="phrase",
+        )
+        if query == "make up"
+        else None,
+        provider=provider,
+    )
+
+    result = service.answer(
+        active_exam_target="cet4",
+        query="make up 是什么意思",
+        request_id="req_make_up_suffix",
+    )
+
+    assert result.status_code == 200
+    assert result.payload.answer == "make up\n\nv. 组成；编造；化妆；和解"
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert result.payload.grounding["matchType"] == "external_dictionary_exact"
+    assert result.payload.grounding["queryMode"] == "direct_lookup"
+    assert result.payload.grounding["mainAnswer"][0]["lemma"] == "make up"
+
+
+def test_source_phrase_lookup_with_chinese_suffix_uses_source_lemma(tmp_path):
+    source_fixture(tmp_path)
+    provider = FakeProvider("provider should not answer source phrase")
+    service = OrdinaryLookupService(
+        repository=FakeRepository({}),
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda query: profile(
+            "according to",
+            ["prep. 根据；按照"],
+            entry_kind="phrase",
+        )
+        if query == "according to"
+        else None,
+        provider=provider,
+    )
+
+    result = service.answer(
+        active_exam_target="cet4",
+        query="according to 是什么意思",
+        request_id="req_according_to_suffix",
+    )
+
+    assert result.status_code == 200
+    assert result.payload.answer == "according to\n\nprep. 根据；按照"
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert result.payload.grounding["matchType"] == "source_lemma_exact"
+    assert result.payload.grounding["queryMode"] == "direct_lookup"
+    assert result.payload.grounding["mainAnswer"][0]["lemma"] == "accordingto"
 
 
 def test_ordinary_no_match_returns_grounded_no_match_without_provider(tmp_path):

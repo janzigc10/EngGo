@@ -30,6 +30,18 @@ describe("fastapi migrated-slice smoke", () => {
         expectedMatchType: "external_dictionary_exact",
       }),
       expect.objectContaining({
+        name: "ecdict phrase make up with suffix",
+        query: "make up 是什么意思",
+        expectedStatus: 200,
+        expectedMatchType: "external_dictionary_exact",
+      }),
+      expect.objectContaining({
+        name: "source phrase according to with suffix",
+        query: "according to 是什么意思",
+        expectedStatus: 200,
+        expectedMatchType: "source_lemma_exact",
+      }),
+      expect.objectContaining({
         name: "ordinary no match",
         query: "wordnotreal",
         expectedStatus: 200,

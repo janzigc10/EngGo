@@ -18,7 +18,7 @@ export function ExamTargetSwitcher({
         data-testid="active-exam-target"
       >
         <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
-        当前考试范围：{examTargets.find((target) => target.code === activeExamTarget)?.label}
+        当前词书：{examTargets.find((target) => target.code === activeExamTarget)?.label}
       </div>
       <div className="flex flex-wrap gap-2">
         {examTargets.map((target) => {

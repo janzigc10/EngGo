@@ -31,6 +31,15 @@ def test_direct_phrase_lookup_keeps_words_separate():
     assert result.is_supported_ordinary_lookup is True
 
 
+def test_phrase_lookup_with_chinese_lookup_suffix_stays_direct_lookup():
+    result = normalize_query("make up 是什么意思")
+
+    assert result.query_mode == "direct_lookup"
+    assert result.english_terms == ["make", "up"]
+    assert result.meaning_hint == "make up"
+    assert result.is_supported_ordinary_lookup is True
+
+
 def test_compare_query_is_unsupported_for_stage_2():
     result = normalize_query("access assess excess 怎么区分")
 

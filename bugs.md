@@ -129,8 +129,6 @@ ENGGO_BACKEND_URL=http://127.0.0.1:8000
 - 真实 provider smoke 尽量小批量串行跑。
 
 ## 当前产品侧残留
-- 2026-05-16 全流程复测新增：
-  - 短语普通查词加中文查询后缀时会掉出 deterministic ordinary lookup。复现：裸 `make up` -> `external_dictionary_exact` / no provider；`make up 是什么意思` -> `plain` + provider，带加粗和例句。裸 `according to` -> `source_lemma_exact` / no provider；`according to 是什么意思` -> `plain` + provider，并出现“当前无词库绑定”。根因待查，优先看普通查询归一化是否没有把英文短语 + `是什么意思/什么意思` 剥回 phrase lookup。
 - 普通查词 exact lookup 现有 21 条 provider smoke 已通过；后续新增词库或改 prompt 时仍需小批防回归，重点防止：
   - exact 命中自动带出裸 `confusion_group`
   - 回答出现 `CET` / 当前范围尾巴
@@ -183,6 +181,7 @@ ENGGO_BACKEND_URL=http://127.0.0.1:8000
 - 形近/易混自然中文 cue 已统一路由到 `shape_neighbor_search` / light grounding；防回归样例：`帮我找一下和access比较像的易混词` 不应走 `standard_lookup`，且应优先召回 `access/assess/excess`。
 - broad / shape / direct-broad 已改为后端确定性短行 renderer，provider 不再负责自由改版式或漏列候选；防回归样例：`comm 开头的单词总结`、`inter 开头的词有哪些`、`跟 recent 很像的词有哪些` 应为 `providerRequestId=null`。
 - dynamic direct-broad 已收紧为只答用户点名词；防回归样例：`commend comment command 怎么区分` 不应补 `contend/content` 等旁支词。
+- 短语普通查词加中文查询后缀已回到 deterministic ordinary lookup；防回归样例：`make up 是什么意思` 应为 `external_dictionary_exact` / no provider，`according to 是什么意思` 应为 `source_lemma_exact` / no provider。
 - dynamic light grounding runtime 已不再接收 `confusion_group` 作为候选输入或排序特权；旧 group 可作为 legacy exact 辨析/测试 fixture 暂存，但不能重新变成 broad 候选主机制。
 - `stationary/stationery` 的牵强字母口诀已移除；后续新增 confusion groups 不要写 `e -> envelope` 这类绕一层的助记。
 - `tempt` 作为 root family 片段时，必须承认它也是完整单词，不能只说成构词部件。

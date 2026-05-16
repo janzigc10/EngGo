@@ -538,7 +538,7 @@ class OrdinaryLookupService:
         )
 
         if source_candidate:
-            profile = self.ecdict_lookup(source_candidate.lemma)
+            profile = self.ecdict_lookup(needle) or self.ecdict_lookup(source_candidate.lemma)
             grounding = build_grounding(
                 active_exam_target=active_exam_target,
                 query=query,
@@ -566,7 +566,7 @@ class OrdinaryLookupService:
             )
 
         if normalized_query.query_mode == "direct_lookup" and len(normalized_query.english_terms) > 1:
-            profile = self.ecdict_lookup(normalized_query.normalized_text)
+            profile = self.ecdict_lookup(needle)
 
             if profile and profile.entry_kind == "phrase":
                 candidate = dictionary_candidate(profile)
