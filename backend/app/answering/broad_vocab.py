@@ -88,6 +88,30 @@ def has_any_signal(
 
 
 def broad_answer_style(normalized_query) -> str:
+    intent_plan = getattr(normalized_query, "intent_plan", None)
+    if intent_plan is not None:
+        if intent_plan.task == "focused_compare":
+            return "focused_compare"
+
+        if intent_plan.task == "form_filter":
+            return "strict_inventory"
+
+        if intent_plan.task == "semantic_filter":
+            return (
+                "teacher_table"
+                if any(
+                    constraint.type == "meaning"
+                    for constraint in intent_plan.constraints
+                )
+                else "strict_inventory"
+            )
+
+        if intent_plan.task in {"shape_neighbors", "word_family"}:
+            return "teacher_table"
+
+        if intent_plan.task == "meaning_core":
+            return "meaning_core"
+
     if normalized_query.query_mode in focused_answer_styles:
         return "focused_compare"
 
@@ -102,6 +126,22 @@ def broad_answer_style(normalized_query) -> str:
 
 def answer_presentation(normalized_query) -> str | None:
     style = broad_answer_style(normalized_query)
+    intent_plan = getattr(normalized_query, "intent_plan", None)
+
+    if style == "strict_inventory":
+        return "inventory_table"
+
+    if style == "teacher_table":
+        if intent_plan is not None and intent_plan.task == "word_family":
+            return "word_family_table"
+
+        if intent_plan is not None and intent_plan.task == "shape_neighbors":
+            return "shape_neighbor_table"
+
+        if intent_plan is not None and intent_plan.task == "semantic_filter":
+            return "semantic_filter_table"
+
+        return "teacher_table"
 
     if style == "collection_map":
         return "inventory_table"
@@ -131,6 +171,17 @@ def main_answer_limit(style: str, normalized_query=None) -> int:
     if style == "semantic_root_boundary":
         return 12
 
+    if style == "strict_inventory":
+        return 18
+
+    if style == "teacher_table":
+        intent_plan = getattr(normalized_query, "intent_plan", None)
+        if intent_plan is not None and intent_plan.task == "word_family":
+            return 8
+        if intent_plan is not None and intent_plan.task == "shape_neighbors":
+            return 6
+        return 6
+
     return 18
 
 
@@ -146,7 +197,7 @@ def candidate_budget(
     presentation: str | None = None,
     normalized_query=None,
 ) -> dict[str, str]:
-    if style == "collection_map":
+    if style in {"collection_map", "strict_inventory"}:
         if presentation == "inventory_table":
             return {
                 "groups": "0",
@@ -158,6 +209,27 @@ def candidate_budget(
             "groups": "3-5",
             "terms": "12-20",
             "rule": "Prioritize the most confusable core group, then list bounded same-form supplements.",
+        }
+
+    if style == "teacher_table":
+        if presentation == "word_family_table":
+            return {
+                "groups": "1",
+                "terms": "4-8",
+                "rule": "Use a compact teacher table for grounded family candidates without claiming etymology.",
+            }
+
+        if presentation == "semantic_filter_table":
+            return {
+                "groups": "1",
+                "terms": "2-6",
+                "rule": "Use only candidates that satisfy the hard form and meaning constraints.",
+            }
+
+        return {
+            "groups": "1",
+            "terms": "3-6",
+            "rule": "Use a compact teacher table with grounded candidates and one 注意 sentence.",
         }
 
     if style == "semantic_root_boundary":
@@ -235,6 +307,62 @@ def build_candidate_sections(
     answerable: list[LightGroundingCandidate],
     candidate_only: list[LightGroundingCandidate],
 ) -> list[dict[str, object]]:
+    if style == "teacher_table":
+        if presentation == "word_family_table":
+            sections = [
+                {
+                    "role": "core_family_terms",
+                    "lemmas": candidate_lemmas(answerable[:8]),
+                },
+            ]
+        elif presentation == "shape_neighbor_table":
+            exact = candidates_with_signal(answerable, "exact")
+            exact_lemmas = {candidate.lemma for candidate in exact}
+            shape_neighbors = [
+                candidate
+                for candidate in answerable
+                if candidate.lemma not in exact_lemmas
+            ]
+            sections = []
+            if exact:
+                sections.append(
+                    {
+                        "role": "exact_user_terms",
+                        "lemmas": candidate_lemmas(exact[:3]),
+                    },
+                )
+            if shape_neighbors:
+                sections.append(
+                    {
+                        "role": "core_shape_neighbors",
+                        "lemmas": candidate_lemmas(shape_neighbors[:6]),
+                    },
+                )
+        elif presentation == "semantic_filter_table":
+            sections = [
+                {
+                    "role": "semantic_matches",
+                    "lemmas": candidate_lemmas(answerable[:6]),
+                },
+            ]
+        else:
+            sections = [
+                {
+                    "role": "grounded_learning_associations",
+                    "lemmas": candidate_lemmas(answerable[:6]),
+                },
+            ]
+
+        if candidate_only:
+            sections.append(
+                {
+                    "role": "candidate_only_no_reviewed_meaning",
+                    "lemmas": candidate_lemmas(candidate_only[:8]),
+                },
+            )
+
+        return [section for section in sections if section["lemmas"]]
+
     if style == "semantic_root_boundary":
         direct_matches = [
             candidate
@@ -349,7 +477,7 @@ def build_answer_material(
     list[LightGroundingCandidate],
     list[LightGroundingCandidate],
 ]:
-    if style == "collection_map":
+    if style in {"collection_map", "strict_inventory"}:
         semantic_candidates = candidates_with_signal(candidates, "meaning_keyword")
         strong_candidates = semantic_candidates or [
             candidate
@@ -361,6 +489,26 @@ def build_answer_material(
             candidate.lemma
             for candidate in [*answerable, *candidate_only]
         }
+
+        return (
+            answerable,
+            candidate_only,
+            [
+                candidate
+                for candidate in candidates
+                if candidate.lemma not in material_lemmas
+            ],
+        )
+
+    if style == "teacher_table":
+        limited = candidates[:main_answer_limit(style, normalized_query)]
+        intent_plan = getattr(normalized_query, "intent_plan", None)
+
+        if intent_plan is not None and intent_plan.task == "semantic_filter":
+            limited = candidates_with_signal(limited, "meaning_keyword")
+
+        answerable, candidate_only = split_meaning_confidence(limited)
+        material_lemmas = {candidate.lemma for candidate in limited}
 
         return (
             answerable,
@@ -453,7 +601,7 @@ def build_broad_answer_plan(
         "Do not mention suppressedCandidateLemmas.",
     ]
 
-    if style == "collection_map" and presentation == "inventory_table":
+    if style in {"collection_map", "strict_inventory"} and presentation == "inventory_table":
         rules.extend(
             [
                 "For inventory_table, use a compact markdown table: 单词 | 词性 | 核心义.",
@@ -472,6 +620,16 @@ def build_broad_answer_plan(
                 "For the core group, include one short core difference sentence.",
                 "Use supplemental candidates only after the core group.",
                 "Do not invent broad semantic category titles for weakly related candidates.",
+            ],
+        )
+
+    if style == "teacher_table":
+        rules.extend(
+            [
+                "For teacher_table, use compact word + POS + short meaning lines.",
+                "Add at most one 注意 sentence after the list.",
+                "Do not claim same-root, derivation, or etymology unless grounding explicitly says so.",
+                "Do not invent terms outside broadAnswerPlan answer material.",
             ],
         )
 
@@ -569,6 +727,17 @@ def build_broad_vocab_answer(
         lines.extend(["", "注意：先按中文核心义区分这些词。"])
     elif answer_plan["style"] == "semantic_root_boundary":
         lines.extend(["", "注意：这里先按词形命中整理，不硬说成固定词根。"])
+    elif answer_plan["style"] == "teacher_table":
+        if answer_plan["presentation"] == "word_family_table":
+            note_terms = [
+                lemma
+                for lemma in answer_plan["answerableLemmas"]
+                if lemma not in set(getattr(normalized_query, "english_terms", []))
+            ][:3]
+            if note_terms:
+                lines.extend(["", f"注意：先区分 {' / '.join(note_terms)}。"])
+        else:
+            lines.extend(["", "注意：先按词形线索和中文核心义一起看。"])
 
     return "\n".join(lines)
 

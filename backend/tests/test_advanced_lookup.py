@@ -453,7 +453,7 @@ def test_broad_collection_source_lemmas_use_ecdict_basic_meanings(tmp_path):
     assert result.status_code == 200
     assert result.payload.providerRequestId is None
     assert provider.calls == []
-    assert plan["style"] == "collection_map"
+    assert plan["style"] == "strict_inventory"
     assert plan["answerableLemmas"] == ["command", "commend", "comment"]
     assert plan["candidateOnlyLemmas"] == []
     assert [item["meaningsZh"] for item in grounding["mainAnswer"]] == [

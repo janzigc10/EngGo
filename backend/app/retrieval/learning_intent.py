@@ -141,7 +141,16 @@ def build_learning_intent_plan(normalized_query) -> LearningIntentPlan:
             minimum_answerable_candidates=2,
         )
 
-    if any(constraint.type == "meaning" for constraint in constraints):
+    has_meaning_constraint = any(
+        constraint.type == "meaning"
+        for constraint in constraints
+    )
+    has_form_constraint = any(
+        constraint.type in {"prefix", "suffix", "contains"}
+        for constraint in constraints
+    )
+
+    if has_meaning_constraint and has_form_constraint:
         return LearningIntentPlan(
             task="semantic_filter",
             seed_terms=english_terms,
@@ -152,11 +161,15 @@ def build_learning_intent_plan(normalized_query) -> LearningIntentPlan:
             minimum_answerable_candidates=1,
         )
 
-    if constraints:
+    if has_form_constraint:
         return LearningIntentPlan(
             task="form_filter",
             seed_terms=english_terms,
-            constraints=constraints,
+            constraints=[
+                constraint
+                for constraint in constraints
+                if constraint.type in {"prefix", "suffix", "contains"}
+            ],
             output_style="strict_inventory",
             allow_expansion=False,
             require_hard_filter=True,
@@ -167,6 +180,11 @@ def build_learning_intent_plan(normalized_query) -> LearningIntentPlan:
         return LearningIntentPlan(
             task="meaning_core",
             seed_terms=english_terms,
+            constraints=[
+                constraint
+                for constraint in constraints
+                if constraint.type == "meaning"
+            ],
             output_style="meaning_boundary",
             require_hard_filter=False,
         )

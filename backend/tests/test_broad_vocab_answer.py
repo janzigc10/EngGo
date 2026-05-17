@@ -1,4 +1,6 @@
 from backend.app.answering.broad_vocab import (
+    build_broad_answer_plan,
+    build_broad_vocab_answer,
     build_broad_vocab_grounding,
     build_broad_vocab_system_prompt,
 )
@@ -34,6 +36,32 @@ def light_candidate(
     )
 
 
+def test_word_family_intent_uses_teacher_table_sections():
+    normalized = normalize_query("respect派生词")
+    candidates = [
+        light_candidate("respect", meanings=["尊重；方面"], part_of_speech="n. / v."),
+        light_candidate("respectful", meanings=["恭敬的；有礼貌的"], part_of_speech="adj."),
+        light_candidate("respectable", meanings=["体面的；值得尊敬的"], part_of_speech="adj."),
+        light_candidate("respective", meanings=["各自的；分别的"], part_of_speech="adj."),
+    ]
+
+    plan = build_broad_answer_plan(normalized_query=normalized, candidates=candidates)
+
+    assert plan["style"] == "teacher_table"
+    assert plan["presentation"] == "word_family_table"
+    assert plan["candidateSections"][0]["role"] == "core_family_terms"
+
+
+def test_strict_inventory_intent_does_not_add_teacher_notes():
+    normalized = normalize_query("re开头cile结尾的单词")
+    candidates = [light_candidate("reconcile", meanings=["使和解"], part_of_speech="vt.")]
+
+    answer = build_broad_vocab_answer(candidates, normalized)
+
+    assert "reconcile" in answer
+    assert "注意" not in answer
+
+
 def test_collection_queries_get_map_budget_instead_of_six_item_slice():
     query = "\u0063\u006f\u006d\u006d \u5f00\u5934\u7684\u5355\u8bcd\u603b\u7ed3"
     candidates = [
@@ -50,7 +78,7 @@ def test_collection_queries_get_map_budget_instead_of_six_item_slice():
 
     plan = grounding["broadAnswerPlan"]
 
-    assert plan["style"] == "collection_map"
+    assert plan["style"] == "strict_inventory"
     assert plan["presentation"] == "inventory_table"
     assert plan["candidateBudget"]["groups"] == "0"
     assert plan["candidateBudget"]["terms"] == "12-20"
@@ -165,9 +193,11 @@ def test_collection_plan_with_meaning_keyword_uses_semantic_matches_only():
 
     plan = grounding["broadAnswerPlan"]
 
-    assert plan["presentation"] == "inventory_table"
+    assert plan["style"] == "teacher_table"
+    assert plan["presentation"] == "semantic_filter_table"
     assert plan["answerableLemmas"] == ["cooperate", "cooperative"]
     assert plan["suppressedCandidateLemmas"] == ["coach"]
+    assert plan["candidateSections"][0]["role"] == "semantic_matches"
     assert grounding["selectedMainTerms"] == ["cooperate", "cooperative"]
 
 
