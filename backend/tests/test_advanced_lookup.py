@@ -871,6 +871,43 @@ def test_postgrad_word_family_intent_uses_ecdict_tagged_derivatives():
     assert "rescue" not in [item["lemma"] for item in grounding["lightCandidates"]]
 
 
+def test_word_family_intent_backfills_tagged_derivatives_from_other_exam_scopes():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("respect", ["n. respect"], tag="ky"),
+            ecdict_profile("respectful", ["adj. respectful"], tag="cet4 cet6"),
+            ecdict_profile("respectable", ["adj. respectable"], tag="cet6"),
+            ecdict_profile("respective", ["adj. respective"], tag="ky"),
+            ecdict_profile("rescue", ["v. rescue"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="respect\u6d3e\u751f\u8bcd",
+        request_id="req_respect_family_cross_tag",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert [item["lemma"] for item in grounding["mainAnswer"]][:4] == [
+        "respect",
+        "respectful",
+        "respectable",
+        "respective",
+    ]
+    assert "rescue" not in [item["lemma"] for item in grounding["lightCandidates"]]
+
+
 def test_root_fragment_prefix_keeps_all_current_scope_matches():
     early_candidates = [
         candidate(f"conword{index}", [f"meaning {index}"], part_of_speech="n.")

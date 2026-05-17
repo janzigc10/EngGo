@@ -822,6 +822,16 @@ class AdvancedLookupService:
             limit=max(limit * 4, 96),
             preferred_tags=preferred_tags,
         )
+        tagged_profiles = search(
+            lambda profile: bool(profile.tag.strip()) and matches_family_form(profile),
+            limit=max(limit * 4, 96),
+            preferred_tags=preferred_tags,
+        )
+        profiles_by_lemma = {
+            profile.canonical.lower(): profile
+            for profile in [*tagged_profiles, *profiles]
+        }
+        profiles = list(profiles_by_lemma.values())
         if not profiles:
             profiles = search(
                 matches_family_form,
