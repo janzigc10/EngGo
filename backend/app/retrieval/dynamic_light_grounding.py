@@ -5,6 +5,7 @@ from pathlib import Path
 
 from backend.app.content.ecdict import EcdictBasicProfile
 from backend.app.content.source_lemmas import load_source_lemma_memberships
+from backend.app.retrieval.learning_intent import LearningIntentPlan
 from backend.app.retrieval.types import ConfusionGroup, RetrievalCandidate
 from backend.app.retrieval.types import normalize_part_of_speech_label
 
@@ -250,6 +251,27 @@ def add_signal(
     )
 
 
+def add_signal_once(
+    signals: list[LightGroundingSignal],
+    *,
+    signal_type: str,
+    weight: int,
+    detail: str,
+) -> None:
+    if any(
+        signal.type == signal_type and signal.detail == detail
+        for signal in signals
+    ):
+        return
+
+    add_signal(
+        signals,
+        signal_type=signal_type,
+        weight=weight,
+        detail=detail,
+    )
+
+
 def first_meaning_segment(meaning: str) -> str:
     return re.split(r"[；;，,、]", meaning, maxsplit=1)[0]
 
@@ -259,6 +281,96 @@ def meaning_matches_keyword(meaning: str, keyword: str, *, primary_only: bool) -
         return keyword in meaning
 
     return keyword in first_meaning_segment(meaning)
+
+
+def matches_intent_constraints(
+    candidate: RetrievalCandidate,
+    plan: LearningIntentPlan | None,
+) -> bool:
+    if plan is None or not plan.require_hard_filter:
+        return True
+
+    lemma = candidate.lemma.lower()
+    for constraint in plan.constraints:
+        if not constraint.hard:
+            continue
+
+        if constraint.type == "prefix" and not lemma.startswith(constraint.value):
+            return False
+        if constraint.type == "suffix" and not lemma.endswith(constraint.value):
+            return False
+        if constraint.type == "contains" and constraint.value not in lemma:
+            return False
+        if constraint.type == "meaning" and not any(
+            meaning_matches_keyword(
+                meaning,
+                constraint.value,
+                primary_only=True,
+            )
+            for meaning in candidate.meanings_zh
+        ):
+            return False
+
+    return True
+
+
+def add_intent_constraint_signals(
+    *,
+    signals: list[LightGroundingSignal],
+    candidate: RetrievalCandidate,
+    plan: LearningIntentPlan | None,
+) -> int:
+    if plan is None:
+        return 0
+
+    lemma = candidate.lemma.lower()
+    score_delta = 0
+
+    for constraint in plan.constraints:
+        if not constraint.hard:
+            continue
+
+        if constraint.type == "prefix" and lemma.startswith(constraint.value):
+            add_signal_once(
+                signals,
+                signal_type="prefix",
+                weight=110,
+                detail=constraint.value,
+            )
+            score_delta += 110
+        elif constraint.type == "suffix" and lemma.endswith(constraint.value):
+            add_signal_once(
+                signals,
+                signal_type="suffix",
+                weight=110,
+                detail=constraint.value,
+            )
+            score_delta += 110
+        elif constraint.type == "contains" and constraint.value in lemma:
+            add_signal_once(
+                signals,
+                signal_type="fragment",
+                weight=90,
+                detail=constraint.value,
+            )
+            score_delta += 90
+        elif constraint.type == "meaning" and any(
+            meaning_matches_keyword(
+                meaning,
+                constraint.value,
+                primary_only=True,
+            )
+            for meaning in candidate.meanings_zh
+        ):
+            add_signal_once(
+                signals,
+                signal_type="meaning_keyword",
+                weight=105,
+                detail=constraint.value,
+            )
+            score_delta += 105
+
+    return score_delta
 
 
 def group_ids_by_entry_id(groups: list[ConfusionGroup]) -> dict[str, list[str]]:
@@ -282,6 +394,7 @@ def score_candidate(
     token_order: dict[str, int],
     active_exam_target: str,
     structured_group_ids: list[str],
+    intent_plan: LearningIntentPlan | None = None,
 ) -> LightGroundingCandidate | None:
     if not active_scope_match(candidate, active_exam_target):
         return None
@@ -393,6 +506,12 @@ def score_candidate(
                 score += weight
                 break
 
+    score += add_intent_constraint_signals(
+        signals=signals,
+        candidate=candidate,
+        plan=intent_plan,
+    )
+
     if not signals:
         return None
 
@@ -498,6 +617,7 @@ def build_light_grounding_candidates(
     vocabulary: list[RetrievalCandidate],
     groups: list[ConfusionGroup] | None = None,
     limit: int = 18,
+    intent_plan: LearningIntentPlan | None = None,
 ) -> list[LightGroundingCandidate]:
     tokens = extract_english_tokens(query)
     token_order = {token: index for index, token in enumerate(tokens)}
@@ -506,6 +626,9 @@ def build_light_grounding_candidates(
     scored: list[LightGroundingCandidate] = []
 
     for vocabulary_candidate in vocabulary:
+        if not matches_intent_constraints(vocabulary_candidate, intent_plan):
+            continue
+
         candidate = score_candidate(
             candidate=vocabulary_candidate,
             query=query,
@@ -513,6 +636,7 @@ def build_light_grounding_candidates(
             token_order=token_order,
             active_exam_target=active_exam_target,
             structured_group_ids=group_ids.get(vocabulary_candidate.entry_id, []),
+            intent_plan=intent_plan,
         )
 
         if candidate is not None:

@@ -5,6 +5,7 @@ from backend.app.retrieval.dynamic_light_grounding import (
     merge_dynamic_vocabulary,
     source_lemma_vocabulary,
 )
+from backend.app.retrieval.normalize_query import normalize_query
 from backend.app.retrieval.types import (
     ConfusionGroup,
     ConfusionGroupMember,
@@ -147,6 +148,49 @@ def test_prefix_query_with_cooperation_meaning_adds_semantic_signal():
     assert all("meaning_keyword" in signal_types(item) for item in result[:2])
     corporation = next(item for item in result if item.lemma == "corporation")
     assert "meaning_keyword" not in signal_types(corporation)
+
+
+def test_intent_plan_hard_filters_prefix_suffix_candidates():
+    vocabulary = [
+        candidate("reconcile", ["使和解"], part_of_speech="vt."),
+        candidate("recite", ["背诵"], part_of_speech="v."),
+        candidate("reptile", ["爬行动物"], part_of_speech="n."),
+        candidate("facile", ["容易的"], part_of_speech="adj."),
+    ]
+    plan = normalize_query("re开头cile结尾的单词").intent_plan
+
+    result = build_light_grounding_candidates(
+        query="re开头cile结尾的单词",
+        active_exam_target="cet6",
+        vocabulary=vocabulary,
+        groups=[],
+        intent_plan=plan,
+    )
+
+    assert [item.lemma for item in result] == ["reconcile"]
+    assert {"prefix", "suffix"} <= signal_types(result[0])
+
+
+def test_intent_plan_hard_filters_prefix_meaning_candidates():
+    vocabulary = [
+        candidate("coach", ["教练；训练"], part_of_speech="n. / v."),
+        candidate("coal", ["煤"], part_of_speech="n."),
+        candidate("cooperate", ["合作；协力；配合"]),
+        candidate("cooperative", ["合作的；合作社的"], part_of_speech="adj."),
+        candidate("corporation", ["公司；合作；法人团体"], part_of_speech="n."),
+    ]
+    plan = normalize_query("co开头的意思是合作的单词").intent_plan
+
+    result = build_light_grounding_candidates(
+        query="co开头的意思是合作的单词",
+        active_exam_target="cet6",
+        vocabulary=vocabulary,
+        groups=[],
+        intent_plan=plan,
+    )
+
+    assert [item.lemma for item in result] == ["cooperate", "cooperative"]
+    assert all("meaning_keyword" in signal_types(item) for item in result)
 
 
 def test_meaning_query_prioritizes_core_semantic_matches():
