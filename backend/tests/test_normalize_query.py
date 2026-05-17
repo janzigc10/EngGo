@@ -80,6 +80,14 @@ def test_shape_neighbor_find_similar_confusing_word_query_is_detected():
     assert result.is_supported_ordinary_lookup is False
 
 
+def test_shape_neighbor_looks_like_query_is_detected():
+    result = normalize_query("给我几个跟evacuate长得像的单词")
+
+    assert result.query_mode == "shape_neighbor_search"
+    assert result.english_terms == ["evacuate"]
+    assert result.is_supported_ordinary_lookup is False
+
+
 def test_known_root_family_memory_query_is_detected_before_fuzzy_recall():
     result = normalize_query("跟 institute 一样那几个词怎么记")
 

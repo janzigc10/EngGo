@@ -216,6 +216,34 @@ def dice_coefficient(left: str, right: str) -> float:
     return (2 * matches) / (len(left_bigrams) + len(right_bigrams))
 
 
+def bounded_edit_distance(source: str, target: str, max_distance: int) -> int:
+    if abs(len(source) - len(target)) > max_distance:
+        return max_distance + 1
+
+    previous_row = list(range(len(target) + 1))
+
+    for left_index in range(1, len(source) + 1):
+        current_row = [left_index]
+        row_minimum = current_row[0]
+
+        for right_index in range(1, len(target) + 1):
+            substitution_cost = 0 if source[left_index - 1] == target[right_index - 1] else 1
+            value = min(
+                previous_row[right_index] + 1,
+                current_row[right_index - 1] + 1,
+                previous_row[right_index - 1] + substitution_cost,
+            )
+            current_row.append(value)
+            row_minimum = min(row_minimum, value)
+
+        if row_minimum > max_distance:
+            return max_distance + 1
+
+        previous_row = current_row
+
+    return previous_row[len(target)]
+
+
 def score_lookalike_group(
     *,
     seed_entry_id: str,
@@ -609,6 +637,58 @@ class AdvancedLookupService:
 
         return candidates
 
+    def ecdict_shape_neighbor_vocabulary(
+        self,
+        *,
+        active_exam_target: str,
+        seed: str,
+        limit: int = 36,
+    ) -> list[RetrievalCandidate]:
+        if not self.ecdict_lookup or not hasattr(self.ecdict_lookup, "search"):
+            return []
+
+        normalized_seed = seed.strip().lower()
+        if not normalized_seed:
+            return []
+
+        def has_shape_signal(profile: EcdictBasicProfile) -> bool:
+            lemma = profile.canonical.lower()
+            return (
+                lemma == normalized_seed
+                or dice_coefficient(normalized_seed, lemma) >= 0.45
+                or bounded_edit_distance(normalized_seed, lemma, 3) <= 3
+            )
+
+        def matches_profile(profile: EcdictBasicProfile) -> bool:
+            lemma = profile.canonical.lower()
+            return (
+                profile.entry_kind == "word"
+                and re.fullmatch(r"[a-z][a-z-]*", lemma) is not None
+                and bool(
+                    scope_codes_for_profile(
+                        profile,
+                        active_exam_target=active_exam_target,
+                    ),
+                )
+                and has_shape_signal(profile)
+            )
+
+        profiles = self.ecdict_lookup.search(
+            matches_profile,
+            limit=limit,
+            preferred_tags=preferred_ecdict_tags_by_exam_target.get(active_exam_target, ()),
+        )
+        candidates: list[RetrievalCandidate] = []
+        for profile in profiles:
+            candidate = external_dictionary_candidate(
+                profile,
+                active_exam_target=active_exam_target,
+            )
+            if candidate:
+                candidates.append(candidate)
+
+        return candidates
+
     def answer_broad_vocab_if_possible(
         self,
         *,
@@ -638,6 +718,17 @@ class AdvancedLookupService:
                 return None
 
         vocabulary = self.dynamic_vocabulary(active_exam_target)
+        if (
+            normalized_query.query_mode == "shape_neighbor_search"
+            and len(normalized_query.english_terms) == 1
+        ):
+            vocabulary = merge_dynamic_vocabulary(
+                vocabulary,
+                self.ecdict_shape_neighbor_vocabulary(
+                    active_exam_target=active_exam_target,
+                    seed=normalized_query.english_terms[0],
+                ),
+            )
         if normalized_query.query_mode == "root_family_summary":
             fragment = root_fragment_query(normalized_query.normalized_text)
             if fragment:

@@ -129,7 +129,7 @@ def contains_shape_neighbor_cue(normalized_text: str) -> bool:
 
     return (
         shape_neighbor_list_pattern.search(normalized_text) is not None
-        or re.search(r"(看错|看成|形近|易混|很像|比较像|类似)", normalized_text, re.IGNORECASE) is not None
+        or re.search(r"(看错|看成|形近|易混|很像|比较像|相像|类似|长得像)", normalized_text, re.IGNORECASE) is not None
     )
 
 

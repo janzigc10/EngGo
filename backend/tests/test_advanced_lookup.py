@@ -348,6 +348,45 @@ def test_shape_neighbor_can_return_broad_vocab_summary_from_dynamic_pool():
     assert "**" not in result.payload.answer
 
 
+def test_shape_neighbor_can_use_ecdict_tagged_candidates_when_structured_seed_is_missing():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("evaluate", ["vt. 评估；评价；赋值"], tag="ky"),
+            ecdict_profile("evacuate", ["v. 疏散；撤出；排泄"], tag="ky"),
+            ecdict_profile("graduate", ["v. 毕业"], tag="cet4"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="给我几个跟evaluate易混的单词",
+        request_id="req_evaluate_shape_ecdict",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["queryMode"] == "shape_neighbor_search"
+    assert grounding["broadQueryMode"] == "broad_vocab"
+    assert grounding["supportLabel"] == "基于 ECDICT 考研标签候选总结"
+    assert [
+        item["lemma"]
+        for item in grounding["mainAnswer"][:2]
+    ] == ["evaluate", "evacuate"]
+    assert [
+        item["scopeCodes"]
+        for item in grounding["mainAnswer"][:2]
+    ] == [["postgrad"], ["postgrad"]]
+
+
 def test_broad_collection_source_lemmas_use_ecdict_basic_meanings(tmp_path):
     write_source_lemma_fixture(tmp_path, ["command", "commend", "comment"])
     provider = FakeProvider()
