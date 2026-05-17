@@ -739,6 +739,107 @@ class AdvancedLookupService:
 
         return candidates
 
+    def ecdict_word_family_vocabulary(
+        self,
+        *,
+        active_exam_target: str,
+        seed: str,
+        limit: int = 24,
+    ) -> list[RetrievalCandidate]:
+        if not self.ecdict_lookup or not hasattr(self.ecdict_lookup, "search"):
+            return []
+
+        normalized_seed = seed.strip().lower()
+        if not normalized_seed:
+            return []
+
+        derivative_suffixes = (
+            "ful",
+            "able",
+            "ible",
+            "ive",
+            "ively",
+            "less",
+            "ion",
+            "ation",
+            "ity",
+            "ability",
+            "ment",
+            "ness",
+        )
+        derivative_prefixes = ("self-", "ir", "in", "im", "un")
+
+        def matches_family_form(profile: EcdictBasicProfile) -> bool:
+            lemma = profile.canonical.lower()
+            if profile.entry_kind != "word":
+                return False
+            if re.fullmatch(r"[a-z][a-z-]*", lemma) is None:
+                return False
+            if lemma == normalized_seed:
+                return True
+            if any(lemma == f"{normalized_seed}{suffix}" for suffix in derivative_suffixes):
+                return True
+            return any(
+                lemma == f"{prefix}{normalized_seed}"
+                or (lemma.startswith(prefix) and normalized_seed in lemma)
+                for prefix in derivative_prefixes
+            )
+
+        def tagged_for_active_exam(profile: EcdictBasicProfile) -> bool:
+            return bool(
+                scope_codes_for_profile(
+                    profile,
+                    active_exam_target=active_exam_target,
+                ),
+            )
+
+        def family_sort_key(profile: EcdictBasicProfile):
+            lemma = profile.canonical.lower()
+            if lemma == normalized_seed:
+                group = 0
+            elif lemma == f"{normalized_seed}ful":
+                group = 1
+            elif lemma == f"{normalized_seed}able":
+                group = 2
+            elif lemma == f"{normalized_seed}ible":
+                group = 3
+            elif lemma == f"{normalized_seed}ive":
+                group = 4
+            elif lemma == f"{normalized_seed}ively":
+                group = 5
+            elif lemma.startswith("self-"):
+                group = 8
+            else:
+                group = 7
+
+            return (group, len(lemma), lemma)
+
+        search = self.ecdict_lookup.search
+        preferred_tags = preferred_ecdict_tags_by_exam_target.get(active_exam_target, ())
+        profiles = search(
+            lambda profile: tagged_for_active_exam(profile)
+            and matches_family_form(profile),
+            limit=max(limit * 4, 96),
+            preferred_tags=preferred_tags,
+        )
+        if not profiles:
+            profiles = search(
+                matches_family_form,
+                limit=max(limit * 4, 96),
+                preferred_tags=preferred_tags,
+            )
+
+        candidates: list[RetrievalCandidate] = []
+        for profile in sorted(profiles, key=family_sort_key)[:limit]:
+            candidate = external_dictionary_candidate(
+                profile,
+                active_exam_target=active_exam_target,
+            )
+            if candidate:
+                candidates.append(candidate)
+
+        return candidates
+
     def answer_broad_vocab_if_possible(
         self,
         *,
@@ -768,6 +869,18 @@ class AdvancedLookupService:
                 return None
 
         vocabulary = self.dynamic_vocabulary(active_exam_target)
+        if (
+            normalized_query.intent_plan is not None
+            and normalized_query.intent_plan.task == "word_family"
+            and len(normalized_query.intent_plan.seed_terms) == 1
+        ):
+            vocabulary = merge_dynamic_vocabulary(
+                vocabulary,
+                self.ecdict_word_family_vocabulary(
+                    active_exam_target=active_exam_target,
+                    seed=normalized_query.intent_plan.seed_terms[0],
+                ),
+            )
         if (
             normalized_query.query_mode == "shape_neighbor_search"
             and len(normalized_query.english_terms) == 1

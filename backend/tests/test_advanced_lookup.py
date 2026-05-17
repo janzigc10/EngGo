@@ -829,6 +829,48 @@ def test_postgrad_prefix_suffix_query_filters_ecdict_candidates():
     assert {"prefix", "suffix"} <= light_signals
 
 
+def test_postgrad_word_family_intent_uses_ecdict_tagged_derivatives():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("respect", ["n. 尊重；方面", "v. 尊重"], tag="ky"),
+            ecdict_profile("respectful", ["adj. 恭敬的；有礼貌的"], tag="ky"),
+            ecdict_profile("respectable", ["adj. 体面的；值得尊敬的"], tag="ky"),
+            ecdict_profile("respective", ["adj. 各自的；分别的"], tag="ky"),
+            ecdict_profile("respectively", ["adv. 分别地；各自地"], tag="ky"),
+            ecdict_profile("irrespective", ["adj. 不考虑的；无关的"], tag="ky"),
+            ecdict_profile("self-respect", ["n. 自尊"], tag="ky"),
+            ecdict_profile("rescue", ["v. 营救"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="respect派生词",
+        request_id="req_respect_family",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["learningIntentPlan"]["task"] == "word_family"
+    assert grounding["broadAnswerPlan"]["presentation"] == "word_family_table"
+    assert [item["lemma"] for item in grounding["mainAnswer"]][:4] == [
+        "respect",
+        "respectful",
+        "respectable",
+        "respective",
+    ]
+    assert "rescue" not in [item["lemma"] for item in grounding["lightCandidates"]]
+
+
 def test_root_fragment_prefix_keeps_all_current_scope_matches():
     early_candidates = [
         candidate(f"conword{index}", [f"meaning {index}"], part_of_speech="n.")

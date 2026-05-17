@@ -110,6 +110,28 @@ semantic_hint_groups = [
     },
 ]
 
+word_family_suffix_weights = {
+    "ful": 140,
+    "able": 200,
+    "ible": 198,
+    "ive": 134,
+    "ively": 132,
+    "less": 130,
+    "ion": 128,
+    "ation": 126,
+    "ity": 124,
+    "ability": 122,
+    "ment": 120,
+    "ness": 118,
+}
+word_family_prefix_weights = {
+    "self-": 116,
+    "ir": 114,
+    "in": 112,
+    "im": 112,
+    "un": 110,
+}
+
 
 def extract_english_tokens(query: str) -> list[str]:
     seen: set[str] = set()
@@ -369,6 +391,36 @@ def add_intent_constraint_signals(
                 detail=constraint.value,
             )
             score_delta += 105
+
+    if plan.task == "word_family" and len(plan.seed_terms) == 1:
+        seed = plan.seed_terms[0].lower()
+        lemma = candidate.lemma.lower()
+        weight = 0
+
+        if lemma == seed:
+            weight = 180
+        else:
+            for suffix, suffix_weight in word_family_suffix_weights.items():
+                if lemma == f"{seed}{suffix}":
+                    weight = suffix_weight
+                    break
+            if not weight:
+                for prefix, prefix_weight in word_family_prefix_weights.items():
+                    if lemma == f"{prefix}{seed}" or (
+                        lemma.startswith(prefix)
+                        and seed in lemma
+                    ):
+                        weight = prefix_weight
+                        break
+
+        if weight:
+            add_signal_once(
+                signals,
+                signal_type="word_family_candidate",
+                weight=weight,
+                detail=seed,
+            )
+            score_delta += weight
 
     return score_delta
 
