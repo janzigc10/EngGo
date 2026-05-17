@@ -244,6 +244,14 @@ def bounded_edit_distance(source: str, target: str, max_distance: int) -> int:
     return previous_row[len(target)]
 
 
+def shape_neighbor_edit_distance_limit(seed: str) -> int:
+    if len(seed) <= 3:
+        return 1
+    if len(seed) <= 5:
+        return 2
+    return 3
+
+
 def score_lookalike_group(
     *,
     seed_entry_id: str,
@@ -651,12 +659,15 @@ class AdvancedLookupService:
         if not normalized_seed:
             return []
 
+        edit_distance_limit = shape_neighbor_edit_distance_limit(normalized_seed)
+
         def has_shape_signal(profile: EcdictBasicProfile) -> bool:
             lemma = profile.canonical.lower()
+            distance = bounded_edit_distance(normalized_seed, lemma, edit_distance_limit)
             return (
                 lemma == normalized_seed
                 or dice_coefficient(normalized_seed, lemma) >= 0.45
-                or bounded_edit_distance(normalized_seed, lemma, 3) <= 3
+                or distance <= edit_distance_limit
             )
 
         def matches_profile(profile: EcdictBasicProfile) -> bool:
@@ -673,11 +684,25 @@ class AdvancedLookupService:
                 and has_shape_signal(profile)
             )
 
+        def shape_profile_sort_key(profile: EcdictBasicProfile):
+            lemma = profile.canonical.lower()
+            distance = bounded_edit_distance(normalized_seed, lemma, edit_distance_limit)
+            return (
+                0 if lemma == normalized_seed else 1,
+                distance,
+                abs(len(normalized_seed) - len(lemma)),
+                0 if lemma[:1] == normalized_seed[:1] else 1,
+                0 if lemma[-1:] == normalized_seed[-1:] else 1,
+                -dice_coefficient(normalized_seed, lemma),
+                lemma,
+            )
+
         profiles = self.ecdict_lookup.search(
             matches_profile,
-            limit=limit,
+            limit=max(limit * 4, 144),
             preferred_tags=preferred_ecdict_tags_by_exam_target.get(active_exam_target, ()),
         )
+        profiles = sorted(profiles, key=shape_profile_sort_key)[:limit]
         candidates: list[RetrievalCandidate] = []
         for profile in profiles:
             candidate = external_dictionary_candidate(

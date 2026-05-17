@@ -267,6 +267,7 @@ def score_candidate(
     lemma = candidate.lemma.lower()
     score = 24
     signals: list[LightGroundingSignal] = []
+    shape_query = shape_hint_pattern.search(query) is not None
 
     for token in tokens:
         if lemma == token:
@@ -274,20 +275,28 @@ def score_candidate(
             score += 500 - token_order[token]
 
         prefix_length = common_prefix_length(lemma, token)
-        if prefix_length >= 3 and token != lemma:
+        minimum_form_overlap = 2 if shape_query and min(len(token), len(lemma)) <= 3 else 3
+        if prefix_length >= minimum_form_overlap and token != lemma:
             weight = 28 + prefix_length * 2
             add_signal(signals, signal_type="common_prefix", weight=weight, detail=token)
             score += weight
 
         suffix_length = common_suffix_length(lemma, token)
-        if suffix_length >= 3 and token != lemma:
+        if suffix_length >= minimum_form_overlap and token != lemma:
             weight = 22 + suffix_length * 2
             add_signal(signals, signal_type="common_suffix", weight=weight, detail=token)
             score += weight
 
         if len(token) >= 4 and len(lemma) >= 4:
-            distance = bounded_edit_distance(token, lemma, 3)
-            if 0 < distance <= 3:
+            distance_limit = 3
+        elif shape_query and min(len(token), len(lemma)) >= 2:
+            distance_limit = 1
+        else:
+            distance_limit = 0
+
+        if distance_limit:
+            distance = bounded_edit_distance(token, lemma, distance_limit)
+            if 0 < distance <= distance_limit:
                 weight = max(1, 62 - distance * 14)
                 if token[0] == lemma[0]:
                     weight += 40

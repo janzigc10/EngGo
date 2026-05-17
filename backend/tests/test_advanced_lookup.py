@@ -387,6 +387,44 @@ def test_shape_neighbor_can_use_ecdict_tagged_candidates_when_structured_seed_is
     ] == [["postgrad"], ["postgrad"]]
 
 
+def test_shape_neighbor_short_ecdict_seed_can_reach_near_terms_after_broad_noise():
+    noisy_short_profiles = [
+        ecdict_profile(f"a{middle}{last}", [f"n. noise {middle}{last}"], tag="ky")
+        for middle in "abcdef"
+        for last in "abcdefg"
+    ]
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            *noisy_short_profiles,
+            ecdict_profile("sow", ["vt. 播种；散布"], tag="ky"),
+            ecdict_profile("row", ["n. 一排；划船", "v. 划船"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="跟sow易混的单词",
+        request_id="req_sow_row_shape_ecdict",
+    )
+
+    grounding = result.payload.grounding
+    answer_lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["queryMode"] == "shape_neighbor_search"
+    assert grounding["supportLabel"] == "基于 ECDICT 考研标签候选总结"
+    assert answer_lemmas[:2] == ["sow", "row"]
+    assert "aaa" not in answer_lemmas
+
+
 def test_broad_collection_source_lemmas_use_ecdict_basic_meanings(tmp_path):
     write_source_lemma_fixture(tmp_path, ["command", "commend", "comment"])
     provider = FakeProvider()
