@@ -645,11 +645,21 @@ Record before/after examples for `sign` and `produce`.
 ### Task 6: Add Product Smoke For Student Intent
 
 **Files:**
+- Modify: `backend/app/answering/advanced_lookup.py`
+- Modify: `backend/app/answering/broad_vocab.py`
+- Modify: `backend/app/content/ecdict.py`
+- Modify: `backend/app/retrieval/dynamic_light_grounding.py`
+- Modify: `backend/app/retrieval/learning_intent.py`
+- Modify: `backend/app/retrieval/types.py`
+- Modify: `backend/tests/test_advanced_lookup.py`
+- Modify: `backend/tests/test_dynamic_light_grounding.py`
+- Modify: `backend/tests/test_learning_intent.py`
 - Modify: `scripts/lib/fastapi-migrated-slice-smoke.ts`
 - Modify: `scripts/lib/fastapi-migrated-slice-smoke.test.ts`
-- Modify: `package.json` only if creating a separate script is cleaner.
+- Modify: `scripts/run-fastapi-migrated-slice-smoke.ts`
+- Modify: `progress.md`
 
-- [ ] **Step 1: Add a student-intent section to the smoke matrix**
+- [x] **Step 1: Add a student-intent section to the smoke matrix**
 
 Add cases:
 
@@ -675,11 +685,11 @@ Expected assertions:
   - `sigh/sight/scan/sick` for `sign的派生词有哪些`
   - `provide/propose/project/promote` for `produce的同根词或派生词`
 
-- [ ] **Step 2: Add unit tests for the smoke definitions**
+- [x] **Step 2: Add unit tests for the smoke definitions**
 
 Update `scripts/lib/fastapi-migrated-slice-smoke.test.ts` so the new expected fields are covered.
 
-- [ ] **Step 3: Run smoke definition tests**
+- [x] **Step 3: Run smoke definition tests**
 
 Run:
 
@@ -689,7 +699,7 @@ corepack pnpm test scripts/lib/fastapi-migrated-slice-smoke.test.ts
 
 Expected: pass.
 
-- [ ] **Step 4: Run focused backend suite**
+- [x] **Step 4: Run focused backend suite**
 
 Run:
 
@@ -699,7 +709,7 @@ C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_ecdict.py bac
 
 Expected: pass.
 
-- [ ] **Step 5: Run live proxy smoke**
+- [x] **Step 5: Run live proxy smoke**
 
 Make sure FastAPI and Next proxy are running. If the current dev stack is stale, restart with the approved local workflow from `bugs.md` / `progress.md`.
 
@@ -711,14 +721,14 @@ corepack pnpm eval:fastapi:migrated-smoke:proxy
 
 Expected: all student-intent cases pass through `http://127.0.0.1:3000/api/chat`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
-git add scripts/lib/fastapi-migrated-slice-smoke.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts package.json
+git add backend/app/answering/advanced_lookup.py backend/app/answering/broad_vocab.py backend/app/content/ecdict.py backend/app/retrieval/dynamic_light_grounding.py backend/app/retrieval/learning_intent.py backend/app/retrieval/types.py backend/tests/test_advanced_lookup.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_learning_intent.py scripts/lib/fastapi-migrated-slice-smoke.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts scripts/run-fastapi-migrated-slice-smoke.ts docs/superpowers/plans/2026-05-17-student-intent-normalization.md progress.md
 git commit -m "Add student intent smoke coverage"
 ```
 
-- [ ] **Step 7: Update this plan checkbox and `progress.md`**
+- [x] **Step 7: Update this plan checkbox and `progress.md`**
 
 Record direct test results and live proxy smoke result.
 

@@ -24,6 +24,10 @@ class LightGroundingSignal:
         }
 
 
+def is_public_signal(signal: LightGroundingSignal) -> bool:
+    return not signal.type.startswith("_")
+
+
 @dataclass(frozen=True)
 class LightGroundingCandidate:
     entry_id: str
@@ -47,7 +51,11 @@ class LightGroundingCandidate:
             "inScope": self.in_scope,
             "reason": self.reason,
             "score": self.score,
-            "signals": [signal.to_json() for signal in self.signals],
+            "signals": [
+                signal.to_json()
+                for signal in self.signals
+                if is_public_signal(signal)
+            ],
             "structuredGroupIds": self.structured_group_ids,
         }
 
@@ -353,7 +361,7 @@ def matches_intent_constraints(
             return False
         if (
             constraint.type == "meaning"
-            and matched_meaning_constraint_keyword(candidate, constraint) is None
+            and matched_constraint_keyword(candidate, constraint) is None
         ):
             return False
 
@@ -375,6 +383,29 @@ def matched_meaning_constraint_keyword(
             )
             for meaning in candidate.meanings_zh
         ):
+            return keyword
+
+    return None
+
+
+def matched_constraint_keyword(
+    candidate: RetrievalCandidate,
+    constraint: IntentConstraint,
+) -> str | None:
+    matched_keyword = matched_meaning_constraint_keyword(candidate, constraint)
+    if matched_keyword is not None:
+        return matched_keyword
+
+    return matched_semantic_hint_constraint_keyword(candidate, constraint)
+
+
+def matched_semantic_hint_constraint_keyword(
+    candidate: RetrievalCandidate,
+    constraint: IntentConstraint,
+) -> str | None:
+    keywords = constraint.alternatives or (constraint.value,)
+    for keyword in keywords:
+        if keyword in candidate.semantic_match_hints:
             return keyword
 
     return None
@@ -420,16 +451,29 @@ def add_intent_constraint_signals(
                 detail=constraint.value,
             )
             score_delta += 90
-        elif constraint.type == "meaning" and (
-            matched_keyword := matched_meaning_constraint_keyword(candidate, constraint)
-        ):
-            add_signal_once(
-                signals,
-                signal_type="meaning_keyword",
-                weight=105,
-                detail=matched_keyword,
-            )
-            score_delta += 105
+        elif constraint.type == "meaning":
+            if matched_keyword := matched_meaning_constraint_keyword(
+                candidate,
+                constraint,
+            ):
+                add_signal_once(
+                    signals,
+                    signal_type="meaning_keyword",
+                    weight=105,
+                    detail=matched_keyword,
+                )
+                score_delta += 105
+            elif matched_keyword := matched_semantic_hint_constraint_keyword(
+                candidate,
+                constraint,
+            ):
+                add_signal_once(
+                    signals,
+                    signal_type="_semantic_match_hint",
+                    weight=105,
+                    detail=matched_keyword,
+                )
+                score_delta += 105
 
     if plan.task == "word_family" and len(plan.seed_terms) == 1:
         seed = plan.seed_terms[0].lower()
@@ -608,9 +652,14 @@ def score_candidate(
     if candidate.source_kind == "structured":
         score += 10
 
+    public_signals = [
+        signal
+        for signal in signals
+        if is_public_signal(signal)
+    ]
     reason = "；".join(
         f"{signal.type}:{signal.detail}"
-        for signal in signals[:5]
+        for signal in public_signals[:5]
     )
 
     return LightGroundingCandidate(

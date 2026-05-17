@@ -1,5 +1,5 @@
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from backend.app.answering.broad_vocab import (
@@ -28,6 +28,7 @@ from backend.app.retrieval.dynamic_light_grounding import (
     build_light_grounding_candidates,
     clean_ecdict_broad_meanings,
     infer_ecdict_part_of_speech,
+    matched_meaning_constraint_keyword,
     merge_dynamic_vocabulary,
     source_lemma_vocabulary,
     word_family_evidence as score_word_family_evidence,
@@ -497,6 +498,92 @@ def ecdict_fragment_search_limit(fragment, limit: int) -> int:
     return max(limit * 4, 144)
 
 
+ecdict_definition_semantic_keywords = {
+    "限制": ("restrict", "restrain", "prevent from leaving", "deprive of freedom"),
+    "约束": ("restrict", "restrain", "prevent from leaving", "deprive of freedom"),
+    "制约": ("restrict", "restrain", "prevent from leaving", "deprive of freedom"),
+}
+
+
+def english_definition_contains(definition: str, keyword: str) -> bool:
+    if " " in keyword:
+        return keyword in definition
+
+    return re.search(rf"\b{re.escape(keyword)}\b", definition) is not None
+
+
+def ecdict_definition_matching_keyword(
+    profile: EcdictBasicProfile,
+    constraint,
+) -> str | None:
+    definition = profile.definition.lower()
+    if not definition:
+        return None
+
+    keywords = constraint.alternatives or (constraint.value,)
+    for keyword in keywords:
+        english_keywords = ecdict_definition_semantic_keywords.get(keyword, ())
+        if any(
+            english_definition_contains(definition, english_keyword)
+            for english_keyword in english_keywords
+        ):
+            return keyword
+
+    return None
+
+
+def ecdict_definition_match_hints(
+    *,
+    profile: EcdictBasicProfile,
+    candidate: RetrievalCandidate,
+    intent_plan,
+) -> list[str]:
+    if intent_plan is None:
+        return []
+
+    bridge_meanings: list[str] = []
+    for constraint in intent_plan.constraints:
+        if constraint.type != "meaning" or not constraint.hard:
+            continue
+        if matched_meaning_constraint_keyword(candidate, constraint) is not None:
+            continue
+        matched_keyword = ecdict_definition_matching_keyword(profile, constraint)
+        if matched_keyword is not None:
+            bridge_meanings.append(matched_keyword)
+
+    return bridge_meanings
+
+
+def matches_ecdict_intent_constraints(
+    *,
+    profile: EcdictBasicProfile,
+    candidate: RetrievalCandidate,
+    intent_plan,
+) -> bool:
+    if intent_plan is None or not intent_plan.require_hard_filter:
+        return True
+
+    lemma = candidate.lemma.lower()
+    for constraint in intent_plan.constraints:
+        if not constraint.hard:
+            continue
+
+        if constraint.type == "prefix" and not lemma.startswith(constraint.value):
+            return False
+        if constraint.type == "suffix" and not lemma.endswith(constraint.value):
+            return False
+        if constraint.type == "contains" and constraint.value not in lemma:
+            return False
+        if (
+            constraint.type == "meaning"
+            and matched_meaning_constraint_keyword(candidate, constraint) is None
+            and ecdict_definition_matching_keyword(profile, constraint) is None
+        ):
+            return False
+
+    return True
+
+
 def build_root_family_view(
     *,
     root_id: str,
@@ -740,6 +827,88 @@ class AdvancedLookupService:
 
         return candidates
 
+    def ecdict_semantic_filter_vocabulary(
+        self,
+        *,
+        active_exam_target: str,
+        intent_plan,
+        limit: int = 36,
+    ) -> list[RetrievalCandidate]:
+        if not self.ecdict_lookup or not hasattr(self.ecdict_lookup, "search"):
+            return []
+
+        def profile_candidate(profile: EcdictBasicProfile) -> RetrievalCandidate | None:
+            lemma = profile.canonical.lower()
+            if profile.entry_kind != "word":
+                return None
+            if re.fullmatch(r"[a-z][a-z-]*", lemma) is None:
+                return None
+            candidate = external_dictionary_candidate(
+                profile,
+                active_exam_target=active_exam_target,
+            )
+            if candidate is None:
+                return None
+
+            semantic_match_hints = ecdict_definition_match_hints(
+                profile=profile,
+                candidate=candidate,
+                intent_plan=intent_plan,
+            )
+            if semantic_match_hints:
+                return replace(
+                    candidate,
+                    semantic_match_hints=[
+                        *candidate.semantic_match_hints,
+                        *semantic_match_hints,
+                    ],
+                )
+
+            return candidate
+
+        def matches_profile(profile: EcdictBasicProfile) -> bool:
+            candidate = profile_candidate(profile)
+            return candidate is not None and matches_ecdict_intent_constraints(
+                profile=profile,
+                candidate=candidate,
+                intent_plan=intent_plan,
+            )
+
+        search = self.ecdict_lookup.search
+        preferred_tags = preferred_ecdict_tags_by_exam_target.get(active_exam_target, ())
+        search_limit = max(limit * 4, 144)
+        profiles = search(
+            lambda profile: bool(
+                scope_codes_for_profile(
+                    profile,
+                    active_exam_target=active_exam_target,
+                ),
+            )
+            and matches_profile(profile),
+            limit=search_limit,
+            preferred_tags=preferred_tags,
+        )
+        if len(profiles) < intent_plan.minimum_answerable_candidates:
+            profiles = search(
+                lambda profile: bool(profile.tag.strip()) and matches_profile(profile),
+                limit=search_limit,
+                preferred_tags=preferred_tags,
+            )
+        if len(profiles) < intent_plan.minimum_answerable_candidates:
+            profiles = search(
+                matches_profile,
+                limit=search_limit,
+                preferred_tags=preferred_tags,
+            )
+
+        candidates: list[RetrievalCandidate] = []
+        for profile in profiles[:limit]:
+            candidate = profile_candidate(profile)
+            if candidate:
+                candidates.append(candidate)
+
+        return candidates
+
     def ecdict_word_family_vocabulary(
         self,
         *,
@@ -908,6 +1077,23 @@ class AdvancedLookupService:
                         fragment=fragment,
                     ),
                 )
+        if (
+            normalized_query.intent_plan is not None
+            and normalized_query.intent_plan.task == "semantic_filter"
+        ):
+            semantic_candidates = self.ecdict_semantic_filter_vocabulary(
+                active_exam_target=active_exam_target,
+                intent_plan=normalized_query.intent_plan,
+            )
+            vocabulary_by_lemma = {
+                candidate.lemma.lower(): candidate
+                for candidate in vocabulary
+            }
+            for candidate in semantic_candidates:
+                existing = vocabulary_by_lemma.get(candidate.lemma.lower())
+                if existing is None or existing.source_kind != "structured":
+                    vocabulary_by_lemma[candidate.lemma.lower()] = candidate
+            vocabulary = list(vocabulary_by_lemma.values())
         if not vocabulary:
             return None
 

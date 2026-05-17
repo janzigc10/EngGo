@@ -31,6 +31,7 @@ class EcdictBasicProfile:
     meanings: list[str]
     raw_translation: str
     tag: str
+    definition: str = ""
     source_kind: str = "external_dictionary_basic"
     review_status: str = "unreviewed"
 
@@ -147,6 +148,7 @@ def create_profile(row: EcdictRow) -> EcdictBasicProfile | None:
         meanings=meanings,
         raw_translation=row.translation,
         tag=row.tag,
+        definition=row.definition,
     )
 
 

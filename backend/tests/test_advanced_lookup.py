@@ -104,7 +104,13 @@ class FakeProvider:
         )
 
 
-def ecdict_profile(lemma: str, meanings: list[str], *, tag: str = "") -> EcdictBasicProfile:
+def ecdict_profile(
+    lemma: str,
+    meanings: list[str],
+    *,
+    tag: str = "",
+    definition: str = "",
+) -> EcdictBasicProfile:
     return EcdictBasicProfile(
         canonical=lemma,
         lookup_key=lemma,
@@ -113,6 +119,7 @@ def ecdict_profile(lemma: str, meanings: list[str], *, tag: str = "") -> EcdictB
         meanings=meanings,
         raw_translation="\n".join(meanings),
         tag=tag,
+        definition=definition,
     )
 
 
@@ -822,6 +829,101 @@ def test_e_evaluate_question_resolves_semantic_filter_from_service_pool():
     assert grounding["broadAnswerPlan"]["presentation"] == "semantic_filter_table"
     assert {"evaluate", "estimate"} <= main_lemmas
     assert "evacuate" not in main_lemmas
+
+
+def test_single_letter_semantic_filter_can_use_late_ecdict_matches():
+    filler_profiles = [
+        ecdict_profile(
+            f"e{chr(97 + first)}{chr(97 + second)}{chr(97 + third)}",
+            ["n. filler"],
+            tag="ky",
+        )
+        for first in range(26)
+        for second in range(26)
+        for third in range(26)
+    ][:601]
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            *filler_profiles,
+            ecdict_profile("evaluate", ["vt. \u8bc4\u4f30\uff1b\u8bc4\u4ef7"], tag="ky"),
+            ecdict_profile(
+                "estimate",
+                ["n. \u4f30\u8ba1\uff1b\u5224\u65ad", "vt. \u4f30\u8ba1\uff1b\u8bc4\u4ef7"],
+                tag="ky",
+            ),
+            ecdict_profile("evacuate", ["v. \u64a4\u79bb\uff1b\u758f\u6563"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="\u0065\u5f00\u5934\u8868\u793a\u8bc4\u4f30\u8bc4\u4ef7\u7684\u5355\u8bcd",
+        request_id="req_e_evaluate_late_ecdict",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = {item["lemma"] for item in grounding["mainAnswer"]}
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["learningIntentPlan"]["task"] == "semantic_filter"
+    assert grounding["broadAnswerPlan"]["presentation"] == "semantic_filter_table"
+    assert {"evaluate", "estimate"} <= main_lemmas
+    assert "evacuate" not in main_lemmas
+
+
+def test_con_restrict_question_can_use_ecdict_definition_without_forced_alias():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("confine", ["vt. \u9650\u5236, \u4f7f\u4e0d\u5916\u51fa, \u7981\u95ed"], tag="ky"),
+            ecdict_profile(
+                "constrain",
+                ["vt. \u5f3a\u8feb, \u9650\u5236, \u5173\u62bc"],
+                tag="ky",
+                definition="v hold back\nv restrict",
+            ),
+            ecdict_profile(
+                "conscript",
+                ["vt. \u5f3a\u8feb\u5165\u4f0d"],
+                tag="ky",
+                definition="v enroll into service compulsorily",
+            ),
+            ecdict_profile("contain", ["vt. \u5305\u542b, \u5bb9\u7eb3, \u63a7\u5236"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="\u8868\u793a\u9650\u5236\u6216\u7ea6\u675f\u7684con\u5f00\u5934\u5355\u8bcd",
+        request_id="req_con_restrict_ecdict_definition",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = {item["lemma"] for item in grounding["mainAnswer"]}
+    main_by_lemma = {item["lemma"]: item for item in grounding["mainAnswer"]}
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["learningIntentPlan"]["task"] == "semantic_filter"
+    assert grounding["broadAnswerPlan"]["presentation"] == "semantic_filter_table"
+    assert {"confine", "constrain"} <= main_lemmas
+    assert main_by_lemma["constrain"]["meaningsZh"] == ["\u5f3a\u8feb, \u9650\u5236, \u5173\u62bc"]
+    assert "conscript" not in main_lemmas
+    assert "contain" not in main_lemmas
 
 
 def test_desert_dessert_similarity_question_resolves_shape_neighbors():

@@ -134,6 +134,98 @@ describe("fastapi migrated-slice smoke", () => {
         expectedBroadPresentation: "shape_neighbor_table",
       }),
       expect.objectContaining({
+        name: "student intent con common semantic filter",
+        query: "con开头表示共同或一起的词",
+        expectedStatus: 200,
+        expectedGroundingIncludes: ["connect"],
+        expectedMainAnswerIncludes: ["connect"],
+        expectedLearningIntentTask: "semantic_filter",
+        expectedBroadPresentation: "semantic_filter_table",
+        expectedProviderRequest: "absent",
+      }),
+      expect.objectContaining({
+        name: "student intent e evaluate semantic filter",
+        query: "e开头表示评估评价的单词",
+        expectedStatus: 200,
+        expectedGroundingIncludes: ["evaluate", "estimate"],
+        expectedMainAnswerIncludes: ["evaluate", "estimate"],
+        expectedLearningIntentTask: "semantic_filter",
+        expectedBroadPresentation: "semantic_filter_table",
+        expectedProviderRequest: "absent",
+      }),
+      expect.objectContaining({
+        name: "student intent con restrict semantic filter",
+        query: "表示限制或约束的con开头单词",
+        expectedStatus: 200,
+        expectedGroundingIncludes: ["constrain", "confine"],
+        expectedMainAnswerIncludes: ["constrain", "confine"],
+        forbiddenMainAnswerIncludes: [
+          "conceal",
+          "confidential",
+          "conscript",
+          "contain",
+          "content",
+          "continual",
+        ],
+        expectedLearningIntentTask: "semantic_filter",
+        expectedBroadPresentation: "semantic_filter_table",
+        expectedProviderRequest: "absent",
+      }),
+      expect.objectContaining({
+        name: "student intent desert dessert shape neighbors",
+        query: "desert dessert 还有没有相似的词",
+        expectedStatus: 200,
+        expectedGroundingIncludes: ["desert", "dessert"],
+        expectedMainAnswerIncludes: ["desert", "dessert"],
+        expectedLearningIntentTask: "shape_neighbors",
+        expectedBroadPresentation: "shape_neighbor_table",
+        expectedProviderRequest: "absent",
+      }),
+      expect.objectContaining({
+        name: "student intent sign study word family",
+        query: "sign这组词怎么背",
+        expectedStatus: 200,
+        expectedGroundingIncludes: ["sign", "signal", "signify"],
+        expectedMainAnswerIncludes: ["sign", "signal", "signify"],
+        forbiddenMainAnswerIncludes: ["sigh", "sight", "scan", "sick"],
+        expectedLearningIntentTask: "word_family",
+        expectedBroadPresentation: "word_family_table",
+        expectedProviderRequest: "absent",
+      }),
+      expect.objectContaining({
+        name: "student intent sign derivatives word family",
+        query: "sign的派生词有哪些",
+        expectedStatus: 200,
+        expectedGroundingIncludes: ["sign", "signal", "signify"],
+        expectedMainAnswerIncludes: ["sign", "signal", "signify"],
+        forbiddenMainAnswerIncludes: ["sigh", "sight", "scan", "sick"],
+        expectedLearningIntentTask: "word_family",
+        expectedBroadPresentation: "word_family_table",
+        expectedProviderRequest: "absent",
+      }),
+      expect.objectContaining({
+        name: "student intent produce word family",
+        query: "produce的同根词或派生词",
+        expectedStatus: 200,
+        expectedGroundingIncludes: ["produce", "product", "productive", "reproduce"],
+        expectedMainAnswerIncludes: ["produce", "product", "productive", "reproduce"],
+        forbiddenMainAnswerIncludes: ["provide", "propose", "project", "promote"],
+        expectedLearningIntentTask: "word_family",
+        expectedBroadPresentation: "word_family_table",
+        expectedProviderRequest: "absent",
+      }),
+      expect.objectContaining({
+        name: "student intent pre advance semantic filter",
+        query: "pre开头表示提前或预先的单词",
+        expectedStatus: 200,
+        expectedGroundingIncludes: ["precede", "prevent"],
+        expectedMainAnswerIncludes: ["precede", "prevent"],
+        forbiddenMainAnswerIncludes: ["pressure"],
+        expectedLearningIntentTask: "semantic_filter",
+        expectedBroadPresentation: "semantic_filter_table",
+        expectedProviderRequest: "absent",
+      }),
+      expect.objectContaining({
         name: "root institute memory group",
         query: "跟 institute 一样那几个词怎么记",
         expectedStatus: 200,
@@ -194,6 +286,8 @@ describe("fastapi migrated-slice smoke", () => {
         learningIntentTask: null,
         broadPresentation: null,
         groundingLemmas: ["access"],
+        mainAnswerLemmas: ["access"],
+        answerText: "access",
         providerRequestId: null,
         hasGrounding: true,
         requestIdMatchesHeader: true,
@@ -233,6 +327,8 @@ describe("fastapi migrated-slice smoke", () => {
         learningIntentTask: "focused_compare",
         broadPresentation: null,
         groundingLemmas: ["access", "assess", "excess"],
+        mainAnswerLemmas: ["access", "assess", "excess"],
+        answerText: "access assess excess 怎么区分",
         providerRequestId: null,
         hasGrounding: true,
         requestIdMatchesHeader: true,
@@ -273,6 +369,8 @@ describe("fastapi migrated-slice smoke", () => {
         learningIntentTask: null,
         broadPresentation: null,
         groundingLemmas: ["institute", "institution", "constitute", "substitute"],
+        mainAnswerLemmas: ["institute", "institution"],
+        answerText: "institute 这一组怎么记",
         providerRequestId: "provider_req_root",
         hasGrounding: true,
         requestIdMatchesHeader: true,
@@ -296,6 +394,7 @@ describe("fastapi migrated-slice smoke", () => {
         requestId: "req_123",
         answerKind: "grounded",
         providerRequestId: "provider_req_light",
+        answer: "conference\nconform",
         grounding: {
           answerStyle: "broad_vocab_summary",
           resolution: "resolved",
@@ -314,8 +413,175 @@ describe("fastapi migrated-slice smoke", () => {
     );
 
     expect(observation.groundingLemmas).toEqual(["conference", "conform"]);
+    expect(observation.mainAnswerLemmas).toEqual([]);
+    expect(observation.answerText).toBe("conference\nconform");
     expect(observation.learningIntentTask).toBe("form_filter");
     expect(observation.broadPresentation).toBe("inventory_table");
+  });
+
+  it("fails when forbidden main-answer lemmas appear in a student-intent case", () => {
+    const result = evaluateFastApiMigratedSliceSmoke(
+      {
+        name: "student intent pre advance semantic filter",
+        query: "pre开头表示提前或预先的单词",
+        activeExamTarget: "postgrad",
+        expectedStatus: 200,
+        expectedAnswerKind: "grounded",
+        expectedResolution: "resolved",
+        expectedLearningIntentTask: "semantic_filter",
+        forbiddenMainAnswerIncludes: ["pressure"],
+        expectedProviderRequest: "absent",
+        expectedProviderRequestId: null,
+      },
+      {
+        status: 200,
+        answerKind: "grounded",
+        errorCode: null,
+        answerStyle: "broad_vocab_summary",
+        matchType: null,
+        resolution: "resolved",
+        comparisonViewId: null,
+        rootFamilyViewId: null,
+        learningIntentTask: "semantic_filter",
+        broadPresentation: "semantic_filter_table",
+        groundingLemmas: ["precede", "pressure"],
+        mainAnswerLemmas: ["precede", "pressure"],
+        answerText: "precede\npressure",
+        providerRequestId: null,
+        hasGrounding: true,
+        requestIdMatchesHeader: true,
+      },
+    );
+
+    expect(result).toEqual({
+      name: "student intent pre advance semantic filter",
+      verdict: "fail",
+      failures: ["main answer should not include pressure"],
+    });
+  });
+
+  it("fails when expected student-intent lemmas only appear outside the main answer", () => {
+    const result = evaluateFastApiMigratedSliceSmoke(
+      {
+        name: "student intent e evaluate semantic filter",
+        query: "e开头表示评估评价的单词",
+        activeExamTarget: "postgrad",
+        expectedStatus: 200,
+        expectedAnswerKind: "grounded",
+        expectedResolution: "resolved",
+        expectedLearningIntentTask: "semantic_filter",
+        expectedGroundingIncludes: ["evaluate"],
+        expectedMainAnswerIncludes: ["evaluate"],
+        expectedProviderRequest: "absent",
+        expectedProviderRequestId: null,
+      },
+      {
+        status: 200,
+        answerKind: "grounded",
+        errorCode: null,
+        answerStyle: "broad_vocab_summary",
+        matchType: null,
+        resolution: "resolved",
+        comparisonViewId: null,
+        rootFamilyViewId: null,
+        learningIntentTask: "semantic_filter",
+        broadPresentation: "semantic_filter_table",
+        groundingLemmas: ["evaluate"],
+        mainAnswerLemmas: [],
+        answerText: "",
+        providerRequestId: null,
+        hasGrounding: true,
+        requestIdMatchesHeader: true,
+      },
+    );
+
+    expect(result).toEqual({
+      name: "student intent e evaluate semantic filter",
+      verdict: "fail",
+      failures: ["main answer missing evaluate"],
+    });
+  });
+
+  it("passes when forbidden lemmas are only outside the main answer", () => {
+    const result = evaluateFastApiMigratedSliceSmoke(
+      {
+        name: "student intent pre advance semantic filter",
+        query: "pre开头表示提前或预先的单词",
+        activeExamTarget: "postgrad",
+        expectedStatus: 200,
+        expectedAnswerKind: "grounded",
+        expectedResolution: "resolved",
+        expectedLearningIntentTask: "semantic_filter",
+        expectedGroundingIncludes: ["precede"],
+        forbiddenMainAnswerIncludes: ["pressure"],
+        expectedProviderRequest: "absent",
+        expectedProviderRequestId: null,
+      },
+      {
+        status: 200,
+        answerKind: "grounded",
+        errorCode: null,
+        answerStyle: "broad_vocab_summary",
+        matchType: null,
+        resolution: "resolved",
+        comparisonViewId: null,
+        rootFamilyViewId: null,
+        learningIntentTask: "semantic_filter",
+        broadPresentation: "semantic_filter_table",
+        groundingLemmas: ["precede", "pressure"],
+        mainAnswerLemmas: ["precede"],
+        answerText: "precede",
+        providerRequestId: null,
+        hasGrounding: true,
+        requestIdMatchesHeader: true,
+      },
+    );
+
+    expect(result).toEqual({
+      name: "student intent pre advance semantic filter",
+      verdict: "pass",
+      failures: [],
+    });
+  });
+
+  it("fails when a migrated case returns the unavailable-service fallback text", () => {
+    const result = evaluateFastApiMigratedSliceSmoke(
+      {
+        name: "student intent con common semantic filter",
+        query: "con开头表示共同或一起的词",
+        activeExamTarget: "postgrad",
+        expectedStatus: 200,
+        expectedAnswerKind: "grounded",
+        expectedResolution: "resolved",
+        expectedLearningIntentTask: "semantic_filter",
+        expectedProviderRequest: "absent",
+        expectedProviderRequestId: null,
+      },
+      {
+        status: 200,
+        answerKind: "grounded",
+        errorCode: null,
+        answerStyle: "broad_vocab_summary",
+        matchType: null,
+        resolution: "resolved",
+        comparisonViewId: null,
+        rootFamilyViewId: null,
+        learningIntentTask: "semantic_filter",
+        broadPresentation: "semantic_filter_table",
+        groundingLemmas: ["connect", "combine"],
+        mainAnswerLemmas: [],
+        answerText: "当前回答服务暂时不可用，请稍后再试。",
+        providerRequestId: null,
+        hasGrounding: true,
+        requestIdMatchesHeader: true,
+      },
+    );
+
+    expect(result).toEqual({
+      name: "student intent con common semantic filter",
+      verdict: "fail",
+      failures: ["answer contained unavailable-service fallback text"],
+    });
   });
 
   it("fails when a plain fallback unexpectedly contains grounding", () => {
@@ -342,6 +608,8 @@ describe("fastapi migrated-slice smoke", () => {
         learningIntentTask: null,
         broadPresentation: null,
         groundingLemmas: [],
+        mainAnswerLemmas: [],
+        answerText: "plain answer",
         providerRequestId: "provider_req_plain",
         hasGrounding: true,
         requestIdMatchesHeader: true,

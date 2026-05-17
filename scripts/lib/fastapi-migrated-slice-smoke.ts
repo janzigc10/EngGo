@@ -18,7 +18,9 @@ export type FastApiMigratedSliceSmokeCase = {
   expectedLearningIntentTask?: string | null;
   expectedBroadPresentation?: string | null;
   expectedGroundingIncludes?: string[];
+  expectedMainAnswerIncludes?: string[];
   forbiddenGroundingIncludes?: string[];
+  forbiddenMainAnswerIncludes?: string[];
   expectedGrounding?: "present" | "absent";
   expectedErrorCode?: string;
   expectedProviderRequest?: "required" | "absent";
@@ -37,6 +39,8 @@ export type FastApiMigratedSliceSmokeObservation = {
   learningIntentTask: string | null;
   broadPresentation: string | null;
   groundingLemmas: string[];
+  mainAnswerLemmas: string[];
+  answerText: string | null;
   providerRequestId: string | null;
   hasGrounding: boolean;
   requestIdMatchesHeader: boolean;
@@ -287,6 +291,138 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedProviderRequestId: null,
     },
     {
+      name: "student intent con common semantic filter",
+      query: "con开头表示共同或一起的词",
+      activeExamTarget: "postgrad",
+      expectedStatus: 200,
+      expectedAnswerKind: "grounded",
+      expectedAnswerStyle: "broad_vocab_summary",
+      expectedResolution: "resolved",
+      expectedGroundingIncludes: ["connect"],
+      expectedMainAnswerIncludes: ["connect"],
+      expectedLearningIntentTask: "semantic_filter",
+      expectedBroadPresentation: "semantic_filter_table",
+      expectedProviderRequest: "absent",
+      expectedProviderRequestId: null,
+    },
+    {
+      name: "student intent e evaluate semantic filter",
+      query: "e开头表示评估评价的单词",
+      activeExamTarget: "postgrad",
+      expectedStatus: 200,
+      expectedAnswerKind: "grounded",
+      expectedAnswerStyle: "broad_vocab_summary",
+      expectedResolution: "resolved",
+      expectedGroundingIncludes: ["evaluate", "estimate"],
+      expectedMainAnswerIncludes: ["evaluate", "estimate"],
+      expectedLearningIntentTask: "semantic_filter",
+      expectedBroadPresentation: "semantic_filter_table",
+      expectedProviderRequest: "absent",
+      expectedProviderRequestId: null,
+    },
+    {
+      name: "student intent con restrict semantic filter",
+      query: "表示限制或约束的con开头单词",
+      activeExamTarget: "postgrad",
+      expectedStatus: 200,
+      expectedAnswerKind: "grounded",
+      expectedAnswerStyle: "broad_vocab_summary",
+      expectedResolution: "resolved",
+      expectedGroundingIncludes: ["constrain", "confine"],
+      expectedMainAnswerIncludes: ["constrain", "confine"],
+      forbiddenMainAnswerIncludes: [
+        "conceal",
+        "confidential",
+        "conscript",
+        "contain",
+        "content",
+        "continual",
+      ],
+      expectedLearningIntentTask: "semantic_filter",
+      expectedBroadPresentation: "semantic_filter_table",
+      expectedProviderRequest: "absent",
+      expectedProviderRequestId: null,
+    },
+    {
+      name: "student intent desert dessert shape neighbors",
+      query: "desert dessert 还有没有相似的词",
+      activeExamTarget: "cet6",
+      expectedStatus: 200,
+      expectedAnswerKind: "grounded",
+      expectedAnswerStyle: "broad_vocab_summary",
+      expectedResolution: "resolved",
+      expectedGroundingIncludes: ["desert", "dessert"],
+      expectedMainAnswerIncludes: ["desert", "dessert"],
+      expectedLearningIntentTask: "shape_neighbors",
+      expectedBroadPresentation: "shape_neighbor_table",
+      expectedProviderRequest: "absent",
+      expectedProviderRequestId: null,
+    },
+    {
+      name: "student intent sign study word family",
+      query: "sign这组词怎么背",
+      activeExamTarget: "cet6",
+      expectedStatus: 200,
+      expectedAnswerKind: "grounded",
+      expectedAnswerStyle: "broad_vocab_summary",
+      expectedResolution: "resolved",
+      expectedGroundingIncludes: ["sign", "signal", "signify"],
+      expectedMainAnswerIncludes: ["sign", "signal", "signify"],
+      forbiddenMainAnswerIncludes: ["sigh", "sight", "scan", "sick"],
+      expectedLearningIntentTask: "word_family",
+      expectedBroadPresentation: "word_family_table",
+      expectedProviderRequest: "absent",
+      expectedProviderRequestId: null,
+    },
+    {
+      name: "student intent sign derivatives word family",
+      query: "sign的派生词有哪些",
+      activeExamTarget: "cet6",
+      expectedStatus: 200,
+      expectedAnswerKind: "grounded",
+      expectedAnswerStyle: "broad_vocab_summary",
+      expectedResolution: "resolved",
+      expectedGroundingIncludes: ["sign", "signal", "signify"],
+      expectedMainAnswerIncludes: ["sign", "signal", "signify"],
+      forbiddenMainAnswerIncludes: ["sigh", "sight", "scan", "sick"],
+      expectedLearningIntentTask: "word_family",
+      expectedBroadPresentation: "word_family_table",
+      expectedProviderRequest: "absent",
+      expectedProviderRequestId: null,
+    },
+    {
+      name: "student intent produce word family",
+      query: "produce的同根词或派生词",
+      activeExamTarget: "cet6",
+      expectedStatus: 200,
+      expectedAnswerKind: "grounded",
+      expectedAnswerStyle: "broad_vocab_summary",
+      expectedResolution: "resolved",
+      expectedGroundingIncludes: ["produce", "product", "productive", "reproduce"],
+      expectedMainAnswerIncludes: ["produce", "product", "productive", "reproduce"],
+      forbiddenMainAnswerIncludes: ["provide", "propose", "project", "promote"],
+      expectedLearningIntentTask: "word_family",
+      expectedBroadPresentation: "word_family_table",
+      expectedProviderRequest: "absent",
+      expectedProviderRequestId: null,
+    },
+    {
+      name: "student intent pre advance semantic filter",
+      query: "pre开头表示提前或预先的单词",
+      activeExamTarget: "postgrad",
+      expectedStatus: 200,
+      expectedAnswerKind: "grounded",
+      expectedAnswerStyle: "broad_vocab_summary",
+      expectedResolution: "resolved",
+      expectedGroundingIncludes: ["precede", "prevent"],
+      expectedMainAnswerIncludes: ["precede", "prevent"],
+      forbiddenMainAnswerIncludes: ["pressure"],
+      expectedLearningIntentTask: "semantic_filter",
+      expectedBroadPresentation: "semantic_filter_table",
+      expectedProviderRequest: "absent",
+      expectedProviderRequestId: null,
+    },
+    {
       name: "root institute memory group",
       query: "跟 institute 一样那几个词怎么记",
       activeExamTarget: "cet6",
@@ -448,6 +584,22 @@ export function evaluateFastApiMigratedSliceSmoke(
       if (observation.groundingLemmas.includes(lemma)) {
         failures.push(`grounding should not include ${lemma}`);
       }
+    }
+
+    for (const lemma of caseDef.expectedMainAnswerIncludes ?? []) {
+      if (!observation.mainAnswerLemmas.includes(lemma)) {
+        failures.push(`main answer missing ${lemma}`);
+      }
+    }
+
+    for (const lemma of caseDef.forbiddenMainAnswerIncludes ?? []) {
+      if (observation.mainAnswerLemmas.includes(lemma)) {
+        failures.push(`main answer should not include ${lemma}`);
+      }
+    }
+
+    if (observation.answerText?.includes("当前回答服务暂时不可用")) {
+      failures.push("answer contained unavailable-service fallback text");
     }
 
     if (caseDef.expectedErrorCode) {

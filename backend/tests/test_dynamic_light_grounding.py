@@ -20,6 +20,7 @@ def candidate(
     part_of_speech="v.",
     scope_codes=None,
     source_kind="structured",
+    semantic_match_hints=None,
 ):
     scopes = scope_codes or ["cet6"]
 
@@ -34,6 +35,7 @@ def candidate(
         score=100,
         part_of_speech=part_of_speech,
         source_kind=source_kind,
+        semantic_match_hints=semantic_match_hints or [],
     )
 
 
@@ -210,6 +212,61 @@ def test_pre_meaning_does_not_match_pressure():
     )
 
     assert [item.lemma for item in result] == ["precede", "prevent"]
+
+
+def test_restrict_semantic_filter_keeps_primary_meaning_conservative():
+    vocabulary = [
+        candidate("confine", ["\u9650\u5236, \u4f7f\u4e0d\u5916\u51fa, \u7981\u95ed"]),
+        candidate("constrain", ["\u5f3a\u8feb, \u9650\u5236, \u5173\u62bc"]),
+        candidate("conscript", ["\u5f3a\u8feb\u5165\u4f0d"]),
+        candidate("contain", ["\u5305\u542b, \u5bb9\u7eb3, \u63a7\u5236"]),
+    ]
+    plan = normalize_query("\u8868\u793a\u9650\u5236\u6216\u7ea6\u675f\u7684con\u5f00\u5934\u5355\u8bcd").intent_plan
+
+    result = build_light_grounding_candidates(
+        query="\u8868\u793a\u9650\u5236\u6216\u7ea6\u675f\u7684con\u5f00\u5934\u5355\u8bcd",
+        active_exam_target="postgrad",
+        vocabulary=vocabulary,
+        groups=[],
+        intent_plan=plan,
+    )
+
+    assert [item.lemma for item in result] == ["confine"]
+    assert "constrain" not in [item.lemma for item in result]
+    assert "conscript" not in [item.lemma for item in result]
+    assert "contain" not in [item.lemma for item in result]
+
+
+def test_hidden_semantic_hint_does_not_create_public_meaning_signal():
+    vocabulary = [
+        candidate(
+            "constrain",
+            ["\u5f3a\u8feb, \u9650\u5236, \u5173\u62bc"],
+            semantic_match_hints=["\u9650\u5236"],
+        ),
+        candidate("conscript", ["\u5f3a\u8feb\u5165\u4f0d"]),
+    ]
+    plan = normalize_query("\u8868\u793a\u9650\u5236\u6216\u7ea6\u675f\u7684con\u5f00\u5934\u5355\u8bcd").intent_plan
+
+    result = build_light_grounding_candidates(
+        query="\u8868\u793a\u9650\u5236\u6216\u7ea6\u675f\u7684con\u5f00\u5934\u5355\u8bcd",
+        active_exam_target="postgrad",
+        vocabulary=vocabulary,
+        groups=[],
+        intent_plan=plan,
+    )
+
+    assert [item.lemma for item in result] == ["constrain"]
+    assert "meaning_keyword" not in signal_types(result[0])
+    assert "meaning_keyword" not in result[0].reason
+    assert all(
+        signal["type"] != "meaning_keyword"
+        for signal in result[0].to_json()["signals"]
+    )
+    assert all(
+        signal["type"] != "_semantic_match_hint"
+        for signal in result[0].to_json()["signals"]
+    )
 
 
 def test_meaning_query_prioritizes_core_semantic_matches():

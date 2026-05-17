@@ -67,3 +67,12 @@ def test_meaning_constraint_splits_or_words_into_alternatives():
     meaning = next(item for item in plan.constraints if item.type == "meaning")
 
     assert set(meaning.alternatives) >= {"共同", "一起", "合作", "联合", "连接"}
+
+
+def test_restrict_meaning_aliases_stay_narrow():
+    plan = normalize_query("表示限制或约束的con开头单词").intent_plan
+
+    meaning = next(item for item in plan.constraints if item.type == "meaning")
+
+    assert set(meaning.alternatives) >= {"限制", "约束", "制约"}
+    assert "强迫" not in meaning.alternatives

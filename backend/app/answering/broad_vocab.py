@@ -10,11 +10,17 @@ focused_answer_styles = {
     "shape_neighbor_search",
 }
 
+semantic_selection_signals = {
+    "meaning_keyword",
+    "_semantic_match_hint",
+}
+
 strong_collection_signals = {
     "prefix",
     "suffix",
     "fragment",
     "meaning_keyword",
+    "_semantic_match_hint",
 }
 
 confusion_core_signals = {
@@ -478,7 +484,11 @@ def build_answer_material(
     list[LightGroundingCandidate],
 ]:
     if style in {"collection_map", "strict_inventory"}:
-        semantic_candidates = candidates_with_signal(candidates, "meaning_keyword")
+        semantic_candidates = [
+            candidate
+            for candidate in candidates
+            if has_any_signal(candidate, semantic_selection_signals)
+        ]
         strong_candidates = semantic_candidates or [
             candidate
             for candidate in candidates
@@ -505,7 +515,11 @@ def build_answer_material(
         intent_plan = getattr(normalized_query, "intent_plan", None)
 
         if intent_plan is not None and intent_plan.task == "semantic_filter":
-            limited = candidates_with_signal(limited, "meaning_keyword")
+            limited = [
+                candidate
+                for candidate in limited
+                if has_any_signal(candidate, semantic_selection_signals)
+            ]
 
         answerable, candidate_only = split_meaning_confidence(limited)
         material_lemmas = {candidate.lemma for candidate in limited}

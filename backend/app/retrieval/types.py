@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 part_of_speech_aliases = {
@@ -97,6 +97,7 @@ class RetrievalCandidate:
     exact_lemma: bool = False
     exact_alias: bool = False
     text_score: float = 0
+    semantic_match_hints: list[str] = field(default_factory=list)
 
     def to_json(self) -> dict[str, object]:
         payload: dict[str, object] = {
