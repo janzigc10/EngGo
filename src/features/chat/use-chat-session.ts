@@ -21,6 +21,7 @@ const defaultExamplePrompts = [
   "为什么我总把 comply 和 conform 搞混",
 ];
 const genericChatErrorMessage = "当前回答服务暂时不可用，请稍后再试。";
+const chatTranscriptStorageKey = "enggo.chatTranscript";
 
 type ChatApiErrorResponse = {
   error?: {
@@ -32,11 +33,83 @@ function createMessageId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function getSessionStorage() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.sessionStorage;
+}
+
+function normalizeStoredMessages(value: unknown): ChatMessage[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((item, index) => {
+    if (
+      !item
+      || typeof item !== "object"
+      || !("role" in item)
+      || !("content" in item)
+      || (item.role !== "user" && item.role !== "assistant")
+      || typeof item.content !== "string"
+      || item.content.trim().length === 0
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        ...item,
+        id:
+          "id" in item && typeof item.id === "string"
+            ? item.id
+            : createMessageId(`restored-${index}`),
+        role: item.role,
+        content: item.content,
+      } as ChatMessage,
+    ];
+  });
+}
+
+function readStoredChatTranscript() {
+  const storage = getSessionStorage();
+
+  if (!storage) {
+    return [];
+  }
+
+  try {
+    return normalizeStoredMessages(
+      JSON.parse(storage.getItem(chatTranscriptStorageKey) ?? "[]"),
+    );
+  } catch {
+    return [];
+  }
+}
+
+function persistChatTranscript(messages: ChatMessage[]) {
+  const storage = getSessionStorage();
+
+  if (!storage) {
+    return;
+  }
+
+  try {
+    storage.setItem(chatTranscriptStorageKey, JSON.stringify(messages.slice(-20)));
+  } catch {
+    // Ignore storage failures; chat should keep working even in restricted browsers.
+  }
+}
+
 function toHistory(messages: ChatMessage[]): ChatHistoryMessage[] {
-  return messages.map((message) => ({
-    role: message.role,
-    content: message.content,
-  }));
+  return messages
+    .filter((message) => message.content.trim().length > 0)
+    .map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
 }
 
 function getChatErrorMessage(
@@ -51,6 +124,7 @@ function getChatErrorMessage(
 
 type UseChatSessionOptions = {
   initialExamTarget?: ExamTargetCode;
+  initialPrompt?: string;
 };
 
 export function useChatSession(options: UseChatSessionOptions = {}) {
@@ -60,8 +134,8 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
     readStoredExamTarget,
     getServerExamTargetSnapshot,
   );
-  const [composerValue, setComposerValue] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [composerValue, setComposerValue] = useState(options.initialPrompt ?? "");
+  const [messages, setMessages] = useState<ChatMessage[]>(() => readStoredChatTranscript());
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -88,6 +162,7 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
     const nextMessages = [...messages, userMessage];
 
     setMessages(nextMessages);
+    persistChatTranscript(nextMessages);
     setComposerValue("");
     setErrorMessage(null);
     setIsLoading(true);
@@ -113,18 +188,24 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
         throw new Error(getChatErrorMessage(payload));
       }
 
-      setMessages((previousMessages) => [
-        ...previousMessages,
-        {
-          id: createMessageId("assistant"),
-          role: "assistant",
-          content: payload.answer,
-          answerKind: payload.answerKind,
-          grounding: payload.grounding,
-          requestId: payload.requestId,
-          providerRequestId: payload.providerRequestId,
-        },
-      ]);
+      setMessages((previousMessages) => {
+        const updatedMessages = [
+          ...previousMessages,
+          {
+            id: createMessageId("assistant"),
+            role: "assistant",
+            content: payload.answer,
+            answerKind: payload.answerKind,
+            grounding: payload.grounding,
+            requestId: payload.requestId,
+            providerRequestId: payload.providerRequestId,
+          },
+        ];
+
+        persistChatTranscript(updatedMessages);
+
+        return updatedMessages;
+      });
     } catch {
       setErrorMessage(genericChatErrorMessage);
     } finally {

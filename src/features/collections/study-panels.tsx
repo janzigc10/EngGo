@@ -1,8 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 
-import { listCollectedWords } from "@/features/collections/collection-store";
+import {
+  listCollectedWords,
+  removeCollectedWord,
+  subscribeCollectionChanges,
+} from "@/features/collections/collection-store";
 import {
   getServerExamTargetSnapshot,
   readStoredExamTarget,
@@ -34,8 +39,55 @@ function loadProgressSnapshot() {
   };
 }
 
+function useCollectionSections() {
+  const sectionsJson = useSyncExternalStore(
+    subscribeCollectionChanges,
+    () => JSON.stringify(loadCollectionSections()),
+    () => "[]",
+  );
+
+  return JSON.parse(sectionsJson) as CollectionSection[];
+}
+
+function getSourceLabel(word: CollectionSection["words"][number]) {
+  if (word.sourceKind === "external_dictionary_basic") {
+    return "外部基础词典";
+  }
+
+  if (word.sourceKind === "source_lemma") {
+    return "来源词表";
+  }
+
+  if (word.sourceKind === "structured") {
+    return "EngGo 结构化词条";
+  }
+
+  return "本地收藏";
+}
+
+function getMeaningDisplay(word: CollectionSection["words"][number]) {
+  return word.meaningZh ?? word.note;
+}
+
+function formatCollectedDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "时间未知";
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
+function buildDraftHref(lemma: string) {
+  const draft = `${lemma} 怎么用`;
+
+  return `/?draft=${encodeURIComponent(draft)}`;
+}
+
 export function CollectionsPanel() {
-  const [sections] = useState<CollectionSection[]>(() => loadCollectionSections());
+  const sections = useCollectionSections();
+  const total = sections.reduce((sum, section) => sum + section.words.length, 0);
 
   const hasAnyWords = sections.some((section) => section.words.length > 0);
 
@@ -48,6 +100,9 @@ export function CollectionsPanel() {
         <h2 className="font-serif text-3xl font-semibold tracking-tight text-slate-950">
           收藏词条会按考试范围分组保存
         </h2>
+        <p className="text-sm text-slate-600">
+          当前共 {total} 条本地收藏。先把词条整理干净，再进入复习卡片。
+        </p>
       </div>
       {!hasAnyWords ? (
         <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-white/80 p-6 text-sm text-slate-600">
@@ -58,6 +113,7 @@ export function CollectionsPanel() {
           {sections.map((section) => (
             <section
               key={section.code}
+              aria-label={`${section.label} 收藏`}
               className="rounded-[1.5rem] border border-slate-200 bg-white/90 p-5 shadow-sm"
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -73,10 +129,52 @@ export function CollectionsPanel() {
                   {section.words.map((word) => (
                     <li
                       key={`${word.examTarget}-${word.lemma}-${word.collectedAt}`}
-                      className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"
+                      className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4"
                     >
-                      <p className="text-sm font-semibold text-slate-900">{word.lemma}</p>
-                      <p className="mt-1 text-sm text-slate-600">{word.note}</p>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-base font-semibold text-slate-950">
+                              {word.lemma}
+                            </p>
+                            {word.partOfSpeech ? (
+                              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
+                                {word.partOfSpeech}
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="text-sm leading-6 text-slate-700">
+                            {getMeaningDisplay(word)}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                            <span className="rounded-full border border-slate-200 bg-white px-2 py-1">
+                              {getSourceLabel(word)}
+                            </span>
+                            {word.reviewStatus === "unreviewed" ? (
+                              <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800">
+                                未人工校验
+                              </span>
+                            ) : null}
+                            <span>{formatCollectedDate(word.collectedAt)}</span>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap items-center gap-2">
+                          <Link
+                            href={buildDraftHref(word.lemma)}
+                            className="inline-flex items-center justify-center rounded-full border border-sky-200 bg-white px-3 py-1.5 text-sm font-medium text-sky-900 transition hover:border-sky-300 hover:bg-sky-50"
+                          >
+                            继续追问 {word.lemma}
+                          </Link>
+                          <button
+                            type="button"
+                            aria-label={`删除 ${word.lemma}`}
+                            onClick={() => removeCollectedWord(section.code, word.lemma)}
+                            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                          >
+                            删除
+                          </button>
+                        </div>
+                      </div>
                     </li>
                   ))}
                 </ul>

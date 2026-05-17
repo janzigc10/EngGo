@@ -11,7 +11,9 @@ type AnswerActionsProps = {
 
 const collapsedMainAnswerLimit = 5;
 
-function buildCollectionNote(candidate: AnswerGrounding["mainAnswer"][number]) {
+type MainAnswerCandidate = AnswerGrounding["mainAnswer"][number];
+
+function buildCollectionNote(candidate: MainAnswerCandidate) {
   const normalizedMeaning =
     candidate.meaningsZh?.map((item) => item.trim()).filter(Boolean) ?? [];
 
@@ -38,7 +40,7 @@ function buildCollectionNote(candidate: AnswerGrounding["mainAnswer"][number]) {
   return candidate.reason;
 }
 
-function buildCompactCollectionNote(candidate: AnswerGrounding["mainAnswer"][number]) {
+function buildCompactCollectionNote(candidate: MainAnswerCandidate) {
   if (candidate.sourceKind === "external_dictionary_basic") {
     return "外部基础词典释义";
   }
@@ -94,8 +96,20 @@ export function AnswerActions({ grounding }: AnswerActionsProps) {
     }, 1800);
   }
 
-  function handleCollect(lemma: string, note: string) {
-    addCollectedWord(grounding.activeExamTarget, { lemma, note });
+  function handleCollect(candidate: MainAnswerCandidate, note: string) {
+    addCollectedWord(grounding.activeExamTarget, {
+      lemma: candidate.lemma,
+      note,
+      meaningZh: candidate.meaningsZh
+        .map((meaning) => meaning.trim())
+        .filter(Boolean)
+        .join(" / "),
+      partOfSpeech: candidate.partOfSpeech,
+      reviewStatus: candidate.reviewStatus,
+      sourceKind: candidate.sourceKind,
+    });
+    const lemma = candidate.lemma;
+
     showFeedback(`已加入收藏：${lemma}`);
   }
 
@@ -156,7 +170,7 @@ export function AnswerActions({ grounding }: AnswerActionsProps) {
           ) : null}
           <button
             type="button"
-            onClick={() => handleCollect(candidate.lemma, note)}
+            onClick={() => handleCollect(candidate, note)}
             className="inline-flex items-center justify-center rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-900 transition hover:border-sky-300 hover:bg-sky-50"
           >
             {isSaved ? "已收藏" : "加入收藏"}
@@ -213,7 +227,7 @@ export function AnswerActions({ grounding }: AnswerActionsProps) {
               </div>
               <button
                 type="button"
-                onClick={() => handleCollect(candidate.lemma, note)}
+                onClick={() => handleCollect(candidate, note)}
                 className="inline-flex items-center justify-center rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-900 transition hover:border-sky-300 hover:bg-sky-50"
               >
                 {isSaved ? "已收藏" : "加入收藏"}

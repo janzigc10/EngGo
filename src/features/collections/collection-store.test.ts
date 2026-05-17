@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   addCollectedWord,
   listCollectedWords,
+  removeCollectedWord,
 } from "@/features/collections/collection-store";
 
 function createMemoryStorage() {
@@ -86,5 +87,60 @@ describe("collection store", () => {
       lemma: "respect",
       note: "尊重",
     });
+  });
+
+  it("stores structured learning metadata for collected words", () => {
+    addCollectedWord("cet6", {
+      lemma: "make up",
+      note: "外部基础词典释义：phr. 组成；编造",
+      partOfSpeech: "phr.",
+      meaningZh: "组成；编造",
+      sourceKind: "external_dictionary_basic",
+      reviewStatus: "unreviewed",
+    });
+
+    expect(listCollectedWords("cet6")[0]).toMatchObject({
+      lemma: "make up",
+      note: "外部基础词典释义：phr. 组成；编造",
+      partOfSpeech: "phr.",
+      meaningZh: "组成；编造",
+      sourceKind: "external_dictionary_basic",
+      reviewStatus: "unreviewed",
+    });
+  });
+
+  it("updates an existing lemma in the same exam target instead of duplicating it", () => {
+    addCollectedWord("cet6", {
+      lemma: "accent",
+      note: "来源词表命中，待补结构化释义",
+    });
+    addCollectedWord("cet6", {
+      lemma: " accent ",
+      note: "来源词表命中：重音；口音",
+      partOfSpeech: "n.",
+      meaningZh: "重音；口音",
+      sourceKind: "source_lemma",
+    });
+
+    const words = listCollectedWords("cet6");
+
+    expect(words).toHaveLength(1);
+    expect(words[0]).toMatchObject({
+      lemma: "accent",
+      note: "来源词表命中：重音；口音",
+      partOfSpeech: "n.",
+      meaningZh: "重音；口音",
+      sourceKind: "source_lemma",
+    });
+  });
+
+  it("removes a collected lemma only from the requested exam target", () => {
+    addCollectedWord("cet6", { lemma: "access", note: "进入权" });
+    addCollectedWord("cet4", { lemma: "access", note: "进入权" });
+
+    removeCollectedWord("cet6", " access ");
+
+    expect(listCollectedWords("cet6")).toHaveLength(0);
+    expect(listCollectedWords("cet4")).toHaveLength(1);
   });
 });

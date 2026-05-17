@@ -10,6 +10,8 @@
 ## 当前有效设计
 - `docs/superpowers/specs/2026-05-12-dynamic-light-grounding-design.md`
   - 8k 词库后的 dynamic light grounding 设计：用动态候选 grounding 接管泛问主流程，旧 `confusion_group` / `root_family` 只做 boost、fixture 和 regression baseline。
+- `docs/superpowers/specs/2026-05-16-collection-organizer-design.md`
+  - 学习闭环第一刀：把聊天收藏沉淀为可整理的本地生词本，保留结构化元数据、删除和回到聊天追问入口。
 - `docs/superpowers/specs/2026-05-10-fastapi-backend-split-design.md`
   - Python FastAPI 后端拆分设计：Next 前端保留，`/api/chat` 当前默认代理 FastAPI；`ENGGO_BACKEND_URL` 仅用于覆盖默认后端地址。
 - `docs/superpowers/specs/2026-05-09-ecdict-basic-lookup-design.md`
@@ -34,6 +36,8 @@
 
 - `docs/superpowers/plans/2026-05-15-broad-vocab-confusion-organizer.md`
   - Broad vocab 易混词整理第二刀：把 `collection_map` 从 loose learning map 收敛为“先易混核心组，再补充同形候选”的回答契约，已完成；只改 broad answer 计划/提示和回归句柄，未改普通 `standard_lookup` 模板。
+- `docs/superpowers/plans/2026-05-16-collection-organizer.md`
+  - 收藏生词本整理 1.0：localStorage 收藏元数据升级、收藏页删除/来源展示/继续追问入口、聊天 draft 预填，已完成。
 - `docs/superpowers/plans/2026-05-12-dynamic-light-grounding.md`
   - Dynamic light grounding 第一刀实现计划：后端动态候选 builder、`broad_vocab_summary` grounding、direct compare / advanced lookup 接入，已完成。
 - `docs/superpowers/plans/2026-05-01-answer-policy-v1.md`

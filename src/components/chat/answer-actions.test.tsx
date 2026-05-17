@@ -184,4 +184,59 @@ describe("AnswerActions", () => {
     expect(screen.getByRole("button", { name: "加入收藏" })).toBeInTheDocument();
     expect(screen.queryByText("收藏动作")).not.toBeInTheDocument();
   });
+
+  it("persists source metadata when collecting a candidate", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <AnswerActions
+        grounding={{
+          activeExamTarget: "cet4",
+          activeExamTargetLabel: "CET-4",
+          query: "make up",
+          queryMode: "direct_lookup",
+          answerStyle: "standard_lookup",
+          resolution: "resolved",
+          noMatchReason: null,
+          matchType: "external_dictionary_exact",
+          mainAnswer: [
+            {
+              entryId: "external-dictionary-basic:make up",
+              lemma: "make up",
+              partOfSpeech: "phr.",
+              meaningsZh: ["组成；编造；化妆；弥补"],
+              matchedAlias: null,
+              scopeCodes: [],
+              inScope: true,
+              reason: "external dictionary basic exact match",
+              score: 12,
+              sourceKind: "external_dictionary_basic",
+              reviewStatus: "unreviewed",
+            },
+          ],
+          confusionBoundary: [],
+          scopeReminder: "scope reminder",
+          followUpPrompt: "follow-up",
+          comparisonView: null,
+          rootFamilyView: null,
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "加入收藏" }));
+
+    const stored = JSON.parse(
+      window.localStorage.getItem("enggo.collectedWords") ?? "{}",
+    ) as {
+      cet4?: Array<Record<string, unknown>>;
+    };
+
+    expect(stored.cet4?.[0]).toMatchObject({
+      lemma: "make up",
+      partOfSpeech: "phr.",
+      meaningZh: "组成；编造；化妆；弥补",
+      sourceKind: "external_dictionary_basic",
+      reviewStatus: "unreviewed",
+    });
+  });
 });

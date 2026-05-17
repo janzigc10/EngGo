@@ -8,7 +8,21 @@ import { ChatWorkspace } from "@/components/chat/chat-workspace";
 
 describe("ChatWorkspace", () => {
   afterEach(() => {
+    window.history.pushState({}, "", "/");
+    window.sessionStorage.clear();
     vi.restoreAllMocks();
+  });
+
+  it("prefills the composer from the draft query parameter", () => {
+    window.history.pushState(
+      {},
+      "",
+      "/?draft=make%20up%20%E6%80%8E%E4%B9%88%E7%94%A8",
+    );
+
+    render(<ChatWorkspace />);
+
+    expect(screen.getByDisplayValue("make up 怎么用")).toBeInTheDocument();
   });
 
   it("persists active exam target and sends prompt", async () => {
@@ -105,6 +119,43 @@ describe("ChatWorkspace", () => {
     expect(await screen.findByText(/comply with/i)).toBeInTheDocument();
     expect(screen.getByText("conform")).toBeInTheDocument();
     expect(screen.getByText(/下一步/)).toBeInTheDocument();
+  });
+
+  it("restores the latest chat transcript after remount", async () => {
+    const user = userEvent.setup();
+    window.sessionStorage.clear();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer: "commit usually means to promise, do, or spend resources.",
+        answerKind: "plain",
+        requestId: "req_transcript_restore",
+        providerRequestId: null,
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const firstRender = render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "commit meaning");
+    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+
+    expect(await screen.findByText("commit meaning")).toBeInTheDocument();
+    expect(
+      await screen.findByText("commit usually means to promise, do, or spend resources."),
+    ).toBeInTheDocument();
+    expect(window.sessionStorage.getItem("enggo.chatTranscript")).toContain(
+      "commit meaning",
+    );
+
+    firstRender.unmount();
+    render(<ChatWorkspace />);
+
+    expect(screen.getByText("commit meaning")).toBeInTheDocument();
+    expect(
+      screen.getByText("commit usually means to promise, do, or spend resources."),
+    ).toBeInTheDocument();
   });
 
   it("summarizes broad resolved answers without duplicating the main-answer list", async () => {

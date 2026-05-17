@@ -6,6 +6,14 @@ import { MessageThread } from "@/components/chat/message-thread";
 import { ExamTargetSwitcher } from "@/components/shell/exam-target-switcher";
 import { useChatSession } from "@/features/chat/use-chat-session";
 
+function readDraftPromptFromLocation() {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  return new URLSearchParams(window.location.search).get("draft") ?? undefined;
+}
+
 export function ChatWorkspace() {
   const {
     activeExamTarget,
@@ -18,7 +26,9 @@ export function ChatWorkspace() {
     setActiveExamTarget,
     setComposerValue,
     submitPrompt,
-  } = useChatSession();
+  } = useChatSession({
+    initialPrompt: readDraftPromptFromLocation(),
+  });
 
   return (
     <section className="grid flex-1 gap-6 lg:grid-cols-[minmax(0,1.2fr)_320px]">

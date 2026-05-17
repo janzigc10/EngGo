@@ -8,6 +8,10 @@ const collectionStorageKey = "enggo.collectedWords";
 export type CollectedWordInput = {
   lemma: string;
   note: string;
+  meaningZh?: string;
+  partOfSpeech?: string;
+  reviewStatus?: "unreviewed";
+  sourceKind?: "external_dictionary_basic" | "source_lemma" | "structured";
 };
 
 export type CollectedWord = CollectedWordInput & {
@@ -25,6 +29,7 @@ type CollectionRepository = {
     word: CollectedWordInput,
   ): CollectedWord;
   listCollectedWords(examTarget: ExamTargetCode): CollectedWord[];
+  removeCollectedWord(examTarget: ExamTargetCode, lemma: string): void;
 };
 
 type CollectionListener = () => void;
@@ -41,6 +46,32 @@ function getStorage() {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function normalizeOptionalText(value: unknown) {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed || undefined;
+}
+
+function normalizeSourceKind(value: unknown): CollectedWord["sourceKind"] {
+  if (
+    value === "external_dictionary_basic" ||
+    value === "source_lemma" ||
+    value === "structured"
+  ) {
+    return value;
+  }
+
+  return undefined;
+}
+
+function normalizeReviewStatus(value: unknown): CollectedWord["reviewStatus"] {
+  return value === "unreviewed" ? value : undefined;
 }
 
 function normalizeCollectedWord(
@@ -62,6 +93,10 @@ function normalizeCollectedWord(
     examTarget,
     lemma,
     note,
+    meaningZh: normalizeOptionalText(value.meaningZh),
+    partOfSpeech: normalizeOptionalText(value.partOfSpeech),
+    reviewStatus: normalizeReviewStatus(value.reviewStatus),
+    sourceKind: normalizeSourceKind(value.sourceKind),
     collectedAt:
       typeof value.collectedAt === "string"
         ? value.collectedAt
@@ -128,6 +163,10 @@ function notifyCollectionListeners() {
   listeners.forEach((listener) => listener());
 }
 
+function getLemmaKey(lemma: string) {
+  return lemma.trim().toLowerCase();
+}
+
 export function subscribeCollectionChanges(listener: CollectionListener) {
   listeners.add(listener);
 
@@ -147,11 +186,16 @@ export function createCollectionRepository(
         examTarget,
         lemma: word.lemma.trim(),
         note: word.note.trim(),
+        meaningZh: normalizeOptionalText(word.meaningZh),
+        partOfSpeech: normalizeOptionalText(word.partOfSpeech),
+        reviewStatus: normalizeReviewStatus(word.reviewStatus),
+        sourceKind: normalizeSourceKind(word.sourceKind),
         collectedAt: new Date().toISOString(),
       };
       const existingWords = buckets[examTarget] ?? [];
+      const nextLemmaKey = getLemmaKey(nextCollectedWord.lemma);
       const nextWords = [
-        ...existingWords.filter((item) => item.lemma !== nextCollectedWord.lemma),
+        ...existingWords.filter((item) => getLemmaKey(item.lemma) !== nextLemmaKey),
         nextCollectedWord,
       ];
 
@@ -167,6 +211,18 @@ export function createCollectionRepository(
 
       return buckets[examTarget] ?? [];
     },
+    removeCollectedWord(examTarget, lemma) {
+      const storage = resolveStorage();
+      const buckets = readBuckets(storage);
+      const existingWords = buckets[examTarget] ?? [];
+      const removedLemmaKey = getLemmaKey(lemma);
+
+      buckets[examTarget] = existingWords.filter(
+        (item) => getLemmaKey(item.lemma) !== removedLemmaKey,
+      );
+      writeBuckets(storage, buckets);
+      notifyCollectionListeners();
+    },
   };
 }
 
@@ -181,4 +237,8 @@ export function addCollectedWord(
 
 export function listCollectedWords(examTarget: ExamTargetCode) {
   return collectionRepository.listCollectedWords(examTarget);
+}
+
+export function removeCollectedWord(examTarget: ExamTargetCode, lemma: string) {
+  collectionRepository.removeCollectedWord(examTarget, lemma);
 }
