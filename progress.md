@@ -13,14 +13,15 @@
   8. normalize 已补 `长得像` 形近 cue；`给我几个跟evacuate长得像的单词` 不再误走 ordinary fuzzy recall。
   9. short-word shape broad 已补一字母短词 edit-distance 信号，并收紧 ECDICT 短词形近池；`给我几个跟sow易混的单词`、`给我几个跟row长得像的单词` 不再因为 3 字母 seed 候选不足而 MISS。
   10. prefix + meaning broad 已补语义约束过滤：`co开头的意思是合作的单词` 不再退化成纯 `co*` 清单，而是先扩大 ECDICT prefix 候选池，再只展示核心义命中“合作”的候选。
+  11. prefix + suffix fragment broad 已补中英紧贴解析与硬过滤：`re开头cile结尾的单词` 不再只按 `re*` 泛化，而是只命中同时满足前缀和后缀的 `reconcile`。
 - 仍保持的边界：
   1. ECDICT 不改名为 `structured`，sourceKind 仍是 `external_dictionary_basic`，避免把外部词典误装成人工审核结构化词条。
   2. ECDICT tag 可用于当前考试范围的候选命中和显示依据，但还不自动生成自有易混组、词根族、考试优先级或人工 review 状态。
   3. 这次打通普通查词、紧凑 compare、fragment broad 和 shape broad 的用户已测坏链路；尚未把所有 meaning/source vocabulary 都改成 ECDICT-first 大底座。
-- 当前客户端状态：已恢复 Prisma dev，执行 migrate + real-smoke seed，并重启 dev stack；当前监听为 FastAPI `127.0.0.1:8000` PID 65984、Next `127.0.0.1:3000` PID 49720，日志在 `.runlogs/dev-ecdict-co-meaning-20260517.log`。
+- 当前客户端状态：已恢复 Prisma dev，执行 migrate + real-smoke seed；本轮修复后已重启 FastAPI，当前监听为 FastAPI `127.0.0.1:8000` PID 66968、Next `127.0.0.1:3000` PID 65036，FastAPI 日志在 `.runlogs/dev-fastapi-re-cile-20260517.log` / `.runlogs/dev-fastapi-re-cile-20260517.err.log`。
 - 本轮验证：
-  1. 红测：新增 scope/tag、out-of-scope structured 让位、fragment 当前 tag 过滤、shape ECDICT seed、short-word shape ECDICT seed、prefix+meaning semantic filter、`长得像` normalize 等测试，先按预期失败。
-  2. `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 94 passed，仍有 pytest cache permission warning。
+  1. 红测：新增 scope/tag、out-of-scope structured 让位、fragment 当前 tag 过滤、shape ECDICT seed、short-word shape ECDICT seed、prefix+meaning semantic filter、prefix+suffix 中英紧贴 parser / ECDICT 过滤、`长得像` normalize 等测试，先按预期失败。
+  2. `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 96 passed，仍有 pytest cache permission warning。
   3. Live HTTP：`postgrad + commit 是什么意思` -> `grounded/fuzzy_recall/external_dictionary_exact/providerRequestId=null/mainAnswer=commit external_dictionary_basic scopeCodes=["postgrad"]`。
   4. Live HTTP：`postgrad + 包含pire的单词` -> `grounded/root_family_summary/broad_vocab/supportLabel=基于 ECDICT 考研标签候选总结/providerRequestId=null`，主候选 `aspire/empire/expire/inspire/conspire` 均为 `external_dictionary_basic` + `scopeCodes=["postgrad"]`。
   5. Live HTTP：`postgrad + expire和inspire` -> `grounded/direct_compare/providerRequestId=null`，两词均来自 `external_dictionary_basic` + `scopeCodes=["postgrad"]`。
@@ -30,8 +31,9 @@
   9. Live HTTP：`postgrad + 给我几个跟sow易混的单词` -> `grounded/shape_neighbor_search/broad_vocab/supportLabel=基于 ECDICT 考研标签候选总结/providerRequestId=null`，候选包含 `sow/bow/cow/row/tow/sob`。
   10. Live HTTP：`postgrad + 给我几个跟row长得像的单词` -> `grounded/shape_neighbor_search/broad_vocab/supportLabel=基于 ECDICT 考研标签候选总结/providerRequestId=null`，候选包含 `row/bow/cow/sow/tow/rob`。
   11. Live HTTP：`postgrad + co开头的意思是合作的单词` -> `grounded/root_family_summary/broad_vocab/providerRequestId=null`，主候选收窄为 `collaborate/cooperate/cooperative`；`coach/coal/corporation` 不进入主答案。
+  12. Live HTTP：`postgrad + re开头cile结尾的单词` -> `grounded/root_family_summary/broad_vocab/providerRequestId=null`，主候选只剩 `reconcile`，命中信号包含 `prefix` + `suffix`。
 - 下一步建议：
-  1. 用户可直接在 `http://127.0.0.1:3000` 重测 postgrad 样例：`commit 是什么意思`、`包含pire的单词`、`expire和inspire`、`sow和row`、`给我几个跟sow易混的单词`、`给我几个跟row长得像的单词`、`co开头的意思是合作的单词`。
+  1. 用户可直接在 `http://127.0.0.1:3000` 重测 postgrad 样例：`commit 是什么意思`、`包含pire的单词`、`expire和inspire`、`sow和row`、`给我几个跟sow易混的单词`、`给我几个跟row长得像的单词`、`co开头的意思是合作的单词`、`re开头cile结尾的单词`。
   2. 如果这个方向验收通过，下一刀再系统化扩展“ECDICT 大底座”：把 dynamic vocabulary 的 source-only/postgrad 空池也迁到 ECDICT tag-backed pool，并定义 structured overlay 的冲突优先级。
   3. 前端后续可以把 `external_dictionary_basic + scopeCodes=[当前范围]` 显示成“ECDICT 考研标签”这类轻身份；不要显示成自有人工词库。
 

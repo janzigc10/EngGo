@@ -391,12 +391,12 @@ def root_fragment_query(normalized_text: str):
 
     constraints: list[dict[str, object]] = []
 
-    prefix = re.search(r"\b([a-z]{2,8})\s*(?:开头|词首|前缀)", text)
+    prefix = re.search(r"(?<![a-z])([a-z]{2,8})(?![a-z])\s*(?:开头|词首|前缀)", text)
     if prefix:
         value = prefix.group(1)
         constraints.append({"type": "prefix", "value": value})
 
-    suffix = re.search(r"\b([a-z]{2,8})\s*(?:结尾|词尾|后缀)", text)
+    suffix = re.search(r"(?<![a-z])([a-z]{2,8})(?![a-z])\s*(?:结尾|词尾|后缀)", text)
     if suffix:
         value = suffix.group(1)
         constraints.append({"type": "suffix", "value": value})
@@ -469,6 +469,17 @@ def matches_fragment(candidate: RetrievalCandidate, fragment) -> bool:
     return all(
         matches_constraint(lemma, constraint)
         for constraint in fragment["constraints"]
+    )
+
+
+def fragment_can_answer_single_match(fragment) -> bool:
+    constraints = fragment["constraints"]
+    constraint_types = {constraint["type"] for constraint in constraints}
+
+    return (
+        len(constraints) >= 2
+        or "start_end" in constraint_types
+        or "ordered_contains" in constraint_types
     )
 
 
@@ -768,9 +779,15 @@ class AdvancedLookupService:
                     seed=normalized_query.english_terms[0],
                 ),
             )
+        fragment = None
         if normalized_query.query_mode == "root_family_summary":
             fragment = root_fragment_query(normalized_query.normalized_text)
             if fragment:
+                vocabulary = [
+                    candidate
+                    for candidate in vocabulary
+                    if candidate.meanings_zh and matches_fragment(candidate, fragment)
+                ]
                 vocabulary = merge_dynamic_vocabulary(
                     vocabulary,
                     self.ecdict_fragment_vocabulary(
@@ -788,7 +805,12 @@ class AdvancedLookupService:
             groups=[],
         )
 
-        if len(candidates) < 2:
+        minimum_candidates = (
+            1
+            if fragment and fragment_can_answer_single_match(fragment)
+            else 2
+        )
+        if len(candidates) < minimum_candidates:
             return None
 
         grounding = build_broad_vocab_grounding(

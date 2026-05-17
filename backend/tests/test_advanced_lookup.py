@@ -1,4 +1,7 @@
-from backend.app.answering.advanced_lookup import AdvancedLookupService
+from backend.app.answering.advanced_lookup import (
+    AdvancedLookupService,
+    root_fragment_query,
+)
 from backend.app.answering.provider import GenerateAnswerResult
 from backend.app.content.ecdict import EcdictBasicProfile
 from backend.app.retrieval.types import (
@@ -772,6 +775,56 @@ def test_root_fragment_combines_prefix_and_related_contains_constraints():
     assert grounding["resolution"] == "resolved"
     assert grounding["rootFamilyView"]["id"] == "fragment-prefix-con-contains-re"
     assert [item["lemma"] for item in grounding["mainAnswer"]] == ["conference"]
+
+
+def test_root_fragment_parses_chinese_adjacent_prefix_suffix_constraints():
+    fragment = root_fragment_query("re开头cile结尾的单词")
+
+    assert fragment["id"] == "fragment-prefix-re-suffix-cile"
+    assert fragment["constraints"] == [
+        {"type": "prefix", "value": "re"},
+        {"type": "suffix", "value": "cile"},
+    ]
+
+
+def test_postgrad_prefix_suffix_query_filters_ecdict_candidates():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("reconcile", ["vt. 使和解，调停，使一致"], tag="ky"),
+            ecdict_profile("recite", ["v. 背诵，朗诵"], tag="ky"),
+            ecdict_profile("reptile", ["n. 爬行动物"], tag="ky"),
+            ecdict_profile("facile", ["adj. 容易的，肤浅的"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="re开头cile结尾的单词",
+        request_id="req_re_cile",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+    light_lemmas = [item["lemma"] for item in grounding["lightCandidates"]]
+    light_signals = {
+        signal["type"]
+        for signal in grounding["lightCandidates"][0]["signals"]
+    }
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["queryMode"] == "root_family_summary"
+    assert grounding["broadQueryMode"] == "broad_vocab"
+    assert main_lemmas == ["reconcile"]
+    assert light_lemmas == ["reconcile"]
+    assert {"prefix", "suffix"} <= light_signals
 
 
 def test_root_fragment_prefix_keeps_all_current_scope_matches():

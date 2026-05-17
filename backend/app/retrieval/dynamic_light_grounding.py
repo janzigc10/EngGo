@@ -68,8 +68,14 @@ ecdict_part_of_speech_pattern = re.compile(
     r"^\s*((?:interj|adj|adv|prep|conj|pron|num|art|phr|vt|vi|ad|int|n|v|a)\.)\s*",
     re.IGNORECASE,
 )
-prefix_hint_pattern = re.compile(r"\b([a-z]{2,8})\s*(?:开头|词首|前缀)", re.IGNORECASE)
-suffix_hint_pattern = re.compile(r"\b([a-z]{2,8})\s*(?:结尾|词尾|后缀)", re.IGNORECASE)
+prefix_hint_pattern = re.compile(
+    r"(?<![a-z])([a-z]{2,8})(?![a-z])\s*(?:开头|词首|前缀)",
+    re.IGNORECASE,
+)
+suffix_hint_pattern = re.compile(
+    r"(?<![a-z])([a-z]{2,8})(?![a-z])\s*(?:结尾|词尾|后缀)",
+    re.IGNORECASE,
+)
 contains_hint_pattern = re.compile(
     r"(?:有|含有|包含)\s*([a-z]{2,12})\s*(?:的词|这个片段|这个词形)?",
     re.IGNORECASE,
