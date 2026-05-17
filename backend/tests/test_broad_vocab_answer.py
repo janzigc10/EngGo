@@ -417,6 +417,46 @@ def test_focused_compare_queries_keep_explicit_terms_tight():
     ]
 
 
+def test_shape_neighbor_student_similarity_query_uses_shape_table():
+    query = (
+        "\u0064\u0065\u0073\u0065\u0072\u0074 "
+        "\u0064\u0065\u0073\u0073\u0065\u0072\u0074 "
+        "\u8fd8\u6709\u6ca1\u6709\u76f8\u4f3c\u7684\u8bcd"
+    )
+    grounding = build_broad_vocab_grounding(
+        active_exam_target="cet6",
+        query=query,
+        normalized_query=normalize_query(query),
+        candidates=[
+            light_candidate(
+                "desert",
+                meanings=["\u6c99\u6f20\uff1b\u629b\u5f03"],
+                part_of_speech="n. / v.",
+                signals=[LightGroundingSignal("exact", 500, "desert")],
+            ),
+            light_candidate(
+                "dessert",
+                meanings=["\u751c\u70b9"],
+                part_of_speech="n.",
+                signals=[LightGroundingSignal("exact", 499, "dessert")],
+            ),
+            light_candidate(
+                "deserve",
+                meanings=["\u5e94\u5f97"],
+                part_of_speech="v.",
+                signals=[LightGroundingSignal("ngram_overlap", 50, "desert/deserve")],
+            ),
+        ],
+    )
+
+    plan = grounding["broadAnswerPlan"]
+
+    assert grounding["learningIntentPlan"]["task"] == "shape_neighbors"
+    assert plan["style"] == "teacher_table"
+    assert plan["presentation"] == "shape_neighbor_table"
+    assert {"desert", "dessert"} <= set(plan["answerableLemmas"])
+
+
 def test_semantic_root_boundary_keeps_direct_fragment_matches_first():
     query = "\u0072\u0065+\u0063\u006f\u006e \u7684\u8bcd\u6839\u6709\u4ec0\u4e48\u8bcd"
     grounding = build_broad_vocab_grounding(

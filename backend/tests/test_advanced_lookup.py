@@ -752,6 +752,104 @@ def test_postgrad_prefix_query_with_meaning_hint_filters_external_candidates():
     assert "corporation" not in main_lemmas
 
 
+def test_con_common_or_together_question_resolves_semantic_filter():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("coach", ["n. \u6559\u7ec3", "v. \u8bad\u7ec3"], tag="ky"),
+            ecdict_profile("connect", ["v. \u8fde\u63a5\uff1b\u8054\u7cfb"], tag="ky"),
+            ecdict_profile("combine", ["v. \u7ed3\u5408\uff1b\u5408\u5e76"], tag="ky"),
+            ecdict_profile("concentrate", ["v. \u96c6\u4e2d\uff1b\u96c6\u5408"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="\u0063\u006f\u006e\u5f00\u5934\u8868\u793a\u5171\u540c\u6216\u4e00\u8d77\u7684\u8bcd",
+        request_id="req_con_common_or_together",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = {item["lemma"] for item in grounding["mainAnswer"]}
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["learningIntentPlan"]["task"] == "semantic_filter"
+    assert grounding["broadAnswerPlan"]["presentation"] == "semantic_filter_table"
+    assert main_lemmas & {"connect", "combine", "concentrate"}
+    assert "coach" not in main_lemmas
+
+
+def test_e_evaluate_question_resolves_semantic_filter_from_service_pool():
+    evaluate = candidate(
+        "evaluate",
+        ["\u8bc4\u4ef7\uff1b\u8bc4\u4f30"],
+        part_of_speech="v.",
+    )
+    estimate = candidate(
+        "estimate",
+        ["\u4f30\u8ba1\uff1b\u8bc4\u4f30"],
+        part_of_speech="v. / n.",
+    )
+    evacuate = candidate("evacuate", ["\u64a4\u79bb\uff1b\u758f\u6563"], part_of_speech="v.")
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            in_scope_entries=[evaluate, estimate, evacuate],
+        ),
+        provider=provider,
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="\u0065\u5f00\u5934\u8868\u793a\u8bc4\u4f30\u8bc4\u4ef7\u7684\u5355\u8bcd",
+        request_id="req_e_evaluate",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = {item["lemma"] for item in grounding["mainAnswer"]}
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["learningIntentPlan"]["task"] == "semantic_filter"
+    assert grounding["broadAnswerPlan"]["presentation"] == "semantic_filter_table"
+    assert {"evaluate", "estimate"} <= main_lemmas
+    assert "evacuate" not in main_lemmas
+
+
+def test_desert_dessert_similarity_question_resolves_shape_neighbors():
+    desert = candidate("desert", ["\u6c99\u6f20\uff1b\u629b\u5f03"], part_of_speech="n. / v.")
+    dessert = candidate("dessert", ["\u751c\u70b9"], part_of_speech="n.")
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            in_scope_entries=[desert, dessert],
+        ),
+        provider=FakeProvider(),
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="\u0064\u0065\u0073\u0065\u0072\u0074 \u0064\u0065\u0073\u0073\u0065\u0072\u0074 \u8fd8\u6709\u6ca1\u6709\u76f8\u4f3c\u7684\u8bcd",
+        request_id="req_desert_dessert_shape",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert grounding["learningIntentPlan"]["task"] == "shape_neighbors"
+    assert grounding["broadAnswerPlan"]["presentation"] == "shape_neighbor_table"
+    assert {"desert", "dessert"} <= set(main_lemmas)
+
+
 def test_root_fragment_combines_prefix_and_related_contains_constraints():
     concept = candidate("concept", ["概念"], part_of_speech="n.")
     conference = candidate("conference", ["会议"], part_of_speech="n.")

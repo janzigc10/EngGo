@@ -427,7 +427,7 @@ Record the semantic alternatives and focused test results.
 - Modify: `backend/app/answering/advanced_lookup.py` only if service routing still bypasses broad lookup.
 - Modify: `backend/app/answering/broad_vocab.py` only if output shape regresses.
 
-- [ ] **Step 1: Add service tests for the three known no-result cases**
+- [x] **Step 1: Add service tests for the three known no-result cases**
 
 Add tests with fake vocabulary/ECDICT profiles as needed:
 
@@ -456,7 +456,7 @@ For `e开头表示评估评价的单词`, assert at least `evaluate` or `estimat
 
 For `desert dessert 还有没有相似的词`, assert `shape_neighbors` and includes `desert` / `dessert`.
 
-- [ ] **Step 2: Run service tests and verify RED if Task 2/3 were insufficient**
+- [x] **Step 2: Run service tests and verify RED if Task 2/3 were insufficient**
 
 Run:
 
@@ -466,7 +466,7 @@ C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_advanced_look
 
 Expected: pass if routing and grounding are now wired correctly; otherwise fail at the service boundary.
 
-- [ ] **Step 3: Fix only the service boundary if needed**
+- [x] **Step 3: Fix only the service boundary if needed**
 
 If tests fail because `AdvancedLookupService` still treats a query as ordinary lookup, use `intent_plan.task` as the stronger signal:
 
@@ -482,7 +482,7 @@ if normalized_query.intent_plan and normalized_query.intent_plan.task in {
 
 Do not change ordinary exact lookup for `mitigate是什么意思` or phrase lookup.
 
-- [ ] **Step 4: Run focused tests and verify GREEN**
+- [x] **Step 4: Run focused tests and verify GREEN**
 
 Run:
 
@@ -492,14 +492,14 @@ C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_advanced_look
 
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add backend/app/answering/advanced_lookup.py backend/app/answering/broad_vocab.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_student_intent_matrix.py
 git commit -m "Resolve student intent service regressions"
 ```
 
-- [ ] **Step 6: Update this plan checkbox and `progress.md`**
+- [x] **Step 6: Update this plan checkbox and `progress.md`**
 
 Record which no-result cases now resolve.
 
