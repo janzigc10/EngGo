@@ -822,6 +822,8 @@ def test_postgrad_prefix_suffix_query_filters_ecdict_candidates():
     assert provider.calls == []
     assert grounding["queryMode"] == "root_family_summary"
     assert grounding["broadQueryMode"] == "broad_vocab"
+    assert grounding["learningIntentPlan"]["task"] == "form_filter"
+    assert grounding["learningIntentPlan"]["minimumAnswerableCandidates"] == 1
     assert main_lemmas == ["reconcile"]
     assert light_lemmas == ["reconcile"]
     assert {"prefix", "suffix"} <= light_signals

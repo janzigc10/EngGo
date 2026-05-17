@@ -684,6 +684,11 @@ def build_broad_vocab_grounding(
         "activeExamTargetLabel": exam_target_labels[active_exam_target],
         "query": query,
         "queryMode": normalized_query.query_mode,
+        "learningIntentPlan": (
+            normalized_query.intent_plan.to_json()
+            if getattr(normalized_query, "intent_plan", None) is not None
+            else None
+        ),
         "broadQueryMode": "broad_vocab",
         "answerStyle": "broad_vocab_summary",
         "groundingStrength": "light",

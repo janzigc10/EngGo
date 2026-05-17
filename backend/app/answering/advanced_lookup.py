@@ -803,10 +803,13 @@ class AdvancedLookupService:
             active_exam_target=active_exam_target,
             vocabulary=vocabulary,
             groups=[],
+            intent_plan=normalized_query.intent_plan,
         )
 
         minimum_candidates = (
-            1
+            normalized_query.intent_plan.minimum_answerable_candidates
+            if normalized_query.intent_plan is not None
+            else 1
             if fragment and fragment_can_answer_single_match(fragment)
             else 2
         )

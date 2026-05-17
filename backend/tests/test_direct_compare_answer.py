@@ -118,6 +118,7 @@ def test_direct_compare_returns_comparison_grounding_without_provider():
     assert result.payload.answerKind == "grounded"
     assert result.payload.providerRequestId is None
     assert grounding["queryMode"] == "direct_compare"
+    assert grounding["learningIntentPlan"]["task"] == "focused_compare"
     assert grounding["answerStyle"] == "confusion_untangle"
     assert grounding["resolution"] == "resolved"
     assert grounding["matchType"] is None

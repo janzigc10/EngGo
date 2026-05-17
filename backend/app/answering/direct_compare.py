@@ -277,6 +277,8 @@ class DirectCompareService:
             comparison_view=comparison_view,
             candidates=ranked_candidates,
         )
+        if normalized_query.intent_plan is not None:
+            grounding["learningIntentPlan"] = normalized_query.intent_plan.to_json()
 
         return DirectCompareResult(
             status_code=200,
@@ -325,6 +327,7 @@ class DirectCompareService:
             active_exam_target=active_exam_target,
             vocabulary=vocabulary,
             groups=[],
+            intent_plan=normalized_query.intent_plan,
         )
 
         if len(candidates) < 2:
