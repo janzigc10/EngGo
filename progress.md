@@ -1,6 +1,33 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
+## 当前状态与下一步（2026-05-17 LearningIntentPlan 完成）
+- 最新 plan `docs/superpowers/plans/2026-05-17-learning-intent-plan.md` 已执行完成并移入历史计划；当前没有活跃 plan。下一轮如继续做产品打磨，先从聊天主舞台的回答展示、移动端阅读密度、收藏动作体验切入，不要从这个 plan 的 Task 1 重开。
+- 后端现在在 `normalize_query`、dynamic grounding、broad answer plan 之间有结构化 `LearningIntentPlan`：
+  1. `NormalizedQuery.intent_plan` / `to_json().learningIntentPlan` 会记录任务类型、seed terms、硬约束、扩展策略、最小可回答候选数和输出风格。
+  2. dynamic light grounding 会消费 plan，对 `prefix` / `suffix` / `contains` / `meaning` 执行硬过滤，并补齐 plan 派生 signals。
+  3. broad answer plan 会按 plan 输出 `inventory_table`、`semantic_filter_table`、`word_family_table`、`shape_neighbor_table` 等 presentation。
+  4. direct compare 保持 focused compare，不主动扩词；ordinary exact lookup 仍走 deterministic lookup，不被 broad plan 污染。
+- 本轮额外修复了真实 ECDICT `respect派生词` 场景：active tag 仍优先，但 word-family 请求会回填其它已标注且形态精确命中的常见派生词；真实 smoke 现在包含 `respect/respectful/respectable/respective`。
+- smoke 契约已对齐当前 ordinary ECDICT exact 行为：`photosynthesis 是什么意思` 现在按 `external_dictionary_exact` 验收，而不是旧的 plain fallback 预期；no-match policy 单测仍只覆盖“没有命中时是否允许 plain fallback”。
+- 最新提交：
+  1. `6baef9c` Add learning intent plan model
+  2. `0c1c61e` Attach learning intent to normalized queries
+  3. `0779ce2` Use learning intent for dynamic grounding
+  4. `a211974` Wire learning intent into broad lookup
+  5. `848bb81` Shape broad answers from learning intent
+  6. `abb7aaf` Add ECDICT word family expansion
+  7. `37a308f` Backfill tagged ECDICT word family candidates
+  8. `ddecff0` Add learning intent smoke coverage
+- 最新验证：
+  1. `corepack pnpm test scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 1 file / 8 tests passed。
+  2. `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py -p no:cacheprovider` -> 52 passed。
+  3. `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py -p no:cacheprovider` -> 103 passed。
+  4. 临时启动 FastAPI 后，`corepack pnpm eval:fastapi:migrated-smoke` -> 20 total / 20 pass / 0 fail。
+  5. 临时启动 `corepack pnpm dev:fastapi` 后，`corepack pnpm eval:fastapi:migrated-smoke:proxy` -> 20 total / 20 pass / 0 fail。
+- 环境备注：本轮在沙箱内运行 `tsx` smoke 偶发 `EPERM: operation not permitted, open ...tsx...\cli.mjs`，因此 direct/proxy live smoke 均按授权流程在沙箱外执行；pytest 使用 `-p no:cacheprovider` 避免本地 cache 写入导致的收尾卡住。
+- 下一步建议：回到聊天主舞台体验验收，优先看普通查词 exact lookup 渲染是否仍干净、移动端长回答是否好读、收藏动作是否能自然沉淀到后续复习入口。
+
+## 历史快照（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
 - 产品方向已从“postgrad 没有官方机器词表，所以 ECDICT 只能泛外部兜底”调整为：ECDICT 作为更大的基础词汇底座；自有 structured 词库作为高信任覆盖层。覆盖层仍优先，但只在当前考试范围内命中时覆盖。
 - 已实现第一刀后端切片：
   1. ECDICT tag 映射到 EngGo scope：`gk/zk -> gaokao`、`cet4 -> cet4`、`cet6 -> cet6`、`ky -> postgrad`。
@@ -18,6 +45,7 @@
   1. ECDICT 不改名为 `structured`，sourceKind 仍是 `external_dictionary_basic`，避免把外部词典误装成人工审核结构化词条。
   2. ECDICT tag 可用于当前考试范围的候选命中和显示依据，但还不自动生成自有易混组、词根族、考试优先级或人工 review 状态。
   3. 这次打通普通查词、紧凑 compare、fragment broad 和 shape broad 的用户已测坏链路；尚未把所有 meaning/source vocabulary 都改成 ECDICT-first 大底座。
+- 新计划：已新增 `docs/superpowers/plans/2026-05-17-learning-intent-plan.md`，下一刀不再继续堆单点正则，而是在 `normalize_query`、dynamic grounding、broad answer plan 之间增加 `LearningIntentPlan`：显式记录任务类型、硬约束、是否允许扩展、最小命中数和教师式输出形态。Task 1 已完成并提交 `6baef9c`：新增 `backend/app/retrieval/learning_intent.py` 和 `backend/tests/test_learning_intent.py`，覆盖 `form_filter`、`semantic_filter`、`word_family` 三类核心 plan。Task 2 已完成并提交 `0c1c61e`：`NormalizedQuery` 现在携带 `intent_plan`，`to_json()` 暴露 `learningIntentPlan`，且 `test_normalize_query.py` 16 个用例保持 query mode 稳定。Task 3 已完成并提交 `0779ce2`：`dynamic_light_grounding` 现在消费 `intent_plan`，统一执行 prefix/suffix/contains/meaning 硬过滤，并补齐 plan 派生 signals。Task 4 已完成并提交 `a211974`：`AdvancedLookupService` / direct compare broad fallback 已传入 plan，broad grounding 与 direct compare grounding 会暴露 `learningIntentPlan`。Task 5 已完成并提交 `848bb81`：`broad_vocab` 已按 `intent_plan.output_style` 组织 `strict_inventory` / `teacher_table`，并保留普通 inventory 的紧凑输出；纯语义召回仍保持 `meaning_core`。Task 6 已完成并提交 `abb7aaf`：`word_family` plan 会窄范围合并 ECDICT tagged 派生候选，并在 light candidate signals 中标记 `word_family_candidate`。
 - 当前客户端状态：已恢复 Prisma dev，执行 migrate + real-smoke seed；本轮修复后已重启 FastAPI，当前监听为 FastAPI `127.0.0.1:8000` PID 66968、Next `127.0.0.1:3000` PID 65036，FastAPI 日志在 `.runlogs/dev-fastapi-re-cile-20260517.log` / `.runlogs/dev-fastapi-re-cile-20260517.err.log`。
 - 本轮验证：
   1. 红测：新增 scope/tag、out-of-scope structured 让位、fragment 当前 tag 过滤、shape ECDICT seed、short-word shape ECDICT seed、prefix+meaning semantic filter、prefix+suffix 中英紧贴 parser / ECDICT 过滤、`长得像` normalize 等测试，先按预期失败。
@@ -33,8 +61,8 @@
   11. Live HTTP：`postgrad + co开头的意思是合作的单词` -> `grounded/root_family_summary/broad_vocab/providerRequestId=null`，主候选收窄为 `collaborate/cooperate/cooperative`；`coach/coal/corporation` 不进入主答案。
   12. Live HTTP：`postgrad + re开头cile结尾的单词` -> `grounded/root_family_summary/broad_vocab/providerRequestId=null`，主候选只剩 `reconcile`，命中信号包含 `prefix` + `suffix`。
 - 下一步建议：
-  1. 用户可直接在 `http://127.0.0.1:3000` 重测 postgrad 样例：`commit 是什么意思`、`包含pire的单词`、`expire和inspire`、`sow和row`、`给我几个跟sow易混的单词`、`给我几个跟row长得像的单词`、`co开头的意思是合作的单词`、`re开头cile结尾的单词`。
-  2. 如果这个方向验收通过，下一刀再系统化扩展“ECDICT 大底座”：把 dynamic vocabulary 的 source-only/postgrad 空池也迁到 ECDICT tag-backed pool，并定义 structured overlay 的冲突优先级。
+  1. 按 `docs/superpowers/plans/2026-05-17-learning-intent-plan.md` 继续从 Task 7 执行：补学习意图 smoke matrix，覆盖 strict form filter、semantic filter、word family、shape neighbors、focused compare 和普通 exact lookup。
+  2. 执行时优先保护现有已通过样例：`co开头的意思是合作的单词`、`re开头cile结尾的单词`、`sow/row`、`evacuate/evaluate`、普通 exact lookup。
   3. 前端后续可以把 `external_dictionary_basic + scopeCodes=[当前范围]` 显示成“ECDICT 考研标签”这类轻身份；不要显示成自有人工词库。
 
 ## 当前状态与下一步（2026-05-16 收藏生词本整理 1.0）

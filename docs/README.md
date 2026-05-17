@@ -31,9 +31,14 @@
 - `docs/superpowers/specs/2026-04-21-enggo-technical-architecture-design.md`
   - 初始技术设计。
 
+## 当前活跃计划
+- 暂无。下一轮先从 `progress.md` 的“下一步建议”确认方向，不要从历史 plan 的 Task 1 重开。
+
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。
 
+- `docs/superpowers/plans/2026-05-17-learning-intent-plan.md`
+  - 学习意图层实现计划已完成：`normalize_query` 现在附带 `LearningIntentPlan`，dynamic grounding 消费硬约束和扩展策略，broad answer plan 按任务输出 strict inventory / teacher table / word-family table / shape-neighbor table，并已通过 direct FastAPI 与 Next proxy migrated smoke。
 - `docs/superpowers/plans/2026-05-15-broad-vocab-confusion-organizer.md`
   - Broad vocab 易混词整理第二刀：把 `collection_map` 从 loose learning map 收敛为“先易混核心组，再补充同形候选”的回答契约，已完成；只改 broad answer 计划/提示和回归句柄，未改普通 `standard_lookup` 模板。
 - `docs/superpowers/plans/2026-05-16-collection-organizer.md`
