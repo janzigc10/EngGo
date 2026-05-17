@@ -472,6 +472,19 @@ def matches_fragment(candidate: RetrievalCandidate, fragment) -> bool:
     )
 
 
+def ecdict_fragment_search_limit(fragment, limit: int) -> int:
+    has_short_prefix = any(
+        constraint["type"] == "prefix"
+        and len(str(constraint["value"])) <= 3
+        for constraint in fragment["constraints"]
+    )
+
+    if has_short_prefix:
+        return max(limit * 16, 600)
+
+    return max(limit * 4, 144)
+
+
 def build_root_family_view(
     *,
     root_id: str,
@@ -609,6 +622,7 @@ class AdvancedLookupService:
 
         search = self.ecdict_lookup.search
         preferred_tags = preferred_ecdict_tags_by_exam_target.get(active_exam_target, ())
+        search_limit = ecdict_fragment_search_limit(fragment, limit)
         active_tagged_profiles = search(
             lambda profile: bool(
                 scope_codes_for_profile(
@@ -617,20 +631,20 @@ class AdvancedLookupService:
                 ),
             )
             and matches_profile(profile),
-            limit=limit,
+            limit=search_limit,
             preferred_tags=preferred_tags,
         )
         profiles = active_tagged_profiles
         if len(profiles) < 2:
             profiles = search(
                 lambda profile: bool(profile.tag.strip()) and matches_profile(profile),
-                limit=limit,
+                limit=search_limit,
                 preferred_tags=preferred_tags,
             )
         if len(profiles) < 2:
             profiles = search(
                 matches_profile,
-                limit=limit,
+                limit=search_limit,
                 preferred_tags=preferred_tags,
             )
 

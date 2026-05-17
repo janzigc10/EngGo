@@ -125,6 +125,30 @@ def test_prefix_query_keeps_scope_and_prefers_prefix_candidates():
     assert all("prefix" in signal_types(item) for item in result)
 
 
+def test_prefix_query_with_cooperation_meaning_adds_semantic_signal():
+    vocabulary = [
+        candidate("coach", ["教练；训练"], part_of_speech="n. / v."),
+        candidate("coal", ["煤"], part_of_speech="n."),
+        candidate("cooperate", ["合作；协力；配合"]),
+        candidate("cooperative", ["合作的；合作社的"], part_of_speech="adj."),
+        candidate("corporation", ["公司；合作；法人团体"], part_of_speech="n."),
+    ]
+
+    result = build_light_grounding_candidates(
+        query="co开头的意思是合作的单词",
+        active_exam_target="cet6",
+        vocabulary=vocabulary,
+        groups=[],
+    )
+
+    lemmas = [item.lemma for item in result]
+
+    assert lemmas[:2] == ["cooperate", "cooperative"]
+    assert all("meaning_keyword" in signal_types(item) for item in result[:2])
+    corporation = next(item for item in result if item.lemma == "corporation")
+    assert "meaning_keyword" not in signal_types(corporation)
+
+
 def test_meaning_query_prioritizes_core_semantic_matches():
     vocabulary = [
         candidate("request", ["请求；要求"]),

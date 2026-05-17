@@ -96,6 +96,11 @@ semantic_hint_groups = [
         "pattern": re.compile(r"(推荐|称赞|表扬)"),
         "keywords": ["推荐", "称赞", "表扬", "赞扬", "建议"],
     },
+    {
+        "pattern": re.compile(r"(合作|协作|协同|共同|配合)"),
+        "keywords": ["合作", "协作", "配合"],
+        "primary_only": True,
+    },
 ]
 
 
@@ -239,6 +244,17 @@ def add_signal(
     )
 
 
+def first_meaning_segment(meaning: str) -> str:
+    return re.split(r"[；;，,、]", meaning, maxsplit=1)[0]
+
+
+def meaning_matches_keyword(meaning: str, keyword: str, *, primary_only: bool) -> bool:
+    if not primary_only:
+        return keyword in meaning
+
+    return keyword in first_meaning_segment(meaning)
+
+
 def group_ids_by_entry_id(groups: list[ConfusionGroup]) -> dict[str, list[str]]:
     result: dict[str, list[str]] = {}
 
@@ -353,11 +369,19 @@ def score_candidate(
         if not group["pattern"].search(query):
             continue
 
+        primary_only = bool(group.get("primary_only"))
         for keyword in group["keywords"]:
             if keyword == "看法" and keyword not in query:
                 continue
 
-            if any(keyword in meaning for meaning in candidate.meanings_zh):
+            if any(
+                meaning_matches_keyword(
+                    meaning,
+                    keyword,
+                    primary_only=primary_only,
+                )
+                for meaning in candidate.meanings_zh
+            ):
                 weight = 140 if keyword in {"强烈要求", "要求", "请求"} else 105
                 add_signal(signals, signal_type="meaning_keyword", weight=weight, detail=keyword)
                 score += weight

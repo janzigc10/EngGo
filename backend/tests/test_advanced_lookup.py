@@ -705,6 +705,50 @@ def test_postgrad_fragment_query_uses_external_dictionary_candidates():
     assert "plain" not in result.payload.answer
 
 
+def test_postgrad_prefix_query_with_meaning_hint_filters_external_candidates():
+    noisy_prefix_profiles = [
+        ecdict_profile(f"co{first}{second}", [f"n. noise {first}{second}"], tag="ky")
+        for first in "abcdef"
+        for second in "abcdefg"
+    ]
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            *noisy_prefix_profiles,
+            ecdict_profile("coach", ["n. 教练", "v. 训练"], tag="ky"),
+            ecdict_profile("coal", ["n. 煤"], tag="ky"),
+            ecdict_profile("cooperate", ["vi. 合作；协力；配合"], tag="ky"),
+            ecdict_profile("cooperative", ["adj. 合作的；合作社的"], tag="ky"),
+            ecdict_profile("corporation", ["n. 公司；合作；法人团体"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="co开头的意思是合作的单词",
+        request_id="req_co_cooperation_prefix",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["queryMode"] == "root_family_summary"
+    assert grounding["broadQueryMode"] == "broad_vocab"
+    assert grounding["supportLabel"] == "基于 ECDICT 考研标签候选总结"
+    assert main_lemmas == ["cooperate", "cooperative"]
+    assert "coach" not in main_lemmas
+    assert "coal" not in main_lemmas
+    assert "corporation" not in main_lemmas
+
+
 def test_root_fragment_combines_prefix_and_related_contains_constraints():
     concept = candidate("concept", ["概念"], part_of_speech="n.")
     conference = candidate("conference", ["会议"], part_of_speech="n.")

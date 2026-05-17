@@ -126,6 +126,51 @@ def test_collection_plan_defaults_to_inventory_table_without_forced_groups():
     )
 
 
+def test_collection_plan_with_meaning_keyword_uses_semantic_matches_only():
+    query = "co开头的意思是合作的单词"
+    grounding = build_broad_vocab_grounding(
+        active_exam_target="postgrad",
+        query=query,
+        normalized_query=normalize_query(query),
+        candidates=[
+            light_candidate(
+                "cooperate",
+                meanings=["合作；协力；配合"],
+                source_kind="external_dictionary_basic",
+                scope_codes=["postgrad"],
+                signals=[
+                    LightGroundingSignal("prefix", 110, "co"),
+                    LightGroundingSignal("meaning_keyword", 105, "合作"),
+                ],
+            ),
+            light_candidate(
+                "cooperative",
+                meanings=["合作的；合作社的"],
+                source_kind="external_dictionary_basic",
+                scope_codes=["postgrad"],
+                signals=[
+                    LightGroundingSignal("prefix", 110, "co"),
+                    LightGroundingSignal("meaning_keyword", 105, "合作"),
+                ],
+            ),
+            light_candidate(
+                "coach",
+                meanings=["教练；训练"],
+                source_kind="external_dictionary_basic",
+                scope_codes=["postgrad"],
+                signals=[LightGroundingSignal("prefix", 110, "co")],
+            ),
+        ],
+    )
+
+    plan = grounding["broadAnswerPlan"]
+
+    assert plan["presentation"] == "inventory_table"
+    assert plan["answerableLemmas"] == ["cooperate", "cooperative"]
+    assert plan["suppressedCandidateLemmas"] == ["coach"]
+    assert grounding["selectedMainTerms"] == ["cooperate", "cooperative"]
+
+
 def test_broad_grounding_normalizes_part_of_speech_to_abbreviations():
     query = "\u0063\u006f\u006d\u006d \u5f00\u5934\u7684\u5355\u8bcd\u603b\u7ed3"
     grounding = build_broad_vocab_grounding(

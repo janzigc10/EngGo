@@ -350,7 +350,8 @@ def build_answer_material(
     list[LightGroundingCandidate],
 ]:
     if style == "collection_map":
-        strong_candidates = [
+        semantic_candidates = candidates_with_signal(candidates, "meaning_keyword")
+        strong_candidates = semantic_candidates or [
             candidate
             for candidate in candidates
             if has_any_signal(candidate, strong_collection_signals)
