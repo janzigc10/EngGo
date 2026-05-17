@@ -30,6 +30,7 @@ from backend.app.retrieval.dynamic_light_grounding import (
     infer_ecdict_part_of_speech,
     merge_dynamic_vocabulary,
     source_lemma_vocabulary,
+    word_family_evidence as score_word_family_evidence,
 )
 from backend.app.retrieval.types import ConfusionGroup, RetrievalCandidate
 from backend.app.schemas.chat import ChatSuccessResponse
@@ -753,21 +754,8 @@ class AdvancedLookupService:
         if not normalized_seed:
             return []
 
-        derivative_suffixes = (
-            "ful",
-            "able",
-            "ible",
-            "ive",
-            "ively",
-            "less",
-            "ion",
-            "ation",
-            "ity",
-            "ability",
-            "ment",
-            "ness",
-        )
-        derivative_prefixes = ("self-", "ir", "in", "im", "un")
+        def word_family_evidence(seed: str, lemma: str) -> tuple[int, str | None]:
+            return score_word_family_evidence(seed, lemma)
 
         def matches_family_form(profile: EcdictBasicProfile) -> bool:
             lemma = profile.canonical.lower()
@@ -775,15 +763,8 @@ class AdvancedLookupService:
                 return False
             if re.fullmatch(r"[a-z][a-z-]*", lemma) is None:
                 return False
-            if lemma == normalized_seed:
-                return True
-            if any(lemma == f"{normalized_seed}{suffix}" for suffix in derivative_suffixes):
-                return True
-            return any(
-                lemma == f"{prefix}{normalized_seed}"
-                or (lemma.startswith(prefix) and normalized_seed in lemma)
-                for prefix in derivative_prefixes
-            )
+            score, _reason = word_family_evidence(normalized_seed, lemma)
+            return score >= 75
 
         def tagged_for_active_exam(profile: EcdictBasicProfile) -> bool:
             return bool(
@@ -795,22 +776,31 @@ class AdvancedLookupService:
 
         def family_sort_key(profile: EcdictBasicProfile):
             lemma = profile.canonical.lower()
+            evidence_score, _reason = word_family_evidence(normalized_seed, lemma)
+            suffix_order = (
+                "ful",
+                "able",
+                "ible",
+                "ive",
+                "ively",
+                "less",
+                "ion",
+                "ation",
+                "ity",
+                "ment",
+                "ness",
+            )
             if lemma == normalized_seed:
                 group = 0
-            elif lemma == f"{normalized_seed}ful":
-                group = 1
-            elif lemma == f"{normalized_seed}able":
-                group = 2
-            elif lemma == f"{normalized_seed}ible":
-                group = 3
-            elif lemma == f"{normalized_seed}ive":
-                group = 4
-            elif lemma == f"{normalized_seed}ively":
-                group = 5
-            elif lemma.startswith("self-"):
-                group = 8
             else:
-                group = 7
+                group = next(
+                    (
+                        index + 1
+                        for index, suffix in enumerate(suffix_order)
+                        if lemma == f"{normalized_seed}{suffix}"
+                    ),
+                    20 if evidence_score == 75 else 40,
+                )
 
             return (group, len(lemma), lemma)
 

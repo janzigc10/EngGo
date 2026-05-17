@@ -110,26 +110,25 @@ semantic_hint_groups = [
     },
 ]
 
-word_family_suffix_weights = {
-    "ful": 140,
-    "able": 200,
-    "ible": 198,
-    "ive": 134,
-    "ively": 132,
-    "less": 130,
-    "ion": 128,
-    "ation": 126,
-    "ity": 124,
-    "ability": 122,
-    "ment": 120,
-    "ness": 118,
-}
-word_family_prefix_weights = {
-    "self-": 116,
-    "ir": 114,
-    "in": 112,
-    "im": 112,
-    "un": 110,
+word_family_evidence_suffixes = (
+    "ful",
+    "less",
+    "ness",
+    "able",
+    "ible",
+    "ive",
+    "ively",
+    "ion",
+    "ation",
+    "ity",
+    "ment",
+)
+word_family_evidence_prefixes = ("ir", "in", "im", "un", "self-", "re")
+word_family_stem_aliases = {
+    "sign": ("sign",),
+    "produce": ("produc", "product"),
+    "consider": ("consider",),
+    "respect": ("respect",),
 }
 
 
@@ -169,6 +168,35 @@ def infer_ecdict_part_of_speech(profile: EcdictBasicProfile | None) -> str | Non
         parts.append(part)
 
     return " / ".join(parts) if parts else None
+
+
+def word_family_evidence(seed: str, lemma: str) -> tuple[int, str | None]:
+    normalized_seed = seed.strip().lower()
+    normalized_lemma = lemma.strip().lower()
+
+    if not normalized_seed or not normalized_lemma:
+        return 0, None
+
+    if normalized_lemma == normalized_seed:
+        return 100, "exact_seed"
+
+    if any(
+        normalized_lemma == f"{normalized_seed}{suffix}"
+        for suffix in word_family_evidence_suffixes
+    ):
+        return 90, "seed_suffix_derivative"
+
+    if any(
+        normalized_lemma == f"{prefix}{normalized_seed}"
+        for prefix in word_family_evidence_prefixes
+    ):
+        return 85, "prefix_seed_derivative"
+
+    aliases = word_family_stem_aliases.get(normalized_seed, ())
+    if aliases and any(normalized_lemma.startswith(alias) for alias in aliases):
+        return 75, "tested_stem_family"
+
+    return 0, None
 
 
 def clean_ecdict_broad_meanings(profile: EcdictBasicProfile | None) -> list[str]:
@@ -405,33 +433,16 @@ def add_intent_constraint_signals(
 
     if plan.task == "word_family" and len(plan.seed_terms) == 1:
         seed = plan.seed_terms[0].lower()
-        lemma = candidate.lemma.lower()
-        weight = 0
+        evidence_score, evidence_reason = word_family_evidence(seed, candidate.lemma)
 
-        if lemma == seed:
-            weight = 180
-        else:
-            for suffix, suffix_weight in word_family_suffix_weights.items():
-                if lemma == f"{seed}{suffix}":
-                    weight = suffix_weight
-                    break
-            if not weight:
-                for prefix, prefix_weight in word_family_prefix_weights.items():
-                    if lemma == f"{prefix}{seed}" or (
-                        lemma.startswith(prefix)
-                        and seed in lemma
-                    ):
-                        weight = prefix_weight
-                        break
-
-        if weight:
+        if evidence_reason is not None:
             add_signal_once(
                 signals,
                 signal_type="word_family_candidate",
-                weight=weight,
-                detail=seed,
+                weight=evidence_score,
+                detail=f"{seed}:{evidence_reason}",
             )
-            score_delta += weight
+            score_delta += evidence_score
 
     return score_delta
 
@@ -578,6 +589,13 @@ def score_candidate(
     if not signals:
         return None
 
+    if (
+        intent_plan is not None
+        and intent_plan.task == "word_family"
+        and not is_word_family_main_candidate(signals, intent_plan.seed_terms)
+    ):
+        return None
+
     if structured_group_ids:
         add_signal(
             signals,
@@ -630,11 +648,62 @@ def has_signal(candidate: LightGroundingCandidate, signal_type: str) -> bool:
     return any(signal.type == signal_type for signal in candidate.signals)
 
 
+def is_word_family_main_candidate(
+    signals: list[LightGroundingSignal],
+    seed_terms: list[str],
+) -> bool:
+    if len(seed_terms) != 1:
+        return True
+
+    seed = seed_terms[0].lower()
+    return any(
+        (
+            signal.type == "exact"
+            and signal.detail.lower() == seed
+        )
+        or signal.type == "word_family_candidate"
+        for signal in signals
+    )
+
+
 def min_token_length_gap(candidate: LightGroundingCandidate, tokens: list[str]) -> int:
     return min(
         [abs(len(candidate.lemma) - len(token)) for token in tokens]
         or [0],
     )
+
+
+def word_family_sort_group(seed: str, lemma: str) -> int:
+    normalized_seed = seed.lower()
+    normalized_lemma = lemma.lower()
+
+    if normalized_lemma == normalized_seed:
+        return 0
+
+    suffix_order = (
+        "ful",
+        "able",
+        "ible",
+        "ive",
+        "ively",
+        "less",
+        "ion",
+        "ation",
+        "ity",
+        "ment",
+        "ness",
+    )
+    for index, suffix in enumerate(suffix_order):
+        if normalized_lemma == f"{normalized_seed}{suffix}":
+            return index + 1
+
+    _score, reason = word_family_evidence(normalized_seed, normalized_lemma)
+    if reason == "tested_stem_family":
+        return 20
+    if reason == "prefix_seed_derivative":
+        return 30
+
+    return 99
 
 
 def sort_key(
@@ -643,6 +712,7 @@ def sort_key(
     *,
     tokens: list[str],
     shape_query: bool,
+    intent_plan: LearningIntentPlan | None = None,
 ):
     exact_details = [
         signal.detail
@@ -653,6 +723,19 @@ def sort_key(
         [token_order[detail] for detail in exact_details if detail in token_order]
         or [999],
     )
+
+    if (
+        intent_plan is not None
+        and intent_plan.task == "word_family"
+        and len(intent_plan.seed_terms) == 1
+    ):
+        return (
+            exact_index,
+            word_family_sort_group(intent_plan.seed_terms[0], candidate.lemma),
+            -candidate.score,
+            len(candidate.lemma),
+            candidate.lemma,
+        )
 
     if shape_query and tokens:
         return (
@@ -712,6 +795,7 @@ def build_light_grounding_candidates(
             token_order,
             tokens=tokens,
             shape_query=shape_query,
+            intent_plan=intent_plan,
         ),
     )[:limit]
 

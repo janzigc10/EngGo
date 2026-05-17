@@ -1006,6 +1006,94 @@ def test_word_family_intent_backfills_tagged_derivatives_from_other_exam_scopes(
     assert "rescue" not in [item["lemma"] for item in grounding["lightCandidates"]]
 
 
+def test_sign_word_family_excludes_shape_noise():
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            in_scope_entries=[
+                candidate("sign", ["v. 签名；示意"]),
+                candidate("signal", ["n. 信号"]),
+                candidate("signify", ["v. 表示；意味着"]),
+                candidate("sigh", ["v. 叹气"]),
+                candidate("sight", ["n. 视力；景象"]),
+                candidate("scan", ["v. 扫描"]),
+                candidate("sick", ["adj. 生病的"]),
+            ],
+        ),
+        provider=provider,
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="sign\u7684\u6d3e\u751f\u8bcd\u6709\u54ea\u4e9b",
+        request_id="req_sign_family",
+    )
+
+    grounding = result.payload.grounding
+    lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+    light_lemmas = [item["lemma"] for item in grounding["lightCandidates"]]
+
+    assert "sign" in lemmas
+    assert "signal" in lemmas
+    assert "signify" in lemmas
+    assert "sigh" not in lemmas
+    assert "sight" not in lemmas
+    assert "scan" not in lemmas
+    assert "sick" not in lemmas
+    assert "sigh" not in light_lemmas
+    assert "sight" not in light_lemmas
+    assert "scan" not in light_lemmas
+    assert "sick" not in light_lemmas
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+
+
+def test_produce_word_family_excludes_loose_pro_prefix_words():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("produce", ["v. 生产；制造"], tag="cet6"),
+            ecdict_profile("product", ["n. 产品；结果"], tag="cet6"),
+            ecdict_profile("productive", ["adj. 多产的；有效益的"], tag="cet6"),
+            ecdict_profile("reproduce", ["v. 复制；繁殖"], tag="cet6"),
+        ],
+    )
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            in_scope_entries=[
+                candidate("provide", ["v. 提供"]),
+                candidate("propose", ["v. 提议"]),
+                candidate("project", ["n. 项目；v. 投射"]),
+                candidate("promote", ["v. 促进；提升"]),
+            ],
+        ),
+        provider=FakeProvider(),
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="produce\u7684\u540c\u6839\u8bcd\u6216\u6d3e\u751f\u8bcd",
+        request_id="req_produce_family",
+    )
+
+    grounding = result.payload.grounding
+    lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+    light_lemmas = [item["lemma"] for item in grounding["lightCandidates"]]
+
+    assert "produce" in lemmas
+    assert "product" in lemmas
+    assert "productive" in lemmas
+    assert "reproduce" in lemmas
+    assert "provide" not in lemmas
+    assert "propose" not in lemmas
+    assert "project" not in lemmas
+    assert "promote" not in lemmas
+    assert "provide" not in light_lemmas
+    assert "propose" not in light_lemmas
+    assert "project" not in light_lemmas
+    assert "promote" not in light_lemmas
+
+
 def test_root_fragment_prefix_keeps_all_current_scope_matches():
     early_candidates = [
         candidate(f"conword{index}", [f"meaning {index}"], part_of_speech="n.")

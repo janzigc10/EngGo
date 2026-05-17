@@ -1,18 +1,17 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-17 学生式意图归一化 Task 4 完成，未提交）
-- 当前活跃 plan 是 `docs/superpowers/plans/2026-05-17-student-intent-normalization.md`。本轮按子代理范围完成 Task 4；Task 4 的 Step 1-4、Step 6 已勾选，Step 5 commit 按用户要求未执行，仍留给主线程审查后统一提交。未跑 live smoke。
-- Task 4 结果：
-  1. 新增 service-level 回归覆盖此前空结果：`con开头表示共同或一起的词` 返回 `semantic_filter` + `semantic_filter_table`，fake ECDICT 候选里可命中 `connect/combine/concentrate` 等合作/连接相关词，并过滤无关 `coach`。
-  2. 新增 service-level 回归：`e开头表示评估评价的单词` 返回 `semantic_filter` + `semantic_filter_table`，fake in-scope pool 命中 `evaluate/estimate`，不把无评估义的 `evacuate` 放进主答案。
-  3. 新增 service-level 回归：`desert dessert 还有没有相似的词` 返回 `shape_neighbors` + `shape_neighbor_table`，主答案包含 `desert/dessert`。
-  4. `backend/tests/test_broad_vocab_answer.py` 补了同一 shape-neighbor 学生问法的 broad plan 断言，确认 `learningIntentPlan.task=shape_neighbors` 且展示形态为 `shape_neighbor_table`。
-  5. 本轮没有改生产代码：Task 2/3 已经把服务入口连通，`AdvancedLookupService` 未再绕回 ordinary/no-match。
+## 当前状态与下一步（2026-05-17 学生式意图归一化 Task 5 完成，未提交）
+- 当前活跃 plan 是 `docs/superpowers/plans/2026-05-17-student-intent-normalization.md`。本轮按子代理范围完成 Task 5；Task 5 的 Step 1-5、Step 7 已勾选，Step 6 commit 按用户要求未执行，仍留给主线程审查后统一提交。未跑 live smoke。
+- Task 5 结果：
+  1. 新增 service-level 回归覆盖 noisy word-family：`sign的派生词有哪些` 主答案包含 `sign/signal/signify`，排除 `sigh/sight/scan/sick`。
+  2. 新增 service-level 回归：`produce的同根词或派生词` 主答案包含 `produce/product/productive/reproduce`，排除 `provide/propose/project/promote`。
+  3. `AdvancedLookupService.ecdict_word_family_vocabulary()` 改用保守 family evidence：exact seed、seed+常见派生后缀、prefix+exact seed、以及已测试 stem alias（`sign`、`produce/produc/product`、`consider`、`respect`）。
+  4. `dynamic_light_grounding` 对 `intent_plan.task == "word_family"` 只保留 exact seed 或 `word_family_candidate` 证据候选；`common_prefix`、`ngram_overlap`、`edit_distance` 等形近信号不能单独进入词族主答案。
+  5. `word_family_table` 继续使用确定性 `word + POS + short meaning` 输出；本轮没有新增弱关联区，也不宣称严格词源关系。
 - TDD / 验证记录：
-  1. RED：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py -p no:cacheprovider` -> 1 failed / 43 passed；失败来自新增 broad plan 测试把 section role 误写成 `core_shape_neighbors`，实际 `exact_user_terms` 仍符合 Task 4 合同，随后收窄断言到需求本身。
-  2. GREEN：同一条两文件 service/broad pytest -> 44 passed。
-  3. Focused GREEN：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_student_intent_matrix.py -p no:cacheprovider` -> 55 passed。
-- 下一步如果继续该计划，应从 Task 5 开始：收紧 `word_family` 候选质量，重点防止 `sign派生词` 混入 `sigh/sight/scan/sick`，以及 `produce同根/派生词` 混入 `provide/propose/project/promote`。继续保护普通 exact lookup 和 phrase lookup，不要让 broad intent 回流污染 `mitigate是什么意思`、`in terms of是什么意思`、`make up是什么意思`。
+  1. RED：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py -p no:cacheprovider` -> 2 failed / 57 passed；失败来自新增 `sign`、`produce` word-family 用例主答案为空，证明当前证据链未覆盖目标 family 候选。
+  2. GREEN：同一条 Task 5 focused suite -> 59 passed。
+- 下一步如果继续该计划，应从 Task 6 开始：把学生式意图样例加入 live/product smoke，重点锁住 `con/e/pre` semantic filter、`desert/dessert` shape neighbors、`sign/produce` word-family 噪声过滤，并继续保护普通 exact lookup 和 phrase lookup。
 
 ## 历史快照（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
 - 产品方向已从“postgrad 没有官方机器词表，所以 ECDICT 只能泛外部兜底”调整为：ECDICT 作为更大的基础词汇底座；自有 structured 词库作为高信任覆盖层。覆盖层仍优先，但只在当前考试范围内命中时覆盖。

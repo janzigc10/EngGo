@@ -514,7 +514,7 @@ Record which no-result cases now resolve.
 - Modify: `backend/tests/test_advanced_lookup.py`
 - Modify: `backend/tests/test_broad_vocab_answer.py`
 
-- [ ] **Step 1: Add failing tests for noisy word-family results**
+- [x] **Step 1: Add failing tests for noisy word-family results**
 
 Add tests that encode the exact product pain:
 
@@ -556,9 +556,9 @@ def test_produce_word_family_excludes_loose_pro_prefix_words():
     assert "promote" not in lemmas
 ```
 
-- [ ] **Step 2: Add a conservative family evidence helper**
+- [x] **Step 2: Add a conservative family evidence helper**
 
-In `advanced_lookup.py`, create a small helper near current ECDICT word-family expansion:
+Create a small shared helper near the current dynamic grounding evidence code and reuse it from `advanced_lookup.py` for ECDICT word-family expansion:
 
 ```python
 def word_family_evidence(seed: str, lemma: str) -> tuple[int, str | None]:
@@ -594,7 +594,7 @@ def word_family_evidence(seed: str, lemma: str) -> tuple[int, str | None]:
 
 This helper is deliberately conservative. Do not add broad `common_prefix` admission for word-family main answers.
 
-- [ ] **Step 3: Suppress weak candidates for `word_family`**
+- [x] **Step 3: Suppress weak candidates for `word_family`**
 
 When `intent_plan.task == "word_family"`:
 
@@ -602,7 +602,7 @@ When `intent_plan.task == "word_family"`:
 - Shape-only signals such as `common_prefix`, `ngram_overlap`, or edit distance are not enough.
 - Weak related candidates may be omitted entirely for now. Do not invent a weak-association section unless the user asks for wider exploration.
 
-- [ ] **Step 4: Keep answer language honest**
+- [x] **Step 4: Keep answer language honest**
 
 In `broad_vocab.py`, for `word_family_table`, keep the deterministic fallback as `word + POS + short meaning`. Do not add text claiming etymology unless a source explicitly supports it.
 
@@ -619,7 +619,7 @@ Avoid:
 product 是 produce 的严格派生词
 ```
 
-- [ ] **Step 5: Run focused tests and verify GREEN**
+- [x] **Step 5: Run focused tests and verify GREEN**
 
 Run:
 
@@ -629,14 +629,14 @@ C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_advanced_look
 
 Expected: pass, with noisy word-family candidates suppressed.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add backend/app/answering/advanced_lookup.py backend/app/retrieval/dynamic_light_grounding.py backend/app/answering/broad_vocab.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py
 git commit -m "Tighten word family candidate quality"
 ```
 
-- [ ] **Step 7: Update this plan checkbox and `progress.md`**
+- [x] **Step 7: Update this plan checkbox and `progress.md`**
 
 Record before/after examples for `sign` and `produce`.
 
