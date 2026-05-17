@@ -1,5 +1,6 @@
 import csv
 import io
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -60,6 +61,7 @@ default_joined_phrase_aliases = {
     "oughtto": "ought to",
     "owingto": "owing to",
 }
+exam_profile_tags = {"zk", "gk", "cet4", "cet6", "ky"}
 
 
 def normalize_lookup_key(value: str) -> str:
@@ -195,39 +197,109 @@ def lookup_ecdict_basic_profile(
     )
 
 
-def create_ecdict_basic_profile_lookup(
+def profile_tag_set(profile: EcdictBasicProfile) -> set[str]:
+    return {
+        tag.strip().lower()
+        for tag in profile.tag.split()
+        if tag.strip()
+    }
+
+
+def search_ecdict_basic_profiles(
+    index: EcdictBasicProfileIndex,
+    predicate: Callable[[EcdictBasicProfile], bool],
     *,
-    dictionary_path: Path | str = Path.cwd() / "output" / "external-dictionaries" / "ecdict.csv",
-    joined_phrase_aliases: dict[str, str] | None = None,
-):
-    cached_index: EcdictBasicProfileIndex | None = None
-    loaded = False
+    limit: int = 18,
+    preferred_tags: tuple[str, ...] | None = None,
+) -> list[EcdictBasicProfile]:
+    preferred_tag_set = {
+        tag.strip().lower()
+        for tag in (preferred_tags or ())
+        if tag.strip()
+    }
+    matches = [
+        profile
+        for profile in index.profiles_by_key.values()
+        if predicate(profile)
+    ]
 
-    def load_index() -> EcdictBasicProfileIndex | None:
-        nonlocal cached_index, loaded
+    def sort_key(profile: EcdictBasicProfile):
+        tags = profile_tag_set(profile)
+        preferred_rank = 0 if tags & preferred_tag_set else 1
+        exam_rank = 0 if tags & exam_profile_tags else 1
 
-        if loaded:
-            return cached_index
-
-        loaded = True
-        path = Path(dictionary_path)
-
-        if not path.exists():
-            return None
-
-        cached_index = build_ecdict_basic_profile_index(
-            parse_ecdict_csv(path.read_text(encoding="utf-8")),
-            joined_phrase_aliases,
+        return (
+            preferred_rank,
+            exam_rank,
+            0 if profile.entry_kind == "word" else 1,
+            len(profile.canonical),
+            profile.canonical,
         )
 
-        return cached_index
+    return sorted(matches, key=sort_key)[:limit]
 
-    def lookup(query: str) -> EcdictBasicProfile | None:
-        index = load_index()
+
+class EcdictBasicProfileLookup:
+    def __init__(
+        self,
+        *,
+        dictionary_path: Path | str,
+        joined_phrase_aliases: dict[str, str] | None = None,
+    ):
+        self.dictionary_path = Path(dictionary_path)
+        self.joined_phrase_aliases = joined_phrase_aliases
+        self.cached_index: EcdictBasicProfileIndex | None = None
+        self.loaded = False
+
+    def load_index(self) -> EcdictBasicProfileIndex | None:
+        if self.loaded:
+            return self.cached_index
+
+        self.loaded = True
+        if not self.dictionary_path.exists():
+            return None
+
+        self.cached_index = build_ecdict_basic_profile_index(
+            parse_ecdict_csv(self.dictionary_path.read_text(encoding="utf-8")),
+            self.joined_phrase_aliases,
+        )
+
+        return self.cached_index
+
+    def __call__(self, query: str) -> EcdictBasicProfile | None:
+        index = self.load_index()
 
         if not index:
             return None
 
         return lookup_ecdict_basic_profile(index, query)
 
-    return lookup
+    def search(
+        self,
+        predicate: Callable[[EcdictBasicProfile], bool],
+        *,
+        limit: int = 18,
+        preferred_tags: tuple[str, ...] | None = None,
+    ) -> list[EcdictBasicProfile]:
+        index = self.load_index()
+
+        if not index:
+            return []
+
+        return search_ecdict_basic_profiles(
+            index,
+            predicate,
+            limit=limit,
+            preferred_tags=preferred_tags,
+        )
+
+
+def create_ecdict_basic_profile_lookup(
+    *,
+    dictionary_path: Path | str = Path.cwd() / "output" / "external-dictionaries" / "ecdict.csv",
+    joined_phrase_aliases: dict[str, str] | None = None,
+):
+    return EcdictBasicProfileLookup(
+        dictionary_path=dictionary_path,
+        joined_phrase_aliases=joined_phrase_aliases,
+    )

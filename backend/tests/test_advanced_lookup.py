@@ -101,7 +101,7 @@ class FakeProvider:
         )
 
 
-def ecdict_profile(lemma: str, meanings: list[str]) -> EcdictBasicProfile:
+def ecdict_profile(lemma: str, meanings: list[str], *, tag: str = "") -> EcdictBasicProfile:
     return EcdictBasicProfile(
         canonical=lemma,
         lookup_key=lemma,
@@ -109,8 +109,30 @@ def ecdict_profile(lemma: str, meanings: list[str]) -> EcdictBasicProfile:
         match_kind="exact",
         meanings=meanings,
         raw_translation="\n".join(meanings),
-        tag="",
+        tag=tag,
     )
+
+
+class SearchableEcdictLookup:
+    def __init__(self, profiles):
+        self.profiles = {profile.canonical: profile for profile in profiles}
+        self.searches = []
+
+    def __call__(self, query: str):
+        return self.profiles.get(query)
+
+    def search(self, predicate, *, limit=18, preferred_tags=None):
+        self.searches.append(
+            {
+                "limit": limit,
+                "preferredTags": preferred_tags,
+            },
+        )
+        return [
+            profile
+            for profile in self.profiles.values()
+            if predicate(profile)
+        ][:limit]
 
 
 def write_source_lemma_fixture(base_dir, lemmas: list[str]) -> None:
@@ -555,6 +577,49 @@ def test_root_fragment_contains_constraint_returns_matching_family_view():
         "construct",
         "structure",
     ]
+
+
+def test_postgrad_fragment_query_uses_external_dictionary_candidates():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("aspire", ["vi. 渴望；立志"], tag="ky"),
+            ecdict_profile("expire", ["vi. 期满；断气", "vt. 呼出"], tag="cet6 ky"),
+            ecdict_profile("inspire", ["vt. 鼓舞；激发", "vi. 吸入"], tag="cet6 ky"),
+            ecdict_profile("plain", ["n. 平原"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="包含pire的单词",
+        request_id="req_postgrad_pire",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert ecdict_lookup.searches
+    assert grounding["queryMode"] == "root_family_summary"
+    assert grounding["broadQueryMode"] == "broad_vocab"
+    assert grounding["supportLabel"] == "基于外部基础词典候选总结"
+    assert [item["lemma"] for item in grounding["mainAnswer"]] == [
+        "aspire",
+        "expire",
+        "inspire",
+    ]
+    assert {
+        item["sourceKind"]
+        for item in grounding["mainAnswer"]
+    } == {"external_dictionary_basic"}
+    assert "plain" not in result.payload.answer
 
 
 def test_root_fragment_combines_prefix_and_related_contains_constraints():

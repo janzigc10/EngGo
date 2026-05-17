@@ -17,12 +17,13 @@ def light_candidate(
     score=100,
     part_of_speech="n.",
     source_kind="structured",
+    scope_codes=None,
 ):
     return LightGroundingCandidate(
         entry_id=lemma,
         lemma=lemma,
         meanings_zh=[f"{lemma} meaning"] if meanings is None else meanings,
-        scope_codes=["cet6"],
+        scope_codes=["cet6"] if scope_codes is None else scope_codes,
         in_scope=True,
         reason="test",
         score=score,
@@ -147,6 +148,36 @@ def test_broad_grounding_normalizes_part_of_speech_to_abbreviations():
         "n. / v.",
         "adj.",
     ]
+
+
+def test_external_dictionary_collection_grounding_uses_external_support_label():
+    query = "包含pire的单词"
+    candidates = [
+        light_candidate(
+            "aspire",
+            meanings=["渴望"],
+            source_kind="external_dictionary_basic",
+            scope_codes=[],
+            signals=[LightGroundingSignal("fragment", 90, "pire")],
+        ),
+        light_candidate(
+            "expire",
+            meanings=["期满"],
+            source_kind="external_dictionary_basic",
+            scope_codes=[],
+            signals=[LightGroundingSignal("fragment", 90, "pire")],
+        ),
+    ]
+
+    grounding = build_broad_vocab_grounding(
+        active_exam_target="postgrad",
+        query=query,
+        normalized_query=normalize_query(query),
+        candidates=candidates,
+    )
+
+    assert grounding["supportLabel"] == "基于外部基础词典候选总结"
+    assert grounding["scopeReminder"] == "基于外部基础词典候选总结"
 
 
 def test_collection_confusion_cues_still_use_simple_inventory_table():

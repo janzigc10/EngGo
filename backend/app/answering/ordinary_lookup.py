@@ -299,6 +299,17 @@ def dictionary_candidate(profile: EcdictBasicProfile) -> RetrievalCandidate:
     )
 
 
+def should_use_ecdict_exact_fallback(normalized_query: NormalizedQuery) -> bool:
+    if normalized_query.query_mode == "direct_lookup":
+        return True
+
+    return (
+        normalized_query.query_mode == "fuzzy_recall"
+        and len(normalized_query.english_terms) == 1
+        and normalized_query.meaning_hint == normalized_query.english_terms[0]
+    )
+
+
 def select_stable_candidate(
     candidates: list[RetrievalCandidate],
     *,
@@ -569,6 +580,33 @@ class OrdinaryLookupService:
             profile = self.ecdict_lookup(needle)
 
             if profile and profile.entry_kind == "phrase":
+                candidate = dictionary_candidate(profile)
+                grounding = build_grounding(
+                    active_exam_target=active_exam_target,
+                    query=query,
+                    normalized_query=normalized_query,
+                    resolution="resolved",
+                    no_match_reason=None,
+                    match_type="external_dictionary_exact",
+                    main_answer=[candidate],
+                    candidates=[candidate],
+                )
+
+                return OrdinaryLookupResult(
+                    status_code=200,
+                    payload=ChatSuccessResponse(
+                        answer=build_ecdict_basic_profile_answer(profile),
+                        answerKind="grounded",
+                        grounding=grounding,
+                        requestId=request_id,
+                        providerRequestId=None,
+                    ),
+                )
+
+        if should_use_ecdict_exact_fallback(normalized_query):
+            profile = self.ecdict_lookup(needle)
+
+            if profile:
                 candidate = dictionary_candidate(profile)
                 grounding = build_grounding(
                     active_exam_target=active_exam_target,

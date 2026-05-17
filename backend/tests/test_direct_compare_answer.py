@@ -1,5 +1,6 @@
 from backend.app.answering.direct_compare import DirectCompareService
 from backend.app.answering.provider import GenerateAnswerResult
+from backend.app.content.ecdict import EcdictBasicProfile
 from backend.app.retrieval.types import (
     ConfusionGroup,
     ConfusionGroupMember,
@@ -75,6 +76,18 @@ def group(group_id, members, *, purposes=None):
             )
             for index, member in enumerate(members)
         ],
+        )
+
+
+def ecdict_profile(lemma: str, meanings: list[str]) -> EcdictBasicProfile:
+    return EcdictBasicProfile(
+        canonical=lemma,
+        lookup_key=lemma,
+        entry_kind="word",
+        match_kind="exact",
+        meanings=meanings,
+        raw_translation="\n".join(meanings),
+        tag="ky",
     )
 
 
@@ -316,3 +329,38 @@ def test_direct_compare_can_use_dynamic_light_pool_when_exact_entries_are_missin
     assert "contend" not in result.payload.answer
     assert "content" not in result.payload.answer
     assert "\n-" not in result.payload.answer
+
+
+def test_direct_compare_uses_ecdict_profiles_for_compact_chinese_and_query():
+    profiles = {
+        "expire": ecdict_profile("expire", ["vi. 期满；断气", "vt. 呼出"]),
+        "inspire": ecdict_profile("inspire", ["vt. 鼓舞；激发", "vi. 吸入"]),
+    }
+    service = DirectCompareService(
+        repository=FakeRepository({}),
+        ecdict_lookup=lambda query: profiles.get(query),
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="expire和inspire",
+        request_id="req_compact_ecdict_compare",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert grounding["queryMode"] == "direct_compare"
+    assert [item["lemma"] for item in grounding["mainAnswer"]] == [
+        "expire",
+        "inspire",
+    ]
+    assert {
+        item["sourceKind"]
+        for item in grounding["mainAnswer"]
+    } == {"external_dictionary_basic"}
+    assert result.payload.answer.splitlines() == [
+        "expire vi. 期满；断气；vt. 呼出",
+        "inspire vt. 鼓舞；激发；vi. 吸入",
+    ]

@@ -9,6 +9,10 @@ compare_cue_pattern = re.compile(
     r"(区别|差别|不同|怎么区分|怎么分|搞混|分不清|哪个|哪一个|还是|vs\.?|versus|\bor\b)",
     re.IGNORECASE,
 )
+compact_chinese_compare_connector_pattern = re.compile(
+    r"[a-z]+(?:[-'][a-z]+)*\s*(?:和|与|跟)\s*[a-z]+(?:[-'][a-z]+)*",
+    re.IGNORECASE,
+)
 root_cue_pattern = re.compile(
     r"(词根|前缀|后缀|同根|这一族|家族|派生|构词|组合|开头|结尾|词首|词尾)",
     re.IGNORECASE,
@@ -129,6 +133,17 @@ def contains_shape_neighbor_cue(normalized_text: str) -> bool:
     )
 
 
+def contains_compare_cue(normalized_text: str, english_terms: list[str]) -> bool:
+    if compare_cue_pattern.search(normalized_text) is not None:
+        return True
+
+    return (
+        len(english_terms) >= 2
+        and compact_chinese_compare_connector_pattern.search(normalized_text)
+        is not None
+    )
+
+
 def contains_known_root_family_cue(normalized_text: str, english_terms: list[str]) -> bool:
     if any(term in known_root_family_terms for term in english_terms):
         return family_recall_cue_pattern.search(normalized_text) is not None
@@ -188,7 +203,7 @@ def normalize_query(query: str) -> NormalizedQuery:
     )
     compare_terms = (
         english_terms[:4]
-        if compare_cue_pattern.search(normalized_text) is not None
+        if contains_compare_cue(normalized_text, english_terms)
         else []
     )
 

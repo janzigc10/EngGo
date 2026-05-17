@@ -48,6 +48,14 @@ def test_compare_query_is_unsupported_for_stage_2():
     assert result.is_supported_ordinary_lookup is False
 
 
+def test_compact_chinese_and_between_two_terms_is_direct_compare():
+    result = normalize_query("expire和inspire")
+
+    assert result.query_mode == "direct_compare"
+    assert result.compare_terms == ["expire", "inspire"]
+    assert result.is_supported_ordinary_lookup is False
+
+
 def test_root_query_is_unsupported_for_stage_2():
     result = normalize_query("re+con 的词根有什么词")
 

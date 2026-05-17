@@ -184,6 +184,38 @@ def test_phrase_lookup_with_chinese_suffix_uses_ecdict_phrase_fallback(tmp_path)
     assert result.payload.grounding["mainAnswer"][0]["lemma"] == "make up"
 
 
+def test_postgrad_single_word_meaning_lookup_uses_ecdict_exact_fallback(tmp_path):
+    provider = FakeProvider("provider should not answer postgrad exact lookup")
+    service = OrdinaryLookupService(
+        repository=FakeRepository({}),
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda query: profile(
+            "commit",
+            ["v. 承诺；投入；犯下"],
+            entry_kind="word",
+        )
+        if query == "commit"
+        else None,
+        provider=provider,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="commit 是什么意思",
+        request_id="req_postgrad_commit_ecdict",
+    )
+
+    assert result.status_code == 200
+    assert result.payload.answer == "commit\n\nv. 承诺；投入；犯下"
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert result.payload.grounding["matchType"] == "external_dictionary_exact"
+    assert result.payload.grounding["queryMode"] == "fuzzy_recall"
+    assert result.payload.grounding["mainAnswer"][0]["sourceKind"] == (
+        "external_dictionary_basic"
+    )
+
+
 def test_source_phrase_lookup_with_chinese_suffix_uses_source_lemma(tmp_path):
     source_fixture(tmp_path)
     provider = FakeProvider("provider should not answer source phrase")

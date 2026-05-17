@@ -1,29 +1,62 @@
 # EngGo 滚动交接
 
-## 当前下一步开发方向（2026-05-16 路由与 presentation 统一后）
-
-- 本轮已落地的产品方向：
-  1. `比较像`、`和 X 比较像`、`找一下和 X 像/易混词` 等中文 cue 已统一进入 `shape_neighbor_search` / light grounding，不再被 ordinary lookup 抢成 `standard_lookup`。
-  2. broad / shape / direct-broad 现在优先由后端确定性 renderer 输出 `word + pos + 短义` 行，最多加一句 `注意`；不再依赖 provider 自由成文来决定表格、bullet、例句或候选覆盖。
-  3. `confusion_group` 已从 dynamic light grounding 的 runtime 候选输入中下线；旧 structured exact / legacy 辨析路径仍可暂存，但不再代表完整易混集合，也不再影响形近/宽召回排序。
-  4. `structured exact` 继续负责确认词条身份和高可信释义；source lemma / ECDICT 负责补基础义；`light grounding` 负责几千词候选池里的形近、前缀、片段和宽召回。
-  5. 已保留 `stitute` / `tempt` 这类明确 root family 的旧稳定路径，避免被 broad light grounding 抢走；`inter`、`struct`、`comm`、`re+con` 这类泛片段/前缀仍走 broad。
-- 真实链路抽样确认：
-  1. `帮我找一下和access比较像的易混词` -> `providerRequestId=null`，候选前列为 `access/assess/excess/accept/accent/...`，输出为短行列表 + 一句 `注意`。
-  2. `access assess excess 怎么区分` -> `providerRequestId=null`，只输出三行 `access / assess / excess` + 一句 `注意`，不再有加粗、bullet、搭配或例句。
-  3. `commend comment command 怎么区分` -> `providerRequestId=null`，只列用户点名的 `commend/comment/command` 三词 + 一句 `注意`；dynamic broad 不再补 `contend/content` 等旁支词。
-  4. `zzqvwm 是什么意思` -> grounded no-match，`providerRequestId=null`，不再猜成 `squeeze` 或其它弱相关词。
-  5. `photosynthesis 是什么意思` 仍允许 plain fallback，避免随机串闸门误伤正常库外英文词。
-  6. `make up 是什么意思` -> `direct_lookup / external_dictionary_exact`，`according to 是什么意思` -> `direct_lookup / source_lemma_exact`；两者均为 deterministic standard lookup，`providerRequestId=null`。
-  7. UI 顶部范围提示已改为轻标签文案 `当前词书：CET-6`，范围信息继续只显示在界面状态，不写进答案正文。
+## 当前状态与下一步（2026-05-17 postgrad ECDICT fallback + 片段/compare 修复）
+- 用户人工验收时发现：在“考研”选项里，普通查词、`包含pire的单词`、`expire和inspire` 都容易落到 MISS/no-match。已确认这是后端路由和候选池边界问题，不是客户端展示问题。
+- 普通查词根因：`commit 是什么意思` 这类单词 + 中文查义后缀会被 normalize 成 `fuzzy_recall`；而 `postgrad` 没有 entry-level source lemma 词表，`source_lemma_candidate()` 会按设计返回空。Claude Code 之前补的 ECDICT fallback 只覆盖 `direct_lookup`，所以这类 postgrad 普通查词会落到 provider/plain，而不是 ECDICT exact grounding。
+- 普通查词已修复：`ordinary_lookup` 新增 `should_use_ecdict_exact_fallback()`，允许两类普通查词走 ECDICT exact fallback：
+  1. `direct_lookup`
+  2. `fuzzy_recall` 且只有一个英文词、中文 meaning hint 等于该词
+- 片段召回已修复：`包含pire的单词` 仍走结构片段 `root_family_summary`，但当 postgrad 没有官方 source lemma 池时，可用 ECDICT 搜出外部基础词典候选，并把 `supportLabel/scopeReminder` 标为 `基于外部基础词典候选总结`，避免误装成考研官方词库。
+- 紧凑 compare 已修复：`expire和inspire` 这种两个英文词中间只有中文 `和/与/跟` 的 query 会 normalize 成 `direct_compare`，再由 direct compare 的 ECDICT exact fallback 返回两词短辨析，不再被 ordinary lookup 当成多词 `fuzzy_recall` 吃掉。
+- 边界仍保持：postgrad 仍不伪造官方 scope 词表；ECDICT 结果只标为 `external_dictionary_basic` / `external_dictionary_exact`，不升级成高可信 structured entry，也不产生人工易混组、词根族或考试优先级判断。
+- 已保留最小复盘能力：聊天页会把最近 20 条消息写入当前标签页的 `sessionStorage` key `enggo.chatTranscript`，重新挂载或从二级页面回到主舞台后能恢复最近问答，方便继续人工验收。
+- 当前客户端状态：已停止旧 3000/8000 进程并重启 dev stack；当前监听为 FastAPI `127.0.0.1:8000` PID 43020、Next `127.0.0.1:3000` PID 48112，日志在 `.runlogs/dev-postgrad-fragment-label-20260517-000424.log`。
 - 本轮验证：
-  1. Python focused：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_direct_compare_answer.py backend\tests\test_no_match_policy.py backend\tests\test_ordinary_lookup_answer.py backend\tests\test_broad_vocab_answer.py backend\tests\test_dynamic_light_grounding.py backend\tests\test_advanced_lookup.py backend\tests\test_chat_contract.py backend\tests\test_repository.py backend\tests\test_normalize_query.py -o cache_dir='C:\Users\Chen\Desktop\EngGo\.pytest-cache-codex'` -> 85 passed。
-  2. TS smoke unit：`corepack pnpm test scripts/lib/black-box-product-smoke.test.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 2 files / 13 tests passed。
-  3. 默认 FastAPI 真实链路：`corepack pnpm eval:default-fastapi-smoke` -> migrated proxy 14/14 pass，product HTTP proxy 39/39 pass。
-  4. 本轮曾跑 `corepack pnpm eval:product-smoke` 命中旧 TypeScript direct path/DB 基线问题；当前默认运行时是 FastAPI + Next proxy，判断产品链路以 `eval:default-fastapi-smoke` 为准。
-- 当前剩余优先级：
-  1. 后续回到移动端阅读、收藏动作和复习入口；不要在本轮 broad/route 收口尚热时扩新词库或重写 ECDICT 语义层。
-- 明确暂不做：不把 ECDICT 升级成高可信 structured entry；不继续人工新增/维护 `confusion_group`；不把 `re+con` 这类语义/词根理论硬塞进词形 parser；不把范围信息塞进答案正文表格。
+  1. 红测：`expire和inspire` 先失败为 `fuzzy_recall`；`包含pire的单词` 先失败为未调用 ECDICT search / no-match。
+  2. `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 84 passed，仍有 pytest cache permission warning。
+  3. Live HTTP：`postgrad + 包含pire的单词` 直打 `127.0.0.1:3000/api/chat` -> `answerKind=grounded`、`queryMode=root_family_summary`、`broadQueryMode=broad_vocab`、`supportLabel=基于外部基础词典候选总结`、`providerRequestId=null`，主候选均为 `external_dictionary_basic` 且 `scopeCodes=[]`。
+  4. Live HTTP：`postgrad + expire和inspire` 直打 `127.0.0.1:3000/api/chat` -> `answerKind=grounded`、`queryMode=direct_compare`、`providerRequestId=null`，两词均来自 `external_dictionary_basic`。
+- 下一步建议：
+  1. 用户现在可直接在 `http://127.0.0.1:3000` 的客户端重测 postgrad：`commit 是什么意思`、`包含pire的单词`、`expire和inspire`。
+  2. 如果命中恢复后仍觉得“效果一般”，下一刀继续按真实坏样例分类：普通查词释义太薄、易混辨析不聚焦、广义召回太慢/太散，还是 UI 阅读/收藏链路不顺。
+  3. 若后续要改善 postgrad 的可信范围感，先设计“外部基础词典 vs 官方词书范围”的轻量 UI/文案区分，不要把 ECDICT 直接伪装成考研官方词库。
+
+## 当前状态与下一步（2026-05-16 收藏生词本整理 1.0）
+
+- 主体功能状态：
+  1. 聊天主舞台里的普通查词、形近/易混召回、direct compare、no-match、ECDICT 基础查词和范围标签已经完成本轮收口，可以进入维护状态。
+  2. `confusion_group` 不再作为 broad/dynamic light grounding 的运行时主候选机制；后续不继续人工维护全量易混组。
+  3. ECDICT 继续只做普通查词的外部基础释义兜底，不升级成高可信 structured entry，也不做“优先背义/少见义”的全量语义重排。
+  4. 本轮已开始学习闭环第一刀：收藏页从占位列表升级为可整理的本地生词本。
+- 最新抽样基线：
+  1. `帮我找一下和access比较像的易混词` -> `shape_neighbor_search` / light grounding，`providerRequestId=null`。
+  2. `access assess excess 怎么区分` -> 三行 `word + pos + 短义` + 一句 `注意`，`providerRequestId=null`。
+  3. `commend comment command 怎么区分` -> 只答用户点名三词，不再补 `content/contend`。
+  4. `zzqvwm 是什么意思` -> grounded no-match，`providerRequestId=null`，不猜词。
+  5. `make up 是什么意思` -> `external_dictionary_exact`；`according to 是什么意思` -> `source_lemma_exact`；两者均为 deterministic ordinary lookup。
+  6. UI 范围提示已改为轻标签 `当前词书：CET-6`，不再把范围话术塞进答案正文。
+- 本轮收藏整理结果：
+  1. `enggo.collectedWords` 仍使用 localStorage，按考试范围分桶；旧 `lemma + note` 数据继续兼容。
+  2. 收藏数据新增可选 `partOfSpeech`、`meaningZh`、`sourceKind`、`reviewStatus` 字段；再次收藏同一范围同一 lemma 会更新而不是重复追加。
+  3. 聊天收藏动作会把候选的词性、短义、来源身份和外部词典未校验状态写进收藏。
+  4. `/collections` 现在按词书分组展示总数、来源标签、词性/短义、收藏日期，并支持删除。
+  5. 收藏项提供 `继续追问 <lemma>` 链接，跳回 `/?draft=...` 并预填聊天输入框，不自动发送。
+- 下一阶段产品判断：
+  1. 最初设计 spec 明确 EngGo 是“聊天主舞台 + 二级学习骨架”，二级层包括 current wordbook、learning flow、review flow、collections/new-word book、notes/progress。
+  2. 当前聊天命中已经能沉淀为较干净的本地学习资产；下一刀建议接“复习卡片 1.0”。
+  3. 复习卡片 1.0 建议范围：正面单词，反面词性 + 中文核心义，按钮为 `认识 / 模糊 / 不会`，先记录本地 review state。
+  4. 再后续才补“进度页 1.0”：每个词书的收藏数、已复习数、薄弱词数，先用本地数据，不做复杂算法。
+- 明确暂不做：
+  1. 不先做完整传统词书浏览/背单词大系统，避免产品退化成普通背词 App。
+  2. 不先做账号、云同步、跨设备收藏，除非用户明确把它提升为当前目标。
+  3. 不先做复杂间隔重复算法；复习只做最小可用状态记录。
+  4. 不继续扩新词库、重写 ECDICT 语义层或恢复人工维护 `confusion_group`。
+- 最近验证：
+  1. Focused frontend：`corepack pnpm test src/features/collections/collection-store.test.ts src/components/chat/answer-actions.test.tsx src/features/collections/study-panels.test.tsx src/components/chat/chat-workspace.test.tsx` -> 4 files / 24 tests passed。
+  2. Focused lint：`corepack pnpm lint src/features/collections/collection-store.ts src/features/collections/collection-store.test.ts src/components/chat/answer-actions.tsx src/components/chat/answer-actions.test.tsx src/features/collections/study-panels.tsx src/features/collections/study-panels.test.tsx src/components/chat/chat-workspace.tsx src/features/chat/use-chat-session.ts` -> passed。
+  3. Browser e2e：`corepack pnpm exec playwright test tests/e2e/collection-flow.spec.ts` -> 1 passed。
+  4. `git diff --check` -> exit 0，仅 CRLF warning。
+  5. 最近一次默认 FastAPI 真实链路基线仍是上一轮：`corepack pnpm eval:default-fastapi-smoke` -> migrated proxy 14/14 pass，product HTTP proxy 39/39 pass；本轮未改后端检索链路。
 
 ## 2026-05-12 Light Grounding source-only ECDICT 补义
 

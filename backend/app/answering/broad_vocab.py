@@ -661,7 +661,17 @@ def build_broad_vocab_grounding(
         for candidate in candidates
         if candidate.lemma in material_lemma_set
     ][:len(material_lemmas)]
-    support_label = f"基于 {exam_target_labels[active_exam_target]} 词库候选总结"
+    support_candidates = selected or candidates
+    external_only = bool(support_candidates) and all(
+        candidate.source_kind == "external_dictionary_basic"
+        and not candidate.scope_codes
+        for candidate in support_candidates
+    )
+    support_label = (
+        "基于外部基础词典候选总结"
+        if external_only
+        else f"基于 {exam_target_labels[active_exam_target]} 词库候选总结"
+    )
 
     return {
         "activeExamTarget": active_exam_target,

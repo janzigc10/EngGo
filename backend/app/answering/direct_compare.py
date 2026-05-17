@@ -8,6 +8,7 @@ from backend.app.answering.broad_vocab import (
 from backend.app.answering.ordinary_lookup import (
     UnsupportedQueryMode,
     build_grounding,
+    dictionary_candidate,
     build_no_match_answer,
 )
 from backend.app.retrieval.normalize_query import NormalizedQuery, normalize_query
@@ -215,13 +216,16 @@ class DirectCompareService:
                 candidates=[],
             )
 
-        candidates = [
-            self.repository.find_exact_entry(active_exam_target, term)
-            for term in compare_terms
-        ]
-        ranked_candidates = unique_candidates(
-            [candidate for candidate in candidates if candidate is not None],
-        )
+        candidates = []
+        for term in compare_terms:
+            entry = self.repository.find_exact_entry(active_exam_target, term)
+            if entry:
+                candidates.append(entry)
+            elif self.ecdict_lookup:
+                profile = self.ecdict_lookup(term)
+                if profile:
+                    candidates.append(dictionary_candidate(profile))
+        ranked_candidates = unique_candidates(candidates)
 
         if len(ranked_candidates) < 2:
             broad_result = self.answer_broad_vocab_if_possible(
