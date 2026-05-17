@@ -304,7 +304,7 @@ Mark Task 2 steps complete and add a short `progress.md` note with the tests run
 - Modify: `backend/tests/test_learning_intent.py`
 - Modify: `backend/tests/test_dynamic_light_grounding.py`
 
-- [ ] **Step 1: Add failing tests for OR-style meaning constraints**
+- [x] **Step 1: Add failing tests for OR-style meaning constraints**
 
 Add tests:
 
@@ -335,7 +335,7 @@ def test_pre_meaning_does_not_match_pressure():
     assert [item.lemma for item in result] == ["precede", "prevent"]
 ```
 
-- [ ] **Step 2: Extend `IntentConstraint`**
+- [x] **Step 2: Extend `IntentConstraint`**
 
 Add alternatives while keeping current fields backward compatible:
 
@@ -354,7 +354,7 @@ class IntentConstraint:
         return payload
 ```
 
-- [ ] **Step 3: Add a tiny semantic normalizer**
+- [x] **Step 3: Add a tiny semantic normalizer**
 
 In `learning_intent.py`, add a conservative mapping. Keep it small and test-backed:
 
@@ -380,7 +380,7 @@ Split raw Chinese meaning chunks on:
 
 Deduplicate alternatives in order.
 
-- [ ] **Step 4: Make dynamic grounding match meaning alternatives as OR**
+- [x] **Step 4: Make dynamic grounding match meaning alternatives as OR**
 
 In `matches_intent_constraints()`, replace exact single-value matching with:
 
@@ -396,7 +396,7 @@ if constraint.type == "meaning" and not any(
 
 Also make `add_plan_signals()` use the matched keyword as signal detail.
 
-- [ ] **Step 5: Run focused tests and verify GREEN**
+- [x] **Step 5: Run focused tests and verify GREEN**
 
 Run:
 
@@ -406,14 +406,14 @@ C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_learning_inte
 
 Expected: pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add backend/app/retrieval/learning_intent.py backend/app/retrieval/dynamic_light_grounding.py backend/tests/test_learning_intent.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_student_intent_matrix.py
 git commit -m "Add semantic alternatives to intent constraints"
 ```
 
-- [ ] **Step 7: Update this plan checkbox and `progress.md`**
+- [x] **Step 7: Update this plan checkbox and `progress.md`**
 
 Record the semantic alternatives and focused test results.
 

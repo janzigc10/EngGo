@@ -5,7 +5,7 @@ from pathlib import Path
 
 from backend.app.content.ecdict import EcdictBasicProfile
 from backend.app.content.source_lemmas import load_source_lemma_memberships
-from backend.app.retrieval.learning_intent import LearningIntentPlan
+from backend.app.retrieval.learning_intent import IntentConstraint, LearningIntentPlan
 from backend.app.retrieval.types import ConfusionGroup, RetrievalCandidate
 from backend.app.retrieval.types import normalize_part_of_speech_label
 
@@ -323,17 +323,33 @@ def matches_intent_constraints(
             return False
         if constraint.type == "contains" and constraint.value not in lemma:
             return False
-        if constraint.type == "meaning" and not any(
-            meaning_matches_keyword(
-                meaning,
-                constraint.value,
-                primary_only=True,
-            )
-            for meaning in candidate.meanings_zh
+        if (
+            constraint.type == "meaning"
+            and matched_meaning_constraint_keyword(candidate, constraint) is None
         ):
             return False
 
     return True
+
+
+def matched_meaning_constraint_keyword(
+    candidate: RetrievalCandidate,
+    constraint: IntentConstraint,
+) -> str | None:
+    keywords = constraint.alternatives or (constraint.value,)
+
+    for keyword in keywords:
+        if any(
+            meaning_matches_keyword(
+                meaning,
+                keyword,
+                primary_only=True,
+            )
+            for meaning in candidate.meanings_zh
+        ):
+            return keyword
+
+    return None
 
 
 def add_intent_constraint_signals(
@@ -376,19 +392,14 @@ def add_intent_constraint_signals(
                 detail=constraint.value,
             )
             score_delta += 90
-        elif constraint.type == "meaning" and any(
-            meaning_matches_keyword(
-                meaning,
-                constraint.value,
-                primary_only=True,
-            )
-            for meaning in candidate.meanings_zh
+        elif constraint.type == "meaning" and (
+            matched_keyword := matched_meaning_constraint_keyword(candidate, constraint)
         ):
             add_signal_once(
                 signals,
                 signal_type="meaning_keyword",
                 weight=105,
-                detail=constraint.value,
+                detail=matched_keyword,
             )
             score_delta += 105
 

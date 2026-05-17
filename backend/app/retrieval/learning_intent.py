@@ -74,17 +74,41 @@ word_family_pattern = re.compile(r"(派生词|派生|同根|这一族|一族|家
 meaning_suffix_noise_pattern = re.compile(r"(的)?(单词|词|表达|意思)$")
 
 
-meaning_alternatives_by_value = {
-    "共同或一起": ("共同", "一起", "合作", "联合", "连接"),
-    "共同": ("共同", "一起", "合作", "联合", "连接"),
-    "一起": ("共同", "一起", "合作", "联合", "连接"),
-    "评估评价": ("评估", "评价", "估计"),
-    "评估": ("评估", "评价", "估计"),
-    "评价": ("评估", "评价", "估计"),
-    "限制或约束": ("限制", "约束"),
-    "限制": ("限制", "约束"),
-    "约束": ("限制", "约束"),
+semantic_aliases = {
+    "共同": ("共同", "一起", "合作", "协作", "联合", "连接", "合并", "配合"),
+    "一起": ("共同", "一起", "合作", "协作", "联合", "连接", "合并", "配合"),
+    "合作": ("合作", "协作", "配合"),
+    "评估评价": ("评估", "评价", "估计", "估算", "评论"),
+    "评估": ("评估", "评价", "估计", "估算"),
+    "评价": ("评估", "评价", "评论"),
+    "限制": ("限制", "约束", "制约"),
+    "约束": ("限制", "约束", "制约"),
+    "提前": ("提前", "预先", "先于", "之前", "预期", "预防"),
+    "预先": ("提前", "预先", "先于", "之前", "预期", "预防"),
 }
+meaning_separator_pattern = re.compile(r"(?:或者|或|和|与|及|、|，|,|；|;)")
+
+
+def normalize_meaning_alternatives(value: str) -> tuple[str, ...]:
+    alternatives: list[str] = []
+    seen: set[str] = set()
+    chunks = [
+        chunk.strip()
+        for chunk in meaning_separator_pattern.split(value)
+        if chunk.strip()
+    ]
+
+    if len(chunks) == 1 and chunks[0] not in semantic_aliases:
+        return ()
+
+    for chunk in chunks:
+        for alias in semantic_aliases.get(chunk, (chunk,)):
+            if alias in seen:
+                continue
+            seen.add(alias)
+            alternatives.append(alias)
+
+    return tuple(alternatives)
 
 
 def build_form_constraints(text: str) -> list[IntentConstraint]:
@@ -113,7 +137,7 @@ def extract_meaning_constraints(text: str) -> list[IntentConstraint]:
                 IntentConstraint(
                     "meaning",
                     value,
-                    alternatives=meaning_alternatives_by_value.get(value, ()),
+                    alternatives=normalize_meaning_alternatives(value),
                 )
             )
 

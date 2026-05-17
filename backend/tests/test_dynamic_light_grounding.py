@@ -193,6 +193,25 @@ def test_intent_plan_hard_filters_prefix_meaning_candidates():
     assert all("meaning_keyword" in signal_types(item) for item in result)
 
 
+def test_pre_meaning_does_not_match_pressure():
+    vocabulary = [
+        candidate("precede", ["先于；在...之前"]),
+        candidate("prevent", ["预防；阻止"]),
+        candidate("pressure", ["压力；施压"], part_of_speech="n. / v."),
+    ]
+    plan = normalize_query("pre开头表示提前或预先的单词").intent_plan
+
+    result = build_light_grounding_candidates(
+        query="pre开头表示提前或预先的单词",
+        active_exam_target="cet6",
+        vocabulary=vocabulary,
+        groups=[],
+        intent_plan=plan,
+    )
+
+    assert [item.lemma for item in result] == ["precede", "prevent"]
+
+
 def test_meaning_query_prioritizes_core_semantic_matches():
     vocabulary = [
         candidate("request", ["请求；要求"]),

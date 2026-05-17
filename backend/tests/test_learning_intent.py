@@ -31,7 +31,10 @@ def test_prefix_meaning_query_is_semantic_filter_not_prefix_inventory():
     assert plan.output_style == "teacher_table"
     assert plan.allow_expansion is False
     assert {"type": "prefix", "value": "co", "hard": True} in serialized_constraints(plan)
-    assert {"type": "meaning", "value": "合作", "hard": True} in serialized_constraints(plan)
+    meaning = next(item for item in serialized_constraints(plan) if item["type"] == "meaning")
+    assert meaning["value"] == "合作"
+    assert meaning["hard"] is True
+    assert set(meaning["alternatives"]) >= {"合作", "协作", "配合"}
 
 
 def test_word_family_request_allows_grounded_derivative_expansion():
@@ -56,3 +59,11 @@ def test_word_family_study_wording_wins_over_ordinary_lookup():
 
     assert plan.task == "word_family"
     assert plan.seed_terms == ["sign"]
+
+
+def test_meaning_constraint_splits_or_words_into_alternatives():
+    plan = normalize_query("con开头表示共同或一起的词").intent_plan
+
+    meaning = next(item for item in plan.constraints if item.type == "meaning")
+
+    assert set(meaning.alternatives) >= {"共同", "一起", "合作", "联合", "连接"}

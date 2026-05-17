@@ -1,17 +1,16 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-17 学生式意图归一化 Task 1-2 完成）
-- 当前活跃 plan 是 `docs/superpowers/plans/2026-05-17-student-intent-normalization.md`。本轮已完成 Task 1 + Task 2，未执行 Task 3+，未跑 live smoke，未提交 commit。
-- Task 1 已新增 `backend/tests/test_student_intent_matrix.py`，覆盖学生式 intent matrix 与 existing-good regression；同时在 `test_learning_intent.py` / `test_normalize_query.py` 补了 focused 单测。
-- Red 结果：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_student_intent_matrix.py backend/tests/test_learning_intent.py backend/tests/test_normalize_query.py -p no:cacheprovider` -> 9 failed / 26 passed。失败点正是 meaning alternatives 为空、`e` 一字母 prefix 未识别、`desert dessert ... 相似的词` 掉到 `fuzzy_recall`、`sign这组词怎么背` 掉到普通查词。
-- Task 2 已在 `learning_intent.py` / `normalize_query.py` 做最小归一化：
-  1. 显式 `开头|词首|前缀` cue 下允许一字母 prefix，不放宽普通英文 token 抽取。
-  2. shape cue 增加 `相似` 等学生式说法，多英文词 + shape/list cue 在 direct compare 之后进入 `shape_neighbor_search`。
-  3. family/root cue 增加 `派生词/同根/词族/这组词/那组词` 与组词学习语境下的 `怎么背/怎么记` 等说法，并让 explicit word-family intent 优先于 ordinary lookup。
-  4. `IntentConstraint.to_json()` 只在需要时暴露 `alternatives`，当前仅用于 `共同或一起`、`评估评价`、`限制或约束` 这类 Task 1 matrix 语义约束调试。
-- Green 结果：同一条 pytest 命令 -> 35 passed。
-- 代码质量审查修复：裸 `怎么背|怎么记` 不再单独触发 `root_family_summary` / `word_family`；`mitigate怎么记`、`access怎么背` 保持 ordinary `standard_lookup`，`sign这组词怎么背` 仍走 `root_family_summary + word_family`。复跑同一条 focused pytest -> 36 passed。
-- 下一步如果继续该计划，应从 Task 3 开始：做 semantic OR alternatives 的 runtime grounding 支持与服务层 no-match 收口。注意本轮只保证 normalize / intent plan 层稳定，尚未证明动态候选过滤能用 alternatives 产出答案。
+## 当前状态与下一步（2026-05-17 学生式意图归一化 Task 3 完成，未提交）
+- 当前活跃 plan 是 `docs/superpowers/plans/2026-05-17-student-intent-normalization.md`。本轮按子代理范围完成 Task 3；Task 3 的 Step 1-5、Step 7 已勾选，Step 6 commit 按用户要求未执行，仍留给主线程审查后统一提交。未跑 live smoke。
+- Task 3 结果：
+  1. `learning_intent.py` 增加保守 semantic alternatives normalizer：支持 `共同/一起`、`合作`、`评估/评价`、`限制/约束`、`提前/预先` 这些小白名单，并按 `或/或者/和/与/及/、/，/,/；/;` 拆分中文 meaning chunk，按顺序去重。
+  2. `IntentConstraint.to_json()` 仍只在 `alternatives` 非空时暴露调试字段；`合作` 现在会暴露 `合作/协作/配合`，`con开头表示共同或一起的词` 会暴露至少 `共同/一起/合作/联合/连接`。
+  3. `dynamic_light_grounding.py` 的 meaning hard filter 已改为 OR 匹配 `constraint.alternatives or [constraint.value]`，并且 `meaning_keyword` signal detail 使用实际命中的 keyword。
+  4. 新增回归：`pre开头表示提前或预先的单词` 在 fake vocabulary 中返回 `precede/prevent`，不会把只有 `压力；施压` 的 `pressure` 收进来。
+- TDD 记录：
+  1. RED：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_learning_intent.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_student_intent_matrix.py -p no:cacheprovider` -> 1 failed / 29 passed，失败为 `test_pre_meaning_does_not_match_pressure` 返回空列表。
+  2. GREEN：同一条 focused pytest -> 30 passed。
+- 下一步如果继续该计划，应从 Task 4 开始：在 service 层验证此前空结果能真正变成可回答结果，重点看 `con开头表示共同或一起的词`、`e开头表示评估评价的单词`、`desert dessert 还有没有相似的词`。继续保护普通 exact lookup，不要让 semantic/form broad 回流污染 `mitigate/access/make up` 这类确定查词。
 
 ## 历史快照（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
 - 产品方向已从“postgrad 没有官方机器词表，所以 ECDICT 只能泛外部兜底”调整为：ECDICT 作为更大的基础词汇底座；自有 structured 词库作为高信任覆盖层。覆盖层仍优先，但只在当前考试范围内命中时覆盖。
