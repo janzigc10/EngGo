@@ -219,12 +219,17 @@ class DirectCompareService:
         candidates = []
         for term in compare_terms:
             entry = self.repository.find_exact_entry(active_exam_target, term)
-            if entry:
+            if entry and entry.in_scope:
                 candidates.append(entry)
             elif self.ecdict_lookup:
                 profile = self.ecdict_lookup(term)
                 if profile:
-                    candidates.append(dictionary_candidate(profile))
+                    candidates.append(
+                        dictionary_candidate(
+                            profile,
+                            active_exam_target=active_exam_target,
+                        ),
+                    )
         ranked_candidates = unique_candidates(candidates)
 
         if len(ranked_candidates) < 2:

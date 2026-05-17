@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from backend.app.content.ecdict import EcdictBasicProfile
+from backend.app.content.ecdict import EcdictBasicProfile, scope_codes_for_profile
 from backend.app.content.source_lemmas import find_source_lemma_memberships_for_lookup
 from backend.app.answering.no_match_policy import maybe_plain_no_match_response
 from backend.app.retrieval.normalize_query import NormalizedQuery, normalize_query
@@ -285,15 +285,28 @@ def lookup_needle(normalized_query: NormalizedQuery) -> str:
     return normalized_query.english_terms[0] if normalized_query.english_terms else normalized_query.normalized_text
 
 
-def dictionary_candidate(profile: EcdictBasicProfile) -> RetrievalCandidate:
+def dictionary_candidate(
+    profile: EcdictBasicProfile,
+    *,
+    active_exam_target: str | None = None,
+) -> RetrievalCandidate:
+    scope_codes = scope_codes_for_profile(
+        profile,
+        active_exam_target=active_exam_target,
+    )
+
     return RetrievalCandidate(
         entry_id=f"external-dictionary-basic:{profile.canonical}",
         lemma=profile.canonical,
         meanings_zh=profile.meanings,
         matched_alias=profile.lookup_key if profile.match_kind == "joined_phrase_alias" else None,
-        scope_codes=[],
+        scope_codes=scope_codes,
         in_scope=True,
-        reason="external dictionary basic exact match",
+        reason=(
+            "external dictionary tagged exact match"
+            if scope_codes
+            else "external dictionary basic exact match"
+        ),
         score=12,
         source_kind="external_dictionary_basic",
     )
@@ -519,7 +532,7 @@ class OrdinaryLookupService:
         needle = lookup_needle(normalized_query)
         structured_candidate = self.repository.find_exact_entry(active_exam_target, needle)
 
-        if structured_candidate:
+        if structured_candidate and structured_candidate.in_scope:
             grounding = build_grounding(
                 active_exam_target=active_exam_target,
                 query=query,
@@ -580,7 +593,10 @@ class OrdinaryLookupService:
             profile = self.ecdict_lookup(needle)
 
             if profile and profile.entry_kind == "phrase":
-                candidate = dictionary_candidate(profile)
+                candidate = dictionary_candidate(
+                    profile,
+                    active_exam_target=active_exam_target,
+                )
                 grounding = build_grounding(
                     active_exam_target=active_exam_target,
                     query=query,
@@ -607,7 +623,10 @@ class OrdinaryLookupService:
             profile = self.ecdict_lookup(needle)
 
             if profile:
-                candidate = dictionary_candidate(profile)
+                candidate = dictionary_candidate(
+                    profile,
+                    active_exam_target=active_exam_target,
+                )
                 grounding = build_grounding(
                     active_exam_target=active_exam_target,
                     query=query,

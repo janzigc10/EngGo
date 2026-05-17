@@ -5,6 +5,7 @@ from backend.app.content.ecdict import (
     create_ecdict_basic_profile_lookup,
     lookup_ecdict_basic_profile,
     parse_ecdict_csv,
+    scope_codes_for_profile,
 )
 
 
@@ -39,6 +40,18 @@ def test_lookup_ecdict_basic_profile_resolves_words_and_joined_phrase_aliases():
     assert phrase.lookup_key == "accordingto"
     assert phrase.match_kind == "joined_phrase_alias"
     assert phrase.meanings == ["prep. 根据；按照"]
+
+
+def test_scope_codes_for_profile_maps_ecdict_exam_tags():
+    index = build_ecdict_basic_profile_index(fixture_rows())
+    accent = lookup_ecdict_basic_profile(index, "accent")
+
+    assert accent is not None
+    assert scope_codes_for_profile(accent) == ["gaokao", "cet4", "postgrad"]
+    assert scope_codes_for_profile(accent, active_exam_target="postgrad") == [
+        "postgrad",
+    ]
+    assert scope_codes_for_profile(accent, active_exam_target="cet6") == []
 
 
 def test_create_ecdict_basic_profile_lookup_returns_none_when_file_missing(tmp_path):

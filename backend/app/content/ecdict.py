@@ -62,6 +62,17 @@ default_joined_phrase_aliases = {
     "owingto": "owing to",
 }
 exam_profile_tags = {"zk", "gk", "cet4", "cet6", "ky"}
+preferred_ecdict_tags_by_exam_target = {
+    "gaokao": ("gk", "zk"),
+    "cet4": ("cet4",),
+    "cet6": ("cet6",),
+    "postgrad": ("ky",),
+}
+ecdict_tags_by_scope_code = {
+    scope_code: set(tags)
+    for scope_code, tags in preferred_ecdict_tags_by_exam_target.items()
+}
+scope_code_order = ["gaokao", "cet4", "cet6", "postgrad"]
 
 
 def normalize_lookup_key(value: str) -> str:
@@ -203,6 +214,28 @@ def profile_tag_set(profile: EcdictBasicProfile) -> set[str]:
         for tag in profile.tag.split()
         if tag.strip()
     }
+
+
+def scope_codes_for_profile(
+    profile: EcdictBasicProfile,
+    *,
+    active_exam_target: str | None = None,
+) -> list[str]:
+    tags = profile_tag_set(profile)
+    scope_codes = [
+        scope_code
+        for scope_code in scope_code_order
+        if tags & ecdict_tags_by_scope_code[scope_code]
+    ]
+
+    if active_exam_target:
+        return [
+            scope_code
+            for scope_code in scope_codes
+            if scope_code == active_exam_target
+        ]
+
+    return scope_codes
 
 
 def search_ecdict_basic_profiles(

@@ -18,7 +18,11 @@ from backend.app.answering.ordinary_lookup import (
     build_grounding,
     build_no_match_answer,
 )
-from backend.app.content.ecdict import EcdictBasicProfile
+from backend.app.content.ecdict import (
+    EcdictBasicProfile,
+    preferred_ecdict_tags_by_exam_target,
+    scope_codes_for_profile,
+)
 from backend.app.retrieval.normalize_query import NormalizedQuery, normalize_query
 from backend.app.retrieval.dynamic_light_grounding import (
     build_light_grounding_candidates,
@@ -53,14 +57,6 @@ root_families = {
         "caution": "不要硬造 re- 等不存在或低价值分支。",
     },
 }
-preferred_ecdict_tags_by_exam_target = {
-    "gaokao": ("gk", "zk"),
-    "cet4": ("cet4",),
-    "cet6": ("cet6",),
-    "postgrad": ("ky",),
-}
-
-
 def build_simple_answer(candidates: list[RetrievalCandidate]) -> str:
     return "\n".join(
         [
@@ -74,19 +70,32 @@ def build_simple_answer(candidates: list[RetrievalCandidate]) -> str:
     )
 
 
-def external_dictionary_candidate(profile: EcdictBasicProfile) -> RetrievalCandidate | None:
+def external_dictionary_candidate(
+    profile: EcdictBasicProfile,
+    *,
+    active_exam_target: str | None = None,
+) -> RetrievalCandidate | None:
     meanings = clean_ecdict_broad_meanings(profile)
     if not meanings:
         return None
+
+    scope_codes = scope_codes_for_profile(
+        profile,
+        active_exam_target=active_exam_target,
+    )
 
     return RetrievalCandidate(
         entry_id=f"external-dictionary-basic:{profile.canonical}",
         lemma=profile.canonical,
         meanings_zh=meanings,
         matched_alias=None,
-        scope_codes=[],
+        scope_codes=scope_codes,
         in_scope=True,
-        reason="external dictionary basic fragment candidate",
+        reason=(
+            "external dictionary tagged fragment candidate"
+            if scope_codes
+            else "external dictionary basic fragment candidate"
+        ),
         score=14,
         part_of_speech=infer_ecdict_part_of_speech(profile),
         source_kind=profile.source_kind,
@@ -564,12 +573,24 @@ class AdvancedLookupService:
 
         search = self.ecdict_lookup.search
         preferred_tags = preferred_ecdict_tags_by_exam_target.get(active_exam_target, ())
-        tagged_profiles = search(
-            lambda profile: bool(profile.tag.strip()) and matches_profile(profile),
+        active_tagged_profiles = search(
+            lambda profile: bool(
+                scope_codes_for_profile(
+                    profile,
+                    active_exam_target=active_exam_target,
+                ),
+            )
+            and matches_profile(profile),
             limit=limit,
             preferred_tags=preferred_tags,
         )
-        profiles = tagged_profiles
+        profiles = active_tagged_profiles
+        if len(profiles) < 2:
+            profiles = search(
+                lambda profile: bool(profile.tag.strip()) and matches_profile(profile),
+                limit=limit,
+                preferred_tags=preferred_tags,
+            )
         if len(profiles) < 2:
             profiles = search(
                 matches_profile,
@@ -579,7 +600,10 @@ class AdvancedLookupService:
 
         candidates: list[RetrievalCandidate] = []
         for profile in profiles:
-            candidate = external_dictionary_candidate(profile)
+            candidate = external_dictionary_candidate(
+                profile,
+                active_exam_target=active_exam_target,
+            )
             if candidate:
                 candidates.append(candidate)
 

@@ -55,6 +55,7 @@ def profile(
     entry_kind="word",
     lookup_key=None,
     match_kind="exact",
+    tag="cet4",
 ):
     return EcdictBasicProfile(
         canonical=canonical,
@@ -63,7 +64,7 @@ def profile(
         match_kind=match_kind,
         meanings=meanings,
         raw_translation="\n".join(meanings),
-        tag="cet4",
+        tag=tag,
     )
 
 
@@ -193,6 +194,7 @@ def test_postgrad_single_word_meaning_lookup_uses_ecdict_exact_fallback(tmp_path
             "commit",
             ["v. 承诺；投入；犯下"],
             entry_kind="word",
+            tag="ky",
         )
         if query == "commit"
         else None,
@@ -214,6 +216,49 @@ def test_postgrad_single_word_meaning_lookup_uses_ecdict_exact_fallback(tmp_path
     assert result.payload.grounding["mainAnswer"][0]["sourceKind"] == (
         "external_dictionary_basic"
     )
+    assert result.payload.grounding["mainAnswer"][0]["scopeCodes"] == ["postgrad"]
+
+
+def test_out_of_scope_structured_exact_yields_to_ecdict_current_tag(tmp_path):
+    out_of_scope_structured = RetrievalCandidate(
+        entry_id="structured-commit",
+        lemma="commit",
+        part_of_speech="v.",
+        meanings_zh=["犯下"],
+        matched_alias=None,
+        scope_codes=["cet4", "cet6"],
+        in_scope=False,
+        reason="structured exact match",
+        score=100,
+        source_kind="structured",
+        exact_lemma=True,
+        text_score=1,
+    )
+    service = OrdinaryLookupService(
+        repository=FakeRepository({"commit": out_of_scope_structured}),
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda query: profile(
+            "commit",
+            ["v. 承诺；投入；犯下"],
+            entry_kind="word",
+            tag="ky",
+        )
+        if query == "commit"
+        else None,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="commit 是什么意思",
+        request_id="req_postgrad_commit_out_of_scope",
+    )
+
+    assert result.status_code == 200
+    assert result.payload.grounding["matchType"] == "external_dictionary_exact"
+    assert result.payload.grounding["mainAnswer"][0]["sourceKind"] == (
+        "external_dictionary_basic"
+    )
+    assert result.payload.grounding["mainAnswer"][0]["scopeCodes"] == ["postgrad"]
 
 
 def test_source_phrase_lookup_with_chinese_suffix_uses_source_lemma(tmp_path):

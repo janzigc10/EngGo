@@ -360,7 +360,66 @@ def test_direct_compare_uses_ecdict_profiles_for_compact_chinese_and_query():
         item["sourceKind"]
         for item in grounding["mainAnswer"]
     } == {"external_dictionary_basic"}
+    assert [
+        item["scopeCodes"]
+        for item in grounding["mainAnswer"]
+    ] == [["postgrad"], ["postgrad"]]
     assert result.payload.answer.splitlines() == [
         "expire vi. 期满；断气；vt. 呼出",
         "inspire vt. 鼓舞；激发；vi. 吸入",
     ]
+
+
+def test_direct_compare_out_of_scope_structured_yields_to_ecdict_current_tag():
+    profiles = {
+        "expire": ecdict_profile("expire", ["vi. 期满；断气"]),
+        "inspire": ecdict_profile("inspire", ["vt. 鼓舞；激发"]),
+    }
+    service = DirectCompareService(
+        repository=FakeRepository(
+            {
+                "expire": RetrievalCandidate(
+                    entry_id="structured-expire",
+                    lemma="expire",
+                    meanings_zh=["期满"],
+                    matched_alias=None,
+                    scope_codes=["cet6"],
+                    in_scope=False,
+                    reason="structured exact match",
+                    score=100,
+                    part_of_speech="vi.",
+                    source_kind="structured",
+                ),
+                "inspire": RetrievalCandidate(
+                    entry_id="structured-inspire",
+                    lemma="inspire",
+                    meanings_zh=["鼓舞"],
+                    matched_alias=None,
+                    scope_codes=["cet6"],
+                    in_scope=False,
+                    reason="structured exact match",
+                    score=100,
+                    part_of_speech="vt.",
+                    source_kind="structured",
+                ),
+            },
+        ),
+        ecdict_lookup=lambda query: profiles.get(query),
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="expire和inspire",
+        request_id="req_compare_out_of_scope_ecdict",
+    )
+
+    grounding = result.payload.grounding
+
+    assert [
+        item["sourceKind"]
+        for item in grounding["mainAnswer"]
+    ] == ["external_dictionary_basic", "external_dictionary_basic"]
+    assert [
+        item["scopeCodes"]
+        for item in grounding["mainAnswer"]
+    ] == [["postgrad"], ["postgrad"]]

@@ -585,6 +585,7 @@ def test_postgrad_fragment_query_uses_external_dictionary_candidates():
             ecdict_profile("aspire", ["vi. 渴望；立志"], tag="ky"),
             ecdict_profile("expire", ["vi. 期满；断气", "vt. 呼出"], tag="cet6 ky"),
             ecdict_profile("inspire", ["vt. 鼓舞；激发", "vi. 吸入"], tag="cet6 ky"),
+            ecdict_profile("spire", ["n. 尖顶"], tag="cet4"),
             ecdict_profile("plain", ["n. 平原"], tag="ky"),
         ],
     )
@@ -609,7 +610,7 @@ def test_postgrad_fragment_query_uses_external_dictionary_candidates():
     assert ecdict_lookup.searches
     assert grounding["queryMode"] == "root_family_summary"
     assert grounding["broadQueryMode"] == "broad_vocab"
-    assert grounding["supportLabel"] == "基于外部基础词典候选总结"
+    assert grounding["supportLabel"] == "基于 ECDICT 考研标签候选总结"
     assert [item["lemma"] for item in grounding["mainAnswer"]] == [
         "aspire",
         "expire",
@@ -619,6 +620,11 @@ def test_postgrad_fragment_query_uses_external_dictionary_candidates():
         item["sourceKind"]
         for item in grounding["mainAnswer"]
     } == {"external_dictionary_basic"}
+    assert "spire" not in [item["lemma"] for item in grounding["lightCandidates"]]
+    assert [
+        item["scopeCodes"]
+        for item in grounding["mainAnswer"]
+    ] == [["postgrad"], ["postgrad"], ["postgrad"]]
     assert "plain" not in result.payload.answer
 
 

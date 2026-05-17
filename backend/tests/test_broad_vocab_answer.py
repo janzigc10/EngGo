@@ -180,6 +180,36 @@ def test_external_dictionary_collection_grounding_uses_external_support_label():
     assert grounding["scopeReminder"] == "基于外部基础词典候选总结"
 
 
+def test_ecdict_tagged_collection_grounding_uses_exam_tag_support_label():
+    query = "包含pire的单词"
+    candidates = [
+        light_candidate(
+            "aspire",
+            meanings=["渴望"],
+            source_kind="external_dictionary_basic",
+            scope_codes=["postgrad"],
+            signals=[LightGroundingSignal("fragment", 90, "pire")],
+        ),
+        light_candidate(
+            "expire",
+            meanings=["期满"],
+            source_kind="external_dictionary_basic",
+            scope_codes=["postgrad"],
+            signals=[LightGroundingSignal("fragment", 90, "pire")],
+        ),
+    ]
+
+    grounding = build_broad_vocab_grounding(
+        active_exam_target="postgrad",
+        query=query,
+        normalized_query=normalize_query(query),
+        candidates=candidates,
+    )
+
+    assert grounding["supportLabel"] == "基于 ECDICT 考研标签候选总结"
+    assert grounding["scopeReminder"] == "基于 ECDICT 考研标签候选总结"
+
+
 def test_collection_confusion_cues_still_use_simple_inventory_table():
     query = "\u0063\u006f\u006d\u006d \u5f00\u5934\u54ea\u4e9b\u8bcd\u5bb9\u6613\u6df7"
     grounding = build_broad_vocab_grounding(

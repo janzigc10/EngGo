@@ -1,25 +1,29 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-17 postgrad ECDICT fallback + 片段/compare 修复）
-- 用户人工验收时发现：在“考研”选项里，普通查词、`包含pire的单词`、`expire和inspire` 都容易落到 MISS/no-match。已确认这是后端路由和候选池边界问题，不是客户端展示问题。
-- 普通查词根因：`commit 是什么意思` 这类单词 + 中文查义后缀会被 normalize 成 `fuzzy_recall`；而 `postgrad` 没有 entry-level source lemma 词表，`source_lemma_candidate()` 会按设计返回空。Claude Code 之前补的 ECDICT fallback 只覆盖 `direct_lookup`，所以这类 postgrad 普通查词会落到 provider/plain，而不是 ECDICT exact grounding。
-- 普通查词已修复：`ordinary_lookup` 新增 `should_use_ecdict_exact_fallback()`，允许两类普通查词走 ECDICT exact fallback：
-  1. `direct_lookup`
-  2. `fuzzy_recall` 且只有一个英文词、中文 meaning hint 等于该词
-- 片段召回已修复：`包含pire的单词` 仍走结构片段 `root_family_summary`，但当 postgrad 没有官方 source lemma 池时，可用 ECDICT 搜出外部基础词典候选，并把 `supportLabel/scopeReminder` 标为 `基于外部基础词典候选总结`，避免误装成考研官方词库。
-- 紧凑 compare 已修复：`expire和inspire` 这种两个英文词中间只有中文 `和/与/跟` 的 query 会 normalize 成 `direct_compare`，再由 direct compare 的 ECDICT exact fallback 返回两词短辨析，不再被 ordinary lookup 当成多词 `fuzzy_recall` 吃掉。
-- 边界仍保持：postgrad 仍不伪造官方 scope 词表；ECDICT 结果只标为 `external_dictionary_basic` / `external_dictionary_exact`，不升级成高可信 structured entry，也不产生人工易混组、词根族或考试优先级判断。
-- 已保留最小复盘能力：聊天页会把最近 20 条消息写入当前标签页的 `sessionStorage` key `enggo.chatTranscript`，重新挂载或从二级页面回到主舞台后能恢复最近问答，方便继续人工验收。
-- 当前客户端状态：已停止旧 3000/8000 进程并重启 dev stack；当前监听为 FastAPI `127.0.0.1:8000` PID 43020、Next `127.0.0.1:3000` PID 48112，日志在 `.runlogs/dev-postgrad-fragment-label-20260517-000424.log`。
+## 当前状态与下一步（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
+- 产品方向已从“postgrad 没有官方机器词表，所以 ECDICT 只能泛外部兜底”调整为：ECDICT 作为更大的基础词汇底座；自有 structured 词库作为高信任覆盖层。覆盖层仍优先，但只在当前考试范围内命中时覆盖。
+- 已实现第一刀后端切片：
+  1. ECDICT tag 映射到 EngGo scope：`gk/zk -> gaokao`、`cet4 -> cet4`、`cet6 -> cet6`、`ky -> postgrad`。
+  2. 普通 exact/fuzzy 查词的 ECDICT fallback 会带当前 scope，例如 `postgrad + commit 是什么意思` 返回 `external_dictionary_basic` + `scopeCodes=["postgrad"]`。
+  3. direct compare 的 ECDICT fallback 会带当前 scope，例如 `postgrad + expire和inspire` 两词都返回 `scopeCodes=["postgrad"]`。
+  4. fragment/root broad 候选优先搜索当前 ECDICT tag；当前 tag 候选足够时，不混入非当前标签或无标签候选。
+  5. broad `supportLabel/scopeReminder` 对全 ECDICT 当前标签候选显示为 `基于 ECDICT 考研标签候选总结`，无当前标签时仍保守显示 `基于外部基础词典候选总结`。
+  6. structured exact 如果返回的是 out-of-scope 条目，不再压住 ECDICT 当前标签 fallback；in-scope structured 仍是最高优先级覆盖层。
+- 仍保持的边界：
+  1. ECDICT 不改名为 `structured`，sourceKind 仍是 `external_dictionary_basic`，避免把外部词典误装成人工审核结构化词条。
+  2. ECDICT tag 可用于当前考试范围的候选命中和显示依据，但还不自动生成自有易混组、词根族、考试优先级或人工 review 状态。
+  3. 这次只打通普通查词、紧凑 compare、fragment broad 三条用户已测坏链路；尚未把所有 dynamic/source vocabulary 都改成 ECDICT-first 大底座。
+- 当前客户端状态：已恢复 Prisma dev，执行 migrate + real-smoke seed，并重启 dev stack；当前监听为 FastAPI `127.0.0.1:8000` PID 64888、Next `127.0.0.1:3000` PID 64936，日志在 `.runlogs/dev-ecdict-backbone-20260517.log`。
 - 本轮验证：
-  1. 红测：`expire和inspire` 先失败为 `fuzzy_recall`；`包含pire的单词` 先失败为未调用 ECDICT search / no-match。
-  2. `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 84 passed，仍有 pytest cache permission warning。
-  3. Live HTTP：`postgrad + 包含pire的单词` 直打 `127.0.0.1:3000/api/chat` -> `answerKind=grounded`、`queryMode=root_family_summary`、`broadQueryMode=broad_vocab`、`supportLabel=基于外部基础词典候选总结`、`providerRequestId=null`，主候选均为 `external_dictionary_basic` 且 `scopeCodes=[]`。
-  4. Live HTTP：`postgrad + expire和inspire` 直打 `127.0.0.1:3000/api/chat` -> `answerKind=grounded`、`queryMode=direct_compare`、`providerRequestId=null`，两词均来自 `external_dictionary_basic`。
+  1. 红测：新增 scope/tag、out-of-scope structured 让位、fragment 当前 tag 过滤等测试，先按预期失败。
+  2. `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 88 passed，仍有 pytest cache permission warning。
+  3. Live HTTP：`postgrad + commit 是什么意思` -> `grounded/fuzzy_recall/external_dictionary_exact/providerRequestId=null/mainAnswer=commit external_dictionary_basic scopeCodes=["postgrad"]`。
+  4. Live HTTP：`postgrad + 包含pire的单词` -> `grounded/root_family_summary/broad_vocab/supportLabel=基于 ECDICT 考研标签候选总结/providerRequestId=null`，主候选 `aspire/empire/expire/inspire/conspire` 均为 `external_dictionary_basic` + `scopeCodes=["postgrad"]`。
+  5. Live HTTP：`postgrad + expire和inspire` -> `grounded/direct_compare/providerRequestId=null`，两词均来自 `external_dictionary_basic` + `scopeCodes=["postgrad"]`。
 - 下一步建议：
-  1. 用户现在可直接在 `http://127.0.0.1:3000` 的客户端重测 postgrad：`commit 是什么意思`、`包含pire的单词`、`expire和inspire`。
-  2. 如果命中恢复后仍觉得“效果一般”，下一刀继续按真实坏样例分类：普通查词释义太薄、易混辨析不聚焦、广义召回太慢/太散，还是 UI 阅读/收藏链路不顺。
-  3. 若后续要改善 postgrad 的可信范围感，先设计“外部基础词典 vs 官方词书范围”的轻量 UI/文案区分，不要把 ECDICT 直接伪装成考研官方词库。
+  1. 用户可直接在 `http://127.0.0.1:3000` 重测 postgrad 三个样例：`commit 是什么意思`、`包含pire的单词`、`expire和inspire`。
+  2. 如果这个方向验收通过，下一刀再系统化扩展“ECDICT 大底座”：把 dynamic vocabulary 的 source-only/postgrad 空池也迁到 ECDICT tag-backed pool，并定义 structured overlay 的冲突优先级。
+  3. 前端后续可以把 `external_dictionary_basic + scopeCodes=[当前范围]` 显示成“ECDICT 考研标签”这类轻身份；不要显示成自有人工词库。
 
 ## 当前状态与下一步（2026-05-16 收藏生词本整理 1.0）
 
