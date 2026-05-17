@@ -1,5 +1,10 @@
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+
+from backend.app.retrieval.learning_intent import (
+    LearningIntentPlan,
+    build_learning_intent_plan,
+)
 
 
 QueryMode = str
@@ -68,6 +73,7 @@ class NormalizedQuery:
     compare_terms: list[str]
     group_seed_term: str | None
     is_supported_ordinary_lookup: bool
+    intent_plan: LearningIntentPlan | None = None
 
     def to_json(self) -> dict[str, object]:
         return {
@@ -78,6 +84,11 @@ class NormalizedQuery:
             "meaningHint": self.meaning_hint,
             "compareTerms": self.compare_terms,
             "groupSeedTerm": self.group_seed_term,
+            "learningIntentPlan": (
+                self.intent_plan.to_json()
+                if self.intent_plan is not None
+                else None
+            ),
         }
 
 
@@ -229,7 +240,7 @@ def normalize_query(query: str) -> NormalizedQuery:
     elif english_terms:
         query_mode = "fuzzy_recall"
 
-    return NormalizedQuery(
+    normalized_query = NormalizedQuery(
         raw=query,
         normalized_text=normalized_text,
         query_mode=query_mode,
@@ -238,4 +249,9 @@ def normalize_query(query: str) -> NormalizedQuery:
         compare_terms=compare_terms,
         group_seed_term=None,
         is_supported_ordinary_lookup=query_mode in {"direct_lookup", "fuzzy_recall"},
+    )
+
+    return replace(
+        normalized_query,
+        intent_plan=build_learning_intent_plan(normalized_query),
     )
