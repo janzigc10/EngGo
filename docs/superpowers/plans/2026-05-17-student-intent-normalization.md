@@ -742,15 +742,15 @@ Record direct test results and live proxy smoke result.
 - Modify: `docs/superpowers/plans/2026-05-17-student-intent-normalization.md`
 - Optionally modify: `bugs.md` only for confirmed environment or product pitfalls discovered during implementation.
 
-- [ ] **Step 1: Mark plan steps as completed as work lands**
+- [x] **Step 1: Mark plan steps as completed as work lands**
 
 Do not wait until the end. After each task commit, change completed `- [ ]` boxes to `- [x]`.
 
-- [ ] **Step 2: Update `docs/README.md`**
+- [x] **Step 2: Update `docs/README.md`**
 
 Move this plan from active to completed only after all implementation and smoke pass.
 
-- [ ] **Step 3: Re-audit and rewrite top of `progress.md`**
+- [x] **Step 3: Re-audit and rewrite top of `progress.md`**
 
 Keep only the next-session-relevant state:
 
@@ -760,7 +760,7 @@ Keep only the next-session-relevant state:
 - Exact verification commands and results.
 - Next suggested product step.
 
-- [ ] **Step 4: Run doc sanity checks**
+- [x] **Step 4: Run doc sanity checks**
 
 Run:
 
@@ -771,7 +771,7 @@ git status --short --branch
 
 Expected: `git diff --check` exits 0, ignoring CRLF warnings.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add docs/README.md progress.md docs/superpowers/plans/2026-05-17-student-intent-normalization.md bugs.md

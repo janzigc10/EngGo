@@ -1,22 +1,15 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-17 学生式意图归一化 Task 6 已提交，待 Task 7 收口）
-- 当前活跃 plan 是 `docs/superpowers/plans/2026-05-17-student-intent-normalization.md`。本轮完成并提交 Task 6；Task 1-6 已完成，下一步进入 Task 7 文档与交接收口。
-- Task 6 结果：
-  1. `scripts/lib/fastapi-migrated-slice-smoke.ts` 新增学生式意图 smoke 覆盖：`con开头表示共同或一起的词`、`e开头表示评估评价的单词`、`表示限制或约束的con开头单词`、`desert dessert 还有没有相似的词`、`sign这组词怎么背`、`sign的派生词有哪些`、`produce的同根词或派生词`、`pre开头表示提前或预先的单词`。
-  2. 每个新 case 锁定 `learningIntentTask`、核心 `groundingLemmas`、核心 `mainAnswerLemmas` 与 deterministic `providerRequestId=null` 行为；语义过滤覆盖 `semantic_filter_table`，形近覆盖 `shape_neighbor_table`，词族覆盖 `word_family_table`。`con开头表示共同或一起的词` 只要求真正 `con-` 的 `connect`，不再把 `com-` 的 `combine` 当作 con-prefix 期望。
-  3. smoke evaluator 新增 `answerText` 检查：任何 case 返回 `当前回答服务暂时不可用` 都会 fail。
-  4. smoke evaluator 新增 `mainAnswerLemmas`、`expectedMainAnswerIncludes` 与 `forbiddenMainAnswerIncludes`：核心词必须进入主答案，同时只在主答案层防回归 `pressure`、`sigh/sight/scan/sick`、`provide/propose/project/promote`、`conceal/confidential/conscript/contain/content/continual`，避免把候选池诊断信息误当主答案污染。
-  5. live smoke 暴露并已修复两个真实缺口：短 prefix + meaning 的 ECDICT fragment 先截断再语义过滤会漏掉 `evaluate/estimate`；`constrain` 的中文首义是“强迫”，但 ECDICT 英文 definition 含 `restrict`，因此只在 ECDICT semantic-filter 搜索里用英文 definition 生成隐藏 `semantic_match_hints` 补充匹配，不把 `强迫` 加进通用中文 alias，也不污染可见 `meaningsZh` / public `meaning_keyword` signal；`broad_vocab` 主答案筛选内部承认 private `_semantic_match_hint`，同时保持 `co开头的意思是合作的单词` 不召回 `corporation`。
-- TDD / 验证记录：
-  1. RED：`corepack pnpm test scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 3 failed / 6 passed；失败来自新矩阵缺失、observation 未暴露 `answerText`、evaluator 未拦截不可用兜底文案。
-  2. RED：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_advanced_lookup.py::test_single_letter_semantic_filter_can_use_late_ecdict_matches -p no:cacheprovider` -> failed，证明单字母 prefix 的 ECDICT 候选池会在 `evaluate/estimate` 前被截断。
-  3. RED：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_advanced_lookup.py::test_con_restrict_question_can_use_ecdict_definition_without_forced_alias -p no:cacheprovider` -> failed，证明 `constrain` 需要借助 ECDICT 英文 definition 匹配 `restrict`，但可见 `meaningsZh` 必须保持原始“强迫, 限制, 关押”。
-  4. GREEN：`corepack pnpm test scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 1 file / 12 tests passed。
-  5. GREEN：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_learning_intent.py::test_restrict_meaning_aliases_stay_narrow backend/tests/test_dynamic_light_grounding.py::test_restrict_semantic_filter_keeps_primary_meaning_conservative backend/tests/test_advanced_lookup.py::test_con_restrict_question_can_use_ecdict_definition_without_forced_alias backend/tests/test_advanced_lookup.py::test_single_letter_semantic_filter_can_use_late_ecdict_matches -p no:cacheprovider` -> 4 passed。
-  6. GREEN：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py backend/tests/test_student_intent_matrix.py -p no:cacheprovider` -> 130 passed。
-  7. GREEN：`corepack pnpm db:seed:real-smoke` + clean dev stack + `corepack pnpm eval:fastapi:migrated-smoke:proxy` -> 28 total / 28 pass / 0 fail。
-- 下一步继续 Task 7：把本 plan 移到 docs index 的 completed 区、压缩 `progress.md` 顶部状态，并跑 `git diff --check` / `git status --short --branch`。
+## 当前状态与下一步（2026-05-17 学生式意图归一化完成）
+- `docs/superpowers/plans/2026-05-17-student-intent-normalization.md` 已完成并从 `docs/README.md` 的活跃计划移到已完成区；当前暂无活跃 plan。
+- 学生式 intent matrix 已进入真实 smoke：`con开头表示共同或一起的词`、`e开头表示评估评价的单词`、`表示限制或约束的con开头单词`、`desert dessert 还有没有相似的词`、`sign这组词怎么背`、`sign的派生词有哪些`、`produce的同根词或派生词`、`pre开头表示提前或预先的单词`。这些 case 锁定 `learningIntentTask`、核心 `groundingLemmas/mainAnswerLemmas`、`providerRequestId=null` 和对应展示形态。
+- 本轮修复的关键边界：短 prefix + meaning 不再因 ECDICT fragment 截断漏掉 `evaluate/estimate`；`constrain` 可用 ECDICT 英文 definition 的 `restrict` 作为隐藏 `semantic_match_hints` 匹配证据，但不污染可见 `meaningsZh` 或 public `meaning_keyword` signal；`conscript/contain/content/continual` 等弱匹配不会进入“限制/约束 con-”主答案。
+- 保持的产品边界：普通 exact lookup 仍不回流到 broad vocab；`con开头表示共同或一起的词` 只要求真正 `con-` 的 `connect`，不把 `com-` 的 `combine` 当作 con-prefix；不要把 ECDICT 的英文 definition bridge 扩成通用中文 alias。
+- 最新验证：
+  1. `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py backend/tests/test_student_intent_matrix.py -p no:cacheprovider` -> 130 passed。
+  2. `corepack pnpm test scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 1 file / 12 tests passed。
+  3. `corepack pnpm db:seed:real-smoke` + clean dev stack + `corepack pnpm eval:fastapi:migrated-smoke:proxy` -> 28 total / 28 pass / 0 fail。
+- 下一步建议：回到 AGENTS 当前焦点，优先验收普通查词 exact lookup 的展示是否仍干净，然后继续聊天主舞台里的回答展示、移动端阅读和收藏动作体验。若要继续后端 retrieval，先写新 plan，不要在已完成 intent plan 上继续堆单点正则。
 
 ## 历史快照（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
 - 产品方向已从“postgrad 没有官方机器词表，所以 ECDICT 只能泛外部兜底”调整为：ECDICT 作为更大的基础词汇底座；自有 structured 词库作为高信任覆盖层。覆盖层仍优先，但只在当前考试范围内命中时覆盖。

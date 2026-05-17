@@ -32,12 +32,13 @@
   - 初始技术设计。
 
 ## 当前活跃计划
-- `docs/superpowers/plans/2026-05-17-student-intent-normalization.md`
-  - 学生式意图归一化计划：把 few-shot 风格样例固化为 deterministic intent matrix 和 smoke，优先修复 `con开头表示共同或一起`、`e开头表示评估评价`、`desert dessert 还有没有相似的词`、`sign这组词怎么背` 这类表达归一化与候选噪声问题。Task 1-2 已完成；下一 session 如继续答题链路，应从该 plan 的 Task 3 继续执行。
+- 暂无活跃 plan。下一轮如果继续产品打磨，优先从 `progress.md` 顶部的“下一步建议”选择新 plan，不要从已完成计划 Task 1 重开。
 
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。
 
+- `docs/superpowers/plans/2026-05-17-student-intent-normalization.md`
+  - 学生式意图归一化计划已完成：few-shot 风格样例已固化为 deterministic intent matrix 和 Next proxy smoke，覆盖 `con开头表示共同或一起`、`e开头表示评估评价`、`表示限制或约束的con开头单词`、`desert dessert 还有没有相似的词`、`sign这组词怎么背`、`sign的派生词有哪些`、`produce的同根词或派生词`、`pre开头表示提前或预先的单词`，并保护普通 exact lookup 不回流到 broad vocab。
 - `docs/superpowers/plans/2026-05-17-learning-intent-plan.md`
   - 学习意图层实现计划已完成：`normalize_query` 现在附带 `LearningIntentPlan`，dynamic grounding 消费硬约束和扩展策略，broad answer plan 按任务输出 strict inventory / teacher table / word-family table / shape-neighbor table，并已通过 direct FastAPI 与 Next proxy migrated smoke。
 - `docs/superpowers/plans/2026-05-15-broad-vocab-confusion-organizer.md`
