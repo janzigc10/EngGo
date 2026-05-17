@@ -32,7 +32,8 @@
   - 初始技术设计。
 
 ## 当前活跃计划
-- 暂无。下一轮先从 `progress.md` 的“下一步建议”确认方向，不要从历史 plan 的 Task 1 重开。
+- `docs/superpowers/plans/2026-05-17-student-intent-normalization.md`
+  - 学生式意图归一化计划：把 few-shot 风格样例固化为 deterministic intent matrix 和 smoke，优先修复 `con开头表示共同或一起`、`e开头表示评估评价`、`desert dessert 还有没有相似的词`、`sign这组词怎么背` 这类表达归一化与候选噪声问题。Task 1-2 已完成；下一 session 如继续答题链路，应从该 plan 的 Task 3 继续执行。
 
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。

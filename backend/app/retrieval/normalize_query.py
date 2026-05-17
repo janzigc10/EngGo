@@ -19,7 +19,7 @@ compact_chinese_compare_connector_pattern = re.compile(
     re.IGNORECASE,
 )
 root_cue_pattern = re.compile(
-    r"(词根|前缀|后缀|同根|这一族|家族|派生|构词|组合|开头|结尾|词首|词尾)",
+    r"(词根|前缀|后缀|同根|这一族|一族|家族|词族|这组词|那组词|派生词|派生|构词|组合|开头|结尾|词首|词尾)",
     re.IGNORECASE,
 )
 root_fragment_pattern = re.compile(
@@ -35,11 +35,11 @@ exact_fragment_question_pattern = re.compile(
     re.IGNORECASE,
 )
 family_recall_cue_pattern = re.compile(
-    r"(同根|这一族|一族|家族|派生|构词|一样|那几个词|那组词|怎么记|怎么背)",
+    r"(派生词|派生|同根|这一族|一族|家族|词族|这组词|那组词|一样|那几个词)",
     re.IGNORECASE,
 )
 shape_neighbor_cue_pattern = re.compile(
-    r"(很像|比较像|相像|类似|形近|长得像|看错|看成|易混词?|容易.*混|拼写.{0,4}(像|近|相似))",
+    r"(很像|比较像|相像|相似|类似|形近|长得像|看错|看成|易混词?|容易.*混|拼写.{0,4}(像|近|相似))",
     re.IGNORECASE,
 )
 shape_neighbor_list_pattern = re.compile(
@@ -140,7 +140,7 @@ def contains_shape_neighbor_cue(normalized_text: str) -> bool:
 
     return (
         shape_neighbor_list_pattern.search(normalized_text) is not None
-        or re.search(r"(看错|看成|形近|易混|很像|比较像|相像|类似|长得像)", normalized_text, re.IGNORECASE) is not None
+        or re.search(r"(看错|看成|形近|易混|很像|比较像|相像|相似|类似|长得像)", normalized_text, re.IGNORECASE) is not None
     )
 
 
@@ -156,6 +156,9 @@ def contains_compare_cue(normalized_text: str, english_terms: list[str]) -> bool
 
 
 def contains_known_root_family_cue(normalized_text: str, english_terms: list[str]) -> bool:
+    if english_terms and family_recall_cue_pattern.search(normalized_text):
+        return True
+
     if any(term in known_root_family_terms for term in english_terms):
         return family_recall_cue_pattern.search(normalized_text) is not None
 
@@ -194,7 +197,7 @@ def contains_root_fragment_recall_pattern(normalized_text: str) -> bool:
     return any(
         pattern.search(text) is not None
         for pattern in [
-            re.compile(r"\b([a-z]{2,8})\s*(?:开头|词首|前缀)", re.IGNORECASE),
+            re.compile(r"\b([a-z]{1,8})\s*(?:开头|词首|前缀)", re.IGNORECASE),
             re.compile(r"\b([a-z]{2,8})\s*(?:结尾|词尾|后缀)", re.IGNORECASE),
             re.compile(r"(?:有|含有|包含)\s*([a-z]{2,12})\s*(?:的词|这个片段|这个词形)?", re.IGNORECASE),
         ]
@@ -226,7 +229,7 @@ def normalize_query(query: str) -> NormalizedQuery:
         query_mode = "root_family_summary"
     elif len(compare_terms) >= 2:
         query_mode = "direct_compare"
-    elif len(english_terms) == 1 and contains_shape_neighbor_cue(normalized_text):
+    elif english_terms and contains_shape_neighbor_cue(normalized_text):
         query_mode = "shape_neighbor_search"
     elif is_phrase_lookup_with_chinese_suffix(
         normalized_text=normalized_text,

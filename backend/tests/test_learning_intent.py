@@ -42,3 +42,17 @@ def test_word_family_request_allows_grounded_derivative_expansion():
     assert plan.output_style == "teacher_table"
     assert plan.allow_expansion is True
     assert "derivative_family" in plan.allowed_expansion_kinds
+
+
+def test_one_letter_prefix_with_explicit_cue_is_semantic_filter():
+    plan = plan_for("e开头表示评估评价的单词")
+
+    assert plan.task == "semantic_filter"
+    assert {"type": "prefix", "value": "e", "hard": True} in serialized_constraints(plan)
+
+
+def test_word_family_study_wording_wins_over_ordinary_lookup():
+    plan = plan_for("sign这组词怎么背")
+
+    assert plan.task == "word_family"
+    assert plan.seed_terms == ["sign"]

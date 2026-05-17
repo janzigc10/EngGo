@@ -106,6 +106,35 @@ def test_direct_compare_query_has_focused_intent_plan():
     assert result.intent_plan.output_style == "focused_compare"
 
 
+def test_shape_neighbor_multiple_terms_with_similar_word_cue_is_detected():
+    result = normalize_query("desert dessert 还有没有相似的词")
+
+    assert result.query_mode == "shape_neighbor_search"
+    assert result.intent_plan.task == "shape_neighbors"
+
+
+def test_direct_compare_stays_focused_before_shape_neighbor_cues():
+    result = normalize_query("desert和dessert怎么区分")
+
+    assert result.query_mode == "direct_compare"
+    assert result.intent_plan.task == "focused_compare"
+
+
+def test_study_group_wording_is_root_family_summary():
+    result = normalize_query("sign这组词怎么背")
+
+    assert result.query_mode == "root_family_summary"
+    assert result.intent_plan.task == "word_family"
+
+
+def test_single_word_study_wording_stays_standard_lookup():
+    for query in ["mitigate怎么记", "access怎么背"]:
+        result = normalize_query(query)
+
+        assert result.query_mode in {"direct_lookup", "fuzzy_recall"}
+        assert result.intent_plan.task == "standard_lookup"
+
+
 def test_known_root_family_memory_query_is_detected_before_fuzzy_recall():
     result = normalize_query("跟 institute 一样那几个词怎么记")
 
