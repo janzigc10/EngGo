@@ -15,6 +15,8 @@ export type FastApiMigratedSliceSmokeCase = {
   expectedMatchType?: RetrievalMatchType | null;
   expectedComparisonViewId?: string | null;
   expectedRootFamilyViewId?: string | null;
+  expectedLearningIntentTask?: string | null;
+  expectedBroadPresentation?: string | null;
   expectedGroundingIncludes?: string[];
   forbiddenGroundingIncludes?: string[];
   expectedGrounding?: "present" | "absent";
@@ -32,6 +34,8 @@ export type FastApiMigratedSliceSmokeObservation = {
   resolution: string | null;
   comparisonViewId: string | null;
   rootFamilyViewId: string | null;
+  learningIntentTask: string | null;
+  broadPresentation: string | null;
   groundingLemmas: string[];
   providerRequestId: string | null;
   hasGrounding: boolean;
@@ -103,6 +107,7 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedAnswerKind: "grounded",
       expectedResolution: "resolved",
       expectedMatchType: "exact",
+      expectedBroadPresentation: null,
       expectedProviderRequestId: null,
     },
     {
@@ -146,13 +151,15 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedProviderRequestId: null,
     },
     {
-      name: "plain fallback photosynthesis",
+      name: "ecdict exact photosynthesis",
       query: "photosynthesis 是什么意思",
       activeExamTarget: "cet6",
       expectedStatus: 200,
-      expectedAnswerKind: "plain",
-      expectedGrounding: "absent",
-      expectedProviderRequest: "required",
+      expectedAnswerKind: "grounded",
+      expectedResolution: "resolved",
+      expectedMatchType: "external_dictionary_exact",
+      expectedGroundingIncludes: ["photosynthesis"],
+      expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
     {
@@ -177,6 +184,7 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedResolution: "resolved",
       expectedMatchType: null,
       expectedComparisonViewId: "access-assess-excess",
+      expectedLearningIntentTask: "focused_compare",
       expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
@@ -215,6 +223,66 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedAnswerStyle: "broad_vocab_summary",
       expectedResolution: "resolved",
       expectedGroundingIncludes: ["recent", "resent"],
+      expectedLearningIntentTask: "shape_neighbors",
+      expectedBroadPresentation: "shape_neighbor_table",
+      expectedProviderRequest: "absent",
+      expectedProviderRequestId: null,
+    },
+    {
+      name: "learning intent strict re cile filter",
+      query: "re开头cile结尾的单词",
+      activeExamTarget: "postgrad",
+      expectedStatus: 200,
+      expectedAnswerKind: "grounded",
+      expectedAnswerStyle: "broad_vocab_summary",
+      expectedResolution: "resolved",
+      expectedGroundingIncludes: ["reconcile"],
+      forbiddenGroundingIncludes: ["recite", "reptile", "facile"],
+      expectedLearningIntentTask: "form_filter",
+      expectedBroadPresentation: "inventory_table",
+      expectedProviderRequest: "absent",
+      expectedProviderRequestId: null,
+    },
+    {
+      name: "learning intent co cooperation semantic filter",
+      query: "co开头的意思是合作的单词",
+      activeExamTarget: "postgrad",
+      expectedStatus: 200,
+      expectedAnswerKind: "grounded",
+      expectedAnswerStyle: "broad_vocab_summary",
+      expectedResolution: "resolved",
+      expectedGroundingIncludes: ["collaborate", "cooperate", "cooperative"],
+      forbiddenGroundingIncludes: ["coach", "coal", "corporation"],
+      expectedLearningIntentTask: "semantic_filter",
+      expectedBroadPresentation: "semantic_filter_table",
+      expectedProviderRequest: "absent",
+      expectedProviderRequestId: null,
+    },
+    {
+      name: "learning intent respect word family",
+      query: "respect派生词",
+      activeExamTarget: "postgrad",
+      expectedStatus: 200,
+      expectedAnswerKind: "grounded",
+      expectedAnswerStyle: "broad_vocab_summary",
+      expectedResolution: "resolved",
+      expectedGroundingIncludes: ["respect", "respectful", "respectable", "respective"],
+      expectedLearningIntentTask: "word_family",
+      expectedBroadPresentation: "word_family_table",
+      expectedProviderRequest: "absent",
+      expectedProviderRequestId: null,
+    },
+    {
+      name: "learning intent evacuate shape neighbors",
+      query: "跟evacuate很像的单词有哪些",
+      activeExamTarget: "postgrad",
+      expectedStatus: 200,
+      expectedAnswerKind: "grounded",
+      expectedAnswerStyle: "broad_vocab_summary",
+      expectedResolution: "resolved",
+      expectedGroundingIncludes: ["evacuate", "evaluate"],
+      expectedLearningIntentTask: "shape_neighbors",
+      expectedBroadPresentation: "shape_neighbor_table",
       expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
@@ -341,6 +409,24 @@ export function evaluateFastApiMigratedSliceSmoke(
         "rootFamilyViewId",
         observation.rootFamilyViewId,
         caseDef.expectedRootFamilyViewId ?? null,
+      );
+    }
+
+    if ("expectedLearningIntentTask" in caseDef) {
+      addIfMismatch(
+        failures,
+        "learningIntentTask",
+        observation.learningIntentTask,
+        caseDef.expectedLearningIntentTask ?? null,
+      );
+    }
+
+    if ("expectedBroadPresentation" in caseDef) {
+      addIfMismatch(
+        failures,
+        "broadPresentation",
+        observation.broadPresentation,
+        caseDef.expectedBroadPresentation ?? null,
       );
     }
 

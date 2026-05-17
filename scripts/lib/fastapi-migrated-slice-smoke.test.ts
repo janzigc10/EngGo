@@ -48,12 +48,13 @@ describe("fastapi migrated-slice smoke", () => {
         expectedResolution: "no_match",
       }),
       expect.objectContaining({
-        name: "plain fallback photosynthesis",
+        name: "ecdict exact photosynthesis",
         query: "photosynthesis 是什么意思",
         expectedStatus: 200,
-        expectedAnswerKind: "plain",
-        expectedProviderRequest: "required",
-        expectedGrounding: "absent",
+        expectedAnswerKind: "grounded",
+        expectedMatchType: "external_dictionary_exact",
+        expectedProviderRequest: "absent",
+        expectedGroundingIncludes: ["photosynthesis"],
       }),
       expect.objectContaining({
         name: "typo generte",
@@ -94,7 +95,43 @@ describe("fastapi migrated-slice smoke", () => {
         expectedStatus: 200,
         expectedAnswerStyle: "broad_vocab_summary",
         expectedGroundingIncludes: ["recent", "resent"],
+        expectedLearningIntentTask: "shape_neighbors",
+        expectedBroadPresentation: "shape_neighbor_table",
         expectedProviderRequest: "absent",
+      }),
+      expect.objectContaining({
+        name: "learning intent strict re cile filter",
+        query: "re开头cile结尾的单词",
+        expectedStatus: 200,
+        expectedGroundingIncludes: ["reconcile"],
+        forbiddenGroundingIncludes: ["recite", "reptile", "facile"],
+        expectedLearningIntentTask: "form_filter",
+        expectedBroadPresentation: "inventory_table",
+      }),
+      expect.objectContaining({
+        name: "learning intent co cooperation semantic filter",
+        query: "co开头的意思是合作的单词",
+        expectedStatus: 200,
+        expectedGroundingIncludes: ["collaborate", "cooperate", "cooperative"],
+        forbiddenGroundingIncludes: ["coach", "coal", "corporation"],
+        expectedLearningIntentTask: "semantic_filter",
+        expectedBroadPresentation: "semantic_filter_table",
+      }),
+      expect.objectContaining({
+        name: "learning intent respect word family",
+        query: "respect派生词",
+        expectedStatus: 200,
+        expectedGroundingIncludes: ["respect", "respectful", "respectable", "respective"],
+        expectedLearningIntentTask: "word_family",
+        expectedBroadPresentation: "word_family_table",
+      }),
+      expect.objectContaining({
+        name: "learning intent evacuate shape neighbors",
+        query: "跟evacuate很像的单词有哪些",
+        expectedStatus: 200,
+        expectedGroundingIncludes: ["evacuate", "evaluate"],
+        expectedLearningIntentTask: "shape_neighbors",
+        expectedBroadPresentation: "shape_neighbor_table",
       }),
       expect.objectContaining({
         name: "root institute memory group",
@@ -154,6 +191,8 @@ describe("fastapi migrated-slice smoke", () => {
         resolution: "resolved",
         comparisonViewId: null,
         rootFamilyViewId: null,
+        learningIntentTask: null,
+        broadPresentation: null,
         groundingLemmas: ["access"],
         providerRequestId: null,
         hasGrounding: true,
@@ -191,6 +230,8 @@ describe("fastapi migrated-slice smoke", () => {
         resolution: "resolved",
         comparisonViewId: "access-assess-excess",
         rootFamilyViewId: null,
+        learningIntentTask: "focused_compare",
+        broadPresentation: null,
         groundingLemmas: ["access", "assess", "excess"],
         providerRequestId: null,
         hasGrounding: true,
@@ -229,6 +270,8 @@ describe("fastapi migrated-slice smoke", () => {
         resolution: "resolved",
         comparisonViewId: null,
         rootFamilyViewId: "root-stitute",
+        learningIntentTask: null,
+        broadPresentation: null,
         groundingLemmas: ["institute", "institution", "constitute", "substitute"],
         providerRequestId: "provider_req_root",
         hasGrounding: true,
@@ -256,6 +299,12 @@ describe("fastapi migrated-slice smoke", () => {
         grounding: {
           answerStyle: "broad_vocab_summary",
           resolution: "resolved",
+          learningIntentPlan: {
+            task: "form_filter",
+          },
+          broadAnswerPlan: {
+            presentation: "inventory_table",
+          },
           lightCandidates: [
             { lemma: "conference" },
             { lemma: "conform" },
@@ -265,13 +314,15 @@ describe("fastapi migrated-slice smoke", () => {
     );
 
     expect(observation.groundingLemmas).toEqual(["conference", "conform"]);
+    expect(observation.learningIntentTask).toBe("form_filter");
+    expect(observation.broadPresentation).toBe("inventory_table");
   });
 
   it("fails when a plain fallback unexpectedly contains grounding", () => {
     const result = evaluateFastApiMigratedSliceSmoke(
       {
-        name: "plain fallback photosynthesis",
-        query: "photosynthesis 是什么意思",
+        name: "plain fallback freeform",
+        query: "explain a grammar idea outside the current grounding",
         activeExamTarget: "cet6",
         expectedStatus: 200,
         expectedAnswerKind: "plain",
@@ -288,6 +339,8 @@ describe("fastapi migrated-slice smoke", () => {
         resolution: "resolved",
         comparisonViewId: null,
         rootFamilyViewId: null,
+        learningIntentTask: null,
+        broadPresentation: null,
         groundingLemmas: [],
         providerRequestId: "provider_req_plain",
         hasGrounding: true,
@@ -296,7 +349,7 @@ describe("fastapi migrated-slice smoke", () => {
     );
 
     expect(result).toEqual({
-      name: "plain fallback photosynthesis",
+      name: "plain fallback freeform",
       verdict: "fail",
       failures: ["grounding expected absent"],
     });
