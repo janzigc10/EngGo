@@ -28,27 +28,6 @@
   2. `docs/README.md` 已将本 plan 从“当前活跃计划”移动到“已完成或历史计划”。
   3. 本交接顶部已压缩为当前完成状态和 final verification / 收尾下一步。
 
-## 历史快照（2026-05-18 ECDICT 主底座 Plan 执行前）
-- 最新产品/架构结论已写入 `docs/superpowers/specs/2026-05-18-ecdict-backbone-structured-overlay-design.md`：ECDICT 是默认大词库底座；旧 structured DB 降级为冻结覆盖层 / 可选精修覆盖层 / 回归样例；后续人工补丁默认走轻量 override，不再维护全量复杂结构化词库。
-- 当前活跃 plan：`docs/superpowers/plans/2026-05-18-ecdict-backbone-db-fallback-and-shape-intent.md`。
-  1. Task 1：补 `ordinary_lookup` 的 `StructuredLookupUnavailable` fallback，让 `substitute 是什么意思` / `substitute 怎么用` 在 DB 不可用时继续走 ECDICT，而不是 FastAPI 500。
-  2. Task 2：把 `有个像 institute 的词`、`有个和 institute 很像的词` 归到 `shape_neighbor_search` / `shape_neighbors`，同时保护 `institute 是什么意思` 仍是普通查词。
-  3. Task 3：新增 focused no-DB FastAPI smoke，覆盖 ordinary lookup、direct compare、broad fragment 和 plain similar-word wording。
-  4. Task 4：完成后同步 `bugs.md`、`docs/README.md` 和本交接。
-- 已完成的前置修复仍是当前基线：
-  1. `backend/app/retrieval/repository.py` 已将 `connect_timeout=0` 或非法值归一到 `connect_timeout=1`，建连失败包装为 `StructuredLookupUnavailable`，SQL 执行错误仍暴露。
-  2. `backend/app/answering/advanced_lookup.py` 已在 structured repository 不可用时把 structured 池降级为空，`re开头cile结尾的单词` 可继续由 ECDICT 返回 `reconcile`。
-  3. `backend/app/answering/direct_compare.py` 已在 structured exact lookup 不可用时继续走 ECDICT fallback，`restrain 和 constrain 的区别` 可返回两词 `external_dictionary_basic`，且跳过 DB-dependent confusion group 查询。
-- 最新验证基线（来自上一轮修复，尚未执行新 plan）：
-  1. `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_repository.py backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py backend/tests/test_student_intent_matrix.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 142 passed；仍有既有 pytest cache permission warning。
-  2. `corepack pnpm test scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 1 file / 12 tests passed。
-  3. live no-DB FastAPI smoke 已验证 direct compare：坏 DB URL 下 `postgrad + restrain和constrain` -> 200 / `direct_compare` / `mainAnswer=["restrain","constrain"]` / 两词 `external_dictionary_basic` / `providerRequestId=null`。
-  4. live no-DB FastAPI smoke 已验证 broad fragment：坏 DB URL 下 `postgrad + re开头cile结尾的单词` -> 200 / `root_family_summary` / `mainAnswer=["reconcile"]` / `providerRequestId=null`。
-- 当前待修 blocker 仍记录在 `bugs.md` 顶部：
-  1. `postgrad + substitute 怎么用` 在 DB 不可用时仍 500，栈落在 `backend/app/answering/ordinary_lookup.py` 调用 `find_exact_entry()` 后未捕获 `StructuredLookupUnavailable`。
-  2. `postgrad + 有个像 institute 的词` 仍被 `normalize_query()` 解析为 `fuzzy_recall` / `standard_lookup`，没有进入 shape-neighbor / broad recall。
-- 下一步：从 active plan 的 Task 1 开始执行；每完成一个 task，立即勾选 plan checkbox 并重写本节顶部状态。
-
 ## 历史快照（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
 - 产品方向已从“postgrad 没有官方机器词表，所以 ECDICT 只能泛外部兜底”调整为：ECDICT 作为更大的基础词汇底座；自有 structured 词库作为高信任覆盖层。覆盖层仍优先，但只在当前考试范围内命中时覆盖。
 - 已实现第一刀后端切片：
