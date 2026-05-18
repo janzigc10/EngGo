@@ -109,6 +109,20 @@ def test_plain_like_wording_routes_to_shape_neighbors():
         assert result.is_supported_ordinary_lookup is False
 
 
+def test_bare_connector_like_wording_routes_to_shape_neighbors():
+    for query, expected_term in [
+        ("\u548ccontest\u50cf\u7684\u5355\u8bcd", "contest"),
+        ("\u548ccontext\u50cf\u7684\u5355\u8bcd", "context"),
+        ("\u8ddf recent \u50cf\u7684\u8bcd", "recent"),
+    ]:
+        result = normalize_query(query)
+
+        assert result.query_mode == "shape_neighbor_search"
+        assert result.english_terms == [expected_term]
+        assert result.intent_plan.task == "shape_neighbors"
+        assert result.is_supported_ordinary_lookup is False
+
+
 @pytest.mark.parametrize(
     "query",
     [

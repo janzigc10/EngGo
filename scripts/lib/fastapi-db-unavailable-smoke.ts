@@ -76,6 +76,17 @@ export function buildFastApiDbUnavailableSmokeCases(): FastApiMigratedSliceSmoke
       expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
+    {
+      name: "bare connector similar-word wording routes broad",
+      query: "\u548ccontest\u50cf\u7684\u5355\u8bcd",
+      activeExamTarget: "postgrad",
+      expectedStatus: 200,
+      expectedAnswerKind: "grounded",
+      expectedResolution: "resolved",
+      expectedLearningIntentTask: "shape_neighbors",
+      expectedProviderRequest: "absent",
+      expectedProviderRequestId: null,
+    },
   ];
 }
 

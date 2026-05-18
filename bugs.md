@@ -20,11 +20,15 @@ direct compare 无 DB 降级修复后，真实 Next proxy 复测已能让 `restr
 1. `backend/tests/test_ordinary_lookup_answer.py` 已新增 DB 不可用红测：fake repository 在 `find_exact_entry()` 抛 `StructuredLookupUnavailable` 时，`postgrad + substitute 是什么意思` 和 `postgrad + substitute 怎么用` 均返回 ECDICT fallback，`providerRequestId=null`。
 2. `backend/app/answering/ordinary_lookup.py` 已只在 structured exact lookup 边界捕获 `StructuredLookupUnavailable`，将 structured candidate 当作 miss，继续执行现有 source lemma / ECDICT fallback；已知 DB 不可用后不会再进入 structured fuzzy lookup 把优雅降级变回 500。
 3. `normalize_query` / intent matrix 已补学生式 plain shape wording：`有个像 institute 的词`、`有个和 institute 很像的词` 走 `shape_neighbor_search` / `shape_neighbors`；`找一个类似 institute 意思的词`、`找一个和 institute 意思很像的词`、`找一个和 institute 含义很像的词` 不误走形近召回。
-4. 验证：Task 3 live no-DB FastAPI smoke 使用坏 DB URL + ECDICT CSV，临时 FastAPI `127.0.0.1:8015`，`corepack pnpm eval:fastapi:db-unavailable-smoke -- --base-url http://127.0.0.1:8015 --label fastapi-no-db` -> 5 total / 5 pass / 0 fail，覆盖 ordinary lookup、direct compare、broad fragment 和 plain similar-word wording。
+4. 2026-05-18 截图回归又补了更短口语句式：`和contest像的单词`、`和context像的单词`、`跟 recent 像的词` 现在同样走 `shape_neighbor_search` / `shape_neighbors`，不再落回 ordinary fuzzy lookup。
+5. 验证：最新 live no-DB FastAPI smoke 使用坏 DB URL + ECDICT CSV，临时 FastAPI `127.0.0.1:8015`，`corepack pnpm eval:fastapi:db-unavailable-smoke -- --base-url http://127.0.0.1:8015 --label fastapi-no-db` -> 6 total / 6 pass / 0 fail，覆盖 ordinary lookup、direct compare、broad fragment、plain similar-word wording 和 bare connector similar-word wording。
+6. 最新 Next proxy 实测：清理旧 12:42 进程与 `.next/dev` 生成缓存后，`127.0.0.1:3000/api/chat` 对 `和contest像的单词`、`和context像的单词`、`context` 均返回 200；前两条为 shape-neighbor，`context` 为 ordinary ECDICT exact lookup。
 
 ### 后续防回归
 - 只捕获 `StructuredLookupUnavailable`，不要吞普通 SQL/query/schema bug；否则会把真正的数据访问错误伪装成 ECDICT fallback。
 - 不要在 API 层粗暴 catch-all fallback。降级边界应留在对应服务的 structured lookup 调用处。
+- plain shape wording 不要只测“有个像 X 的词”；还要保留 `和contest像的单词` 这种没有“有个/找一下”的口语输入。
+- 如果 Next `/api/chat` 在 dev 环境突然返回 404 HTML，先停掉 3000/8000 旧进程并清理 `.next/dev` 生成缓存；这属于 dev cache/进程态问题，不要误判成 FastAPI 500。
 
 ## 2026-05-18 direct compare 未处理 DB 不可用导致 500（已修，需防回归）
 ### 症状

@@ -54,6 +54,11 @@ describe("fastapi DB-unavailable smoke", () => {
         name: "plain similar-word wording routes broad",
         query: "有个像 institute 的词",
       }),
+      expect.objectContaining({
+        name: "bare connector similar-word wording routes broad",
+        query: "\u548ccontest\u50cf\u7684\u5355\u8bcd",
+        expectedLearningIntentTask: "shape_neighbors",
+      }),
     ]);
   });
 

@@ -50,6 +50,16 @@ plain_like_word_pattern = re.compile(
     r"(有个|找|找一下|帮我找|哪些|什么|哪几个).{0,8}(像|相似|类似).{0,12}(词|单词)",
     re.IGNORECASE,
 )
+bare_connector_like_word_pattern = re.compile(
+    (
+        "(?:\\u548c|\\u8ddf)\\s*"
+        r"[a-z]+(?:[-'][a-z]+)*"
+        "\\s*(?:\\u5f88\\u50cf|\\u6bd4\\u8f83\\u50cf|"
+        "\\u50cf|\\u76f8\\u4f3c|\\u7c7b\\u4f3c)"
+        "\\s*\\u7684?\\s*(?:\\u8bcd|\\u5355\\u8bcd)"
+    ),
+    re.IGNORECASE,
+)
 semantic_similarity_pattern = re.compile(
     r"(相似|类似|很像|比较像|相像).{0,16}(意思|含义|近义|同义)|(意思|含义|近义|同义).{0,16}(相似|类似|很像|比较像|相像)",
     re.IGNORECASE,
@@ -147,6 +157,9 @@ def contains_shape_neighbor_cue(normalized_text: str) -> bool:
         return False
 
     if plain_like_word_pattern.search(normalized_text) is not None:
+        return True
+
+    if bare_connector_like_word_pattern.search(normalized_text) is not None:
         return True
 
     if shape_neighbor_cue_pattern.search(normalized_text) is None:
