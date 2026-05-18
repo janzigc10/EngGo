@@ -46,6 +46,10 @@ shape_neighbor_list_pattern = re.compile(
     r"(哪些|什么|哪几个|列举|举例|有什么|帮我找|找一下|找找|易混词?)",
     re.IGNORECASE,
 )
+plain_like_word_pattern = re.compile(
+    r"(有个|找|找一下|帮我找|哪些|什么|哪几个).{0,8}(像|相似|类似).{0,12}(词|单词)",
+    re.IGNORECASE,
+)
 meaning_noise_pattern = re.compile(r"(是什么意思|怎么说|什么意思|是什么|啥意思|英文|英语|单词|有个|像|的词)")
 chinese_pattern = re.compile(r"[\u3400-\u9fff]")
 standalone_root_fragments = {"stitute"}
@@ -135,6 +139,9 @@ def is_phrase_lookup_with_chinese_suffix(
 
 
 def contains_shape_neighbor_cue(normalized_text: str) -> bool:
+    if plain_like_word_pattern.search(normalized_text) is not None:
+        return True
+
     if shape_neighbor_cue_pattern.search(normalized_text) is None:
         return False
 

@@ -36,6 +36,12 @@ from backend.app.retrieval.normalize_query import normalize_query
             "word_family",
             {},
         ),
+        (
+            "有个像 institute 的词",
+            "shape_neighbor_search",
+            "shape_neighbors",
+            {},
+        ),
     ],
 )
 def test_student_wording_maps_to_learning_intent(query, query_mode, task, constraints):

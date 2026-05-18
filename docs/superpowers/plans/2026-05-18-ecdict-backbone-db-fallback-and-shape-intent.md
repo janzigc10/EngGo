@@ -269,7 +269,7 @@ Mark Task 1 completed and record the focused test result.
 - Modify: `backend/tests/test_normalize_query.py`
 - Modify: `backend/tests/test_student_intent_matrix.py`
 
-- [ ] **Step 1: Add failing normalization tests**
+- [x] **Step 1: Add failing normalization tests**
 
 In `backend/tests/test_normalize_query.py`, add:
 
@@ -295,7 +295,7 @@ def test_plain_lookup_for_institute_stays_standard_lookup():
     assert result.is_supported_ordinary_lookup is True
 ```
 
-- [ ] **Step 2: Add the matrix case**
+- [x] **Step 2: Add the matrix case**
 
 In `backend/tests/test_student_intent_matrix.py`, add:
 
@@ -308,7 +308,7 @@ In `backend/tests/test_student_intent_matrix.py`, add:
 ),
 ```
 
-- [ ] **Step 3: Run tests and verify RED**
+- [x] **Step 3: Run tests and verify RED**
 
 Run:
 
@@ -318,7 +318,7 @@ C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_normalize_que
 
 Expected: fail because the plain `有个像 X 的词` wording currently becomes `fuzzy_recall` / `standard_lookup`.
 
-- [ ] **Step 4: Extend shape-neighbor cue recognition narrowly**
+- [x] **Step 4: Extend shape-neighbor cue recognition narrowly**
 
 In `backend/app/retrieval/normalize_query.py`, extend shape cue handling to include plain "像" only when the wording is clearly asking for a word candidate:
 
@@ -338,7 +338,7 @@ if plain_like_word_pattern.search(normalized_text) is not None:
 
 Keep direct compare before shape-neighbor routing, so `desert和dessert怎么区分` remains `direct_compare`.
 
-- [ ] **Step 5: Run focused tests and verify GREEN**
+- [x] **Step 5: Run focused tests and verify GREEN**
 
 Run:
 
@@ -348,14 +348,14 @@ C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_normalize_que
 
 Expected: pass; existing root-family examples such as `跟 institute 一样那几个词怎么记` should keep their current route.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add backend/app/retrieval/normalize_query.py backend/tests/test_normalize_query.py backend/tests/test_student_intent_matrix.py
 git commit -m "Route plain similar-word wording to shape neighbors"
 ```
 
-- [ ] **Step 7: Update this plan and `progress.md`**
+- [x] **Step 7: Update this plan and `progress.md`**
 
 Mark Task 2 completed and record the focused test result.
 

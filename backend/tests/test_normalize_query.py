@@ -97,6 +97,24 @@ def test_shape_neighbor_query_has_teacher_intent_plan():
     assert result.intent_plan.allow_expansion is True
 
 
+def test_plain_like_wording_routes_to_shape_neighbors():
+    for query in ["有个像 institute 的词", "有个和 institute 很像的词"]:
+        result = normalize_query(query)
+
+        assert result.query_mode == "shape_neighbor_search"
+        assert result.english_terms == ["institute"]
+        assert result.intent_plan.task == "shape_neighbors"
+        assert result.is_supported_ordinary_lookup is False
+
+
+def test_plain_lookup_for_institute_stays_standard_lookup():
+    result = normalize_query("institute 是什么意思")
+
+    assert result.query_mode in {"direct_lookup", "fuzzy_recall"}
+    assert result.intent_plan.task == "standard_lookup"
+    assert result.is_supported_ordinary_lookup is True
+
+
 def test_direct_compare_query_has_focused_intent_plan():
     result = normalize_query("access assess excess 怎么区分")
 
