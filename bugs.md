@@ -1,20 +1,20 @@
 # EngGo 已知问题与环境坑
 
 ## 2026-05-18 ordinary lookup 未处理 DB 不可用导致 500（已修，需防回归）
-### 症状
-direct compare 无 DB 降级修复后，真实 Next proxy 复测已能让 `restrain 和 constrain 的区别` 返回 200；但普通查词/用法类请求仍会在 DB 不可用时 500。
+### 修复前症状
+direct compare 无 DB 降级修复后，真实 Next proxy 复测已能让 `restrain 和 constrain 的区别` 返回 200；但修复前普通查词/用法类请求在 DB 不可用时也观测到 500。
 
-最新证据：
-- 当前 Prisma dev 仍为 `default not_running`、`enggo not_running`。
-- 重启后的 dev stack：FastAPI `127.0.0.1:8000` PID `79780`，Next `127.0.0.1:3000` PID `82456`，日志在 `.runlogs/dev-fastapi-restarted-20260518-verify.out.log` / `.runlogs/dev-fastapi-restarted-20260518-verify.err.log`。
-- Next proxy live：`postgrad + restrain 和 constrain 的区别` -> 200，`mainAnswer=["restrain","constrain"]`，两词来自 `external_dictionary_basic`，`providerRequestId=null`。
-- Next proxy live：`postgrad + substitute 怎么用` -> 500，约 2.2s；`.runlogs/chat-interaction.jsonl` 记录 `requestId=enggo_05d24b01-baff-412c-9929-6a3bd3079772`、`status=500`、`answerSummary=Internal Server Error`。
-- Next proxy live：`postgrad + 有个像 institute 的词` -> 500，约 2.0s；`.runlogs/chat-interaction.jsonl` 记录 `requestId=enggo_cc326b15-1d6d-4778-b3d2-7064e11499fd` 与 `requestId=enggo_636ade0a-1978-4c69-b89e-80f0cdc8d9ad`，均为 `status=500`。
+修复前证据：
+- 修复前现场 Prisma dev 为 `default not_running`、`enggo not_running`。
+- 修复前重启后的 dev stack：FastAPI `127.0.0.1:8000` PID `79780`，Next `127.0.0.1:3000` PID `82456`，日志在 `.runlogs/dev-fastapi-restarted-20260518-verify.out.log` / `.runlogs/dev-fastapi-restarted-20260518-verify.err.log`。
+- 修复前 Next proxy live：`postgrad + restrain 和 constrain 的区别` -> 200，`mainAnswer=["restrain","constrain"]`，两词来自 `external_dictionary_basic`，`providerRequestId=null`。
+- 修复前 Next proxy live：`postgrad + substitute 怎么用` -> 500，约 2.2s；`.runlogs/chat-interaction.jsonl` 记录 `requestId=enggo_05d24b01-baff-412c-9929-6a3bd3079772`、`status=500`、`answerSummary=Internal Server Error`。
+- 修复前 Next proxy live：`postgrad + 有个像 institute 的词` -> 500，约 2.0s；`.runlogs/chat-interaction.jsonl` 记录 `requestId=enggo_cc326b15-1d6d-4778-b3d2-7064e11499fd` 与 `requestId=enggo_636ade0a-1978-4c69-b89e-80f0cdc8d9ad`，均为 `status=500`。
 - `.runlogs/dev-fastapi-restarted-20260518-verify.err.log` 栈：`backend/app/answering/ordinary_lookup.py:533` 调用 `self.repository.find_exact_entry(active_exam_target, needle)`，`StructuredLookupRepository._connect()` 将 psycopg `ConnectionTimeout` 包装为 `StructuredLookupUnavailable`，但 ordinary lookup 没有捕获，最终冒泡成 FastAPI 500。
-- 额外意图证据：`normalize_query("有个像 institute 的词")` 当前返回 `query_mode="fuzzy_recall"`、`LearningIntentPlan.task="standard_lookup"`、`allow_expansion=false`，说明该学生式“像 X 的词”没有走 shape-neighbor / broad recall。
+- 额外意图证据：`normalize_query("有个像 institute 的词")` 当时返回 `query_mode="fuzzy_recall"`、`LearningIntentPlan.task="standard_lookup"`、`allow_expansion=false`，说明该学生式“像 X 的词”没有走 shape-neighbor / broad recall。
 
 ### 根因判断
-本轮无 DB 降级已经覆盖 `advanced_lookup.dynamic_vocabulary()` 和 `DirectCompareService.answer()`，但 `OrdinaryLookupService.answer()` 仍先无保护地访问 structured exact lookup。Prisma dev 不可用时，它没有继续走已有 source/ECDICT fallback，因此普通 exact/use-case 查询仍会失败。`有个像 institute 的词` 还额外暴露了学生式意图识别漏判：它目前被当作普通 fuzzy recall，而不是形近/相似词召回。
+本轮修复前，无 DB 降级已经覆盖 `advanced_lookup.dynamic_vocabulary()` 和 `DirectCompareService.answer()`，但 `OrdinaryLookupService.answer()` 曾先无保护地访问 structured exact lookup。Prisma dev 不可用时，它没有继续走已有 source/ECDICT fallback，因此普通 exact/use-case 查询会失败。`有个像 institute 的词` 还额外暴露了学生式意图识别漏判：它当时被当作普通 fuzzy recall，而不是形近/相似词召回。
 
 ### 修复状态
 1. `backend/tests/test_ordinary_lookup_answer.py` 已新增 DB 不可用红测：fake repository 在 `find_exact_entry()` 抛 `StructuredLookupUnavailable` 时，`postgrad + substitute 是什么意思` 和 `postgrad + substitute 怎么用` 均返回 ECDICT fallback，`providerRequestId=null`。
