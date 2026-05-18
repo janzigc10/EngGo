@@ -215,6 +215,17 @@ describe("fastapi migrated-slice smoke", () => {
         expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
+        name: "student intent respond word family",
+        query: "respond\u7684\u6d3e\u751f\u8bcd",
+        expectedStatus: 200,
+        expectedGroundingIncludes: ["respond", "response", "responsive", "responsible"],
+        expectedMainAnswerIncludes: ["respond", "response", "responsive", "responsible"],
+        forbiddenMainAnswerIncludes: ["correspond"],
+        expectedLearningIntentTask: "word_family",
+        expectedBroadPresentation: "word_family_table",
+        expectedProviderRequest: "absent",
+      }),
+      expect.objectContaining({
         name: "student intent pre advance semantic filter",
         query: "pre开头表示提前或预先的单词",
         expectedStatus: 200,

@@ -1,5 +1,21 @@
 # EngGo 已知问题与环境坑
 
+## 2026-05-18 respond/response 派生词未做 `respons-` 词干归一导致 no_match（已修，需防回归）
+### 症状
+用户截图复现：`response的派生词`、`respond的派生词` 都返回“这个词根/前缀组合还没有稳定收录成词族”，而不是基于 ECDICT 给出 `respond`、`response`、`responsive`、`responsible`、`responsibility` 等同族词。
+
+### 根因判断
+ECDICT 本身有这些词；问题不在词库缺词，也不是“派生词只有 structured 才能用”。当前 `word_family_evidence()` 只识别直接 `seed + suffix`、前缀组合，或少量 `word_family_stem_aliases`。`respond/response` 需要额外归一到 `respons-`，否则 `response`、`responsive`、`responsible`、`responsibility` 不会被收进 `respond` 的词族。
+
+### 修复状态
+1. `backend/app/retrieval/dynamic_light_grounding.py` 已新增保守 alias：`respond` / `response` -> `respond`、`respons`。
+2. 防回归测试已补：`backend/tests/test_advanced_lookup.py` 覆盖 `respond的派生词`，并断言不把 `correspond`、`rescue` 混进 light candidates。
+3. smoke 矩阵已补：`scripts/lib/fastapi-db-unavailable-smoke.ts` 与 `scripts/lib/fastapi-migrated-slice-smoke.ts` 均覆盖 no-DB / migrated slice 下的 `respond` word-family。
+
+### 后续防回归
+- 不要把这个修成宽泛 `respon*` 前缀召回；否则容易把 `correspond` 一类词混进主族。
+- 新增其它词族时优先补小范围 stem alias + 红测，而不是把 ECDICT 派生词逻辑整体放宽。
+
 ## 2026-05-18 ordinary lookup 未处理 DB 不可用导致 500（已修，需防回归）
 ### 修复前症状
 direct compare 无 DB 降级修复后，真实 Next proxy 复测已能让 `restrain 和 constrain 的区别` 返回 200；但修复前普通查词/用法类请求在 DB 不可用时也观测到 500。

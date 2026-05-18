@@ -87,6 +87,18 @@ export function buildFastApiDbUnavailableSmokeCases(): FastApiMigratedSliceSmoke
       expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
+    {
+      name: "word family respond ecdict fallback",
+      query: "respond\u7684\u6d3e\u751f\u8bcd",
+      activeExamTarget: "postgrad",
+      expectedStatus: 200,
+      expectedAnswerKind: "grounded",
+      expectedResolution: "resolved",
+      expectedLearningIntentTask: "word_family",
+      expectedGroundingIncludes: ["respond", "response", "responsive", "responsible"],
+      expectedProviderRequest: "absent",
+      expectedProviderRequestId: null,
+    },
   ];
 }
 

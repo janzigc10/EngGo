@@ -1150,6 +1150,52 @@ def test_word_family_intent_backfills_tagged_derivatives_from_other_exam_scopes(
     assert "rescue" not in [item["lemma"] for item in grounding["lightCandidates"]]
 
 
+def test_respond_word_family_uses_respons_stem_from_ecdict():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("respond", ["v. 回答；响应"], tag="ky"),
+            ecdict_profile("response", ["n. 回答；响应；反应"], tag="ky"),
+            ecdict_profile("responsive", ["adj. 回答的；响应的"], tag="ky"),
+            ecdict_profile("responsible", ["adj. 有责任的；负责的"], tag="ky"),
+            ecdict_profile("responsibility", ["n. 责任；职责"], tag="ky"),
+            ecdict_profile("correspond", ["v. 符合；通信"], tag="ky"),
+            ecdict_profile("rescue", ["v. 营救"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="respond\u7684\u6d3e\u751f\u8bcd",
+        request_id="req_respond_family",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["resolution"] == "resolved"
+    assert grounding["learningIntentPlan"]["task"] == "word_family"
+    assert grounding["broadAnswerPlan"]["presentation"] == "word_family_table"
+    lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+    light_lemmas = [item["lemma"] for item in grounding["lightCandidates"]]
+    assert lemmas[:4] == [
+        "respond",
+        "response",
+        "responsive",
+        "responsible",
+    ]
+    assert "responsibility" in light_lemmas
+    assert "correspond" not in light_lemmas
+    assert "rescue" not in light_lemmas
+
+
 def test_sign_word_family_excludes_shape_noise():
     provider = FakeProvider()
     service = AdvancedLookupService(

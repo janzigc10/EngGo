@@ -59,6 +59,11 @@ describe("fastapi DB-unavailable smoke", () => {
         query: "\u548ccontest\u50cf\u7684\u5355\u8bcd",
         expectedLearningIntentTask: "shape_neighbors",
       }),
+      expect.objectContaining({
+        name: "word family respond ecdict fallback",
+        query: "respond\u7684\u6d3e\u751f\u8bcd",
+        expectedLearningIntentTask: "word_family",
+      }),
     ]);
   });
 

@@ -137,6 +137,8 @@ word_family_stem_aliases = {
     "produce": ("produc", "product"),
     "consider": ("consider",),
     "respect": ("respect",),
+    "respond": ("respond", "respons"),
+    "response": ("respond", "respons"),
 }
 
 
