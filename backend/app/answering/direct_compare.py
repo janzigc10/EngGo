@@ -17,6 +17,7 @@ from backend.app.retrieval.dynamic_light_grounding import (
     merge_dynamic_vocabulary,
     source_lemma_vocabulary,
 )
+from backend.app.retrieval.repository import StructuredLookupUnavailable
 from backend.app.retrieval.types import (
     ConfusionGroup,
     RetrievalCandidate,
@@ -217,8 +218,13 @@ class DirectCompareService:
             )
 
         candidates = []
+        structured_lookup_unavailable = False
         for term in compare_terms:
-            entry = self.repository.find_exact_entry(active_exam_target, term)
+            entry = None
+            try:
+                entry = self.repository.find_exact_entry(active_exam_target, term)
+            except StructuredLookupUnavailable:
+                structured_lookup_unavailable = True
             if entry and entry.in_scope:
                 candidates.append(entry)
             elif self.ecdict_lookup:
@@ -253,10 +259,15 @@ class DirectCompareService:
             )
 
         entry_ids = [candidate.entry_id for candidate in ranked_candidates]
-        groups = self.repository.find_confusion_groups_for_entry_ids(
-            active_exam_target,
-            entry_ids,
-        )
+        groups = []
+        if not structured_lookup_unavailable:
+            try:
+                groups = self.repository.find_confusion_groups_for_entry_ids(
+                    active_exam_target,
+                    entry_ids,
+                )
+            except StructuredLookupUnavailable:
+                groups = []
         shared_group = pick_shared_group(active_exam_target, entry_ids, groups)
 
         comparison_view = build_comparison_view(shared_group) if shared_group else None
@@ -296,11 +307,14 @@ class DirectCompareService:
         )
 
     def dynamic_vocabulary(self, active_exam_target: str) -> list[RetrievalCandidate]:
-        structured = (
-            self.repository.find_in_scope_entries(active_exam_target)
-            if hasattr(self.repository, "find_in_scope_entries")
-            else []
-        )
+        try:
+            structured = (
+                self.repository.find_in_scope_entries(active_exam_target)
+                if hasattr(self.repository, "find_in_scope_entries")
+                else []
+            )
+        except StructuredLookupUnavailable:
+            structured = []
         source = source_lemma_vocabulary(
             active_exam_target=active_exam_target,
             source_lemma_base_dir=self.source_lemma_base_dir,

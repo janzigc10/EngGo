@@ -1,7 +1,9 @@
 import psycopg
+import pytest
 
 from backend.app.retrieval.repository import (
     StructuredLookupRepository,
+    StructuredLookupUnavailable,
     to_psycopg_conninfo,
 )
 
@@ -75,6 +77,14 @@ def test_to_psycopg_conninfo_removes_prisma_only_query_params():
     )
 
     assert conninfo == "postgresql://user:pass@127.0.0.1:5432/db?sslmode=disable"
+
+
+def test_to_psycopg_conninfo_normalizes_zero_connect_timeout():
+    conninfo = to_psycopg_conninfo(
+        "postgresql://user:pass@localhost:5432/db?connect_timeout=0&sslmode=disable",
+    )
+
+    assert conninfo == "postgresql://user:pass@127.0.0.1:5432/db?connect_timeout=1&sslmode=disable"
 
 
 def test_exact_lookup_maps_structured_entry_candidate():
@@ -167,6 +177,44 @@ def test_connection_retries_prisma_dev_protocol_blip_once():
     assert calls == 2
     assert candidate is not None
     assert candidate.lemma == "access"
+
+
+def test_connection_failures_raise_unavailable_after_retries():
+    calls = 0
+
+    def connect(_database_url, **_kwargs):
+        nonlocal calls
+        calls += 1
+        raise psycopg.OperationalError("server closed the connection unexpectedly")
+
+    repository = StructuredLookupRepository(
+        database_url="postgresql://example",
+        connect=connect,
+    )
+
+    with pytest.raises(StructuredLookupUnavailable):
+        repository.find_exact_entry("cet6", "access")
+
+    assert calls == 5
+
+
+def test_connection_timeout_raises_unavailable_without_retrying():
+    calls = 0
+
+    def connect(_database_url, **_kwargs):
+        nonlocal calls
+        calls += 1
+        raise psycopg.OperationalError("connection timeout expired")
+
+    repository = StructuredLookupRepository(
+        database_url="postgresql://example",
+        connect=connect,
+    )
+
+    with pytest.raises(StructuredLookupUnavailable):
+        repository.find_exact_entry("cet6", "access")
+
+    assert calls == 1
 
 
 def test_confusion_group_lookup_maps_members_and_metadata():

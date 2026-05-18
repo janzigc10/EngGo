@@ -1,15 +1,28 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-17 学生式意图归一化完成）
-- `docs/superpowers/plans/2026-05-17-student-intent-normalization.md` 已完成并从 `docs/README.md` 的活跃计划移到已完成区；当前暂无活跃 plan。
-- 学生式 intent matrix 已进入真实 smoke：`con开头表示共同或一起的词`、`e开头表示评估评价的单词`、`表示限制或约束的con开头单词`、`desert dessert 还有没有相似的词`、`sign这组词怎么背`、`sign的派生词有哪些`、`produce的同根词或派生词`、`pre开头表示提前或预先的单词`。这些 case 锁定 `learningIntentTask`、核心 `groundingLemmas/mainAnswerLemmas`、`providerRequestId=null` 和对应展示形态。
-- 本轮修复的关键边界：短 prefix + meaning 不再因 ECDICT fragment 截断漏掉 `evaluate/estimate`；`constrain` 可用 ECDICT 英文 definition 的 `restrict` 作为隐藏 `semantic_match_hints` 匹配证据，但不污染可见 `meaningsZh` 或 public `meaning_keyword` signal；`conscript/contain/content/continual` 等弱匹配不会进入“限制/约束 con-”主答案。
-- 保持的产品边界：普通 exact lookup 仍不回流到 broad vocab；`con开头表示共同或一起的词` 只要求真正 `con-` 的 `connect`，不把 `com-` 的 `combine` 当作 con-prefix；不要把 ECDICT 的英文 definition bridge 扩成通用中文 alias。
-- 最新验证：
-  1. `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py backend/tests/test_student_intent_matrix.py -p no:cacheprovider` -> 130 passed。
-  2. `corepack pnpm test scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 1 file / 12 tests passed。
-  3. `corepack pnpm db:seed:real-smoke` + clean dev stack + `corepack pnpm eval:fastapi:migrated-smoke:proxy` -> 28 total / 28 pass / 0 fail。
-- 下一步建议：回到 AGENTS 当前焦点，优先验收普通查词 exact lookup 的展示是否仍干净，然后继续聊天主舞台里的回答展示、移动端阅读和收藏动作体验。若要继续后端 retrieval，先写新 plan，不要在已完成 intent plan 上继续堆单点正则。
+## 当前状态与下一步（2026-05-18 FastAPI 无 DB 降级 direct compare 已修，ordinary lookup 待补）
+- 已完成本轮无 DB 降级修复：
+  1. `backend/app/retrieval/repository.py`：`connect_timeout=0` 或非法值归一到 `connect_timeout=1`；建连阶段失败包装为 `StructuredLookupUnavailable`，SQL 执行错误仍暴露。
+  2. `backend/app/answering/advanced_lookup.py`：fragment/root broad 的 `dynamic_vocabulary()` 只在 `StructuredLookupUnavailable` 时把 structured 池降级为空，继续用 source/ECDICT 候选回答。
+  3. `backend/app/answering/direct_compare.py`：逐词 `find_exact_entry()` 遇到 `StructuredLookupUnavailable` 后继续走 ECDICT fallback；已知 DB 不可用时跳过 `find_confusion_groups_for_entry_ids()`；`dynamic_vocabulary()` 同步降级为空 structured 池。
+- 本轮新增回归：
+  1. `backend/tests/test_repository.py` 覆盖 `connect_timeout=0 -> connect_timeout=1`、连接失败包装、connection timeout 不重试。
+  2. `backend/tests/test_advanced_lookup.py` 覆盖 structured repository 不可用时，`postgrad + re开头cile结尾的单词` 仍返回 `reconcile`，且 `providerRequestId=null`。
+  3. `backend/tests/test_direct_compare_answer.py` 覆盖 structured repository 不可用时，`postgrad + restrain和constrain` 仍返回两词 ECDICT fallback、`providerRequestId=null`，且不继续查询 confusion group；同时覆盖 direct compare broad vocabulary 的 structured 池不可用降级。
+- 本轮验证：
+  1. 新增 direct compare 红测先失败在 `StructuredLookupUnavailable` 冒泡；修复后同两例 -> 2 passed。
+  2. `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_repository.py backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py backend/tests/test_student_intent_matrix.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 142 passed；仍有既有 pytest cache permission warning。
+  3. `corepack pnpm test scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 1 file / 12 tests passed。
+  4. live no-DB FastAPI smoke：临时端口 `8014` + 坏 DB URL `127.0.0.1:59999?connect_timeout=0` 下，`POST /api/chat` 发送 `postgrad + restrain和constrain` -> 200 / `direct_compare` / `mainAnswer=["restrain","constrain"]` / 两词 `external_dictionary_basic` / `providerRequestId=null` / 无 confusion boundary / 约 13.5s。该耗时包含 ECDICT CSV 加载，不是 5 分钟 DB 卡死。
+  5. 之前 broad fragment no-DB smoke 已验证：临时端口 `8013` 下，`postgrad + re开头cile结尾的单词` -> 200 / `root_family_summary` / `mainAnswer=["reconcile"]` / `providerRequestId=null`。
+- 本轮追加验收（2026-05-18 12:43 左右）：
+  1. 注意 `dev:fastapi` 不会自动 reload；`direct_compare.py` 12:16 写入后，12:04 启动的旧 FastAPI 仍返回旧栈 500。已重启 dev stack，当前监听为 FastAPI `127.0.0.1:8000` PID `79780`、Next `127.0.0.1:3000` PID `82456`，日志在 `.runlogs/dev-fastapi-restarted-20260518-verify.out.log` / `.runlogs/dev-fastapi-restarted-20260518-verify.err.log`。
+  2. Focused pytest：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_direct_compare_answer.py backend\tests\test_repository.py backend\tests\test_advanced_lookup.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 50 passed，仍有既有 cache permission warning。
+  3. 当前 Prisma dev 仍是 `default not_running`、`enggo not_running`，因此本轮 live 复测确实覆盖 DB-unavailable 场景。
+  4. Next proxy live 复测：`postgrad + restrain 和 constrain 的区别` -> 200 / `mainAnswer=["restrain","constrain"]` / 两词 `external_dictionary_basic` / `providerRequestId=null` / 约 19.4s；`postgrad + re开头cile结尾的单词` -> 200 / `reconcile` / 约 3.2s；`postgrad + sow和row` -> 200 / `sow,row` / 约 4.1s。
+  5. 新暴露 blocker：`postgrad + substitute 怎么用` -> 500 / 约 2.2s。`.runlogs/dev-fastapi-restarted-20260518-verify.err.log` 栈显示 `backend/app/answering/ordinary_lookup.py:533` 的 `self.repository.find_exact_entry(active_exam_target, needle)` 抛 `StructuredLookupUnavailable: connection timeout expired`，ordinary lookup 没有捕获并继续走 ECDICT fallback。
+  6. 用户新增手测 `postgrad + 有个像 institute 的词` -> 500 / 约 2.0s，同样落在 `ordinary_lookup.py:533`；并且 `normalize_query()` 将该句解析为 `query_mode="fuzzy_recall"`、`LearningIntentPlan.task="standard_lookup"`、`allow_expansion=false`，没有进入 shape-neighbor / broad recall。
+- 下一步建议：先补 ordinary lookup 的 DB-unavailable fallback，再补“有个像 X 的词”这类学生说法的意图识别，使其走 shape-neighbor / broad recall；随后回到 AGENTS 当前焦点验收 ordinary exact lookup 的“干净展示”。修复范围建议保持同一原则：只捕 `StructuredLookupUnavailable`，然后走已有 source/ECDICT fallback；不要在 API 层吞普通 SQL bug。
 
 ## 历史快照（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
 - 产品方向已从“postgrad 没有官方机器词表，所以 ECDICT 只能泛外部兜底”调整为：ECDICT 作为更大的基础词汇底座；自有 structured 词库作为高信任覆盖层。覆盖层仍优先，但只在当前考试范围内命中时覆盖。

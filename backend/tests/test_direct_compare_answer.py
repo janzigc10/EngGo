@@ -1,6 +1,7 @@
 from backend.app.answering.direct_compare import DirectCompareService
 from backend.app.answering.provider import GenerateAnswerResult
 from backend.app.content.ecdict import EcdictBasicProfile
+from backend.app.retrieval.repository import StructuredLookupUnavailable
 from backend.app.retrieval.types import (
     ConfusionGroup,
     ConfusionGroupMember,
@@ -24,23 +25,40 @@ def candidate(lemma, *, in_scope=True):
 
 
 class FakeRepository:
-    def __init__(self, candidates, groups=None, in_scope_entries=None):
+    def __init__(
+        self,
+        candidates,
+        groups=None,
+        in_scope_entries=None,
+        exact_error=None,
+        group_error=None,
+        in_scope_error=None,
+    ):
         self.candidates = candidates
         self.groups = groups or []
         self.in_scope_entries = in_scope_entries or []
+        self.exact_error = exact_error
+        self.group_error = group_error
+        self.in_scope_error = in_scope_error
         self.lookups = []
         self.group_entry_ids = None
 
     def find_exact_entry(self, active_exam_target, lookup):
         self.lookups.append((active_exam_target, lookup))
+        if self.exact_error:
+            raise self.exact_error
         return self.candidates.get(lookup)
 
     def find_confusion_groups_for_entry_ids(self, active_exam_target, entry_ids):
         assert active_exam_target in {"cet4", "cet6", "postgrad", "gaokao"}
+        if self.group_error:
+            raise self.group_error
         self.group_entry_ids = entry_ids
         return self.groups
 
     def find_in_scope_entries(self, _active_exam_target):
+        if self.in_scope_error:
+            raise self.in_scope_error
         return self.in_scope_entries
 
 
@@ -369,6 +387,62 @@ def test_direct_compare_uses_ecdict_profiles_for_compact_chinese_and_query():
         "expire vi. 期满；断气；vt. 呼出",
         "inspire vt. 鼓舞；激发；vi. 吸入",
     ]
+
+
+def test_direct_compare_uses_ecdict_when_structured_repository_unavailable():
+    profiles = {
+        "restrain": ecdict_profile("restrain", ["vt. limit or control"]),
+        "constrain": ecdict_profile("constrain", ["vt. force or restrict"]),
+    }
+    provider = FakeProvider()
+    repository = FakeRepository(
+        {},
+        exact_error=StructuredLookupUnavailable("connection timeout expired"),
+        group_error=StructuredLookupUnavailable("connection timeout expired"),
+    )
+    service = DirectCompareService(
+        repository=repository,
+        provider=provider,
+        ecdict_lookup=lambda query: profiles.get(query),
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="restrain\u548cconstrain",
+        request_id="req_compare_ecdict_no_db",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert [item["lemma"] for item in grounding["mainAnswer"]] == [
+        "restrain",
+        "constrain",
+    ]
+    assert [
+        item["sourceKind"]
+        for item in grounding["mainAnswer"]
+    ] == ["external_dictionary_basic", "external_dictionary_basic"]
+    assert [
+        item["scopeCodes"]
+        for item in grounding["mainAnswer"]
+    ] == [["postgrad"], ["postgrad"]]
+    assert grounding["confusionBoundary"] == []
+    assert grounding["comparisonView"] is None
+    assert repository.group_entry_ids is None
+
+
+def test_direct_compare_dynamic_vocabulary_ignores_unavailable_structured_pool():
+    service = DirectCompareService(
+        repository=FakeRepository(
+            {},
+            in_scope_error=StructuredLookupUnavailable("connection timeout expired"),
+        ),
+    )
+
+    assert service.dynamic_vocabulary("postgrad") == []
 
 
 def test_direct_compare_out_of_scope_structured_yields_to_ecdict_current_tag():

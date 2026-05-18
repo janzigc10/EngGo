@@ -1,5 +1,79 @@
 # EngGo 已知问题与环境坑
 
+## 2026-05-18 ordinary lookup 未处理 DB 不可用导致 500（待修）
+### 症状
+direct compare 无 DB 降级修复后，真实 Next proxy 复测已能让 `restrain 和 constrain 的区别` 返回 200；但普通查词/用法类请求仍会在 DB 不可用时 500。
+
+最新证据：
+- 当前 Prisma dev 仍为 `default not_running`、`enggo not_running`。
+- 重启后的 dev stack：FastAPI `127.0.0.1:8000` PID `79780`，Next `127.0.0.1:3000` PID `82456`，日志在 `.runlogs/dev-fastapi-restarted-20260518-verify.out.log` / `.runlogs/dev-fastapi-restarted-20260518-verify.err.log`。
+- Next proxy live：`postgrad + restrain 和 constrain 的区别` -> 200，`mainAnswer=["restrain","constrain"]`，两词来自 `external_dictionary_basic`，`providerRequestId=null`。
+- Next proxy live：`postgrad + substitute 怎么用` -> 500，约 2.2s；`.runlogs/chat-interaction.jsonl` 记录 `requestId=enggo_05d24b01-baff-412c-9929-6a3bd3079772`、`status=500`、`answerSummary=Internal Server Error`。
+- Next proxy live：`postgrad + 有个像 institute 的词` -> 500，约 2.0s；`.runlogs/chat-interaction.jsonl` 记录 `requestId=enggo_cc326b15-1d6d-4778-b3d2-7064e11499fd` 与 `requestId=enggo_636ade0a-1978-4c69-b89e-80f0cdc8d9ad`，均为 `status=500`。
+- `.runlogs/dev-fastapi-restarted-20260518-verify.err.log` 栈：`backend/app/answering/ordinary_lookup.py:533` 调用 `self.repository.find_exact_entry(active_exam_target, needle)`，`StructuredLookupRepository._connect()` 将 psycopg `ConnectionTimeout` 包装为 `StructuredLookupUnavailable`，但 ordinary lookup 没有捕获，最终冒泡成 FastAPI 500。
+- 额外意图证据：`normalize_query("有个像 institute 的词")` 当前返回 `query_mode="fuzzy_recall"`、`LearningIntentPlan.task="standard_lookup"`、`allow_expansion=false`，说明该学生式“像 X 的词”没有走 shape-neighbor / broad recall。
+
+### 根因判断
+本轮无 DB 降级已经覆盖 `advanced_lookup.dynamic_vocabulary()` 和 `DirectCompareService.answer()`，但 `OrdinaryLookupService.answer()` 仍先无保护地访问 structured exact lookup。Prisma dev 不可用时，它没有继续走已有 source/ECDICT fallback，因此普通 exact/use-case 查询仍会失败。`有个像 institute 的词` 还额外暴露了学生式意图识别漏判：它目前被当作普通 fuzzy recall，而不是形近/相似词召回。
+
+### 建议修复
+1. 在 `backend/tests/test_ordinary_lookup_answer.py` 加红测：fake repository 在 `find_exact_entry()` 抛 `StructuredLookupUnavailable` 时，`postgrad + substitute 怎么用` 或 `postgrad + substitute 是什么意思` 应返回 ECDICT fallback，`providerRequestId=null`。
+2. 修改 `backend/app/answering/ordinary_lookup.py`：只在 `find_exact_entry()` 捕 `StructuredLookupUnavailable`，将 `structured_candidate` 当作 `None`，继续执行现有 source lemma / ECDICT fallback。
+3. 补 normalize/intent 红测：`有个像 institute 的词`、`有个和 institute 很像的词` 应走 shape-neighbor / broad recall，而不是 `standard_lookup`。
+4. 不要捕普通 SQL 查询异常；不要在 API 层粗暴 fallback，否则会掩盖真实 query/schema bug。
+
+## 2026-05-18 direct compare 未处理 DB 不可用导致 500（已修，需防回归）
+### 症状
+用户在 broad fragment 修复后继续手测，`re开头cile结尾的单词` 已恢复为 200，但 `restrain 和 constrain 的区别` 仍返回 500，客户端仍会表现成“当前回答服务暂时不可用”。
+
+修复前证据：
+- 重启后的 dev stack：FastAPI `127.0.0.1:8000` PID `92112`，Next `127.0.0.1:3000` PID `77256`，日志在 `.runlogs/dev-fastapi-restarted-20260518-1208.out.log` / `.runlogs/dev-fastapi-restarted-20260518-1208.err.log`。
+- `postgrad + re开头cile结尾的单词`：FastAPI direct 约 11.1s、Next proxy 约 15.8s，均 200，`mainAnswer=["reconcile"]`，`providerRequestId=null`。
+- `postgrad + restrain 和 constrain 的区别`：Next proxy 约 15.6s 后 500；`.runlogs/chat-interaction.jsonl` 记录 `requestId=enggo_5d508b24-fc62-4fa3-8647-f88f6ce75224`、`status=500`、`elapsedMs=15626`、`answerSummary=Internal Server Error`。
+- `.runlogs/dev-fastapi-restarted-20260518-1208.err.log` 栈：`backend/app/answering/direct_compare.py:221` 调用 `self.repository.find_exact_entry(active_exam_target, term)`，`StructuredLookupRepository._connect()` 将 psycopg `ConnectionTimeout` 包装为 `StructuredLookupUnavailable`，但 direct compare 没有捕获，最终冒泡成 FastAPI 500。
+
+### 根因判断
+上一轮无 DB 降级只覆盖了 `advanced_lookup.dynamic_vocabulary()`，因此 ECDICT 可独立回答的 broad fragment 已恢复。`DirectCompareService.answer()` 仍按“structured repository 可用”的前提逐词查 structured exact；一旦 Prisma dev 停掉，它没有继续尝试已有的 ECDICT fallback，也没有跳过后续 confusion group 查询，而是让 `StructuredLookupUnavailable` 直接冒泡。
+
+### 修复状态
+1. `backend/tests/test_direct_compare_answer.py` 已新增红测：fake repository 在 `find_exact_entry()` 抛 `StructuredLookupUnavailable` 时，`postgrad + restrain和constrain` 返回 200，候选来自 ECDICT fallback，`providerRequestId=null`，且不继续查询 confusion group。该红测修复前失败，修复后通过。
+2. `backend/app/answering/direct_compare.py` 已只捕 `StructuredLookupUnavailable`：
+   - 逐词 exact lookup 捕到后继续走当前已有的 ECDICT fallback。
+   - 已知 DB 不可用时不再调用 `find_confusion_groups_for_entry_ids()`；若 group 查询阶段才发现 DB 不可用，也降级为无 group/boundary 的基础 compare 答案。
+   - `dynamic_vocabulary()` 的 `find_in_scope_entries()` 按 `advanced_lookup.dynamic_vocabulary()` 模式降级为空 structured 池。
+3. 验证：focused Python 142 passed；`corepack pnpm test scripts/lib/fastapi-migrated-slice-smoke.test.ts` 12 passed；live no-DB FastAPI smoke 返回 `mainAnswer=["restrain","constrain"]`、两词 `external_dictionary_basic`、`providerRequestId=null`。
+
+### 后续防回归
+- 不要在 API 层粗暴吞所有异常；只处理这个已知“structured lookup 不可用”分支，避免掩盖 SQL bug。
+- 若浏览器仍复现旧 500，先确认 `dev:fastapi` 是否是在修复后重启；该脚本不会自动 reload。
+
+## 2026-05-18 FastAPI 被停掉的 Prisma dev 同步连接卡死（已修，需防回归）
+### 症状
+用户在客户端发送 `re开头cile结尾的单词` 后，页面显示“当前回答服务暂时不可用，请稍后再试。”
+
+本次定位到的证据：
+- `.runlogs/chat-interaction.jsonl`：`requestId=enggo_3bbd4f5a-c181-449c-b4e8-664ba10d1c1f`，`status=500`，`elapsedMs=306777`，`error=FastAPI unreachable`。
+- `.runlogs/dev-fastapi-stack-20260518-104919.out.log`：Next `POST /api/chat 500 in 5.1min`。
+- 直接请求 `127.0.0.1:8000/api/chat` 同一 payload 会超时；此后直接请求 `127.0.0.1:8000/health` 也会超时，说明 FastAPI worker 被同步阻塞。
+- `corepack pnpm exec prisma dev ls` 显示 `default not_running`、`enggo not_running`。
+- `.env` 的 `DATABASE_URL` 指向 `localhost:51218`，且带 `connect_timeout=0`；当前 repository 会保留该 libpq 参数。
+- 离线 ECDICT 排除项：首次加载 `output/external-dictionaries/ecdict.csv` 约 8.266s；`re...cile` 搜索约 0.038s，只命中 `reconcile`。ECDICT CSV 不是 5 分钟卡死主因。
+- 单独调用 `StructuredLookupRepository.find_in_scope_entries("postgrad")` 在当前环境 30s 超时。
+
+### 根因判断
+`AdvancedLookupService.answer_broad_vocab_if_possible()` 对 `root_family_summary` 会先调用 `dynamic_vocabulary()`，而 `dynamic_vocabulary()` 先同步访问 structured repository。Prisma dev 已停时，psycopg 仍按 `.env` 中的 `connect_timeout=0` 等待连接，导致 FastAPI async 路由所在单 worker 被堵住；于是 `/api/chat` 和 `/health` 一起不可用。
+
+### 修复状态
+1. `to_psycopg_conninfo()` 已把 Prisma 生成的 `connect_timeout=0` 归一为 `connect_timeout=1`；非法 timeout 也按 1 秒处理。
+2. `StructuredLookupRepository._connect()` 只包装建连阶段的 psycopg 错误为 `StructuredLookupUnavailable`；SQL 执行错误仍应暴露。明确 connection timeout 不再 5 次重试，Prisma dev 协议瞬断仍保留短重试。
+3. `AdvancedLookupService.dynamic_vocabulary()` 只在 `StructuredLookupUnavailable` 时将 structured 池降级为空，继续合并 source/ECDICT 候选；`re开头cile结尾的单词` 在 structured DB 不可用时仍可返回 ECDICT 候选 `reconcile`。
+4. 验证：focused Python 140 passed；`corepack pnpm test scripts/lib/fastapi-migrated-slice-smoke.test.ts` 12 passed；live no-DB FastAPI smoke 返回 `mainAnswer=["reconcile"]`、`providerRequestId=null`。
+
+### 后续防回归
+- 环境恢复仍不是根因修复：重启 Prisma dev、migrate、seed、重启 dev stack 只能恢复手测，不应替代连接层快速失败和 ECDICT 降级测试。
+- 如果后续其它服务也需要在 DB 不可用时走 ECDICT/source fallback，只捕 `StructuredLookupUnavailable`；不要捕普通 SQL 查询异常，否则会掩盖真正的查询 bug。
+- 首次 ECDICT CSV 加载仍可能带来数秒耗时；这不是 Prisma dev 卡死，但若产品要进一步优化，可单独评估启动预热或懒加载缓存体验。
+
 ## 2026-05-10 FastAPI 迁移新增环境坑
 
 ### Prisma dev 直连端口的 psycopg 瞬态连接失败

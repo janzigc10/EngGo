@@ -24,6 +24,7 @@ from backend.app.content.ecdict import (
     scope_codes_for_profile,
 )
 from backend.app.retrieval.normalize_query import NormalizedQuery, normalize_query
+from backend.app.retrieval.repository import StructuredLookupUnavailable
 from backend.app.retrieval.dynamic_light_grounding import (
     build_light_grounding_candidates,
     clean_ecdict_broad_meanings,
@@ -685,11 +686,14 @@ class AdvancedLookupService:
         raise UnsupportedQueryMode(normalized_query.query_mode)
 
     def dynamic_vocabulary(self, active_exam_target: str) -> list[RetrievalCandidate]:
-        structured = (
-            self.repository.find_in_scope_entries(active_exam_target)
-            if hasattr(self.repository, "find_in_scope_entries")
-            else []
-        )
+        try:
+            structured = (
+                self.repository.find_in_scope_entries(active_exam_target)
+                if hasattr(self.repository, "find_in_scope_entries")
+                else []
+            )
+        except StructuredLookupUnavailable:
+            structured = []
         source = source_lemma_vocabulary(
             active_exam_target=active_exam_target,
             source_lemma_base_dir=self.source_lemma_base_dir,

@@ -9,6 +9,7 @@ from backend.app.retrieval.types import (
     ConfusionGroupMember,
     RetrievalCandidate,
 )
+from backend.app.retrieval.repository import StructuredLookupUnavailable
 
 
 def candidate(lemma, meanings=None, *, part_of_speech="v.", in_scope=True):
@@ -59,6 +60,7 @@ class FakeRepository:
         lookalikes=None,
         lemma_entries=None,
         in_scope_entries=None,
+        in_scope_error=None,
     ):
         self.meaning_candidates = meaning_candidates or []
         self.exact_entries = exact_entries or {}
@@ -66,6 +68,7 @@ class FakeRepository:
         self.lookalikes = lookalikes or []
         self.lemma_entries = lemma_entries or []
         self.in_scope_entries = in_scope_entries or []
+        self.in_scope_error = in_scope_error
 
     def find_meaning_candidates(self, _active_exam_target, _meaning_keyword):
         return self.meaning_candidates
@@ -88,6 +91,8 @@ class FakeRepository:
         ]
 
     def find_in_scope_entries(self, _active_exam_target):
+        if self.in_scope_error:
+            raise self.in_scope_error
         return self.in_scope_entries
 
 
@@ -1027,6 +1032,43 @@ def test_postgrad_prefix_suffix_query_filters_ecdict_candidates():
     assert main_lemmas == ["reconcile"]
     assert light_lemmas == ["reconcile"]
     assert {"prefix", "suffix"} <= light_signals
+
+
+def test_prefix_suffix_query_uses_ecdict_when_structured_repository_unavailable():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile(
+                "reconcile",
+                ["vt. \u4f7f\u548c\u89e3\uff1b\u8c03\u505c\uff1b\u4f7f\u4e00\u81f4"],
+                tag="ky",
+            ),
+            ecdict_profile("recite", ["v. \u80cc\u8bf5\uff1b\u6717\u8bfb"], tag="ky"),
+            ecdict_profile("facile", ["adj. \u5bb9\u6613\u7684\uff1b\u80a4\u6d45\u7684"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            in_scope_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="\u0072\u0065\u5f00\u5934\u0063\u0069\u006c\u0065\u7ed3\u5c3e\u7684\u5355\u8bcd",
+        request_id="req_re_cile_db_unavailable",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert [item["lemma"] for item in grounding["mainAnswer"]] == ["reconcile"]
+    assert grounding["learningIntentPlan"]["task"] == "form_filter"
+    assert grounding["broadAnswerPlan"]["presentation"] == "inventory_table"
 
 
 def test_postgrad_word_family_intent_uses_ecdict_tagged_derivatives():

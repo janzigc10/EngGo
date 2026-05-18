@@ -13,6 +13,23 @@ from backend.app.retrieval.types import (
 )
 
 
+DEFAULT_CONNECT_TIMEOUT_SECONDS = "1"
+
+
+class StructuredLookupUnavailable(RuntimeError):
+    pass
+
+
+def is_connection_timeout_error(error: BaseException) -> bool:
+    message = str(error).lower()
+
+    return (
+        isinstance(error, psycopg.errors.ConnectionTimeout)
+        or "connection timeout" in message
+        or "timeout expired" in message
+    )
+
+
 def format_part_of_speech(parts: list[str] | tuple[str, ...] | None) -> str | None:
     if not parts:
         return None
@@ -92,13 +109,19 @@ def to_psycopg_conninfo(database_url: str) -> str:
         "sslrootcert",
         "target_session_attrs",
     }
-    query = urlencode(
-        [
-            (key, value)
-            for key, value in parse_qsl(parsed.query, keep_blank_values=True)
-            if key in allowed_params
-        ],
-    )
+    query_params: list[tuple[str, str]] = []
+    for key, value in parse_qsl(parsed.query, keep_blank_values=True):
+        if key not in allowed_params:
+            continue
+        if key == "connect_timeout":
+            try:
+                if int(value) <= 0:
+                    value = DEFAULT_CONNECT_TIMEOUT_SECONDS
+            except ValueError:
+                value = DEFAULT_CONNECT_TIMEOUT_SECONDS
+        query_params.append((key, value))
+
+    query = urlencode(query_params)
 
     hostname = "127.0.0.1" if parsed.hostname == "localhost" else parsed.hostname
     netloc = parsed.netloc
@@ -140,12 +163,12 @@ class StructuredLookupRepository:
         for attempt in range(5):
             try:
                 return self.connect(self.database_url, row_factory=dict_row)
-            except psycopg.OperationalError as error:
-                if attempt < 4:
+            except psycopg.Error as error:
+                if not is_connection_timeout_error(error) and attempt < 4:
                     time.sleep(0.05 * (attempt + 1))
                     continue
 
-                raise
+                raise StructuredLookupUnavailable(str(error)) from error
 
         raise RuntimeError("unreachable connection retry state")
 
