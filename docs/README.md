@@ -34,7 +34,8 @@
   - 初始技术设计。
 
 ## 当前活跃计划
-- 暂无活跃 plan。下一轮如果继续产品打磨，优先从 `progress.md` 顶部的“下一步建议”选择新 plan，不要从已完成计划 Task 1 重开。
+- `docs/superpowers/plans/2026-05-18-ecdict-backbone-db-fallback-and-shape-intent.md`
+  - 基于最新 ECDICT 主底座设计的当前落地计划：先补 ordinary lookup 在 structured DB 不可用时继续走 ECDICT/source fallback，再把“有个像 X 的词”这类学生表达归到 shape-neighbor / broad recall，最后补 focused no-DB smoke。
 
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。

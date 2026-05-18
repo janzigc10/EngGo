@@ -1,34 +1,25 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-18 ECDICT 主底座方向已确认，ordinary lookup 待补）
-- 最新产品/架构结论已写入 `docs/superpowers/specs/2026-05-18-ecdict-backbone-structured-overlay-design.md`：
-  1. ECDICT 作为默认大词库底座，覆盖普通查词、基础释义、考试 tag 候选和 broad / shape / fragment / semantic 候选池。
-  2. 旧 structured DB 不再作为主资产继续精修扩全；现有几十个旧阶段易混组只保留为冻结覆盖层、黄金样例、排序参考和 regression baseline。
-  3. 后续人工数据默认走轻量 override：`lemma / scope / partOfSpeech / shortMeaningZh / aliases? / note?`，不默认维护全量例句、搭配、易混组、教学 rank 或词根族。
-  4. 产品主链路目标是“DB 可用则增强，DB 不可用仍能靠 ECDICT/source 回答”，不再让 Prisma dev 成为普通学习体验的前置条件。
-  5. 如果后续继续降低 DB 负担，优先把 structured overlay 导出为静态 JSON / SQLite / 只读索引，而不是把 ECDICT 全量灌进 Prisma 或一刀删除旧人工数据。
-- 已完成本轮无 DB 降级修复：
-  1. `backend/app/retrieval/repository.py`：`connect_timeout=0` 或非法值归一到 `connect_timeout=1`；建连阶段失败包装为 `StructuredLookupUnavailable`，SQL 执行错误仍暴露。
-  2. `backend/app/answering/advanced_lookup.py`：fragment/root broad 的 `dynamic_vocabulary()` 只在 `StructuredLookupUnavailable` 时把 structured 池降级为空，继续用 source/ECDICT 候选回答。
-  3. `backend/app/answering/direct_compare.py`：逐词 `find_exact_entry()` 遇到 `StructuredLookupUnavailable` 后继续走 ECDICT fallback；已知 DB 不可用时跳过 `find_confusion_groups_for_entry_ids()`；`dynamic_vocabulary()` 同步降级为空 structured 池。
-- 本轮新增回归：
-  1. `backend/tests/test_repository.py` 覆盖 `connect_timeout=0 -> connect_timeout=1`、连接失败包装、connection timeout 不重试。
-  2. `backend/tests/test_advanced_lookup.py` 覆盖 structured repository 不可用时，`postgrad + re开头cile结尾的单词` 仍返回 `reconcile`，且 `providerRequestId=null`。
-  3. `backend/tests/test_direct_compare_answer.py` 覆盖 structured repository 不可用时，`postgrad + restrain和constrain` 仍返回两词 ECDICT fallback、`providerRequestId=null`，且不继续查询 confusion group；同时覆盖 direct compare broad vocabulary 的 structured 池不可用降级。
-- 本轮验证：
-  1. 新增 direct compare 红测先失败在 `StructuredLookupUnavailable` 冒泡；修复后同两例 -> 2 passed。
-  2. `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_repository.py backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py backend/tests/test_student_intent_matrix.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 142 passed；仍有既有 pytest cache permission warning。
-  3. `corepack pnpm test scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 1 file / 12 tests passed。
-  4. live no-DB FastAPI smoke：临时端口 `8014` + 坏 DB URL `127.0.0.1:59999?connect_timeout=0` 下，`POST /api/chat` 发送 `postgrad + restrain和constrain` -> 200 / `direct_compare` / `mainAnswer=["restrain","constrain"]` / 两词 `external_dictionary_basic` / `providerRequestId=null` / 无 confusion boundary / 约 13.5s。该耗时包含 ECDICT CSV 加载，不是 5 分钟 DB 卡死。
-  5. 之前 broad fragment no-DB smoke 已验证：临时端口 `8013` 下，`postgrad + re开头cile结尾的单词` -> 200 / `root_family_summary` / `mainAnswer=["reconcile"]` / `providerRequestId=null`。
-- 本轮追加验收（2026-05-18 12:43 左右）：
-  1. 注意 `dev:fastapi` 不会自动 reload；`direct_compare.py` 12:16 写入后，12:04 启动的旧 FastAPI 仍返回旧栈 500。已重启 dev stack，当前监听为 FastAPI `127.0.0.1:8000` PID `79780`、Next `127.0.0.1:3000` PID `82456`，日志在 `.runlogs/dev-fastapi-restarted-20260518-verify.out.log` / `.runlogs/dev-fastapi-restarted-20260518-verify.err.log`。
-  2. Focused pytest：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_direct_compare_answer.py backend\tests\test_repository.py backend\tests\test_advanced_lookup.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 50 passed，仍有既有 cache permission warning。
-  3. 当前 Prisma dev 仍是 `default not_running`、`enggo not_running`，因此本轮 live 复测确实覆盖 DB-unavailable 场景。
-  4. Next proxy live 复测：`postgrad + restrain 和 constrain 的区别` -> 200 / `mainAnswer=["restrain","constrain"]` / 两词 `external_dictionary_basic` / `providerRequestId=null` / 约 19.4s；`postgrad + re开头cile结尾的单词` -> 200 / `reconcile` / 约 3.2s；`postgrad + sow和row` -> 200 / `sow,row` / 约 4.1s。
-  5. 新暴露 blocker：`postgrad + substitute 怎么用` -> 500 / 约 2.2s。`.runlogs/dev-fastapi-restarted-20260518-verify.err.log` 栈显示 `backend/app/answering/ordinary_lookup.py:533` 的 `self.repository.find_exact_entry(active_exam_target, needle)` 抛 `StructuredLookupUnavailable: connection timeout expired`，ordinary lookup 没有捕获并继续走 ECDICT fallback。
-  6. 用户新增手测 `postgrad + 有个像 institute 的词` -> 500 / 约 2.0s，同样落在 `ordinary_lookup.py:533`；并且 `normalize_query()` 将该句解析为 `query_mode="fuzzy_recall"`、`LearningIntentPlan.task="standard_lookup"`、`allow_expansion=false`，没有进入 shape-neighbor / broad recall。
-- 下一步建议：先补 ordinary lookup 的 DB-unavailable fallback，再补“有个像 X 的词”这类学生说法的意图识别，使其走 shape-neighbor / broad recall；随后回到 AGENTS 当前焦点验收 ordinary exact lookup 的“干净展示”。修复范围建议保持同一原则：只捕 `StructuredLookupUnavailable`，然后走已有 source/ECDICT fallback；不要在 API 层吞普通 SQL bug。实现前可基于新 spec 写一份短 plan，避免继续围绕旧 structured DB 做复杂扩写。
+## 当前状态与下一步（2026-05-18 ECDICT 主底座 Plan 已落地，待执行）
+- 最新产品/架构结论已写入 `docs/superpowers/specs/2026-05-18-ecdict-backbone-structured-overlay-design.md`：ECDICT 是默认大词库底座；旧 structured DB 降级为冻结覆盖层 / 可选精修覆盖层 / 回归样例；后续人工补丁默认走轻量 override，不再维护全量复杂结构化词库。
+- 当前活跃 plan：`docs/superpowers/plans/2026-05-18-ecdict-backbone-db-fallback-and-shape-intent.md`。
+  1. Task 1：补 `ordinary_lookup` 的 `StructuredLookupUnavailable` fallback，让 `substitute 是什么意思` / `substitute 怎么用` 在 DB 不可用时继续走 ECDICT，而不是 FastAPI 500。
+  2. Task 2：把 `有个像 institute 的词`、`有个和 institute 很像的词` 归到 `shape_neighbor_search` / `shape_neighbors`，同时保护 `institute 是什么意思` 仍是普通查词。
+  3. Task 3：新增 focused no-DB FastAPI smoke，覆盖 ordinary lookup、direct compare、broad fragment 和 plain similar-word wording。
+  4. Task 4：完成后同步 `bugs.md`、`docs/README.md` 和本交接。
+- 已完成的前置修复仍是当前基线：
+  1. `backend/app/retrieval/repository.py` 已将 `connect_timeout=0` 或非法值归一到 `connect_timeout=1`，建连失败包装为 `StructuredLookupUnavailable`，SQL 执行错误仍暴露。
+  2. `backend/app/answering/advanced_lookup.py` 已在 structured repository 不可用时把 structured 池降级为空，`re开头cile结尾的单词` 可继续由 ECDICT 返回 `reconcile`。
+  3. `backend/app/answering/direct_compare.py` 已在 structured exact lookup 不可用时继续走 ECDICT fallback，`restrain 和 constrain 的区别` 可返回两词 `external_dictionary_basic`，且跳过 DB-dependent confusion group 查询。
+- 最新验证基线（来自上一轮修复，尚未执行新 plan）：
+  1. `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_repository.py backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py backend/tests/test_student_intent_matrix.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 142 passed；仍有既有 pytest cache permission warning。
+  2. `corepack pnpm test scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 1 file / 12 tests passed。
+  3. live no-DB FastAPI smoke 已验证 direct compare：坏 DB URL 下 `postgrad + restrain和constrain` -> 200 / `direct_compare` / `mainAnswer=["restrain","constrain"]` / 两词 `external_dictionary_basic` / `providerRequestId=null`。
+  4. live no-DB FastAPI smoke 已验证 broad fragment：坏 DB URL 下 `postgrad + re开头cile结尾的单词` -> 200 / `root_family_summary` / `mainAnswer=["reconcile"]` / `providerRequestId=null`。
+- 当前待修 blocker 仍记录在 `bugs.md` 顶部：
+  1. `postgrad + substitute 怎么用` 在 DB 不可用时仍 500，栈落在 `backend/app/answering/ordinary_lookup.py` 调用 `find_exact_entry()` 后未捕获 `StructuredLookupUnavailable`。
+  2. `postgrad + 有个像 institute 的词` 仍被 `normalize_query()` 解析为 `fuzzy_recall` / `standard_lookup`，没有进入 shape-neighbor / broad recall。
+- 下一步：从 active plan 的 Task 1 开始执行；每完成一个 task，立即勾选 plan checkbox 并重写本节顶部状态。
 
 ## 历史快照（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
 - 产品方向已从“postgrad 没有官方机器词表，所以 ECDICT 只能泛外部兜底”调整为：ECDICT 作为更大的基础词汇底座；自有 structured 词库作为高信任覆盖层。覆盖层仍优先，但只在当前考试范围内命中时覆盖。
