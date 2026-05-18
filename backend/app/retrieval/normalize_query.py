@@ -51,7 +51,7 @@ plain_like_word_pattern = re.compile(
     re.IGNORECASE,
 )
 semantic_similarity_pattern = re.compile(
-    r"(相似|类似).{0,16}(意思|含义|近义|同义)|(意思|含义|近义|同义).{0,16}(相似|类似)",
+    r"(相似|类似|很像|比较像|相像).{0,16}(意思|含义|近义|同义)|(意思|含义|近义|同义).{0,16}(相似|类似|很像|比较像|相像)",
     re.IGNORECASE,
 )
 meaning_noise_pattern = re.compile(r"(是什么意思|怎么说|什么意思|是什么|啥意思|英文|英语|单词|有个|像|的词)")

@@ -1,3 +1,5 @@
+import pytest
+
 from backend.app.retrieval.normalize_query import normalize_query
 
 
@@ -107,8 +109,16 @@ def test_plain_like_wording_routes_to_shape_neighbors():
         assert result.is_supported_ordinary_lookup is False
 
 
-def test_semantic_similar_meaning_wording_does_not_route_to_shape_neighbors():
-    result = normalize_query("找一个类似 institute 意思的词")
+@pytest.mark.parametrize(
+    "query",
+    [
+        "找一个类似 institute 意思的词",
+        "找一个和 institute 意思很像的词",
+        "找一个和 institute 含义很像的词",
+    ],
+)
+def test_semantic_similar_meaning_wording_does_not_route_to_shape_neighbors(query):
+    result = normalize_query(query)
 
     assert result.query_mode != "shape_neighbor_search"
     assert result.intent_plan.task != "shape_neighbors"
