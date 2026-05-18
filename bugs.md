@@ -1,6 +1,6 @@
 # EngGo 已知问题与环境坑
 
-## 2026-05-18 ordinary lookup 未处理 DB 不可用导致 500（待修）
+## 2026-05-18 ordinary lookup 未处理 DB 不可用导致 500（已修，需防回归）
 ### 症状
 direct compare 无 DB 降级修复后，真实 Next proxy 复测已能让 `restrain 和 constrain 的区别` 返回 200；但普通查词/用法类请求仍会在 DB 不可用时 500。
 
@@ -16,11 +16,15 @@ direct compare 无 DB 降级修复后，真实 Next proxy 复测已能让 `restr
 ### 根因判断
 本轮无 DB 降级已经覆盖 `advanced_lookup.dynamic_vocabulary()` 和 `DirectCompareService.answer()`，但 `OrdinaryLookupService.answer()` 仍先无保护地访问 structured exact lookup。Prisma dev 不可用时，它没有继续走已有 source/ECDICT fallback，因此普通 exact/use-case 查询仍会失败。`有个像 institute 的词` 还额外暴露了学生式意图识别漏判：它目前被当作普通 fuzzy recall，而不是形近/相似词召回。
 
-### 建议修复
-1. 在 `backend/tests/test_ordinary_lookup_answer.py` 加红测：fake repository 在 `find_exact_entry()` 抛 `StructuredLookupUnavailable` 时，`postgrad + substitute 怎么用` 或 `postgrad + substitute 是什么意思` 应返回 ECDICT fallback，`providerRequestId=null`。
-2. 修改 `backend/app/answering/ordinary_lookup.py`：只在 `find_exact_entry()` 捕 `StructuredLookupUnavailable`，将 `structured_candidate` 当作 `None`，继续执行现有 source lemma / ECDICT fallback。
-3. 补 normalize/intent 红测：`有个像 institute 的词`、`有个和 institute 很像的词` 应走 shape-neighbor / broad recall，而不是 `standard_lookup`。
-4. 不要捕普通 SQL 查询异常；不要在 API 层粗暴 fallback，否则会掩盖真实 query/schema bug。
+### 修复状态
+1. `backend/tests/test_ordinary_lookup_answer.py` 已新增 DB 不可用红测：fake repository 在 `find_exact_entry()` 抛 `StructuredLookupUnavailable` 时，`postgrad + substitute 是什么意思` 和 `postgrad + substitute 怎么用` 均返回 ECDICT fallback，`providerRequestId=null`。
+2. `backend/app/answering/ordinary_lookup.py` 已只在 structured exact lookup 边界捕获 `StructuredLookupUnavailable`，将 structured candidate 当作 miss，继续执行现有 source lemma / ECDICT fallback；已知 DB 不可用后不会再进入 structured fuzzy lookup 把优雅降级变回 500。
+3. `normalize_query` / intent matrix 已补学生式 plain shape wording：`有个像 institute 的词`、`有个和 institute 很像的词` 走 `shape_neighbor_search` / `shape_neighbors`；`找一个类似 institute 意思的词`、`找一个和 institute 意思很像的词`、`找一个和 institute 含义很像的词` 不误走形近召回。
+4. 验证：Task 3 live no-DB FastAPI smoke 使用坏 DB URL + ECDICT CSV，临时 FastAPI `127.0.0.1:8015`，`corepack pnpm eval:fastapi:db-unavailable-smoke -- --base-url http://127.0.0.1:8015 --label fastapi-no-db` -> 5 total / 5 pass / 0 fail，覆盖 ordinary lookup、direct compare、broad fragment 和 plain similar-word wording。
+
+### 后续防回归
+- 只捕获 `StructuredLookupUnavailable`，不要吞普通 SQL/query/schema bug；否则会把真正的数据访问错误伪装成 ECDICT fallback。
+- 不要在 API 层粗暴 catch-all fallback。降级边界应留在对应服务的 structured lookup 调用处。
 
 ## 2026-05-18 direct compare 未处理 DB 不可用导致 500（已修，需防回归）
 ### 症状

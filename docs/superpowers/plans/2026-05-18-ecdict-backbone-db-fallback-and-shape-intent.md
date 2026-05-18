@@ -512,15 +512,15 @@ Result: `corepack pnpm test scripts/lib/fastapi-db-unavailable-smoke.test.ts scr
 - Modify: `bugs.md`
 - Modify: `docs/superpowers/plans/2026-05-18-ecdict-backbone-db-fallback-and-shape-intent.md`
 
-- [ ] **Step 1: Mark plan checkboxes as work lands**
+- [x] **Step 1: Mark plan checkboxes as work lands**
 
 After each task passes verification, change completed `- [ ]` boxes to `- [x]`. Do not batch all checkbox updates at the end.
 
-- [ ] **Step 2: Update `bugs.md`**
+- [x] **Step 2: Update `bugs.md`**
 
 Move `2026-05-18 ordinary lookup 未处理 DB 不可用导致 500` from pending to fixed only after Task 3 live no-DB smoke passes. Keep the warning that only `StructuredLookupUnavailable` should be caught.
 
-- [ ] **Step 3: Re-audit `progress.md`**
+- [x] **Step 3: Re-audit `progress.md`**
 
 Rewrite the top section so the next session sees only:
 
@@ -529,11 +529,11 @@ Rewrite the top section so the next session sees only:
 - remaining unchecked task, if any,
 - next recommended step.
 
-- [ ] **Step 4: Update docs index**
+- [x] **Step 4: Update docs index**
 
 In `docs/README.md`, move this plan from active to completed only after all tasks and smoke checks pass.
 
-- [ ] **Step 5: Run doc sanity checks**
+- [x] **Step 5: Run doc sanity checks**
 
 Run:
 
@@ -544,7 +544,7 @@ git status --short --branch
 
 Expected: `git diff --check` exits 0, ignoring CRLF warnings if present.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add docs/README.md progress.md bugs.md docs/superpowers/plans/2026-05-18-ecdict-backbone-db-fallback-and-shape-intent.md

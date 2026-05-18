@@ -34,12 +34,13 @@
   - 初始技术设计。
 
 ## 当前活跃计划
-- `docs/superpowers/plans/2026-05-18-ecdict-backbone-db-fallback-and-shape-intent.md`
-  - 基于最新 ECDICT 主底座设计的当前落地计划：先补 ordinary lookup 在 structured DB 不可用时继续走 ECDICT/source fallback，再把“有个像 X 的词”这类学生表达归到 shape-neighbor / broad recall，最后补 focused no-DB smoke。
+- 暂无。下一步只剩最新 ECDICT 主底座 plan 的 final verification / 收尾确认。
 
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。
 
+- `docs/superpowers/plans/2026-05-18-ecdict-backbone-db-fallback-and-shape-intent.md`
+  - ECDICT 主底座 DB fallback 与 shape intent 计划已完成：ordinary lookup 在 structured DB 不可用时继续走 ECDICT/source fallback，plain “像 X 的词”学生问法归到 shape-neighbor / broad recall，并已补 focused no-DB smoke 覆盖 ordinary lookup、direct compare、broad fragment 和 plain similar-word wording。
 - `docs/superpowers/plans/2026-05-17-student-intent-normalization.md`
   - 学生式意图归一化计划已完成：few-shot 风格样例已固化为 deterministic intent matrix 和 Next proxy smoke，覆盖 `con开头表示共同或一起`、`e开头表示评估评价`、`表示限制或约束的con开头单词`、`desert dessert 还有没有相似的词`、`sign这组词怎么背`、`sign的派生词有哪些`、`produce的同根词或派生词`、`pre开头表示提前或预先的单词`，并保护普通 exact lookup 不回流到 broad vocab。
 - `docs/superpowers/plans/2026-05-17-learning-intent-plan.md`
