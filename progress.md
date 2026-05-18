@@ -1,12 +1,12 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-18 ECDICT 主底座 Plan，Task 2 已完成）
+## 当前状态与下一步（2026-05-18 ECDICT 主底座 Plan，Task 3 已完成）
 - 当前设计结论不变：ECDICT 是默认大词库底座，structured DB 只是 optional overlay；服务边界只捕获 `StructuredLookupUnavailable`，不能吞掉 SQL 执行错误或其他真实 bug。
 - Active plan: `docs/superpowers/plans/2026-05-18-ecdict-backbone-db-fallback-and-shape-intent.md`。
   1. Task 1 已完成：`ordinary_lookup` 在 structured exact lookup 不可用时会继续 source/ECDICT fallback；`substitute 是什么意思` 和 `substitute 怎么用` 可由 ECDICT 返回 `external_dictionary_exact`，且用法措辞不会再落到 structured fuzzy lookup 后 500。
   2. Task 2 已完成并通过 code-review fix：`有个像 institute 的词` / `有个和 institute 很像的词` 现在路由到 `shape_neighbor_search` / `shape_neighbors`；`找一个类似 institute 意思的词`、`找一个和 institute 意思很像的词`、`找一个和 institute 含义很像的词` 不再路由到 shape-neighbor，避免把语义近义词/意思相近问法误判为词形相似；`institute 是什么意思` 仍保持 ordinary lookup / `standard_lookup`。
-  3. Task 3 未开始：仍需新增 focused no-DB FastAPI smoke，覆盖 ordinary lookup、direct compare、broad fragment 和 plain similar-word wording。
-  4. Task 4 未开始：需要在全部任务和 live no-DB smoke 通过后同步 `bugs.md`、`docs/README.md` 和最终交接。
+  3. Task 3 已完成：新增 focused no-DB FastAPI smoke，覆盖 ordinary lookup、direct compare、broad fragment 和 plain similar-word wording；direct compare no-DB 合同按真实降级路径断言 `learningIntentPlan.task="focused_compare"`、两词 ECDICT grounding 和 no provider，而不强求 DB 依赖的 `comparisonView`/`confusion_untangle`。
+  4. Task 4 未开始：需要在 Task 3 review 通过后同步 `bugs.md`、`docs/README.md` 和最终交接。
 - 本轮 Task 1 验证结果：
   1. RED：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_ordinary_lookup_answer.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 2 failed / 13 passed，两个新增用例均因 `StructuredLookupUnavailable` 从 `find_exact_entry()` 冒出失败；另有既有 pytest cache permission warning。
   2. GREEN：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_ordinary_lookup_answer.py backend/tests/test_repository.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 24 passed；另有既有 pytest cache permission warning。
@@ -17,7 +17,12 @@
   1. RED：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_normalize_query.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 2 failed / 23 passed，`找一个和 institute 意思很像的词` 和 `找一个和 institute 含义很像的词` 仍误走 `shape_neighbor_search`；另有既有 pytest cache permission warning。
   2. GREEN：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_normalize_query.py backend/tests/test_student_intent_matrix.py backend/tests/test_advanced_lookup.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 67 passed；另有既有 pytest cache permission warning。
   3. `git diff --check` -> exit 0；仅有 `normalize_query.py` / `test_normalize_query.py` 的既有 CRLF warning。
-- 下一步：继续 active plan 的 Task 3，新增 focused no-DB FastAPI smoke；不要回改 ordinary_lookup，也不要扩大 plain `像/很像` 的 shape cue 范围到语义“类似意思/相似含义”问法。
+- 本轮 Task 3 验证结果：
+  1. RED：`corepack pnpm test scripts/lib/fastapi-db-unavailable-smoke.test.ts` -> 失败于尚未创建 `scripts/lib/fastapi-db-unavailable-smoke.ts`。
+  2. GREEN：`corepack pnpm test scripts/lib/fastapi-db-unavailable-smoke.test.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 2 files / 15 tests passed。
+  3. GREEN：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_repository.py backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py backend/tests/test_student_intent_matrix.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 150 passed；另有既有 pytest cache permission warning。
+  4. live no-DB FastAPI smoke：坏 DB URL `postgresql://user:pass@127.0.0.1:59999/enggo?connect_timeout=0` + `ENGGO_ECDICT_PATH=output/external-dictionaries/ecdict.csv`，临时 FastAPI `127.0.0.1:8015`，`corepack pnpm eval:fastapi:db-unavailable-smoke -- --base-url http://127.0.0.1:8015 --label fastapi-no-db` -> 5 total / 5 pass / 0 fail。由于 sandbox 对 `node_modules\tsx\dist\cli.mjs` 有 EPERM，live smoke 使用真实工作区权限复跑通过；临时 FastAPI job 已停止。
+- 下一步：继续 active plan 的 Task 3 spec/code review；通过后进入 Task 4，同步 `bugs.md`、`docs/README.md` 和最终交接。不要回改 ordinary_lookup，也不要扩大 plain `像/很像` 的 shape cue 范围到语义“类似意思/相似含义”问法。
 
 ## 历史快照（2026-05-18 ECDICT 主底座 Plan 执行前）
 - 最新产品/架构结论已写入 `docs/superpowers/specs/2026-05-18-ecdict-backbone-structured-overlay-design.md`：ECDICT 是默认大词库底座；旧 structured DB 降级为冻结覆盖层 / 可选精修覆盖层 / 回归样例；后续人工补丁默认走轻量 override，不再维护全量复杂结构化词库。

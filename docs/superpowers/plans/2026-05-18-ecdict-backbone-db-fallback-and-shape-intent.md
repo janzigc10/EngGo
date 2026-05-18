@@ -370,7 +370,7 @@ Mark Task 2 completed and record the focused test result.
 - Modify: `package.json`
 - Modify: `progress.md`
 
-- [ ] **Step 1: Create the focused smoke matrix**
+- [x] **Step 1: Create the focused smoke matrix**
 
 Create `scripts/lib/fastapi-db-unavailable-smoke.ts` with cases that are expected to work when FastAPI is pointed at an unreachable DB:
 
@@ -400,7 +400,7 @@ export function buildFastApiDbUnavailableSmokeCases() {
       query: "restrain和constrain的区别",
       activeExamTarget: "postgrad",
       expectedStatus: 200,
-      expectedAnswerStyle: "confusion_untangle",
+      expectedLearningIntentTask: "focused_compare",
       expectedGroundingIncludes: ["restrain", "constrain"],
       expectedProviderRequest: "absent",
     },
@@ -427,7 +427,7 @@ export function buildFastApiDbUnavailableSmokeCases() {
 
 Reuse the observation/evaluation shape from `scripts/lib/fastapi-migrated-slice-smoke.ts` instead of inventing a second assertion style.
 
-- [ ] **Step 2: Add unit tests for the smoke definitions**
+- [x] **Step 2: Add unit tests for the smoke definitions**
 
 Create `scripts/lib/fastapi-db-unavailable-smoke.test.ts` and assert:
 
@@ -436,7 +436,7 @@ Create `scripts/lib/fastapi-db-unavailable-smoke.test.ts` and assert:
 - every case fails on `answer` containing `当前回答服务暂时不可用`,
 - provider request is absent unless a future case explicitly requires it.
 
-- [ ] **Step 3: Add a runner and package script**
+- [x] **Step 3: Add a runner and package script**
 
 Create `scripts/run-fastapi-db-unavailable-smoke.ts` as a small wrapper around the shared evaluator. It should accept:
 
@@ -451,7 +451,7 @@ Add to `package.json`:
 "eval:fastapi:db-unavailable-smoke": "tsx scripts/run-fastapi-db-unavailable-smoke.ts"
 ```
 
-- [ ] **Step 4: Run runner tests**
+- [x] **Step 4: Run runner tests**
 
 Run:
 
@@ -461,7 +461,7 @@ corepack pnpm test scripts/lib/fastapi-db-unavailable-smoke.test.ts scripts/lib/
 
 Expected: pass.
 
-- [ ] **Step 5: Run focused backend suite**
+- [x] **Step 5: Run focused backend suite**
 
 Run:
 
@@ -471,7 +471,7 @@ C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_repository.py
 
 Expected: pass.
 
-- [ ] **Step 6: Run live no-DB FastAPI smoke**
+- [x] **Step 6: Run live no-DB FastAPI smoke**
 
 Start a temporary FastAPI process with an unreachable DB URL. Use a port that is free at runtime:
 
@@ -489,16 +489,18 @@ corepack pnpm eval:fastapi:db-unavailable-smoke -- --base-url http://127.0.0.1:8
 
 Expected: all no-DB smoke cases pass. Stop the temporary FastAPI process after the smoke finishes.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```powershell
 git add scripts/lib/fastapi-db-unavailable-smoke.ts scripts/lib/fastapi-db-unavailable-smoke.test.ts scripts/run-fastapi-db-unavailable-smoke.ts package.json
 git commit -m "Add FastAPI DB-unavailable smoke coverage"
 ```
 
-- [ ] **Step 8: Update this plan and `progress.md`**
+- [x] **Step 8: Update this plan and `progress.md`**
 
 Record the focused backend suite and live no-DB smoke result.
+
+Result: `corepack pnpm test scripts/lib/fastapi-db-unavailable-smoke.test.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 2 files / 15 tests passed; focused backend suite -> 150 passed with existing pytest cache warning; live no-DB FastAPI smoke on `127.0.0.1:8015` -> 5 total / 5 pass / 0 fail.
 
 ---
 
