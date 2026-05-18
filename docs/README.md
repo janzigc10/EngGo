@@ -8,6 +8,8 @@
 - `context.md`：长期项目地图和代码地图。
 
 ## 当前有效设计
+- `docs/superpowers/specs/2026-05-18-ecdict-backbone-structured-overlay-design.md`
+  - 最新词库主干方向：ECDICT 作为默认大词库底座，旧 structured DB 降级为冻结覆盖层 / 回归样例 / 可选增强；后续只做轻量人工 override，不再维护全量复杂结构化词库。
 - `docs/superpowers/specs/2026-05-12-dynamic-light-grounding-design.md`
   - 8k 词库后的 dynamic light grounding 设计：用动态候选 grounding 接管泛问主流程，旧 `confusion_group` / `root_family` 只做 boost、fixture 和 regression baseline。
 - `docs/superpowers/specs/2026-05-16-collection-organizer-design.md`

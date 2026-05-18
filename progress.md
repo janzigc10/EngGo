@@ -1,6 +1,12 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-18 FastAPI 无 DB 降级 direct compare 已修，ordinary lookup 待补）
+## 当前状态与下一步（2026-05-18 ECDICT 主底座方向已确认，ordinary lookup 待补）
+- 最新产品/架构结论已写入 `docs/superpowers/specs/2026-05-18-ecdict-backbone-structured-overlay-design.md`：
+  1. ECDICT 作为默认大词库底座，覆盖普通查词、基础释义、考试 tag 候选和 broad / shape / fragment / semantic 候选池。
+  2. 旧 structured DB 不再作为主资产继续精修扩全；现有几十个旧阶段易混组只保留为冻结覆盖层、黄金样例、排序参考和 regression baseline。
+  3. 后续人工数据默认走轻量 override：`lemma / scope / partOfSpeech / shortMeaningZh / aliases? / note?`，不默认维护全量例句、搭配、易混组、教学 rank 或词根族。
+  4. 产品主链路目标是“DB 可用则增强，DB 不可用仍能靠 ECDICT/source 回答”，不再让 Prisma dev 成为普通学习体验的前置条件。
+  5. 如果后续继续降低 DB 负担，优先把 structured overlay 导出为静态 JSON / SQLite / 只读索引，而不是把 ECDICT 全量灌进 Prisma 或一刀删除旧人工数据。
 - 已完成本轮无 DB 降级修复：
   1. `backend/app/retrieval/repository.py`：`connect_timeout=0` 或非法值归一到 `connect_timeout=1`；建连阶段失败包装为 `StructuredLookupUnavailable`，SQL 执行错误仍暴露。
   2. `backend/app/answering/advanced_lookup.py`：fragment/root broad 的 `dynamic_vocabulary()` 只在 `StructuredLookupUnavailable` 时把 structured 池降级为空，继续用 source/ECDICT 候选回答。
@@ -22,7 +28,7 @@
   4. Next proxy live 复测：`postgrad + restrain 和 constrain 的区别` -> 200 / `mainAnswer=["restrain","constrain"]` / 两词 `external_dictionary_basic` / `providerRequestId=null` / 约 19.4s；`postgrad + re开头cile结尾的单词` -> 200 / `reconcile` / 约 3.2s；`postgrad + sow和row` -> 200 / `sow,row` / 约 4.1s。
   5. 新暴露 blocker：`postgrad + substitute 怎么用` -> 500 / 约 2.2s。`.runlogs/dev-fastapi-restarted-20260518-verify.err.log` 栈显示 `backend/app/answering/ordinary_lookup.py:533` 的 `self.repository.find_exact_entry(active_exam_target, needle)` 抛 `StructuredLookupUnavailable: connection timeout expired`，ordinary lookup 没有捕获并继续走 ECDICT fallback。
   6. 用户新增手测 `postgrad + 有个像 institute 的词` -> 500 / 约 2.0s，同样落在 `ordinary_lookup.py:533`；并且 `normalize_query()` 将该句解析为 `query_mode="fuzzy_recall"`、`LearningIntentPlan.task="standard_lookup"`、`allow_expansion=false`，没有进入 shape-neighbor / broad recall。
-- 下一步建议：先补 ordinary lookup 的 DB-unavailable fallback，再补“有个像 X 的词”这类学生说法的意图识别，使其走 shape-neighbor / broad recall；随后回到 AGENTS 当前焦点验收 ordinary exact lookup 的“干净展示”。修复范围建议保持同一原则：只捕 `StructuredLookupUnavailable`，然后走已有 source/ECDICT fallback；不要在 API 层吞普通 SQL bug。
+- 下一步建议：先补 ordinary lookup 的 DB-unavailable fallback，再补“有个像 X 的词”这类学生说法的意图识别，使其走 shape-neighbor / broad recall；随后回到 AGENTS 当前焦点验收 ordinary exact lookup 的“干净展示”。修复范围建议保持同一原则：只捕 `StructuredLookupUnavailable`，然后走已有 source/ECDICT fallback；不要在 API 层吞普通 SQL bug。实现前可基于新 spec 写一份短 plan，避免继续围绕旧 structured DB 做复杂扩写。
 
 ## 历史快照（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
 - 产品方向已从“postgrad 没有官方机器词表，所以 ECDICT 只能泛外部兜底”调整为：ECDICT 作为更大的基础词汇底座；自有 structured 词库作为高信任覆盖层。覆盖层仍优先，但只在当前考试范围内命中时覆盖。
