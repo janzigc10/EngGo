@@ -8,20 +8,29 @@ from backend.app.answering.ordinary_lookup import (
 )
 from backend.app.answering.provider import GenerateAnswerResult
 from backend.app.content.ecdict import EcdictBasicProfile
+from backend.app.retrieval.repository import StructuredLookupUnavailable
 from backend.app.retrieval.types import RetrievalCandidate
 
 
 class FakeRepository:
-    def __init__(self, candidates, fuzzy_candidates=None):
+    def __init__(self, candidates, fuzzy_candidates=None, exact_error=None, fuzzy_error=None):
         self.candidates = candidates
         self.fuzzy_candidates = fuzzy_candidates or []
+        self.exact_error = exact_error
+        self.fuzzy_error = fuzzy_error
         self.lookups = []
+        self.fuzzy_lookups = []
 
     def find_exact_entry(self, active_exam_target, lookup):
         self.lookups.append((active_exam_target, lookup))
+        if self.exact_error:
+            raise self.exact_error
         return self.candidates.get(lookup)
 
-    def find_english_candidates(self, _active_exam_target, _needle):
+    def find_english_candidates(self, active_exam_target, needle):
+        self.fuzzy_lookups.append((active_exam_target, needle))
+        if self.fuzzy_error:
+            raise self.fuzzy_error
         return self.fuzzy_candidates
 
 
@@ -217,6 +226,71 @@ def test_postgrad_single_word_meaning_lookup_uses_ecdict_exact_fallback(tmp_path
         "external_dictionary_basic"
     )
     assert result.payload.grounding["mainAnswer"][0]["scopeCodes"] == ["postgrad"]
+
+
+def test_postgrad_ecdict_lookup_survives_structured_exact_unavailable(tmp_path):
+    service = OrdinaryLookupService(
+        repository=FakeRepository(
+            {},
+            exact_error=StructuredLookupUnavailable("connection timeout expired"),
+        ),
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda query: profile(
+            "substitute",
+            ["v. 代替；替换；n. 替代者"],
+            entry_kind="word",
+            tag="ky",
+        )
+        if query == "substitute"
+        else None,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="substitute 是什么意思",
+        request_id="req_postgrad_substitute_no_db",
+    )
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert result.payload.grounding["matchType"] == "external_dictionary_exact"
+    assert result.payload.grounding["mainAnswer"][0]["lemma"] == "substitute"
+    assert result.payload.grounding["mainAnswer"][0]["sourceKind"] == (
+        "external_dictionary_basic"
+    )
+    assert result.payload.grounding["mainAnswer"][0]["scopeCodes"] == ["postgrad"]
+
+
+def test_postgrad_usage_lookup_does_not_touch_structured_fuzzy_when_db_unavailable(tmp_path):
+    repository = FakeRepository(
+        {},
+        exact_error=StructuredLookupUnavailable("connection timeout expired"),
+        fuzzy_error=StructuredLookupUnavailable("connection timeout expired"),
+    )
+    service = OrdinaryLookupService(
+        repository=repository,
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda query: profile(
+            "substitute",
+            ["v. 代替；替换；n. 替代者"],
+            entry_kind="word",
+            tag="ky",
+        )
+        if query == "substitute"
+        else None,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="substitute 怎么用",
+        request_id="req_postgrad_substitute_usage_no_db",
+    )
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert result.payload.grounding["matchType"] == "external_dictionary_exact"
+    assert result.payload.grounding["mainAnswer"][0]["lemma"] == "substitute"
+    assert repository.fuzzy_lookups == []
 
 
 def test_out_of_scope_structured_exact_yields_to_ecdict_current_tag(tmp_path):

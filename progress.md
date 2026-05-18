@@ -1,6 +1,18 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-18 ECDICT 主底座 Plan 已落地，待执行）
+## 当前状态与下一步（2026-05-18 ECDICT 主底座 Plan，Task 1 已完成）
+- 当前设计结论不变：ECDICT 是默认大词库底座，structured DB 只是 optional overlay；服务边界只捕获 `StructuredLookupUnavailable`，不能吞掉 SQL 执行错误或其他真实 bug。
+- Active plan: `docs/superpowers/plans/2026-05-18-ecdict-backbone-db-fallback-and-shape-intent.md`。
+  1. Task 1 已完成：`ordinary_lookup` 在 structured exact lookup 不可用时会继续 source/ECDICT fallback；`substitute 是什么意思` 和 `substitute 怎么用` 可由 ECDICT 返回 `external_dictionary_exact`，且用法措辞不会再落到 structured fuzzy lookup 后 500。
+  2. Task 2 未开始：仍需把 `有个像 institute 的词` / `有个和 institute 很像的词` 路由到 `shape_neighbor_search` / `shape_neighbors`，同时保护 `institute 是什么意思` 仍为 ordinary lookup。
+  3. Task 3 未开始：仍需新增 focused no-DB FastAPI smoke，覆盖 ordinary lookup、direct compare、broad fragment 和 plain similar-word wording。
+  4. Task 4 未开始：需要在全部任务和 live no-DB smoke 通过后同步 `bugs.md`、`docs/README.md` 和最终交接。
+- 本轮 Task 1 验证结果：
+  1. RED：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_ordinary_lookup_answer.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 2 failed / 13 passed，两个新增用例均因 `StructuredLookupUnavailable` 从 `find_exact_entry()` 冒出失败；另有既有 pytest cache permission warning。
+  2. GREEN：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_ordinary_lookup_answer.py backend/tests/test_repository.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 24 passed；另有既有 pytest cache permission warning。
+- 下一步：继续 active plan 的 Task 2，不要改 Task 3 smoke 文件；每完成 step 继续勾 plan checkbox，并重写本顶部交接区。
+
+## 历史快照（2026-05-18 ECDICT 主底座 Plan 执行前）
 - 最新产品/架构结论已写入 `docs/superpowers/specs/2026-05-18-ecdict-backbone-structured-overlay-design.md`：ECDICT 是默认大词库底座；旧 structured DB 降级为冻结覆盖层 / 可选精修覆盖层 / 回归样例；后续人工补丁默认走轻量 override，不再维护全量复杂结构化词库。
 - 当前活跃 plan：`docs/superpowers/plans/2026-05-18-ecdict-backbone-db-fallback-and-shape-intent.md`。
   1. Task 1：补 `ordinary_lookup` 的 `StructuredLookupUnavailable` fallback，让 `substitute 是什么意思` / `substitute 怎么用` 在 DB 不可用时继续走 ECDICT，而不是 FastAPI 500。

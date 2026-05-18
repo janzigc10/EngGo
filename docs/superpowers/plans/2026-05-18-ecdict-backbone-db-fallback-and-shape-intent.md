@@ -56,7 +56,7 @@
 - Modify: `backend/tests/test_ordinary_lookup_answer.py`
 - Optionally modify: `bugs.md` only after verification
 
-- [ ] **Step 1: Add a failing ordinary exact fallback test**
+- [x] **Step 1: Add a failing ordinary exact fallback test**
 
 In `backend/tests/test_ordinary_lookup_answer.py`, import `StructuredLookupUnavailable` and extend the fake repository so `find_exact_entry()` can raise it:
 
@@ -122,7 +122,7 @@ def test_postgrad_ecdict_lookup_survives_structured_exact_unavailable(tmp_path):
     assert result.payload.grounding["mainAnswer"][0]["scopeCodes"] == ["postgrad"]
 ```
 
-- [ ] **Step 2: Add a failing usage-wording fallback test**
+- [x] **Step 2: Add a failing usage-wording fallback test**
 
 Add a second test for the user-observed wording:
 
@@ -161,7 +161,7 @@ def test_postgrad_usage_lookup_does_not_touch_structured_fuzzy_when_db_unavailab
 
 The point of this test is not to add usage examples. It prevents the existing lookup/use wording from becoming a DB-dependent 500 before ECDICT can answer the basic entry.
 
-- [ ] **Step 3: Run the tests and verify RED**
+- [x] **Step 3: Run the tests and verify RED**
 
 Run:
 
@@ -171,7 +171,7 @@ C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_ordinary_look
 
 Expected: fail because `StructuredLookupUnavailable` bubbles out of `find_exact_entry()` or because `substitute 怎么用` continues into structured fuzzy lookup.
 
-- [ ] **Step 4: Catch only `StructuredLookupUnavailable` around structured exact lookup**
+- [x] **Step 4: Catch only `StructuredLookupUnavailable` around structured exact lookup**
 
 In `backend/app/answering/ordinary_lookup.py`, import the exception:
 
@@ -192,7 +192,7 @@ except StructuredLookupUnavailable:
 
 Do not catch `Exception`, `psycopg.Error`, or SQL execution errors here.
 
-- [ ] **Step 5: Let single-term lookup/use wording use ECDICT before structured fuzzy**
+- [x] **Step 5: Let single-term lookup/use wording use ECDICT before structured fuzzy**
 
 Extend `should_use_ecdict_exact_fallback()` conservatively:
 
@@ -222,7 +222,7 @@ return (
 
 This must not make "像 X 的词" ordinary lookup; Task 2 moves that route earlier.
 
-- [ ] **Step 6: Skip structured fuzzy lookup when DB is known unavailable**
+- [x] **Step 6: Skip structured fuzzy lookup when DB is known unavailable**
 
 Before calling `find_english_candidates`, guard:
 
@@ -239,7 +239,7 @@ if structured_lookup_unavailable:
 
 This line should only be reached when source/ECDICT fallback already missed. It prevents a second DB call from turning the graceful fallback into another 500.
 
-- [ ] **Step 7: Run focused tests and verify GREEN**
+- [x] **Step 7: Run focused tests and verify GREEN**
 
 Run:
 
@@ -249,14 +249,14 @@ C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_ordinary_look
 
 Expected: pass; existing repository tests still prove SQL errors are not broadly swallowed.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```powershell
 git add backend/app/answering/ordinary_lookup.py backend/tests/test_ordinary_lookup_answer.py
 git commit -m "Handle ordinary lookup when structured DB is unavailable"
 ```
 
-- [ ] **Step 9: Update this plan and `progress.md`**
+- [x] **Step 9: Update this plan and `progress.md`**
 
 Mark Task 1 completed and record the focused test result.
 

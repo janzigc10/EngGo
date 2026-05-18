@@ -7,6 +7,7 @@ from backend.app.content.ecdict import EcdictBasicProfile, scope_codes_for_profi
 from backend.app.content.source_lemmas import find_source_lemma_memberships_for_lookup
 from backend.app.answering.no_match_policy import maybe_plain_no_match_response
 from backend.app.retrieval.normalize_query import NormalizedQuery, normalize_query
+from backend.app.retrieval.repository import StructuredLookupUnavailable
 from backend.app.retrieval.types import RetrievalCandidate
 from backend.app.schemas.chat import ChatSuccessResponse
 
@@ -319,8 +320,21 @@ def should_use_ecdict_exact_fallback(normalized_query: NormalizedQuery) -> bool:
     return (
         normalized_query.query_mode == "fuzzy_recall"
         and len(normalized_query.english_terms) == 1
-        and normalized_query.meaning_hint == normalized_query.english_terms[0]
+        and (
+            normalized_query.meaning_hint == normalized_query.english_terms[0]
+            or has_single_term_lookup_or_usage_cue(normalized_query)
+        )
     )
+
+
+def has_single_term_lookup_or_usage_cue(normalized_query: NormalizedQuery) -> bool:
+    if len(normalized_query.english_terms) != 1:
+        return False
+
+    return re.search(
+        r"(是什么意思|什么意思|是什么|啥意思|怎么用|用法)",
+        normalized_query.normalized_text,
+    ) is not None
 
 
 def select_stable_candidate(
@@ -530,7 +544,12 @@ class OrdinaryLookupService:
             )
 
         needle = lookup_needle(normalized_query)
-        structured_candidate = self.repository.find_exact_entry(active_exam_target, needle)
+        structured_lookup_unavailable = False
+        try:
+            structured_candidate = self.repository.find_exact_entry(active_exam_target, needle)
+        except StructuredLookupUnavailable:
+            structured_candidate = None
+            structured_lookup_unavailable = True
 
         if structured_candidate and structured_candidate.in_scope:
             grounding = build_grounding(
@@ -650,6 +669,15 @@ class OrdinaryLookupService:
                 )
 
         if hasattr(self.repository, "find_english_candidates"):
+            if structured_lookup_unavailable:
+                return self.no_match(
+                    active_exam_target=active_exam_target,
+                    query=query,
+                    request_id=request_id,
+                    normalized_query=normalized_query,
+                    history=history,
+                )
+
             ranked_candidates = self.repository.find_english_candidates(
                 active_exam_target,
                 needle,
