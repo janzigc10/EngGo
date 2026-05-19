@@ -80,6 +80,17 @@ def test_restrict_meaning_aliases_stay_narrow():
     assert "强迫" not in meaning.alternatives
 
 
+def test_internal_ci_word_is_not_stripped_from_meaning_constraint():
+    plan = normalize_query("v开头表示词汇量的单词").intent_plan
+
+    assert plan.task == "semantic_filter"
+    assert {"type": "prefix", "value": "v", "hard": True} in serialized_constraints(plan)
+
+    meaning = next(item for item in plan.constraints if item.type == "meaning")
+
+    assert meaning.value == "词汇量"
+
+
 def test_expression_recall_cleans_chinese_prefix_noise():
     normalized = normalize_query("表达遵守的单词")
 

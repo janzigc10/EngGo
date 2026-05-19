@@ -1175,6 +1175,39 @@ def test_chinese_expression_recall_uses_cleaned_ecdict_meaning_hint():
     assert provider.calls == []
 
 
+def test_responsibility_expression_recall_does_not_admit_bare_responsibility_nouns():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("responsible", ["adj. 有责任的；负责的"], tag="ky"),
+            ecdict_profile("responsibility", ["n. 责任；职责"], tag="ky"),
+            ecdict_profile("liability", ["n. 责任；债务"], tag="ky"),
+            ecdict_profile("duty", ["n. 责任；义务；职责"], tag="ky"),
+        ],
+    )
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="表示承担责任的词有哪些",
+        request_id="req_responsibility_no_bare_nouns",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+    light_lemmas = [item["lemma"] for item in grounding["lightCandidates"]]
+
+    assert result.status_code == 200
+    assert main_lemmas == ["responsible"]
+    assert "responsibility" not in light_lemmas
+    assert "liability" not in light_lemmas
+    assert "duty" not in light_lemmas
+
+
 def test_postgrad_word_family_intent_uses_ecdict_tagged_derivatives():
     ecdict_lookup = SearchableEcdictLookup(
         [

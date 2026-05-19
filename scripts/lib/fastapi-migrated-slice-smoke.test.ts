@@ -95,6 +95,8 @@ describe("fastapi migrated-slice smoke", () => {
         expectedStatus: 200,
         expectedAnswerStyle: "broad_vocab_summary",
         expectedLearningIntentTask: "meaning_core",
+        expectedGroundingIncludes: ["comply"],
+        expectedMainAnswerIncludes: ["comply"],
         expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
@@ -103,6 +105,8 @@ describe("fastapi migrated-slice smoke", () => {
         expectedStatus: 200,
         expectedAnswerStyle: "broad_vocab_summary",
         expectedLearningIntentTask: "meaning_core",
+        expectedGroundingIncludes: ["restrict"],
+        expectedMainAnswerIncludes: ["restrict"],
         expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
@@ -111,6 +115,8 @@ describe("fastapi migrated-slice smoke", () => {
         expectedStatus: 200,
         expectedAnswerStyle: "broad_vocab_summary",
         expectedLearningIntentTask: "meaning_core",
+        expectedGroundingIncludes: ["comply"],
+        expectedMainAnswerIncludes: ["comply"],
         expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
@@ -119,6 +125,8 @@ describe("fastapi migrated-slice smoke", () => {
         expectedStatus: 200,
         expectedAnswerStyle: "broad_vocab_summary",
         expectedLearningIntentTask: "meaning_core",
+        expectedGroundingIncludes: ["responsible"],
+        expectedMainAnswerIncludes: ["responsible"],
         expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
@@ -127,6 +135,8 @@ describe("fastapi migrated-slice smoke", () => {
         expectedStatus: 200,
         expectedAnswerStyle: "broad_vocab_summary",
         expectedLearningIntentTask: "meaning_core",
+        expectedGroundingIncludes: ["express"],
+        expectedMainAnswerIncludes: ["express"],
         expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
