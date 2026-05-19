@@ -18,8 +18,8 @@ compact_chinese_compare_connector_pattern = re.compile(
     r"[a-z]+(?:[-'][a-z]+)*\s*(?:和|与|跟)\s*[a-z]+(?:[-'][a-z]+)*",
     re.IGNORECASE,
 )
-root_cue_pattern = re.compile(
-    r"(词根|前缀|后缀|同根|同族|这一族|一族|家族|词族|这一组|这组词|那组词|派生词|派生|拓展词|扩展词|相关词|变形|形式|构词|组合|开头|结尾|词首|词尾)",
+root_structure_cue_pattern = re.compile(
+    r"(词根|前缀|后缀|构词|组合|开头|结尾|词首|词尾)",
     re.IGNORECASE,
 )
 root_fragment_pattern = re.compile(
@@ -319,9 +319,6 @@ def contains_known_root_family_cue(normalized_text: str, english_terms: list[str
     if family_recall_exclusion_pattern.search(normalized_text) is not None:
         return False
 
-    if english_terms and family_recall_cue_pattern.search(normalized_text):
-        return True
-
     if any(term in known_root_family_terms for term in english_terms):
         return family_recall_cue_pattern.search(normalized_text) is not None
 
@@ -336,6 +333,13 @@ def contains_known_root_family_cue(normalized_text: str, english_terms: list[str
     return (
         fragment_question is not None
         and fragment_question.group(1).lower() in standalone_root_fragments
+    )
+
+
+def contains_root_query_cue(normalized_text: str, english_terms: list[str]) -> bool:
+    return (
+        root_structure_cue_pattern.search(normalized_text) is not None
+        or contains_known_root_family_cue(normalized_text, english_terms)
     )
 
 
@@ -373,9 +377,8 @@ def normalize_query(query: str) -> NormalizedQuery:
     has_chinese = chinese_pattern.search(normalized_text) is not None
     meaning_hint = build_meaning_hint(normalized_text)
     is_root_query = (
-        root_cue_pattern.search(normalized_text) is not None
+        contains_root_query_cue(normalized_text, english_terms)
         or root_fragment_pattern.search(normalized_text) is not None
-        or contains_known_root_family_cue(normalized_text, english_terms)
         or contains_root_fragment_recall_pattern(normalized_text)
     )
     compare_terms = (

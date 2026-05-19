@@ -247,14 +247,20 @@ def test_english_seed_expansion_wording_is_root_family_summary(query):
     "query",
     [
         "contribute意思相关的短语",
+        "contribute意思相关词",
         "responsible的同义词",
+        "responsible同义相关词",
         "respect作文表达怎么用",
+        "respect作文相关词",
+        "respect表达相关词",
         "reduce的搭配",
+        "reduce搭配相关词",
     ],
 )
 def test_semantic_related_writing_and_collocation_stay_out_of_word_family(query):
     result = normalize_query(query)
 
+    assert result.query_mode != "root_family_summary"
     assert result.intent_plan.task != "word_family"
 
 
