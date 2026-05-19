@@ -504,6 +504,80 @@ ecdict_definition_semantic_keywords = {
     "约束": ("restrict", "restrain", "prevent from leaving", "deprive of freedom"),
     "制约": ("restrict", "restrain", "prevent from leaving", "deprive of freedom"),
 }
+meaning_lookup_suffixes = (
+    "\u7684\u82f1\u6587\u662f\u4ec0\u4e48",
+    "\u82f1\u6587\u662f\u4ec0\u4e48",
+    "\u7684\u5355\u8bcd",
+    "\u7684\u8bcd",
+    "\u7684\u8868\u8fbe",
+    "\u600e\u4e48\u8bf4",
+    "\u662f\u4ec0\u4e48",
+    "\u4ec0\u4e48\u610f\u601d",
+    "\u7684",
+)
+
+
+def clean_meaning_lookup_hint(value: str) -> str:
+    hint = " ".join(value.strip().split())
+    if not hint:
+        return ""
+
+    changed = True
+    while changed:
+        changed = False
+        for suffix in meaning_lookup_suffixes:
+            if hint.endswith(suffix):
+                hint = hint[: -len(suffix)].strip()
+                changed = True
+                break
+
+    return hint
+
+
+def profile_contains_meaning_hint(profile: EcdictBasicProfile, hint: str) -> bool:
+    if not hint:
+        return False
+
+    haystack = "\n".join(
+        [
+            *profile.meanings,
+            profile.raw_translation,
+            profile.definition,
+        ],
+    )
+
+    return hint in haystack
+
+
+meaning_segment_separator = re.compile(r"[,;\u3001\uff0c\uff1b\n]")
+
+
+def ecdict_meaning_sort_key(
+    profile: EcdictBasicProfile,
+    *,
+    active_exam_target: str,
+    hint: str,
+):
+    meanings = clean_ecdict_broad_meanings(profile)
+    primary_segment = (
+        meaning_segment_separator.split(meanings[0], maxsplit=1)[0]
+        if meanings
+        else ""
+    )
+    primary_rank = 0 if primary_segment.startswith(hint) else 1 if hint in primary_segment else 2
+
+    return (
+        primary_rank,
+        0
+        if scope_codes_for_profile(
+            profile,
+            active_exam_target=active_exam_target,
+        )
+        else 1,
+        0 if profile.tag.strip() else 1,
+        len(profile.canonical),
+        profile.canonical,
+    )
 
 
 def english_definition_contains(definition: str, keyword: str) -> bool:
@@ -913,6 +987,90 @@ class AdvancedLookupService:
 
         return candidates
 
+    def ecdict_meaning_vocabulary(
+        self,
+        *,
+        active_exam_target: str,
+        meaning_hint: str,
+        limit: int = 18,
+    ) -> list[RetrievalCandidate]:
+        if not self.ecdict_lookup or not hasattr(self.ecdict_lookup, "search"):
+            return []
+
+        clean_hint = clean_meaning_lookup_hint(meaning_hint)
+        if not clean_hint:
+            return []
+
+        def matches_profile(profile: EcdictBasicProfile) -> bool:
+            lemma = profile.canonical.lower()
+            return (
+                profile.entry_kind == "word"
+                and re.fullmatch(r"[a-z][a-z-]*", lemma) is not None
+                and profile_contains_meaning_hint(profile, clean_hint)
+            )
+
+        search = self.ecdict_lookup.search
+        preferred_tags = preferred_ecdict_tags_by_exam_target.get(active_exam_target, ())
+        search_limit = max(limit * 4, 96)
+        profiles = search(
+            lambda profile: bool(
+                scope_codes_for_profile(
+                    profile,
+                    active_exam_target=active_exam_target,
+                ),
+            )
+            and matches_profile(profile),
+            limit=search_limit,
+            preferred_tags=preferred_tags,
+        )
+        if len(profiles) < 1:
+            profiles = search(
+                lambda profile: bool(profile.tag.strip()) and matches_profile(profile),
+                limit=search_limit,
+                preferred_tags=preferred_tags,
+            )
+        if len(profiles) < 1:
+            profiles = search(
+                matches_profile,
+                limit=search_limit,
+                preferred_tags=preferred_tags,
+            )
+
+        candidates: list[RetrievalCandidate] = []
+        for profile in sorted(
+            profiles,
+            key=lambda profile: ecdict_meaning_sort_key(
+                profile,
+                active_exam_target=active_exam_target,
+                hint=clean_hint,
+            ),
+        )[:limit]:
+            candidate = external_dictionary_candidate(
+                profile,
+                active_exam_target=active_exam_target,
+            )
+            if candidate:
+                primary_meaning_match = (
+                    ecdict_meaning_sort_key(
+                        profile,
+                        active_exam_target=active_exam_target,
+                        hint=clean_hint,
+                    )[0]
+                    == 0
+                )
+                candidates.append(
+                    replace(
+                        candidate,
+                        score=40 if primary_meaning_match else candidate.score,
+                        semantic_match_hints=[
+                            *candidate.semantic_match_hints,
+                            clean_hint,
+                        ],
+                    ),
+                )
+
+        return candidates
+
     def ecdict_word_family_vocabulary(
         self,
         *,
@@ -1044,6 +1202,18 @@ class AdvancedLookupService:
         vocabulary = self.dynamic_vocabulary(active_exam_target)
         if (
             normalized_query.intent_plan is not None
+            and normalized_query.intent_plan.task == "meaning_core"
+        ):
+            vocabulary = merge_dynamic_vocabulary(
+                vocabulary,
+                self.ecdict_meaning_vocabulary(
+                    active_exam_target=active_exam_target,
+                    meaning_hint=normalized_query.meaning_hint
+                    or normalized_query.normalized_text,
+                ),
+            )
+        if (
+            normalized_query.intent_plan is not None
             and normalized_query.intent_plan.task == "word_family"
             and len(normalized_query.intent_plan.seed_terms) == 1
         ):
@@ -1109,13 +1279,19 @@ class AdvancedLookupService:
             intent_plan=normalized_query.intent_plan,
         )
 
-        minimum_candidates = (
-            normalized_query.intent_plan.minimum_answerable_candidates
-            if normalized_query.intent_plan is not None
-            else 1
-            if fragment and fragment_can_answer_single_match(fragment)
-            else 2
-        )
+        if (
+            normalized_query.intent_plan is not None
+            and normalized_query.intent_plan.task == "meaning_core"
+        ):
+            minimum_candidates = 1
+        elif normalized_query.intent_plan is not None:
+            minimum_candidates = normalized_query.intent_plan.minimum_answerable_candidates
+        else:
+            minimum_candidates = (
+                1
+                if fragment and fragment_can_answer_single_match(fragment)
+                else 2
+            )
         if len(candidates) < minimum_candidates:
             return None
 
@@ -1146,10 +1322,13 @@ class AdvancedLookupService:
         history: list[dict[str, str]],
         normalized_query: NormalizedQuery,
     ) -> AdvancedLookupResult:
-        candidates = self.repository.find_meaning_candidates(
-            active_exam_target,
-            normalized_query.meaning_hint or normalized_query.normalized_text,
-        )
+        try:
+            candidates = self.repository.find_meaning_candidates(
+                active_exam_target,
+                normalized_query.meaning_hint or normalized_query.normalized_text,
+            )
+        except StructuredLookupUnavailable:
+            candidates = []
 
         if not candidates:
             return self.grounded_no_match(
@@ -1160,10 +1339,13 @@ class AdvancedLookupService:
                 no_match_reason="out_of_kb",
             )
 
-        groups = self.repository.find_confusion_groups_for_entry_ids(
-            active_exam_target,
-            [candidate.entry_id for candidate in candidates],
-        )
+        try:
+            groups = self.repository.find_confusion_groups_for_entry_ids(
+                active_exam_target,
+                [candidate.entry_id for candidate in candidates],
+            )
+        except StructuredLookupUnavailable:
+            groups = []
         group = pick_expression_group(candidates, groups)
         selected = select_meaning_main_candidate(candidates, group)
 

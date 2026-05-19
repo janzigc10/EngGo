@@ -61,6 +61,7 @@ class FakeRepository:
         lemma_entries=None,
         in_scope_entries=None,
         in_scope_error=None,
+        meaning_error=None,
     ):
         self.meaning_candidates = meaning_candidates or []
         self.exact_entries = exact_entries or {}
@@ -69,8 +70,11 @@ class FakeRepository:
         self.lemma_entries = lemma_entries or []
         self.in_scope_entries = in_scope_entries or []
         self.in_scope_error = in_scope_error
+        self.meaning_error = meaning_error
 
     def find_meaning_candidates(self, _active_exam_target, _meaning_keyword):
+        if self.meaning_error:
+            raise self.meaning_error
         return self.meaning_candidates
 
     def find_exact_entry(self, _active_exam_target, lookup):
@@ -1069,6 +1073,57 @@ def test_prefix_suffix_query_uses_ecdict_when_structured_repository_unavailable(
     assert [item["lemma"] for item in grounding["mainAnswer"]] == ["reconcile"]
     assert grounding["learningIntentPlan"]["task"] == "form_filter"
     assert grounding["broadAnswerPlan"]["presentation"] == "inventory_table"
+
+
+def test_meaning_lookup_uses_ecdict_when_structured_repository_unavailable():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile(
+                "action",
+                ["n. \u884c\u52a8\uff1b\u6d3b\u52a8\uff1b\u52a8\u4f5c"],
+                tag="ky",
+            ),
+            ecdict_profile(
+                "activate",
+                ["vt. \u4f7f\u6d3b\u52a8\uff1b\u4f7f\u6fc0\u6d3b"],
+                tag="ky",
+            ),
+            ecdict_profile(
+                "activity",
+                ["n. \u6d3b\u52a8\uff1b\u884c\u52a8\uff1b\u6d3b\u8dc3"],
+                tag="ky",
+            ),
+            ecdict_profile(
+                "active",
+                ["adj. \u79ef\u6781\u7684\uff1b\u6d3b\u8dc3\u7684"],
+                tag="ky",
+            ),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="\u6d3b\u52a8\u7684\u82f1\u6587\u662f\u4ec0\u4e48",
+        request_id="req_activity_meaning_ecdict",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["queryMode"] == "meaning_lookup"
+    assert grounding["resolution"] == "resolved"
+    assert grounding["learningIntentPlan"]["task"] == "meaning_core"
+    assert [item["lemma"] for item in grounding["mainAnswer"]][:1] == ["activity"]
 
 
 def test_postgrad_word_family_intent_uses_ecdict_tagged_derivatives():

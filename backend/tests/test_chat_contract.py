@@ -5,6 +5,9 @@ from backend.app.answering.advanced_lookup import AdvancedLookupResult
 from backend.app.answering.ordinary_lookup import OrdinaryLookupService
 from backend.app.answering.ordinary_lookup import UnsupportedQueryMode
 from backend.app.answering.provider import ChatProviderError
+from backend.app.content.ecdict import EcdictBasicProfile
+from backend.app.core.config import Settings
+import backend.app.main as app_main
 from backend.app.main import create_app
 from backend.app.retrieval.types import (
     ConfusionGroup,
@@ -122,6 +125,65 @@ def test_chat_returns_grounded_ordinary_lookup_from_fastapi_service(tmp_path):
     assert payload["answerKind"] == "grounded"
     assert payload["providerRequestId"] is None
     assert payload["grounding"]["matchType"] == "exact"
+
+
+def test_chat_runtime_does_not_instantiate_structured_repository_by_default(
+    tmp_path,
+    monkeypatch,
+):
+    class FailingStructuredRepository:
+        def __init__(self, **_kwargs):
+            raise AssertionError("structured repository should be opt-in")
+
+    class EcdictLookup:
+        def __call__(self, query: str):
+            if query.strip().lower() != "activity":
+                return None
+
+            return EcdictBasicProfile(
+                canonical="activity",
+                lookup_key="activity",
+                entry_kind="word",
+                match_kind="exact",
+                meanings=["n. activity"],
+                raw_translation="n. activity",
+                tag="ky",
+                definition="",
+            )
+
+    monkeypatch.setattr(
+        app_main,
+        "load_settings",
+        lambda: Settings(
+            database_url="postgresql://enggo:secret@localhost:5432/enggo",
+            source_lemma_base_dir=tmp_path,
+            ecdict_dictionary_path=tmp_path / "ecdict.csv",
+        ),
+    )
+    monkeypatch.setattr(app_main, "StructuredLookupRepository", FailingStructuredRepository)
+    monkeypatch.setattr(
+        app_main,
+        "create_ecdict_basic_profile_lookup",
+        lambda *, dictionary_path: EcdictLookup(),
+    )
+
+    client = TestClient(app_main.create_app())
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "postgrad",
+            "query": "activity",
+            "history": [],
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["providerRequestId"] is None
+    assert payload["grounding"]["matchType"] == "external_dictionary_exact"
+    assert payload["grounding"]["mainAnswer"][0]["lemma"] == "activity"
 
 
 def test_chat_keeps_ordinary_exact_lookup_before_broad_services(tmp_path):

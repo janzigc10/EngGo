@@ -626,6 +626,21 @@ def score_candidate(
                 score += weight
                 break
 
+    if (
+        intent_plan is not None
+        and intent_plan.task == "meaning_core"
+        and candidate.semantic_match_hints
+    ):
+        meaning_hint = candidate.semantic_match_hints[0]
+        weight = 125 + min(max(candidate.score, 0), 50)
+        add_signal_once(
+            signals,
+            signal_type="meaning_keyword",
+            weight=weight,
+            detail=meaning_hint,
+        )
+        score += weight
+
     score += add_intent_constraint_signals(
         signals=signals,
         candidate=candidate,

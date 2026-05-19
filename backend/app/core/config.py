@@ -5,11 +5,16 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
+def parse_bool(value: str | None) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 @dataclass(frozen=True)
 class Settings:
     app_name: str = "enggo-fastapi"
     environment: str = "development"
     database_url: str | None = None
+    use_structured_runtime: bool = False
     openai_api_key: str | None = None
     openai_base_url: str | None = None
     openai_model: str | None = None
@@ -29,6 +34,7 @@ def load_settings(env_file: Path | str | None = None) -> Settings:
     return Settings(
         environment=os.getenv("ENGGO_BACKEND_ENV", "development"),
         database_url=os.getenv("DATABASE_URL"),
+        use_structured_runtime=parse_bool(os.getenv("ENGGO_USE_STRUCTURED_RUNTIME")),
         openai_api_key=os.getenv("OPENAI_API_KEY"),
         openai_base_url=os.getenv("OPENAI_BASE_URL"),
         openai_model=os.getenv("OPENAI_MODEL"),

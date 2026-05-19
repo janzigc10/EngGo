@@ -20,6 +20,58 @@ class StructuredLookupUnavailable(RuntimeError):
     pass
 
 
+class NullStructuredLookupRepository:
+    """DB-free adapter used when structured lookup is not enabled."""
+
+    def find_exact_entry(
+        self,
+        _active_exam_target: str,
+        _lookup: str,
+    ) -> RetrievalCandidate | None:
+        return None
+
+    def find_confusion_groups_for_entry_ids(
+        self,
+        _active_exam_target: str,
+        _entry_ids: list[str],
+    ) -> list[ConfusionGroup]:
+        return []
+
+    def find_english_candidates(
+        self,
+        _active_exam_target: str,
+        _needle: str,
+    ) -> list[RetrievalCandidate]:
+        return []
+
+    def find_meaning_candidates(
+        self,
+        _active_exam_target: str,
+        _meaning_keyword: str,
+    ) -> list[RetrievalCandidate]:
+        return []
+
+    def find_in_scope_lookalike_candidates(
+        self,
+        _active_exam_target: str,
+        _needle: str,
+    ) -> list[RetrievalCandidate]:
+        return []
+
+    def find_entries_by_lemmas(
+        self,
+        _active_exam_target: str,
+        _lemmas: list[str],
+    ) -> list[RetrievalCandidate]:
+        return []
+
+    def find_in_scope_entries(
+        self,
+        _active_exam_target: str,
+    ) -> list[RetrievalCandidate]:
+        return []
+
+
 def is_connection_timeout_error(error: BaseException) -> bool:
     message = str(error).lower()
 

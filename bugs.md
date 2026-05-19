@@ -1,5 +1,23 @@
 # EngGo 已知问题与环境坑
 
+## 2026-05-19 meaning lookup 仍走 structured DB 导致中译英 500（已修，需防回归）
+### 症状
+用户在 Next proxy 里连续问 `遵循的英文是什么`、`活动的英文是什么`，页面返回“当前回答服务暂时不可用”。`.runlogs/chat-interaction.jsonl` 记录 500，FastAPI 错误栈指向 `AdvancedLookupService.answer_meaning()` 里的 `repository.find_meaning_candidates()`，最终由 `StructuredLookupUnavailable: connection timeout expired` 冒泡。
+
+### 根因判断
+structured DB 虽已被产品方向降级为 optional overlay，但 `create_app()` 仍会因为 `.env` 里存在 `DATABASE_URL` 默认实例化 `StructuredLookupRepository`。同时 meaning lookup 缺少 ECDICT 中文释义入口；DB 不可用时既没有 ECDICT 候选，也没有局部降级保护，于是直接变成 500。
+
+### 修复状态
+1. `ENGGO_USE_STRUCTURED_RUNTIME` 现在显式控制 structured overlay；默认注入 `NullStructuredLookupRepository`，不会连接 DB。
+2. meaning lookup 已合并 `ecdict_meaning_vocabulary()`，可以从 ECDICT 中文释义召回中译英候选；`活动` 会优先命中 `activity`。
+3. `answer_meaning()` 只捕获 `StructuredLookupUnavailable` 并降级为空 structured 候选，不吞普通 SQL/schema bug。
+4. no-DB smoke 已新增 `遵循的英文是什么`、`活动的英文是什么`。
+
+### 后续防回归
+- 不要让 `DATABASE_URL` 存在本身重新打开 structured runtime；必须显式设置 `ENGGO_USE_STRUCTURED_RUNTIME=1`。
+- meaning lookup 的默认 grounding 来源是 ECDICT 中文释义搜索，不要重新改成依赖 structured DB 或 provider 猜测。
+- PowerShell 手写中文 JSON 做 smoke 时可能因编码变成 `????`；真实接口验证优先使用 UTF-8 文件或 `\u` escape payload。
+
 ## 2026-05-18 respond/response 派生词未做 `respons-` 词干归一导致 no_match（已修，需防回归）
 ### 症状
 用户截图复现：`response的派生词`、`respond的派生词` 都返回“这个词根/前缀组合还没有稳定收录成词族”，而不是基于 ECDICT 给出 `respond`、`response`、`responsive`、`responsible`、`responsibility` 等同族词。
