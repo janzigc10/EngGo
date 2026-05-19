@@ -124,7 +124,7 @@ git commit -m "Fix Chinese expression recall grounding"
 - Modify: `backend/tests/test_advanced_lookup.py`
 - Modify: `scripts/lib/fastapi-migrated-slice-smoke.ts`
 
-- [ ] **Step 1: Write failing routing tests**
+- [x] **Step 1: Write failing routing tests**
 
 Add tests:
 
@@ -154,7 +154,7 @@ def test_multi_seed_compare_stays_focused(query):
     assert result.intent_plan.task == "focused_compare"
 ```
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 Run:
 
@@ -164,7 +164,7 @@ $env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\U
 
 Expected: new collection-recall cases currently route to `direct_compare`.
 
-- [ ] **Step 3: Adjust query-mode precedence**
+- [x] **Step 3: Adjust query-mode precedence**
 
 Make collection recall cues beat bare `A和B` compare only when the query asks for more lookalike words:
 
@@ -173,7 +173,7 @@ Make collection recall cues beat bare `A和B` compare only when the query asks f
 - preserve semantic-near exclusion from `semantic_similarity_pattern`.
 - update service behavior so `shape_neighbor_search` can handle two seed terms in collection-recall mode; the current single-seed `answer_shape_neighbor()` guard must not turn `A/B 很像的单词` into no-match.
 
-- [ ] **Step 4: Verify service behavior and smoke**
+- [x] **Step 4: Verify service behavior and smoke**
 
 Add service/smoke coverage for:
 
@@ -183,7 +183,7 @@ Add service/smoke coverage for:
 
 Expected: collection recall main answer includes the seed terms plus grounded neighbors when available; focused compare answers only the named terms.
 
-- [ ] **Step 5: Run verification and commit**
+- [x] **Step 5: Run verification and commit**
 
 Run:
 

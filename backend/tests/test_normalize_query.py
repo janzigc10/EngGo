@@ -182,6 +182,35 @@ def test_shape_neighbor_multiple_terms_with_similar_word_cue_is_detected():
     assert result.intent_plan.task == "shape_neighbors"
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "accept \u548c except \u5f88\u50cf\u7684\u5355\u8bcd\u6709\u54ea\u4e9b",
+        "\u8ddfconstitute\u548cinstitute\u5f88\u50cf\u7684\u5355\u8bcd",
+        "restrain \u548c constrain \u5f88\u50cf\u7684\u5355\u8bcd",
+    ],
+)
+def test_multi_seed_lookalike_collection_wins_over_direct_compare(query):
+    result = normalize_query(query)
+
+    assert result.query_mode == "shape_neighbor_search"
+    assert result.intent_plan.task == "shape_neighbors"
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "accept \u548c except \u600e\u4e48\u533a\u5206",
+        "restrain \u548c constrain \u7684\u533a\u522b",
+    ],
+)
+def test_multi_seed_compare_stays_focused(query):
+    result = normalize_query(query)
+
+    assert result.query_mode == "direct_compare"
+    assert result.intent_plan.task == "focused_compare"
+
+
 def test_direct_compare_stays_focused_before_shape_neighbor_cues():
     result = normalize_query("desert和dessert怎么区分")
 

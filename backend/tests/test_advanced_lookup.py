@@ -961,6 +961,71 @@ def test_desert_dessert_similarity_question_resolves_shape_neighbors():
     assert {"desert", "dessert"} <= set(main_lemmas)
 
 
+def test_accept_except_collection_recall_uses_both_seed_terms_from_ecdict():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("accept", ["v. \u63a5\u53d7\uff1b\u627f\u8ba4"], tag="ky"),
+            ecdict_profile("except", ["prep. \u9664\u4e86"], tag="ky"),
+            ecdict_profile("expect", ["v. \u9884\u671f\uff1b\u671f\u5f85"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="accept \u548c except \u5f88\u50cf\u7684\u5355\u8bcd\u6709\u54ea\u4e9b",
+        request_id="req_accept_except_multi_seed_shape",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["queryMode"] == "shape_neighbor_search"
+    assert grounding["learningIntentPlan"]["task"] == "shape_neighbors"
+    assert grounding["broadAnswerPlan"]["presentation"] == "shape_neighbor_table"
+    assert {"accept", "except"} <= set(main_lemmas)
+    assert "expect" in main_lemmas
+
+
+def test_restrain_constrain_collection_recall_stays_shape_neighbor_broad():
+    restrain = candidate("restrain", ["\u6291\u5236\uff1b\u963b\u6b62"], part_of_speech="v.")
+    constrain = candidate("constrain", ["\u5f3a\u8feb\uff1b\u9650\u5236"], part_of_speech="v.")
+    constraint = candidate("constraint", ["\u9650\u5236\uff1b\u7ea6\u675f"], part_of_speech="n.")
+    strain = candidate("strain", ["\u62c9\u7d27\uff1b\u538b\u529b"], part_of_speech="n. / v.")
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            in_scope_entries=[restrain, constrain, constraint, strain],
+        ),
+        provider=provider,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="restrain \u548c constrain \u5f88\u50cf\u7684\u5355\u8bcd",
+        request_id="req_restrain_constrain_multi_seed_shape",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["queryMode"] == "shape_neighbor_search"
+    assert grounding["learningIntentPlan"]["task"] == "shape_neighbors"
+    assert grounding["broadAnswerPlan"]["presentation"] == "shape_neighbor_table"
+    assert {"restrain", "constrain"} <= set(main_lemmas)
+
+
 def test_root_fragment_combines_prefix_and_related_contains_constraints():
     concept = candidate("concept", ["概念"], part_of_speech="n.")
     conference = candidate("conference", ["会议"], part_of_speech="n.")

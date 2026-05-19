@@ -1314,17 +1314,15 @@ class AdvancedLookupService:
                     seed=normalized_query.intent_plan.seed_terms[0],
                 ),
             )
-        if (
-            normalized_query.query_mode == "shape_neighbor_search"
-            and len(normalized_query.english_terms) == 1
-        ):
-            vocabulary = merge_dynamic_vocabulary(
-                vocabulary,
-                self.ecdict_shape_neighbor_vocabulary(
-                    active_exam_target=active_exam_target,
-                    seed=normalized_query.english_terms[0],
-                ),
-            )
+        if normalized_query.query_mode == "shape_neighbor_search":
+            for seed_term in normalized_query.english_terms[:4]:
+                vocabulary = merge_dynamic_vocabulary(
+                    vocabulary,
+                    self.ecdict_shape_neighbor_vocabulary(
+                        active_exam_target=active_exam_target,
+                        seed=seed_term,
+                    ),
+                )
         fragment = None
         if normalized_query.query_mode == "root_family_summary":
             fragment = root_fragment_query(normalized_query.normalized_text)

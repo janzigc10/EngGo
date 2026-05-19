@@ -60,6 +60,29 @@ bare_connector_like_word_pattern = re.compile(
     ),
     re.IGNORECASE,
 )
+lookalike_collection_recall_cue_pattern = re.compile(
+    (
+        "(?:\\u5f88\\u50cf|\\u6bd4\\u8f83\\u50cf|"
+        "\\u76f8\\u4f3c|\\u7c7b\\u4f3c)\\s*\\u7684?\\s*"
+        "(?:\\u5355\\u8bcd|\\u8bcd)"
+        "|\\u8fd8\\u6709\\u6ca1\\u6709\\u76f8\\u4f3c\\u7684\\u8bcd"
+        "|\\u76f8\\u4f3c\\u7684\\u8bcd"
+        "|\\u7c7b\\u4f3c\\u7684\\u8bcd"
+        "|\\u6709\\u54ea\\u4e9b"
+        "|\\u54ea\\u4e9b"
+        "|\\u6613\\u6df7\\u8bcd?"
+    ),
+    re.IGNORECASE,
+)
+focused_compare_cue_pattern = re.compile(
+    (
+        "\\u600e\\u4e48\\u533a\\u5206|\\u533a\\u522b|"
+        "\\u5dee\\u522b|\\u4e0d\\u540c|\\u641e\\u6df7|"
+        "\\u5206\\u4e0d\\u6e05|\\u54ea\\u4e2a|"
+        "\\u54ea\\u4e00\\u4e2a|\\u8fd8\\u662f|vs\\.?|versus|\\bor\\b"
+    ),
+    re.IGNORECASE,
+)
 semantic_similarity_pattern = re.compile(
     r"(相似|类似|很像|比较像|相像).{0,16}(意思|含义|近义|同义)|(意思|含义|近义|同义).{0,16}(相似|类似|很像|比较像|相像)",
     re.IGNORECASE,
@@ -253,6 +276,23 @@ def contains_shape_neighbor_cue(normalized_text: str) -> bool:
     )
 
 
+def contains_lookalike_collection_recall_cue(normalized_text: str) -> bool:
+    if semantic_similarity_pattern.search(normalized_text) is not None:
+        return False
+
+    return (
+        lookalike_collection_recall_cue_pattern.search(normalized_text) is not None
+        and contains_shape_neighbor_cue(normalized_text)
+    )
+
+
+def contains_focused_compare_cue(normalized_text: str) -> bool:
+    return (
+        focused_compare_cue_pattern.search(normalized_text) is not None
+        or compare_cue_pattern.search(normalized_text) is not None
+    )
+
+
 def contains_compare_cue(normalized_text: str, english_terms: list[str]) -> bool:
     if compare_cue_pattern.search(normalized_text) is not None:
         return True
@@ -329,6 +369,11 @@ def normalize_query(query: str) -> NormalizedQuery:
         if contains_compare_cue(normalized_text, english_terms)
         else []
     )
+    has_lookalike_collection_recall = bool(
+        english_terms
+        and contains_lookalike_collection_recall_cue(normalized_text)
+        and not contains_focused_compare_cue(normalized_text)
+    )
 
     query_mode: QueryMode = "meaning_lookup"
 
@@ -336,6 +381,8 @@ def normalize_query(query: str) -> NormalizedQuery:
         query_mode = "root_family_summary"
     elif english_terms and is_root_query:
         query_mode = "root_family_summary"
+    elif has_lookalike_collection_recall:
+        query_mode = "shape_neighbor_search"
     elif len(compare_terms) >= 2:
         query_mode = "direct_compare"
     elif english_terms and contains_shape_neighbor_cue(normalized_text):
