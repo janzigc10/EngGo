@@ -302,7 +302,7 @@ git commit -m "Normalize English seed expansion wording"
 - Modify: `progress.md`
 - Modify: `bugs.md` only if a new confirmed pitfall appears.
 
-- [ ] **Step 1: Run full focused backend matrix**
+- [x] **Step 1: Run full focused backend matrix**
 
 Run:
 
@@ -312,7 +312,7 @@ $env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\U
 
 Expected: pass.
 
-- [ ] **Step 2: Run TS smoke unit tests**
+- [x] **Step 2: Run TS smoke unit tests**
 
 Run:
 
@@ -322,13 +322,13 @@ corepack pnpm test scripts/lib/fastapi-db-unavailable-smoke.test.ts scripts/lib/
 
 Expected: pass.
 
-- [ ] **Step 3: Update docs**
+- [x] **Step 3: Update docs**
 
 - Move this plan into completed/history in `docs/README.md`.
 - Rewrite the top of `progress.md`: list the three P1 fixes, exact verification commands, and the next remaining non-P1 observations.
 - Do not append stale historical bullets.
 
-- [ ] **Step 4: Run diff sanity**
+- [x] **Step 4: Run diff sanity**
 
 Run:
 
@@ -339,7 +339,7 @@ git status --short --branch
 
 Expected: no whitespace errors except existing CRLF warnings if Git emits them.
 
-- [ ] **Step 5: Commit docs**
+- [x] **Step 5: Commit docs**
 
 ```powershell
 git add docs/README.md progress.md bugs.md docs/superpowers/plans/2026-05-19-p1-intent-regression-fixes.md
