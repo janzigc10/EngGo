@@ -343,8 +343,18 @@ def contains_root_query_cue(normalized_text: str, english_terms: list[str]) -> b
     )
 
 
+def contains_related_word_exclusion(normalized_text: str) -> bool:
+    return (
+        "相关" in normalized_text
+        and family_recall_exclusion_pattern.search(normalized_text) is not None
+    )
+
+
 def contains_root_fragment_recall_pattern(normalized_text: str) -> bool:
     text = normalized_text.lower()
+
+    if contains_related_word_exclusion(text):
+        return False
 
     if standalone_fragment_recall_pattern.search(text):
         return True
