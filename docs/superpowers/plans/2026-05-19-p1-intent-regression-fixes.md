@@ -45,7 +45,7 @@
 - Modify: `scripts/lib/fastapi-migrated-slice-smoke.ts`
 - Modify: `scripts/lib/fastapi-db-unavailable-smoke.ts`
 
-- [ ] **Step 1: Write failing tests for representative expression recall**
+- [x] **Step 1: Write failing tests for representative expression recall**
 
 Add tests proving these route to `meaning_lookup` / `meaning_core`, clean the hint, and return ECDICT-first grounded candidates:
 
@@ -68,7 +68,7 @@ Add service tests for:
 
 Expected: 200 grounded, no provider request, main answers contain plausible ECDICT candidates such as `comply` / `follow` / `restrict` / `responsible` / `express`.
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 Run:
 
@@ -78,7 +78,7 @@ $env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\U
 
 Expected: new tests fail because hint cleanup / synonym cue coverage is too narrow.
 
-- [ ] **Step 3: Implement minimal hint cleanup and cue aliases**
+- [x] **Step 3: Implement minimal hint cleanup and cue aliases**
 
 Keep the fix narrow:
 
@@ -86,7 +86,7 @@ Keep the fix narrow:
 - add small Chinese synonym aliases for recurring P1 meanings only, for example `遵守 -> 遵守 / 遵循 / 服从`, `承担责任 -> 负责 / 承担责任`, `表达观点 -> 表达 / 观点 / 陈述`.
 - reuse `ecdict_meaning_vocabulary()` instead of adding structured DB dependency.
 
-- [ ] **Step 4: Add product smoke cases**
+- [x] **Step 4: Add product smoke cases**
 
 Add no-DB / migrated-slice smoke cases for at least:
 
@@ -97,7 +97,7 @@ Add no-DB / migrated-slice smoke cases for at least:
 
 Expected: grounded resolved, `providerRequestId=null`, `learningIntentTask=meaning_core`, and the old `遵循的英文是什么` / `活动的英文是什么` cases still pass.
 
-- [ ] **Step 5: Run verification and commit**
+- [x] **Step 5: Run verification and commit**
 
 Run:
 

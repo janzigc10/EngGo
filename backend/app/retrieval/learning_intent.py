@@ -69,9 +69,22 @@ class LearningIntentPlan:
 prefix_pattern = re.compile(r"(?<![a-z])([a-z]{1,8})(?![a-z])\s*(?:开头|词首|前缀)", re.IGNORECASE)
 suffix_pattern = re.compile(r"(?<![a-z])([a-z]{2,8})(?![a-z])\s*(?:结尾|词尾|后缀)", re.IGNORECASE)
 contains_pattern = re.compile(r"(?:有|含有|包含)\s*([a-z]{2,12})\s*(?:的词|这个片段|这个词形)?", re.IGNORECASE)
-meaning_constraint_pattern = re.compile(r"(?:意思是|表示|含义是|中文是)([\u3400-\u9fff]{1,12})")
+meaning_constraint_pattern = re.compile(r"(?:意思是|表示|表达|含义是|中文是)([\u3400-\u9fff]{1,12})")
 word_family_pattern = re.compile(r"(派生词|派生|同根|这一族|一族|家族|词族|这组词|那组词|那几个词)", re.IGNORECASE)
 meaning_suffix_noise_pattern = re.compile(r"(的)?(单词|词|表达|意思)$")
+meaning_collection_noise_pattern = re.compile(
+    r"(?:的)?(?:单词|词|意思).*$"
+)
+meaning_request_suffixes = (
+    "有哪些哪些考试常见",
+    "哪些考试常见",
+    "有哪些哪些",
+    "有哪些",
+    "哪一些",
+    "哪些",
+    "常见",
+    "的",
+)
 
 
 semantic_aliases = {
@@ -83,6 +96,13 @@ semantic_aliases = {
     "评价": ("评估", "评价", "评论"),
     "限制": ("限制", "约束", "制约"),
     "约束": ("限制", "约束", "制约"),
+    "遵守": ("遵守", "遵循", "遵从", "服从"),
+    "遵循": ("遵循", "遵守", "遵从", "服从"),
+    "遵从": ("遵从", "遵守", "遵循", "服从"),
+    "承担责任": ("承担责任", "负责", "有责任", "责任"),
+    "负责": ("负责", "有责任", "承担责任", "责任"),
+    "表达观点": ("表达观点", "表达", "表示", "陈述", "观点"),
+    "观点": ("观点", "看法", "意见"),
     "提前": ("提前", "预先", "先于", "之前", "预期", "预防"),
     "预先": ("提前", "预先", "先于", "之前", "预期", "预防"),
 }
@@ -126,12 +146,27 @@ def build_form_constraints(text: str) -> list[IntentConstraint]:
     return constraints
 
 
+def clean_meaning_constraint_value(value: str) -> str:
+    result = meaning_collection_noise_pattern.sub("", value).strip()
+    result = meaning_suffix_noise_pattern.sub("", result).strip()
+
+    changed = True
+    while changed:
+        changed = False
+        for suffix in meaning_request_suffixes:
+            if result.endswith(suffix):
+                result = result[: -len(suffix)].strip()
+                changed = True
+                break
+
+    return result.removesuffix("的").strip()
+
+
 def extract_meaning_constraints(text: str) -> list[IntentConstraint]:
     constraints: list[IntentConstraint] = []
 
     for match in meaning_constraint_pattern.finditer(text):
-        value = meaning_suffix_noise_pattern.sub("", match.group(1)).strip()
-        value = value.removesuffix("的")
+        value = clean_meaning_constraint_value(match.group(1))
         if value:
             constraints.append(
                 IntentConstraint(

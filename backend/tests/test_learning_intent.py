@@ -1,3 +1,5 @@
+import pytest
+
 from backend.app.retrieval.learning_intent import build_learning_intent_plan
 from backend.app.retrieval.normalize_query import normalize_query
 
@@ -76,3 +78,46 @@ def test_restrict_meaning_aliases_stay_narrow():
 
     assert set(meaning.alternatives) >= {"限制", "约束", "制约"}
     assert "强迫" not in meaning.alternatives
+
+
+def test_expression_recall_cleans_chinese_prefix_noise():
+    normalized = normalize_query("表达遵守的单词")
+
+    assert normalized.query_mode == "meaning_lookup"
+    assert normalized.intent_plan.task == "meaning_core"
+
+    meaning = next(
+        item for item in normalized.intent_plan.constraints if item.type == "meaning"
+    )
+
+    assert meaning.value == "遵守"
+    assert set(meaning.alternatives) >= {"遵守", "遵循", "遵从", "服从"}
+
+
+@pytest.mark.parametrize(
+    ("query", "expected_hint", "expected_alternatives"),
+    [
+        (
+            "表示承担责任的词有哪些",
+            "承担责任",
+            {"承担责任", "负责", "有责任"},
+        ),
+        (
+            "表示表达观点的词有哪些哪些考试常见",
+            "表达观点",
+            {"表达观点", "表达", "观点", "陈述"},
+        ),
+    ],
+)
+def test_expression_recall_strips_collection_request_suffixes(
+    query,
+    expected_hint,
+    expected_alternatives,
+):
+    plan = normalize_query(query).intent_plan
+
+    meaning = next(item for item in plan.constraints if item.type == "meaning")
+
+    assert plan.task == "meaning_core"
+    assert meaning.value == expected_hint
+    assert set(meaning.alternatives) >= expected_alternatives

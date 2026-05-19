@@ -65,6 +65,26 @@ describe("fastapi DB-unavailable smoke", () => {
         expectedLearningIntentTask: "word_family",
       }),
       expect.objectContaining({
+        name: "meaning lookup obey ecdict fallback",
+        query: "\u9075\u5b88\u7684\u82f1\u6587\u662f\u5565",
+        expectedLearningIntentTask: "meaning_core",
+      }),
+      expect.objectContaining({
+        name: "meaning lookup restrict ecdict fallback",
+        query: "\u9650\u5236\u7528\u82f1\u8bed\u600e\u4e48\u8bf4",
+        expectedLearningIntentTask: "meaning_core",
+      }),
+      expect.objectContaining({
+        name: "meaning lookup expression obey cleaned hint",
+        query: "\u8868\u8fbe\u9075\u5b88\u7684\u5355\u8bcd",
+        expectedLearningIntentTask: "meaning_core",
+      }),
+      expect.objectContaining({
+        name: "meaning lookup responsibility ecdict fallback",
+        query: "\u8868\u793a\u627f\u62c5\u8d23\u4efb\u7684\u8bcd\u6709\u54ea\u4e9b",
+        expectedLearningIntentTask: "meaning_core",
+      }),
+      expect.objectContaining({
         name: "meaning lookup follow ecdict fallback",
         query: "\u9075\u5faa\u7684\u82f1\u6587\u662f\u4ec0\u4e48",
         expectedLearningIntentTask: "meaning_core",

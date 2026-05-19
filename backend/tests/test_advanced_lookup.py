@@ -1126,6 +1126,55 @@ def test_meaning_lookup_uses_ecdict_when_structured_repository_unavailable():
     assert [item["lemma"] for item in grounding["mainAnswer"]][:1] == ["activity"]
 
 
+def test_chinese_expression_recall_uses_cleaned_ecdict_meaning_hint():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("comply", ["v. 遵守；服从"], tag="ky"),
+            ecdict_profile("follow", ["v. 遵循；遵守；跟随"], tag="ky"),
+            ecdict_profile("restrict", ["v. 限制；约束"], tag="ky"),
+            ecdict_profile("responsible", ["adj. 有责任的；负责的"], tag="ky"),
+            ecdict_profile("undertake", ["v. 承担；从事"], tag="ky"),
+            ecdict_profile("express", ["v. 表达；表示；陈述"], tag="ky"),
+            ecdict_profile("opinion", ["n. 意见；观点"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    cases = [
+        ("遵守的英文是啥", {"comply", "follow"}),
+        ("限制用英语怎么说", {"restrict"}),
+        ("表达遵守的单词", {"comply", "follow"}),
+        ("表示承担责任的词有哪些", {"responsible"}),
+        ("表示表达观点的词有哪些哪些考试常见", {"express"}),
+    ]
+
+    for query, expected_lemmas in cases:
+        result = service.answer(
+            active_exam_target="postgrad",
+            query=query,
+            request_id=f"req_{query}",
+        )
+
+        grounding = result.payload.grounding
+        main_lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+
+        assert result.status_code == 200
+        assert result.payload.providerRequestId is None
+        assert grounding["queryMode"] == "meaning_lookup"
+        assert grounding["resolution"] == "resolved"
+        assert grounding["learningIntentPlan"]["task"] == "meaning_core"
+        assert expected_lemmas.intersection(main_lemmas), query
+
+    assert provider.calls == []
+
+
 def test_postgrad_word_family_intent_uses_ecdict_tagged_derivatives():
     ecdict_lookup = SearchableEcdictLookup(
         [
