@@ -213,7 +213,7 @@ git commit -m "Route multi-seed lookalike recall"
 - Modify: `scripts/lib/fastapi-migrated-slice-smoke.ts`
 - Modify: `scripts/lib/fastapi-db-unavailable-smoke.ts`
 
-- [ ] **Step 1: Write failing word-family wording tests**
+- [x] **Step 1: Write failing word-family wording tests**
 
 Add tests for positive cues:
 
@@ -245,7 +245,7 @@ def test_semantic_related_writing_and_collocation_do_not_route_to_word_family(qu
     assert result.intent_plan.task != "word_family"
 ```
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 Run:
 
@@ -255,7 +255,7 @@ $env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\U
 
 Expected: `拓展词/相关词` positive cases are currently `standard_lookup` or no-match.
 
-- [ ] **Step 3: Implement `english_seed_word_family_expansion` rules**
+- [x] **Step 3: Implement `english_seed_word_family_expansion` rules**
 
 In `learning_intent.py`, extend the word-family cue pattern narrowly:
 
@@ -265,11 +265,11 @@ In `learning_intent.py`, extend the word-family cue pattern narrowly:
 
 If needed, update `normalize_query.py` so these positive cues become `root_family_summary`, not `direct_lookup` / `fuzzy_recall`.
 
-- [ ] **Step 4: Verify grounded candidate quality**
+- [x] **Step 4: Verify grounded candidate quality**
 
 Use existing ECDICT word-family expansion where possible. Add only narrow stem aliases if service tests prove a high-value seed cannot form a usable family. Do not add broad prefix-only retrieval.
 
-- [ ] **Step 5: Add smoke cases and commit**
+- [x] **Step 5: Add smoke cases and commit**
 
 Add smoke cases for:
 

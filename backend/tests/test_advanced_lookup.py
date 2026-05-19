@@ -1315,6 +1315,82 @@ def test_postgrad_word_family_intent_uses_ecdict_tagged_derivatives():
     assert "rescue" not in [item["lemma"] for item in grounding["lightCandidates"]]
 
 
+def test_english_seed_expansion_wording_uses_ecdict_word_family_candidates():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("respect", ["n. 尊重；方面", "v. 尊重"], tag="ky"),
+            ecdict_profile("respectful", ["adj. 恭敬的；有礼貌的"], tag="ky"),
+            ecdict_profile("respectable", ["adj. 体面的；值得尊敬的"], tag="ky"),
+            ecdict_profile("reduce", ["v. 减少；降低"], tag="ky"),
+            ecdict_profile("reduction", ["n. 减少；降低"], tag="ky"),
+            ecdict_profile("reduced", ["adj. 减少了的"], tag="ky"),
+            ecdict_profile("reducer", ["n. 减速器；还原剂"], tag="ky"),
+            ecdict_profile("consequence", ["n. 结果；后果"], tag="ky"),
+            ecdict_profile("consequent", ["adj. 随之发生的"], tag="ky"),
+            ecdict_profile("consequently", ["adv. 因此；结果"], tag="ky"),
+            ecdict_profile("contribute", ["v. 贡献；投稿"], tag="ky"),
+            ecdict_profile("contribution", ["n. 贡献；捐献"], tag="ky"),
+            ecdict_profile("contributor", ["n. 贡献者；投稿人"], tag="ky"),
+            ecdict_profile("responsible", ["adj. 有责任的；负责的"], tag="ky"),
+            ecdict_profile("responsibility", ["n. 责任；职责"], tag="ky"),
+            ecdict_profile("responsibly", ["adv. 负责地"], tag="ky"),
+            ecdict_profile("rescue", ["v. 营救"], tag="ky"),
+            ecdict_profile("redress", ["v. 纠正；补偿"], tag="ky"),
+            ecdict_profile("sequence", ["n. 顺序"], tag="ky"),
+            ecdict_profile("conduct", ["v. 进行；指挥"], tag="ky"),
+            ecdict_profile("responsive", ["adj. 响应的"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    cases = [
+        ("respect的拓展词", {"respect", "respectful", "respectable"}, {"rescue"}),
+        ("reduce的拓展词", {"reduce", "reduction", "reduced"}, {"redress"}),
+        (
+            "consequence相关词",
+            {"consequence", "consequent", "consequently"},
+            {"sequence"},
+        ),
+        (
+            "contribute相关词",
+            {"contribute", "contribution", "contributor"},
+            {"conduct"},
+        ),
+        (
+            "responsible的派生/拓展/相关词怎么分",
+            {"responsible", "responsibility", "responsibly"},
+            {"responsive"},
+        ),
+    ]
+
+    for query, expected_lemmas, forbidden_lemmas in cases:
+        result = service.answer(
+            active_exam_target="postgrad",
+            query=query,
+            request_id=f"req_{query}",
+        )
+
+        grounding = result.payload.grounding
+        main_lemmas = {item["lemma"] for item in grounding["mainAnswer"]}
+        light_lemmas = {item["lemma"] for item in grounding["lightCandidates"]}
+
+        assert result.status_code == 200
+        assert result.payload.providerRequestId is None
+        assert grounding["queryMode"] == "root_family_summary"
+        assert grounding["resolution"] == "resolved"
+        assert grounding["learningIntentPlan"]["task"] == "word_family"
+        assert grounding["broadAnswerPlan"]["presentation"] == "word_family_table"
+        assert expected_lemmas <= main_lemmas, query
+        assert forbidden_lemmas.isdisjoint(light_lemmas), query
+
+    assert provider.calls == []
+
+
 def test_word_family_intent_backfills_tagged_derivatives_from_other_exam_scopes():
     ecdict_lookup = SearchableEcdictLookup(
         [

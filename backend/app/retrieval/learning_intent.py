@@ -70,7 +70,14 @@ prefix_pattern = re.compile(r"(?<![a-z])([a-z]{1,8})(?![a-z])\s*(?:开头|词首
 suffix_pattern = re.compile(r"(?<![a-z])([a-z]{2,8})(?![a-z])\s*(?:结尾|词尾|后缀)", re.IGNORECASE)
 contains_pattern = re.compile(r"(?:有|含有|包含)\s*([a-z]{2,12})\s*(?:的词|这个片段|这个词形)?", re.IGNORECASE)
 meaning_constraint_pattern = re.compile(r"(?:意思是|表示|表达|含义是|中文是)([\u3400-\u9fff]{1,24})")
-word_family_pattern = re.compile(r"(派生词|派生|同根|这一族|一族|家族|词族|这组词|那组词|那几个词)", re.IGNORECASE)
+word_family_pattern = re.compile(
+    r"(派生词|派生|拓展词|扩展词|相关词|变形|形式|同根|同族|这一族|一族|家族|词族|这一组|这组词|那组词|那几个词)",
+    re.IGNORECASE,
+)
+word_family_exclusion_pattern = re.compile(
+    r"(意思相关|短语|作文|表达|翻译|同义|近义|搭配)",
+    re.IGNORECASE,
+)
 meaning_suffix_noise_pattern = re.compile(r"(的)?(单词|词|表达|意思)$")
 meaning_collection_noise_pattern = re.compile(
     r"(?:的)?(?:单词|词|表达|意思)$"
@@ -183,6 +190,16 @@ def extract_meaning_constraints(text: str) -> list[IntentConstraint]:
     return constraints
 
 
+def has_word_family_expansion_cue(text: str, english_terms: list[str]) -> bool:
+    if not english_terms:
+        return False
+
+    if word_family_exclusion_pattern.search(text) is not None:
+        return False
+
+    return word_family_pattern.search(text) is not None
+
+
 def build_learning_intent_plan(normalized_query) -> LearningIntentPlan:
     text = normalized_query.normalized_text
     english_terms = list(normalized_query.english_terms)
@@ -212,7 +229,7 @@ def build_learning_intent_plan(normalized_query) -> LearningIntentPlan:
             minimum_answerable_candidates=2,
         )
 
-    if english_terms and word_family_pattern.search(text):
+    if has_word_family_expansion_cue(text, english_terms):
         return LearningIntentPlan(
             task="word_family",
             seed_terms=english_terms[:1],

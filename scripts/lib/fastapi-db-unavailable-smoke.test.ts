@@ -65,6 +65,36 @@ describe("fastapi DB-unavailable smoke", () => {
         expectedLearningIntentTask: "word_family",
       }),
       expect.objectContaining({
+        name: "english seed respect expansion wording",
+        query: "respect的拓展词",
+        expectedLearningIntentTask: "word_family",
+        expectedGroundingIncludes: ["respect", "respectful", "respectable"],
+      }),
+      expect.objectContaining({
+        name: "english seed reduce expansion wording",
+        query: "reduce的拓展词",
+        expectedLearningIntentTask: "word_family",
+        expectedGroundingIncludes: ["reduce", "reduction"],
+      }),
+      expect.objectContaining({
+        name: "english seed consequence related-word wording",
+        query: "consequence相关词",
+        expectedLearningIntentTask: "word_family",
+        expectedGroundingIncludes: ["consequence", "consequent"],
+      }),
+      expect.objectContaining({
+        name: "english seed contribute related-word wording",
+        query: "contribute相关词",
+        expectedLearningIntentTask: "word_family",
+        expectedGroundingIncludes: ["contribute", "contribution"],
+      }),
+      expect.objectContaining({
+        name: "english seed responsible expansion split wording",
+        query: "responsible的派生/拓展/相关词怎么分",
+        expectedLearningIntentTask: "word_family",
+        expectedGroundingIncludes: ["responsible", "responsibility"],
+      }),
+      expect.objectContaining({
         name: "meaning lookup obey ecdict fallback",
         query: "\u9075\u5b88\u7684\u82f1\u6587\u662f\u5565",
         expectedLearningIntentTask: "meaning_core",

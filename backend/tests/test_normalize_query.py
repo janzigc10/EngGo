@@ -225,6 +225,39 @@ def test_study_group_wording_is_root_family_summary():
     assert result.intent_plan.task == "word_family"
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "respect的拓展词",
+        "reduce的拓展词",
+        "consequence相关词",
+        "contribute相关词",
+        "responsible的派生/拓展/相关词怎么分",
+    ],
+)
+def test_english_seed_expansion_wording_is_root_family_summary(query):
+    result = normalize_query(query)
+
+    assert result.query_mode == "root_family_summary"
+    assert result.intent_plan.task == "word_family"
+    assert result.is_supported_ordinary_lookup is False
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "contribute意思相关的短语",
+        "responsible的同义词",
+        "respect作文表达怎么用",
+        "reduce的搭配",
+    ],
+)
+def test_semantic_related_writing_and_collocation_stay_out_of_word_family(query):
+    result = normalize_query(query)
+
+    assert result.intent_plan.task != "word_family"
+
+
 def test_single_word_study_wording_stays_standard_lookup():
     for query in ["mitigate怎么记", "access怎么背"]:
         result = normalize_query(query)

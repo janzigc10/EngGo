@@ -19,7 +19,7 @@ compact_chinese_compare_connector_pattern = re.compile(
     re.IGNORECASE,
 )
 root_cue_pattern = re.compile(
-    r"(词根|前缀|后缀|同根|这一族|一族|家族|词族|这组词|那组词|派生词|派生|构词|组合|开头|结尾|词首|词尾)",
+    r"(词根|前缀|后缀|同根|同族|这一族|一族|家族|词族|这一组|这组词|那组词|派生词|派生|拓展词|扩展词|相关词|变形|形式|构词|组合|开头|结尾|词首|词尾)",
     re.IGNORECASE,
 )
 root_fragment_pattern = re.compile(
@@ -35,7 +35,11 @@ exact_fragment_question_pattern = re.compile(
     re.IGNORECASE,
 )
 family_recall_cue_pattern = re.compile(
-    r"(派生词|派生|同根|这一族|一族|家族|词族|这组词|那组词|一样|那几个词)",
+    r"(派生词|派生|拓展词|扩展词|相关词|变形|形式|同根|同族|这一族|一族|家族|词族|这一组|这组词|那组词|一样|那几个词)",
+    re.IGNORECASE,
+)
+family_recall_exclusion_pattern = re.compile(
+    r"(意思相关|短语|作文|表达|翻译|同义|近义|搭配)",
     re.IGNORECASE,
 )
 shape_neighbor_cue_pattern = re.compile(
@@ -305,6 +309,16 @@ def contains_compare_cue(normalized_text: str, english_terms: list[str]) -> bool
 
 
 def contains_known_root_family_cue(normalized_text: str, english_terms: list[str]) -> bool:
+    if (
+        english_terms
+        and family_recall_cue_pattern.search(normalized_text)
+        and family_recall_exclusion_pattern.search(normalized_text) is None
+    ):
+        return True
+
+    if family_recall_exclusion_pattern.search(normalized_text) is not None:
+        return False
+
     if english_terms and family_recall_cue_pattern.search(normalized_text):
         return True
 

@@ -63,6 +63,39 @@ def test_word_family_study_wording_wins_over_ordinary_lookup():
     assert plan.seed_terms == ["sign"]
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "respect的拓展词",
+        "reduce的拓展词",
+        "consequence相关词",
+        "contribute相关词",
+        "responsible的派生/拓展/相关词怎么分",
+    ],
+)
+def test_english_seed_expansion_wording_routes_to_word_family(query):
+    normalized = normalize_query(query)
+
+    assert normalized.query_mode == "root_family_summary"
+    assert normalized.intent_plan.task == "word_family"
+    assert normalized.intent_plan.seed_terms == [normalized.english_terms[0]]
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "contribute意思相关的短语",
+        "responsible的同义词",
+        "respect作文表达怎么用",
+        "reduce的搭配",
+    ],
+)
+def test_semantic_related_writing_and_collocation_do_not_route_to_word_family(query):
+    normalized = normalize_query(query)
+
+    assert normalized.intent_plan.task != "word_family"
+
+
 def test_meaning_constraint_splits_or_words_into_alternatives():
     plan = normalize_query("con开头表示共同或一起的词").intent_plan
 
