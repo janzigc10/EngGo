@@ -1,21 +1,19 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-18 respond/response 派生词回归已修）
-- 当前设计结论不变：ECDICT 是默认大词库底座，structured DB 只是 optional overlay；服务边界只捕获 `StructuredLookupUnavailable`，不能吞掉 SQL 执行错误、query/schema bug 或其他真实问题。
-- 截图里的 `和contest像的单词` / `和context像的单词` 已修并已提交推送；当前又补了 `respond/response` 派生词回归：`respond -> response/responsive/responsible/responsibility...` 这种需要 `respons-` 词干归一的 ECDICT 词族现在可以命中。
-- 本次补丁只新增保守 stem alias：`respond` / `response` 映射到 `respond`、`respons`；不放宽成任意 `respon*`，也不把 `correspond` 混进主答案。
-- 防回归已补：`backend/tests/test_advanced_lookup.py` 新增 `respond的派生词` ECDICT word-family 用例；`scripts/lib/fastapi-db-unavailable-smoke.ts` 和 `scripts/lib/fastapi-migrated-slice-smoke.ts` 均新增 respond word-family smoke case；`bugs.md` 已记录该坑不是 structured-only，而是 `respons-` stem alias 缺失。
+## 当前状态与下一步（2026-05-19 structured runtime 默认移出实验）
+- 当前实验分支：`codex/remove-structured-runtime-flow`。本轮只把 structured DB 从 FastAPI chat runtime 默认流程拿出；structured 数据、Prisma schema、migration、seed 和 repository 类全部保留。
+- 新默认：即使 `.env` 里有 `DATABASE_URL`，`create_app()` 也会注入 `NullStructuredLookupRepository`，不会创建或连接 `StructuredLookupRepository`。只有显式设置 `ENGGO_USE_STRUCTURED_RUNTIME=1` 且存在 `DATABASE_URL` 时，才启用 structured overlay。
+- ECDICT-first 六类底线已补齐并验证：普通查词、direct compare、shape neighbors、form/fragment filter、word family、meaning lookup / 中译英都能在坏 DB URL / Prisma dev 不启动时返回 200，不再走“旧结构化 DB 不可用 -> 500”。
+- 这次具体修复了用户刚遇到的 `遵循的英文是什么` / `活动的英文是什么` 500：meaning lookup 现在先做 ECDICT 中文释义搜索，且对 `活动` 这类查询优先排“释义首段以 活动 开头”的 `activity`，避免 `activate/action` 抢首位。
+- 当前没有保留运行中的临时 dev server；如要手测，重新跑 `corepack pnpm dev:fastapi`。若要验证 structured overlay，再先恢复 Prisma dev，并显式加 `ENGGO_USE_STRUCTURED_RUNTIME=1`。
 - 最新验证：
-  1. RED：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_advanced_lookup.py -k respond_word_family -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 新用例按预期失败，`resolution` 仍是 `no_match`。
-  2. GREEN：同一命令 -> 1 passed。
-  3. GREEN：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_advanced_lookup.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_student_intent_matrix.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 58 passed；仍有既有 pytest cache permission warning。
-  4. GREEN：`corepack pnpm test scripts/lib/fastapi-db-unavailable-smoke.test.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 2 files / 15 tests passed。
-  5. GREEN：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_repository.py backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py backend/tests/test_student_intent_matrix.py -o cache_dir='C:\tmp\enggo-pytest-cache'` -> 152 passed；仍有既有 pytest cache permission warning。
+  1. RED/GREEN：新增 config/chat contract/advanced lookup 红测，先确认默认仍碰 structured repo、meaning lookup DB unavailable 会失败，再修到通过。
+  2. GREEN：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_repository.py backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py backend/tests/test_student_intent_matrix.py backend/tests/test_config.py` -> 157 passed。
+  3. GREEN：`corepack pnpm test scripts/lib/fastapi-db-unavailable-smoke.test.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 2 files / 15 tests passed。
+  4. GREEN live no-DB FastAPI smoke：坏 `DATABASE_URL` + `ENGGO_USE_STRUCTURED_RUNTIME=0` + ECDICT CSV + 临时 FastAPI `127.0.0.1:8021`，`corepack pnpm eval:fastapi:db-unavailable-smoke -- --base-url http://127.0.0.1:8021 --label fastapi-no-db-structured-disabled` -> 9 total / 9 pass / 0 fail。
+  5. GREEN Next proxy spot check：临时 `corepack pnpm dev:fastapi` 下，`127.0.0.1:3000/api/chat` 对 `活动的英文是什么` -> `grounded/resolved/meaning_core/activity/provider=null`，`遵循的英文是什么` -> `grounded/resolved/meaning_core/follow/provider=null`，`respond的派生词` -> `grounded/resolved/word_family/word_family_table/provider=null`。
   6. `git diff --check` -> exit 0；仅有既有 CRLF warning。
-  7. live no-DB FastAPI smoke：坏 DB URL + ECDICT CSV + 临时 FastAPI `127.0.0.1:8016`，`corepack pnpm eval:fastapi:db-unavailable-smoke -- --base-url http://127.0.0.1:8016 --label fastapi-no-db` -> 7 total / 7 pass / 0 fail。
-  8. Next proxy 实测：已重启最新 dev stack，`127.0.0.1:3000/api/chat` 对 `respond的派生词`、`response的派生词` 均返回 200，`word_family_table`，`providerRequestId=null`。
-- 当前本地 dev stack 已按最新代码重启：FastAPI `127.0.0.1:8000` PID `113828`，Next `127.0.0.1:3000` PID `112896`；日志在 `.runlogs/dev-fastapi-respond-family-20260518.out.log` / `.runlogs/dev-fastapi-respond-family-20260518.err.log`。
-- 下一步：提交并推送本次 respond/response 派生词修复。
+- 下一步：等待用户确认是否把该实验方向合入主线；如果继续观测，优先在真实页面追问中译英、派生词、形近词和 direct compare 四类高频入口。
 
 ## 历史快照（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
 - 产品方向已从“postgrad 没有官方机器词表，所以 ECDICT 只能泛外部兜底”调整为：ECDICT 作为更大的基础词汇底座；自有 structured 词库作为高信任覆盖层。覆盖层仍优先，但只在当前考试范围内命中时覆盖。

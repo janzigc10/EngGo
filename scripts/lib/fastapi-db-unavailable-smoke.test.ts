@@ -64,6 +64,16 @@ describe("fastapi DB-unavailable smoke", () => {
         query: "respond\u7684\u6d3e\u751f\u8bcd",
         expectedLearningIntentTask: "word_family",
       }),
+      expect.objectContaining({
+        name: "meaning lookup follow ecdict fallback",
+        query: "\u9075\u5faa\u7684\u82f1\u6587\u662f\u4ec0\u4e48",
+        expectedLearningIntentTask: "meaning_core",
+      }),
+      expect.objectContaining({
+        name: "meaning lookup activity ecdict fallback",
+        query: "\u6d3b\u52a8\u7684\u82f1\u6587\u662f\u4ec0\u4e48",
+        expectedLearningIntentTask: "meaning_core",
+      }),
     ]);
   });
 

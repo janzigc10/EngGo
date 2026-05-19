@@ -10,7 +10,10 @@ from backend.app.answering.provider import OpenAiChatProvider
 from backend.app.content.ecdict import create_ecdict_basic_profile_lookup
 from backend.app.core.config import load_settings
 from backend.app.core.request_id import create_request_id
-from backend.app.retrieval.repository import StructuredLookupRepository
+from backend.app.retrieval.repository import (
+    NullStructuredLookupRepository,
+    StructuredLookupRepository,
+)
 from backend.app.schemas.chat import ChatError, ChatErrorResponse
 
 
@@ -27,8 +30,8 @@ def create_app(
 
     repository = (
         StructuredLookupRepository(database_url=settings.database_url)
-        if settings.database_url
-        else None
+        if settings.use_structured_runtime and settings.database_url
+        else NullStructuredLookupRepository()
     )
 
     provider = OpenAiChatProvider(
@@ -40,7 +43,7 @@ def create_app(
         dictionary_path=settings.ecdict_dictionary_path,
     )
 
-    if app.state.ordinary_lookup_service is None and repository:
+    if app.state.ordinary_lookup_service is None:
         app.state.ordinary_lookup_service = OrdinaryLookupService(
             repository=repository,
             source_lemma_base_dir=settings.source_lemma_base_dir,
@@ -48,7 +51,7 @@ def create_app(
             provider=provider,
         )
 
-    if app.state.direct_compare_service is None and repository:
+    if app.state.direct_compare_service is None:
         app.state.direct_compare_service = DirectCompareService(
             repository=repository,
             provider=provider,
@@ -56,7 +59,7 @@ def create_app(
             ecdict_lookup=ecdict_lookup,
         )
 
-    if app.state.advanced_lookup_service is None and repository:
+    if app.state.advanced_lookup_service is None:
         app.state.advanced_lookup_service = AdvancedLookupService(
             repository=repository,
             provider=provider,

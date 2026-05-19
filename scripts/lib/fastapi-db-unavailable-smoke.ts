@@ -99,6 +99,32 @@ export function buildFastApiDbUnavailableSmokeCases(): FastApiMigratedSliceSmoke
       expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
+    {
+      name: "meaning lookup follow ecdict fallback",
+      query: "\u9075\u5faa\u7684\u82f1\u6587\u662f\u4ec0\u4e48",
+      activeExamTarget: "postgrad",
+      expectedStatus: 200,
+      expectedAnswerKind: "grounded",
+      expectedResolution: "resolved",
+      expectedLearningIntentTask: "meaning_core",
+      expectedGroundingIncludes: ["follow"],
+      expectedMainAnswerIncludes: ["follow"],
+      expectedProviderRequest: "absent",
+      expectedProviderRequestId: null,
+    },
+    {
+      name: "meaning lookup activity ecdict fallback",
+      query: "\u6d3b\u52a8\u7684\u82f1\u6587\u662f\u4ec0\u4e48",
+      activeExamTarget: "postgrad",
+      expectedStatus: 200,
+      expectedAnswerKind: "grounded",
+      expectedResolution: "resolved",
+      expectedLearningIntentTask: "meaning_core",
+      expectedGroundingIncludes: ["activity"],
+      expectedMainAnswerIncludes: ["activity"],
+      expectedProviderRequest: "absent",
+      expectedProviderRequestId: null,
+    },
   ];
 }
 
