@@ -526,8 +526,6 @@ meaning_lookup_prefixes = (
     "能表达",
     "用来表示",
     "用来表达",
-    "表示",
-    "表达",
 )
 meaning_lookup_suffixes = (
     "\u7684\u82f1\u6587\u662f\u5565",
@@ -1300,7 +1298,8 @@ class AdvancedLookupService:
                 vocabulary,
                 self.ecdict_meaning_vocabulary(
                     active_exam_target=active_exam_target,
-                    meaning_hint=normalized_query.normalized_text,
+                    meaning_hint=normalized_query.meaning_hint
+                    or normalized_query.normalized_text,
                 ),
             )
         if (

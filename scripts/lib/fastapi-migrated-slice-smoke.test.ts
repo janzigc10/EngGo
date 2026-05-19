@@ -122,6 +122,14 @@ describe("fastapi migrated-slice smoke", () => {
         expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
+        name: "meaning lookup express opinion ecdict fallback",
+        query: "\u8868\u793a\u8868\u8fbe\u89c2\u70b9\u7684\u8bcd\u6709\u54ea\u4e9b\u54ea\u4e9b\u8003\u8bd5\u5e38\u89c1",
+        expectedStatus: 200,
+        expectedAnswerStyle: "broad_vocab_summary",
+        expectedLearningIntentTask: "meaning_core",
+        expectedProviderRequest: "absent",
+      }),
+      expect.objectContaining({
         name: "shape recent lookalikes",
         query: "跟 recent 很像的词有哪些",
         expectedStatus: 200,

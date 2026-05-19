@@ -42,6 +42,26 @@ def test_phrase_lookup_with_chinese_lookup_suffix_stays_direct_lookup():
     assert result.is_supported_ordinary_lookup is True
 
 
+@pytest.mark.parametrize(
+    ("query", "expected_hint"),
+    [
+        ("表达遵守的单词", "遵守"),
+        ("限制用英语怎么说", "限制"),
+        ("遵守的英文是啥", "遵守"),
+        ("表示表达观点的词有哪些哪些考试常见", "表达观点"),
+    ],
+)
+def test_chinese_expression_recall_cleans_meaning_hint_at_source(
+    query,
+    expected_hint,
+):
+    result = normalize_query(query)
+
+    assert result.query_mode == "meaning_lookup"
+    assert result.meaning_hint == expected_hint
+    assert result.intent_plan.task == "meaning_core"
+
+
 def test_compare_query_is_unsupported_for_stage_2():
     result = normalize_query("access assess excess 怎么区分")
 

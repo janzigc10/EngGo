@@ -65,6 +65,50 @@ semantic_similarity_pattern = re.compile(
     re.IGNORECASE,
 )
 meaning_noise_pattern = re.compile(r"(是什么意思|怎么说|什么意思|是什么|啥意思|英文|英语|单词|有个|像|的词)")
+meaning_hint_prefixes = (
+    "有没有表示",
+    "有没有表达",
+    "可以表示",
+    "可以表达",
+    "能够表示",
+    "能够表达",
+    "能表示",
+    "能表达",
+    "用来表示",
+    "用来表达",
+    "表示",
+    "表达",
+)
+meaning_hint_suffixes = (
+    "的英文是什么",
+    "英文是什么",
+    "的英文是啥",
+    "英文是啥",
+    "的英语是什么",
+    "英语是什么",
+    "用英语怎么说",
+    "用英文怎么说",
+    "英语怎么说",
+    "英文怎么说",
+    "有哪些哪些考试常见",
+    "哪些考试常见",
+    "有哪些哪些",
+    "有哪些",
+    "哪一些",
+    "哪些",
+    "的单词",
+    "的词",
+    "的表达",
+    "怎么说",
+    "是什么意思",
+    "什么意思",
+    "是什么",
+    "啥意思",
+    "是啥",
+    "考试常见",
+    "常见",
+    "的",
+)
 chinese_pattern = re.compile(r"[\u3400-\u9fff]")
 standalone_root_fragments = {"stitute"}
 known_root_family_terms = {
@@ -132,8 +176,46 @@ def extract_english_terms(normalized_text: str) -> list[str]:
     return unique_terms([match.group(0).lower() for match in english_token_pattern.finditer(normalized_text)])
 
 
+def strip_meaning_request_prefix(value: str) -> str:
+    for prefix in meaning_hint_prefixes:
+        if not value.startswith(prefix) or len(value) <= len(prefix):
+            continue
+
+        stripped = value[len(prefix):].strip()
+        if prefix == "表达" and stripped.startswith("观点"):
+            return value
+
+        return stripped
+
+    return value
+
+
 def build_meaning_hint(normalized_text: str) -> str:
-    return re.sub(r"\s+", " ", meaning_noise_pattern.sub("", normalized_text)).strip()
+    hint = " ".join(normalized_text.strip().split())
+    if not hint:
+        return ""
+
+    changed = True
+    while changed:
+        changed = False
+        for suffix in meaning_hint_suffixes:
+            if hint.endswith(suffix):
+                hint = hint[: -len(suffix)].strip()
+                changed = True
+                break
+
+    hint = strip_meaning_request_prefix(hint)
+
+    changed = True
+    while changed:
+        changed = False
+        for suffix in meaning_hint_suffixes:
+            if hint.endswith(suffix):
+                hint = hint[: -len(suffix)].strip()
+                changed = True
+                break
+
+    return re.sub(r"\s+", " ", meaning_noise_pattern.sub("", hint)).strip()
 
 
 def is_phrase_lookup_with_chinese_suffix(
