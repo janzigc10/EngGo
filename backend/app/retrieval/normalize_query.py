@@ -39,7 +39,7 @@ family_recall_cue_pattern = re.compile(
     re.IGNORECASE,
 )
 family_recall_exclusion_pattern = re.compile(
-    r"(意思相关|短语|作文|表达|翻译|同义|近义|搭配)",
+    r"(意思相关|意思|含义|短语|作文|表达|翻译|同义|近义|搭配)",
     re.IGNORECASE,
 )
 shape_neighbor_cue_pattern = re.compile(

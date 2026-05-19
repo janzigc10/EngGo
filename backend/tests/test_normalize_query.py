@@ -248,6 +248,8 @@ def test_english_seed_expansion_wording_is_root_family_summary(query):
     [
         "contribute意思相关的短语",
         "contribute意思相关词",
+        "contribute相关意思词",
+        "contribute相关含义词",
         "responsible的同义词",
         "responsible同义相关词",
         "responsible相关同义词",
