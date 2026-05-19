@@ -39,7 +39,11 @@ family_recall_cue_pattern = re.compile(
     re.IGNORECASE,
 )
 family_recall_exclusion_pattern = re.compile(
-    r"(意思相关|意思|含义|短语|作文|表达|翻译|同义|近义|搭配)",
+    r"(意思相关|短语|作文|表达|翻译|同义|近义|搭配)",
+    re.IGNORECASE,
+)
+related_meaning_word_exclusion_pattern = re.compile(
+    r"((?:意思|含义)相关(?:的)?(?:词|单词)|相关(?:的)?(?:意思|含义)(?:词|单词))",
     re.IGNORECASE,
 )
 shape_neighbor_cue_pattern = re.compile(
@@ -312,11 +316,11 @@ def contains_known_root_family_cue(normalized_text: str, english_terms: list[str
     if (
         english_terms
         and family_recall_cue_pattern.search(normalized_text)
-        and family_recall_exclusion_pattern.search(normalized_text) is None
+        and not contains_family_recall_exclusion(normalized_text)
     ):
         return True
 
-    if family_recall_exclusion_pattern.search(normalized_text) is not None:
+    if contains_family_recall_exclusion(normalized_text):
         return False
 
     if any(term in known_root_family_terms for term in english_terms):
@@ -343,10 +347,20 @@ def contains_root_query_cue(normalized_text: str, english_terms: list[str]) -> b
     )
 
 
+def contains_family_recall_exclusion(normalized_text: str) -> bool:
+    return (
+        family_recall_exclusion_pattern.search(normalized_text) is not None
+        or related_meaning_word_exclusion_pattern.search(normalized_text) is not None
+    )
+
+
 def contains_related_word_exclusion(normalized_text: str) -> bool:
     return (
-        "相关" in normalized_text
-        and family_recall_exclusion_pattern.search(normalized_text) is not None
+        (
+            "相关" in normalized_text
+            and family_recall_exclusion_pattern.search(normalized_text) is not None
+        )
+        or related_meaning_word_exclusion_pattern.search(normalized_text) is not None
     )
 
 

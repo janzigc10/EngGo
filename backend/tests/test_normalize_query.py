@@ -233,6 +233,10 @@ def test_study_group_wording_is_root_family_summary():
         "consequence相关词",
         "contribute相关词",
         "responsible的派生/拓展/相关词怎么分",
+        "consequence相关词是什么意思",
+        "contribute相关词是什么意思",
+        "respect的拓展词是什么意思",
+        "reduce的拓展词含义",
     ],
 )
 def test_english_seed_expansion_wording_is_root_family_summary(query):
