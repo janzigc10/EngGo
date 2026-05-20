@@ -18,8 +18,8 @@ compact_chinese_compare_connector_pattern = re.compile(
     r"[a-z]+(?:[-'][a-z]+)*\s*(?:和|与|跟)\s*[a-z]+(?:[-'][a-z]+)*",
     re.IGNORECASE,
 )
-root_cue_pattern = re.compile(
-    r"(词根|前缀|后缀|同根|这一族|一族|家族|词族|这组词|那组词|派生词|派生|构词|组合|开头|结尾|词首|词尾)",
+root_structure_cue_pattern = re.compile(
+    r"(词根|前缀|后缀|构词|组合|开头|结尾|词首|词尾)",
     re.IGNORECASE,
 )
 root_fragment_pattern = re.compile(
@@ -35,7 +35,15 @@ exact_fragment_question_pattern = re.compile(
     re.IGNORECASE,
 )
 family_recall_cue_pattern = re.compile(
-    r"(派生词|派生|同根|这一族|一族|家族|词族|这组词|那组词|一样|那几个词)",
+    r"(派生词|派生|拓展词|扩展词|相关词|变形|形式|同根|同族|这一族|一族|家族|词族|这一组|这组词|那组词|一样|那几个词)",
+    re.IGNORECASE,
+)
+family_recall_exclusion_pattern = re.compile(
+    r"(意思相关|短语|作文|表达|翻译|同义|近义|搭配)",
+    re.IGNORECASE,
+)
+related_meaning_word_exclusion_pattern = re.compile(
+    r"((?:意思|含义)相关(?:的)?(?:词|单词)|相关(?:的)?(?:意思|含义)(?:词|单词))",
     re.IGNORECASE,
 )
 shape_neighbor_cue_pattern = re.compile(
@@ -60,11 +68,78 @@ bare_connector_like_word_pattern = re.compile(
     ),
     re.IGNORECASE,
 )
+lookalike_collection_recall_cue_pattern = re.compile(
+    (
+        "(?:\\u5f88\\u50cf|\\u6bd4\\u8f83\\u50cf|"
+        "\\u76f8\\u4f3c|\\u7c7b\\u4f3c)\\s*\\u7684?\\s*"
+        "(?:\\u5355\\u8bcd|\\u8bcd)"
+        "|\\u8fd8\\u6709\\u6ca1\\u6709\\u76f8\\u4f3c\\u7684\\u8bcd"
+        "|\\u76f8\\u4f3c\\u7684\\u8bcd"
+        "|\\u7c7b\\u4f3c\\u7684\\u8bcd"
+        "|\\u6709\\u54ea\\u4e9b"
+        "|\\u54ea\\u4e9b"
+        "|\\u6613\\u6df7\\u8bcd?"
+    ),
+    re.IGNORECASE,
+)
+focused_compare_cue_pattern = re.compile(
+    (
+        "\\u600e\\u4e48\\u533a\\u5206|\\u533a\\u522b|"
+        "\\u5dee\\u522b|\\u4e0d\\u540c|\\u641e\\u6df7|"
+        "\\u5206\\u4e0d\\u6e05|\\u54ea\\u4e2a|"
+        "\\u54ea\\u4e00\\u4e2a|\\u8fd8\\u662f|vs\\.?|versus|\\bor\\b"
+    ),
+    re.IGNORECASE,
+)
 semantic_similarity_pattern = re.compile(
     r"(相似|类似|很像|比较像|相像).{0,16}(意思|含义|近义|同义)|(意思|含义|近义|同义).{0,16}(相似|类似|很像|比较像|相像)",
     re.IGNORECASE,
 )
 meaning_noise_pattern = re.compile(r"(是什么意思|怎么说|什么意思|是什么|啥意思|英文|英语|单词|有个|像|的词)")
+meaning_hint_prefixes = (
+    "有没有表示",
+    "有没有表达",
+    "可以表示",
+    "可以表达",
+    "能够表示",
+    "能够表达",
+    "能表示",
+    "能表达",
+    "用来表示",
+    "用来表达",
+    "表示",
+    "表达",
+)
+meaning_hint_suffixes = (
+    "的英文是什么",
+    "英文是什么",
+    "的英文是啥",
+    "英文是啥",
+    "的英语是什么",
+    "英语是什么",
+    "用英语怎么说",
+    "用英文怎么说",
+    "英语怎么说",
+    "英文怎么说",
+    "有哪些哪些考试常见",
+    "哪些考试常见",
+    "有哪些哪些",
+    "有哪些",
+    "哪一些",
+    "哪些",
+    "的单词",
+    "的词",
+    "的表达",
+    "怎么说",
+    "是什么意思",
+    "什么意思",
+    "是什么",
+    "啥意思",
+    "是啥",
+    "考试常见",
+    "常见",
+    "的",
+)
 chinese_pattern = re.compile(r"[\u3400-\u9fff]")
 standalone_root_fragments = {"stitute"}
 known_root_family_terms = {
@@ -132,8 +207,46 @@ def extract_english_terms(normalized_text: str) -> list[str]:
     return unique_terms([match.group(0).lower() for match in english_token_pattern.finditer(normalized_text)])
 
 
+def strip_meaning_request_prefix(value: str) -> str:
+    for prefix in meaning_hint_prefixes:
+        if not value.startswith(prefix) or len(value) <= len(prefix):
+            continue
+
+        stripped = value[len(prefix):].strip()
+        if prefix == "表达" and stripped.startswith("观点"):
+            return value
+
+        return stripped
+
+    return value
+
+
 def build_meaning_hint(normalized_text: str) -> str:
-    return re.sub(r"\s+", " ", meaning_noise_pattern.sub("", normalized_text)).strip()
+    hint = " ".join(normalized_text.strip().split())
+    if not hint:
+        return ""
+
+    changed = True
+    while changed:
+        changed = False
+        for suffix in meaning_hint_suffixes:
+            if hint.endswith(suffix):
+                hint = hint[: -len(suffix)].strip()
+                changed = True
+                break
+
+    hint = strip_meaning_request_prefix(hint)
+
+    changed = True
+    while changed:
+        changed = False
+        for suffix in meaning_hint_suffixes:
+            if hint.endswith(suffix):
+                hint = hint[: -len(suffix)].strip()
+                changed = True
+                break
+
+    return re.sub(r"\s+", " ", meaning_noise_pattern.sub("", hint)).strip()
 
 
 def is_phrase_lookup_with_chinese_suffix(
@@ -171,6 +284,23 @@ def contains_shape_neighbor_cue(normalized_text: str) -> bool:
     )
 
 
+def contains_lookalike_collection_recall_cue(normalized_text: str) -> bool:
+    if semantic_similarity_pattern.search(normalized_text) is not None:
+        return False
+
+    return (
+        lookalike_collection_recall_cue_pattern.search(normalized_text) is not None
+        and contains_shape_neighbor_cue(normalized_text)
+    )
+
+
+def contains_focused_compare_cue(normalized_text: str) -> bool:
+    return (
+        focused_compare_cue_pattern.search(normalized_text) is not None
+        or compare_cue_pattern.search(normalized_text) is not None
+    )
+
+
 def contains_compare_cue(normalized_text: str, english_terms: list[str]) -> bool:
     if compare_cue_pattern.search(normalized_text) is not None:
         return True
@@ -183,8 +313,15 @@ def contains_compare_cue(normalized_text: str, english_terms: list[str]) -> bool
 
 
 def contains_known_root_family_cue(normalized_text: str, english_terms: list[str]) -> bool:
-    if english_terms and family_recall_cue_pattern.search(normalized_text):
+    if (
+        english_terms
+        and family_recall_cue_pattern.search(normalized_text)
+        and not contains_family_recall_exclusion(normalized_text)
+    ):
         return True
+
+    if contains_family_recall_exclusion(normalized_text):
+        return False
 
     if any(term in known_root_family_terms for term in english_terms):
         return family_recall_cue_pattern.search(normalized_text) is not None
@@ -203,8 +340,35 @@ def contains_known_root_family_cue(normalized_text: str, english_terms: list[str
     )
 
 
+def contains_root_query_cue(normalized_text: str, english_terms: list[str]) -> bool:
+    return (
+        root_structure_cue_pattern.search(normalized_text) is not None
+        or contains_known_root_family_cue(normalized_text, english_terms)
+    )
+
+
+def contains_family_recall_exclusion(normalized_text: str) -> bool:
+    return (
+        family_recall_exclusion_pattern.search(normalized_text) is not None
+        or related_meaning_word_exclusion_pattern.search(normalized_text) is not None
+    )
+
+
+def contains_related_word_exclusion(normalized_text: str) -> bool:
+    return (
+        (
+            "相关" in normalized_text
+            and family_recall_exclusion_pattern.search(normalized_text) is not None
+        )
+        or related_meaning_word_exclusion_pattern.search(normalized_text) is not None
+    )
+
+
 def contains_root_fragment_recall_pattern(normalized_text: str) -> bool:
     text = normalized_text.lower()
+
+    if contains_related_word_exclusion(text):
+        return False
 
     if standalone_fragment_recall_pattern.search(text):
         return True
@@ -237,15 +401,19 @@ def normalize_query(query: str) -> NormalizedQuery:
     has_chinese = chinese_pattern.search(normalized_text) is not None
     meaning_hint = build_meaning_hint(normalized_text)
     is_root_query = (
-        root_cue_pattern.search(normalized_text) is not None
+        contains_root_query_cue(normalized_text, english_terms)
         or root_fragment_pattern.search(normalized_text) is not None
-        or contains_known_root_family_cue(normalized_text, english_terms)
         or contains_root_fragment_recall_pattern(normalized_text)
     )
     compare_terms = (
         english_terms[:4]
         if contains_compare_cue(normalized_text, english_terms)
         else []
+    )
+    has_lookalike_collection_recall = bool(
+        english_terms
+        and contains_lookalike_collection_recall_cue(normalized_text)
+        and not contains_focused_compare_cue(normalized_text)
     )
 
     query_mode: QueryMode = "meaning_lookup"
@@ -254,6 +422,8 @@ def normalize_query(query: str) -> NormalizedQuery:
         query_mode = "root_family_summary"
     elif english_terms and is_root_query:
         query_mode = "root_family_summary"
+    elif has_lookalike_collection_recall:
+        query_mode = "shape_neighbor_search"
     elif len(compare_terms) >= 2:
         query_mode = "direct_compare"
     elif english_terms and contains_shape_neighbor_cue(normalized_text):

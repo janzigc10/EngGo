@@ -34,11 +34,13 @@
   - 初始技术设计。
 
 ## 当前活跃计划
-- 暂无。`docs/superpowers/plans/2026-05-19-remove-structured-runtime-flow.md` 已完成，structured runtime 默认移出实验等待后续合入判断。
+- 暂无。`docs/superpowers/plans/2026-05-19-p1-intent-regression-fixes.md` 已完成，三个最新 P1 intent regression 已在 `codex/p1-intent-regressions` 分支修复并等待合入判断。
 
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。
 
+- `docs/superpowers/plans/2026-05-19-p1-intent-regression-fixes.md`
+  - 三个最新 P1 intent regression 已完成：中译英表达召回清理请求噪声并回到 ECDICT-first grounding；A/B 很像集合召回优先 `shape_neighbor_search` 且保留 focused compare；英文 seed 拓展词/相关词措辞进入 `word_family`，同时排除语义近邻、写作、搭配、翻译、同义/近义等非词族意图。
 - `docs/superpowers/plans/2026-05-19-remove-structured-runtime-flow.md`
   - structured runtime 默认移出实验已完成：保留旧 structured 数据，但默认运行链路改为 ECDICT-first + `NullStructuredLookupRepository`；structured overlay 仅在显式 `ENGGO_USE_STRUCTURED_RUNTIME=1` 时启用，并已用 bad-DB/no-DB smoke 覆盖 exact lookup、direct compare、shape neighbor、word family、fragment/root 和 meaning lookup。
 - `docs/superpowers/plans/2026-05-18-ecdict-backbone-db-fallback-and-shape-intent.md`

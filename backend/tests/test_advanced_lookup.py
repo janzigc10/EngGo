@@ -961,6 +961,71 @@ def test_desert_dessert_similarity_question_resolves_shape_neighbors():
     assert {"desert", "dessert"} <= set(main_lemmas)
 
 
+def test_accept_except_collection_recall_uses_both_seed_terms_from_ecdict():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("accept", ["v. \u63a5\u53d7\uff1b\u627f\u8ba4"], tag="ky"),
+            ecdict_profile("except", ["prep. \u9664\u4e86"], tag="ky"),
+            ecdict_profile("expect", ["v. \u9884\u671f\uff1b\u671f\u5f85"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="accept \u548c except \u5f88\u50cf\u7684\u5355\u8bcd\u6709\u54ea\u4e9b",
+        request_id="req_accept_except_multi_seed_shape",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["queryMode"] == "shape_neighbor_search"
+    assert grounding["learningIntentPlan"]["task"] == "shape_neighbors"
+    assert grounding["broadAnswerPlan"]["presentation"] == "shape_neighbor_table"
+    assert {"accept", "except"} <= set(main_lemmas)
+    assert "expect" in main_lemmas
+
+
+def test_restrain_constrain_collection_recall_stays_shape_neighbor_broad():
+    restrain = candidate("restrain", ["\u6291\u5236\uff1b\u963b\u6b62"], part_of_speech="v.")
+    constrain = candidate("constrain", ["\u5f3a\u8feb\uff1b\u9650\u5236"], part_of_speech="v.")
+    constraint = candidate("constraint", ["\u9650\u5236\uff1b\u7ea6\u675f"], part_of_speech="n.")
+    strain = candidate("strain", ["\u62c9\u7d27\uff1b\u538b\u529b"], part_of_speech="n. / v.")
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            in_scope_entries=[restrain, constrain, constraint, strain],
+        ),
+        provider=provider,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="restrain \u548c constrain \u5f88\u50cf\u7684\u5355\u8bcd",
+        request_id="req_restrain_constrain_multi_seed_shape",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["queryMode"] == "shape_neighbor_search"
+    assert grounding["learningIntentPlan"]["task"] == "shape_neighbors"
+    assert grounding["broadAnswerPlan"]["presentation"] == "shape_neighbor_table"
+    assert {"restrain", "constrain"} <= set(main_lemmas)
+
+
 def test_root_fragment_combines_prefix_and_related_contains_constraints():
     concept = candidate("concept", ["概念"], part_of_speech="n.")
     conference = candidate("conference", ["会议"], part_of_speech="n.")
@@ -1126,6 +1191,88 @@ def test_meaning_lookup_uses_ecdict_when_structured_repository_unavailable():
     assert [item["lemma"] for item in grounding["mainAnswer"]][:1] == ["activity"]
 
 
+def test_chinese_expression_recall_uses_cleaned_ecdict_meaning_hint():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("comply", ["v. 遵守；服从"], tag="ky"),
+            ecdict_profile("follow", ["v. 遵循；遵守；跟随"], tag="ky"),
+            ecdict_profile("restrict", ["v. 限制；约束"], tag="ky"),
+            ecdict_profile("responsible", ["adj. 有责任的；负责的"], tag="ky"),
+            ecdict_profile("undertake", ["v. 承担；从事"], tag="ky"),
+            ecdict_profile("express", ["v. 表达；表示；陈述"], tag="ky"),
+            ecdict_profile("opinion", ["n. 意见；观点"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    cases = [
+        ("遵守的英文是啥", {"comply", "follow"}),
+        ("限制用英语怎么说", {"restrict"}),
+        ("表达遵守的单词", {"comply", "follow"}),
+        ("表示承担责任的词有哪些", {"responsible"}),
+        ("表示表达观点的词有哪些哪些考试常见", {"express"}),
+    ]
+
+    for query, expected_lemmas in cases:
+        result = service.answer(
+            active_exam_target="postgrad",
+            query=query,
+            request_id=f"req_{query}",
+        )
+
+        grounding = result.payload.grounding
+        main_lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+
+        assert result.status_code == 200
+        assert result.payload.providerRequestId is None
+        assert grounding["queryMode"] == "meaning_lookup"
+        assert grounding["resolution"] == "resolved"
+        assert grounding["learningIntentPlan"]["task"] == "meaning_core"
+        assert expected_lemmas.intersection(main_lemmas), query
+
+    assert provider.calls == []
+
+
+def test_responsibility_expression_recall_does_not_admit_bare_responsibility_nouns():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("responsible", ["adj. 有责任的；负责的"], tag="ky"),
+            ecdict_profile("responsibility", ["n. 责任；职责"], tag="ky"),
+            ecdict_profile("liability", ["n. 责任；债务"], tag="ky"),
+            ecdict_profile("duty", ["n. 责任；义务；职责"], tag="ky"),
+        ],
+    )
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="表示承担责任的词有哪些",
+        request_id="req_responsibility_no_bare_nouns",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+    light_lemmas = [item["lemma"] for item in grounding["lightCandidates"]]
+
+    assert result.status_code == 200
+    assert main_lemmas == ["responsible"]
+    assert "responsibility" not in light_lemmas
+    assert "liability" not in light_lemmas
+    assert "duty" not in light_lemmas
+
+
 def test_postgrad_word_family_intent_uses_ecdict_tagged_derivatives():
     ecdict_lookup = SearchableEcdictLookup(
         [
@@ -1166,6 +1313,82 @@ def test_postgrad_word_family_intent_uses_ecdict_tagged_derivatives():
         "respective",
     ]
     assert "rescue" not in [item["lemma"] for item in grounding["lightCandidates"]]
+
+
+def test_english_seed_expansion_wording_uses_ecdict_word_family_candidates():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("respect", ["n. 尊重；方面", "v. 尊重"], tag="ky"),
+            ecdict_profile("respectful", ["adj. 恭敬的；有礼貌的"], tag="ky"),
+            ecdict_profile("respectable", ["adj. 体面的；值得尊敬的"], tag="ky"),
+            ecdict_profile("reduce", ["v. 减少；降低"], tag="ky"),
+            ecdict_profile("reduction", ["n. 减少；降低"], tag="ky"),
+            ecdict_profile("reduced", ["adj. 减少了的"], tag="ky"),
+            ecdict_profile("reducer", ["n. 减速器；还原剂"], tag="ky"),
+            ecdict_profile("consequence", ["n. 结果；后果"], tag="ky"),
+            ecdict_profile("consequent", ["adj. 随之发生的"], tag="ky"),
+            ecdict_profile("consequently", ["adv. 因此；结果"], tag="ky"),
+            ecdict_profile("contribute", ["v. 贡献；投稿"], tag="ky"),
+            ecdict_profile("contribution", ["n. 贡献；捐献"], tag="ky"),
+            ecdict_profile("contributor", ["n. 贡献者；投稿人"], tag="ky"),
+            ecdict_profile("responsible", ["adj. 有责任的；负责的"], tag="ky"),
+            ecdict_profile("responsibility", ["n. 责任；职责"], tag="ky"),
+            ecdict_profile("responsibly", ["adv. 负责地"], tag="ky"),
+            ecdict_profile("rescue", ["v. 营救"], tag="ky"),
+            ecdict_profile("redress", ["v. 纠正；补偿"], tag="ky"),
+            ecdict_profile("sequence", ["n. 顺序"], tag="ky"),
+            ecdict_profile("conduct", ["v. 进行；指挥"], tag="ky"),
+            ecdict_profile("responsive", ["adj. 响应的"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    cases = [
+        ("respect的拓展词", {"respect", "respectful", "respectable"}, {"rescue"}),
+        ("reduce的拓展词", {"reduce", "reduction", "reduced"}, {"redress"}),
+        (
+            "consequence相关词",
+            {"consequence", "consequent", "consequently"},
+            {"sequence"},
+        ),
+        (
+            "contribute相关词",
+            {"contribute", "contribution", "contributor"},
+            {"conduct"},
+        ),
+        (
+            "responsible的派生/拓展/相关词怎么分",
+            {"responsible", "responsibility", "responsibly"},
+            {"responsive"},
+        ),
+    ]
+
+    for query, expected_lemmas, forbidden_lemmas in cases:
+        result = service.answer(
+            active_exam_target="postgrad",
+            query=query,
+            request_id=f"req_{query}",
+        )
+
+        grounding = result.payload.grounding
+        main_lemmas = {item["lemma"] for item in grounding["mainAnswer"]}
+        light_lemmas = {item["lemma"] for item in grounding["lightCandidates"]}
+
+        assert result.status_code == 200
+        assert result.payload.providerRequestId is None
+        assert grounding["queryMode"] == "root_family_summary"
+        assert grounding["resolution"] == "resolved"
+        assert grounding["learningIntentPlan"]["task"] == "word_family"
+        assert grounding["broadAnswerPlan"]["presentation"] == "word_family_table"
+        assert expected_lemmas <= main_lemmas, query
+        assert forbidden_lemmas.isdisjoint(light_lemmas), query
+
+    assert provider.calls == []
 
 
 def test_word_family_intent_backfills_tagged_derivatives_from_other_exam_scopes():

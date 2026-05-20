@@ -504,15 +504,55 @@ ecdict_definition_semantic_keywords = {
     "约束": ("restrict", "restrain", "prevent from leaving", "deprive of freedom"),
     "制约": ("restrict", "restrain", "prevent from leaving", "deprive of freedom"),
 }
+meaning_lookup_aliases = {
+    "遵守": ("遵守", "遵循", "遵从", "服从"),
+    "遵循": ("遵循", "遵守", "遵从", "服从"),
+    "遵从": ("遵从", "遵守", "遵循", "服从"),
+    "限制": ("限制", "约束", "制约"),
+    "约束": ("约束", "限制", "制约"),
+    "承担责任": ("承担责任", "负责", "有责任"),
+    "负责": ("负责", "有责任", "承担责任"),
+    "表达观点": ("表达观点", "表达", "表示", "陈述", "观点"),
+    "观点": ("观点", "看法", "意见"),
+}
+meaning_lookup_prefixes = (
+    "有没有表示",
+    "有没有表达",
+    "可以表示",
+    "可以表达",
+    "能够表示",
+    "能够表达",
+    "能表示",
+    "能表达",
+    "用来表示",
+    "用来表达",
+)
 meaning_lookup_suffixes = (
+    "\u7684\u82f1\u6587\u662f\u5565",
+    "\u82f1\u6587\u662f\u5565",
     "\u7684\u82f1\u6587\u662f\u4ec0\u4e48",
     "\u82f1\u6587\u662f\u4ec0\u4e48",
+    "\u7684\u82f1\u8bed\u662f\u4ec0\u4e48",
+    "\u82f1\u8bed\u662f\u4ec0\u4e48",
+    "\u7528\u82f1\u8bed\u600e\u4e48\u8bf4",
+    "\u7528\u82f1\u6587\u600e\u4e48\u8bf4",
+    "\u82f1\u8bed\u600e\u4e48\u8bf4",
+    "\u82f1\u6587\u600e\u4e48\u8bf4",
+    "\u6709\u54ea\u4e9b\u54ea\u4e9b\u8003\u8bd5\u5e38\u89c1",
+    "\u54ea\u4e9b\u8003\u8bd5\u5e38\u89c1",
+    "\u6709\u54ea\u4e9b\u54ea\u4e9b",
+    "\u6709\u54ea\u4e9b",
+    "\u54ea\u4e00\u4e9b",
+    "\u54ea\u4e9b",
     "\u7684\u5355\u8bcd",
     "\u7684\u8bcd",
     "\u7684\u8868\u8fbe",
     "\u600e\u4e48\u8bf4",
     "\u662f\u4ec0\u4e48",
+    "\u662f\u5565",
     "\u4ec0\u4e48\u610f\u601d",
+    "\u8003\u8bd5\u5e38\u89c1",
+    "\u5e38\u89c1",
     "\u7684",
 )
 
@@ -531,12 +571,41 @@ def clean_meaning_lookup_hint(value: str) -> str:
                 changed = True
                 break
 
+    for prefix in meaning_lookup_prefixes:
+        if hint.startswith(prefix) and len(hint) > len(prefix):
+            hint = hint[len(prefix):].strip()
+            break
+
+    changed = True
+    while changed:
+        changed = False
+        for suffix in meaning_lookup_suffixes:
+            if hint.endswith(suffix):
+                hint = hint[: -len(suffix)].strip()
+                changed = True
+                break
+
     return hint
 
 
-def profile_contains_meaning_hint(profile: EcdictBasicProfile, hint: str) -> bool:
+def meaning_lookup_hints(hint: str) -> tuple[str, ...]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in (hint, *meaning_lookup_aliases.get(hint, ())):
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+
+    return tuple(result)
+
+
+def profile_matching_meaning_hint(
+    profile: EcdictBasicProfile,
+    hint: str,
+) -> str | None:
     if not hint:
-        return False
+        return None
 
     haystack = "\n".join(
         [
@@ -546,7 +615,15 @@ def profile_contains_meaning_hint(profile: EcdictBasicProfile, hint: str) -> boo
         ],
     )
 
-    return hint in haystack
+    for lookup_hint in meaning_lookup_hints(hint):
+        if lookup_hint in haystack:
+            return lookup_hint
+
+    return None
+
+
+def profile_contains_meaning_hint(profile: EcdictBasicProfile, hint: str) -> bool:
+    return profile_matching_meaning_hint(profile, hint) is not None
 
 
 meaning_segment_separator = re.compile(r"[,;\u3001\uff0c\uff1b\n]")
@@ -564,7 +641,14 @@ def ecdict_meaning_sort_key(
         if meanings
         else ""
     )
-    primary_rank = 0 if primary_segment.startswith(hint) else 1 if hint in primary_segment else 2
+    hints = meaning_lookup_hints(hint)
+    primary_rank = (
+        0
+        if any(primary_segment.startswith(item) for item in hints)
+        else 1
+        if any(item in primary_segment for item in hints)
+        else 2
+    )
 
     return (
         primary_rank,
@@ -1050,6 +1134,7 @@ class AdvancedLookupService:
                 active_exam_target=active_exam_target,
             )
             if candidate:
+                matched_hint = profile_matching_meaning_hint(profile, clean_hint)
                 primary_meaning_match = (
                     ecdict_meaning_sort_key(
                         profile,
@@ -1065,6 +1150,11 @@ class AdvancedLookupService:
                         semantic_match_hints=[
                             *candidate.semantic_match_hints,
                             clean_hint,
+                            *(
+                                [matched_hint]
+                                if matched_hint and matched_hint != clean_hint
+                                else []
+                            ),
                         ],
                     ),
                 )
@@ -1224,17 +1314,15 @@ class AdvancedLookupService:
                     seed=normalized_query.intent_plan.seed_terms[0],
                 ),
             )
-        if (
-            normalized_query.query_mode == "shape_neighbor_search"
-            and len(normalized_query.english_terms) == 1
-        ):
-            vocabulary = merge_dynamic_vocabulary(
-                vocabulary,
-                self.ecdict_shape_neighbor_vocabulary(
-                    active_exam_target=active_exam_target,
-                    seed=normalized_query.english_terms[0],
-                ),
-            )
+        if normalized_query.query_mode == "shape_neighbor_search":
+            for seed_term in normalized_query.english_terms[:4]:
+                vocabulary = merge_dynamic_vocabulary(
+                    vocabulary,
+                    self.ecdict_shape_neighbor_vocabulary(
+                        active_exam_target=active_exam_target,
+                        seed=seed_term,
+                    ),
+                )
         fragment = None
         if normalized_query.query_mode == "root_family_summary":
             fragment = root_fragment_query(normalized_query.normalized_text)

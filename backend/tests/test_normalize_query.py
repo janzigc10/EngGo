@@ -42,6 +42,26 @@ def test_phrase_lookup_with_chinese_lookup_suffix_stays_direct_lookup():
     assert result.is_supported_ordinary_lookup is True
 
 
+@pytest.mark.parametrize(
+    ("query", "expected_hint"),
+    [
+        ("表达遵守的单词", "遵守"),
+        ("限制用英语怎么说", "限制"),
+        ("遵守的英文是啥", "遵守"),
+        ("表示表达观点的词有哪些哪些考试常见", "表达观点"),
+    ],
+)
+def test_chinese_expression_recall_cleans_meaning_hint_at_source(
+    query,
+    expected_hint,
+):
+    result = normalize_query(query)
+
+    assert result.query_mode == "meaning_lookup"
+    assert result.meaning_hint == expected_hint
+    assert result.intent_plan.task == "meaning_core"
+
+
 def test_compare_query_is_unsupported_for_stage_2():
     result = normalize_query("access assess excess 怎么区分")
 
@@ -162,6 +182,35 @@ def test_shape_neighbor_multiple_terms_with_similar_word_cue_is_detected():
     assert result.intent_plan.task == "shape_neighbors"
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "accept \u548c except \u5f88\u50cf\u7684\u5355\u8bcd\u6709\u54ea\u4e9b",
+        "\u8ddfconstitute\u548cinstitute\u5f88\u50cf\u7684\u5355\u8bcd",
+        "restrain \u548c constrain \u5f88\u50cf\u7684\u5355\u8bcd",
+    ],
+)
+def test_multi_seed_lookalike_collection_wins_over_direct_compare(query):
+    result = normalize_query(query)
+
+    assert result.query_mode == "shape_neighbor_search"
+    assert result.intent_plan.task == "shape_neighbors"
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "accept \u548c except \u600e\u4e48\u533a\u5206",
+        "restrain \u548c constrain \u7684\u533a\u522b",
+    ],
+)
+def test_multi_seed_compare_stays_focused(query):
+    result = normalize_query(query)
+
+    assert result.query_mode == "direct_compare"
+    assert result.intent_plan.task == "focused_compare"
+
+
 def test_direct_compare_stays_focused_before_shape_neighbor_cues():
     result = normalize_query("desert和dessert怎么区分")
 
@@ -174,6 +223,54 @@ def test_study_group_wording_is_root_family_summary():
 
     assert result.query_mode == "root_family_summary"
     assert result.intent_plan.task == "word_family"
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "respect的拓展词",
+        "reduce的拓展词",
+        "consequence相关词",
+        "contribute相关词",
+        "responsible的派生/拓展/相关词怎么分",
+        "consequence相关词是什么意思",
+        "contribute相关词是什么意思",
+        "respect的拓展词是什么意思",
+        "reduce的拓展词含义",
+    ],
+)
+def test_english_seed_expansion_wording_is_root_family_summary(query):
+    result = normalize_query(query)
+
+    assert result.query_mode == "root_family_summary"
+    assert result.intent_plan.task == "word_family"
+    assert result.is_supported_ordinary_lookup is False
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "contribute意思相关的短语",
+        "contribute意思相关词",
+        "contribute相关意思词",
+        "contribute相关含义词",
+        "responsible的同义词",
+        "responsible同义相关词",
+        "responsible相关同义词",
+        "respect作文表达怎么用",
+        "respect作文相关词",
+        "respect相关作文词",
+        "respect表达相关词",
+        "reduce的搭配",
+        "reduce搭配相关词",
+        "reduce相关搭配词",
+    ],
+)
+def test_semantic_related_writing_and_collocation_stay_out_of_word_family(query):
+    result = normalize_query(query)
+
+    assert result.query_mode != "root_family_summary"
+    assert result.intent_plan.task != "word_family"
 
 
 def test_single_word_study_wording_stays_standard_lookup():
