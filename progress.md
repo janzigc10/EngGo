@@ -1,7 +1,7 @@
 # EngGo 滚动交接
 
 ## 当前状态与下一步（2026-05-20 meaning lookup scope tag 过滤收口）
-- 当前修复分支：`codex/meaning-lookup-scope-filter`，工作区 `C:\Users\Chen\Desktop\EngGo`。本轮提交链：`ac0c119` 计划入口、`e9670f2` 红测、`d08b838` 生产修复、`2ce4135` 普通 lookup 保护测试、`3f3a0c9` 文档与验证收口；本次只做小范围中译英 scope tag 过滤，不改产品大方向。
+- 当前修复分支：`codex/meaning-lookup-scope-filter`，工作区 `C:\Users\Chen\Desktop\EngGo`。本轮提交链：`ac0c119` 计划入口、`e9670f2` 红测、`d08b838` 生产修复、`2ce4135` 普通 lookup 保护测试、`3f3a0c9` 文档与验证收口、`490c0f1` handoff evidence polish；本次只做小范围中译英 scope tag 过滤，不改产品大方向。
 - 行为结论：
   1. 中译英 `meaning_lookup / meaning_core` 现在只允许当前 scope 的 ECDICT tag 候选进入主答案；`gaokao` 下 `gre` 或无标签候选不会成为 main answer。
   2. 普通英文查词仍保持全局 ECDICT fallback；例如 `viaduct 是什么意思` 这类 English exact lookup 仍可返回 `external_dictionary_exact` / `external_dictionary_basic`，即使 `scopeCodes=[]`。
