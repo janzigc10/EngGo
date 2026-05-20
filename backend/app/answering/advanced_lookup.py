@@ -1107,18 +1107,6 @@ class AdvancedLookupService:
             limit=search_limit,
             preferred_tags=preferred_tags,
         )
-        if len(profiles) < 1:
-            profiles = search(
-                lambda profile: bool(profile.tag.strip()) and matches_profile(profile),
-                limit=search_limit,
-                preferred_tags=preferred_tags,
-            )
-        if len(profiles) < 1:
-            profiles = search(
-                matches_profile,
-                limit=search_limit,
-                preferred_tags=preferred_tags,
-            )
 
         candidates: list[RetrievalCandidate] = []
         for profile in sorted(

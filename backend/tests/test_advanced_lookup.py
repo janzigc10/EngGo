@@ -1303,6 +1303,7 @@ def test_gaokao_meaning_lookup_accepts_current_scope_ecdict_tags():
     assert [item["lemma"] for item in grounding["mainAnswer"]][:1] == [
         "restrict",
     ]
+    assert "constrain" not in [item["lemma"] for item in grounding["mainAnswer"]]
 
 
 def test_chinese_expression_recall_uses_cleaned_ecdict_meaning_hint():
