@@ -34,7 +34,8 @@
   - 初始技术设计。
 
 ## 当前活跃计划
-- 暂无。`docs/superpowers/plans/2026-05-19-p1-intent-regression-fixes.md` 已完成，三个最新 P1 intent regression 已在 `codex/p1-intent-regressions` 分支修复并等待合入判断。
+- `docs/superpowers/plans/2026-05-20-meaning-lookup-scope-tag-filter.md`
+  - 轻量后续计划：合回 `codex/p1-intent-regressions` 后，单独收紧中译英 / `meaning_lookup` 的 ECDICT 当前 scope tag 主答案过滤；普通英文 lookup 继续保持全局 ECDICT 查询能力。
 
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。

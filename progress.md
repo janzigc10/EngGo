@@ -12,8 +12,9 @@
   3. Task 1/2/3 分别完成 spec/quality code review；Task 3 经过多轮复审后最终 `Ready to proceed: Yes`，无剩余 Critical/Important。
 - 最新手测观察：用户按高考/四级/六级/考研不同范围抽测后，易混词、形近集合、前后缀/片段、派生/拓展词和普通 exact lookup 的整体体验可接受；普通英文 lookup 继续允许全局查外部词典，其他学习型板块的词书分区体感已经明显改善。
 - 合回后下一项优先看中译英 / meaning lookup 的 ECDICT tag 范围策略：外部词典已有 `gk/zk`、`cet4`、`cet6`、`ky` 等标签，但当前 meaning lookup 仍把标签当排序和兜底，不是主答案硬过滤。高考手测里 `高架桥怎么说 -> viaduct`（ECDICT `gre` 标签）、`通风管怎么说 -> ventiduct`（无考试标签）、以及 `下限怎么说` / `航天工程怎么说` 这类低质候选不应作为当前词书主答案。建议保持普通英文查词全局，但把中译英主候选收紧到当前 scope 的 ECDICT tag；没有当前范围候选时给保守 no-match / 范围外提示，而不是继续捞无标签或非当前考试标签候选。
+- 已新增轻量执行计划：`docs/superpowers/plans/2026-05-20-meaning-lookup-scope-tag-filter.md`。执行前先合回 `codex/p1-intent-regressions` 或基于该分支 rebase；计划边界是只收紧中译英 `meaning_lookup / meaning_core` 主候选，不收紧普通英文 exact/source/ECDICT lookup。
 - 注意：在 `C:\tmp\enggo-worktrees\p1-intent-regressions` 手测 FastAPI 时，需要显式设置 `ENGGO_ECDICT_PATH=C:\Users\Chen\Desktop\EngGo\output\external-dictionaries\ecdict.csv`，因为临时 worktree 不包含 ignored 的 ECDICT CSV。
-- 下一步：本分支可以合回主工作区；合回后把中译英 ECDICT tag 硬过滤作为独立后续任务处理，不要在这个 P1 intent regression 合并里继续扩大范围。
+- 下一步：本分支可以合回主工作区；合回后按 `2026-05-20-meaning-lookup-scope-tag-filter.md` 执行中译英 ECDICT tag 硬过滤，不要在这个 P1 intent regression 合并里继续扩大范围。
 
 ## 历史快照（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
 - 产品方向已从“postgrad 没有官方机器词表，所以 ECDICT 只能泛外部兜底”调整为：ECDICT 作为更大的基础词汇底座；自有 structured 词库作为高信任覆盖层。覆盖层仍优先，但只在当前考试范围内命中时覆盖。
