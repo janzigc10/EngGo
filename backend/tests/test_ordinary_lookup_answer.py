@@ -228,6 +228,34 @@ def test_postgrad_single_word_meaning_lookup_uses_ecdict_exact_fallback(tmp_path
     assert result.payload.grounding["mainAnswer"][0]["scopeCodes"] == ["postgrad"]
 
 
+def test_ordinary_lookup_keeps_global_ecdict_fallback_for_non_scope_tags(tmp_path):
+    service = OrdinaryLookupService(
+        repository=FakeRepository({}),
+        source_lemma_base_dir=tmp_path / "missing-source-lemmas",
+        ecdict_lookup=lambda lookup: profile(
+            "viaduct",
+            ["n. 高架桥；高架铁路"],
+            tag="gre",
+        )
+        if lookup == "viaduct"
+        else None,
+    )
+
+    result = service.answer(
+        active_exam_target="gaokao",
+        query="viaduct 是什么意思",
+        request_id="req_viaduct_global_lookup",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert grounding["matchType"] == "external_dictionary_exact"
+    assert grounding["mainAnswer"][0]["lemma"] == "viaduct"
+    assert grounding["mainAnswer"][0]["scopeCodes"] == []
+
+
 def test_postgrad_ecdict_lookup_survives_structured_exact_unavailable(tmp_path):
     service = OrdinaryLookupService(
         repository=FakeRepository(
