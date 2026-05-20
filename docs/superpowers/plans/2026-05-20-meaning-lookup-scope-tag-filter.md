@@ -372,6 +372,7 @@ Expected: no whitespace errors; only intentional files changed.
 - Focused backend verification: `$env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\Users\Chen\anaconda3\python.exe' -m pytest -q backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py -p no:cacheprovider` -> `144 passed in 1.33s`.
 - Smoke verification: `corepack pnpm test scripts/lib/fastapi-db-unavailable-smoke.test.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> `2 passed` test files / `15 passed` tests.
 - Live FastAPI smoke skipped: Task 4 did not change the real `/api/chat` production path; the scope behavior is covered by focused pytest and existing no-DB / migrated FastAPI smoke matrices.
+- Final diff checks: `git diff --check` -> clean; `git status --short --branch` -> clean on `codex/meaning-lookup-scope-filter` after the Task 4 commit.
 
 ---
 
