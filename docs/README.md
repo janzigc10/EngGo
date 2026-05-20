@@ -34,12 +34,13 @@
   - 初始技术设计。
 
 ## 当前活跃计划
-- `docs/superpowers/plans/2026-05-20-meaning-lookup-scope-tag-filter.md`
-  - 轻量后续计划：合回 `codex/p1-intent-regressions` 后，单独收紧中译英 / `meaning_lookup` 的 ECDICT 当前 scope tag 主答案过滤；普通英文 lookup 继续保持全局 ECDICT 查询能力。
+- 暂无。
 
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。
 
+- `docs/superpowers/plans/2026-05-20-meaning-lookup-scope-tag-filter.md`
+  - 中译英 / `meaning_lookup` 的 ECDICT 当前 scope tag 主答案过滤已完成：`gre` / 无标签候选不再进入 `gaokao` 等当前词书的 meaning lookup main answer；普通英文 lookup 继续保持全局 ECDICT fallback。Task 4 未新增 smoke case，原因是稳定断言已有 fixture pytest 覆盖，而新增 real smoke 需要同步改精确矩阵测试。
 - `docs/superpowers/plans/2026-05-19-p1-intent-regression-fixes.md`
   - 三个最新 P1 intent regression 已完成：中译英表达召回清理请求噪声并回到 ECDICT-first grounding；A/B 很像集合召回优先 `shape_neighbor_search` 且保留 focused compare；英文 seed 拓展词/相关词措辞进入 `word_family`，同时排除语义近邻、写作、搭配、翻译、同义/近义等非词族意图。
 - `docs/superpowers/plans/2026-05-19-remove-structured-runtime-flow.md`

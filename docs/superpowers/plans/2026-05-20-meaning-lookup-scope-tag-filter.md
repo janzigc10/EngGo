@@ -45,7 +45,7 @@
 **Files:**
 - Modify: `backend/tests/test_advanced_lookup.py`
 
-- [ ] **Step 1: Add a failing service test for non-current tagged candidates**
+- [x] **Step 1: Add a failing service test for non-current tagged candidates**
 
 Add a test near the existing meaning lookup tests:
 
@@ -83,7 +83,7 @@ def test_gaokao_meaning_lookup_rejects_non_current_ecdict_tags():
     ]
 ```
 
-- [ ] **Step 2: Add a failing service test for untagged candidates**
+- [x] **Step 2: Add a failing service test for untagged candidates**
 
 Use the same structure, but with an untagged profile:
 
@@ -116,7 +116,7 @@ def test_gaokao_meaning_lookup_rejects_untagged_ecdict_candidates():
     ]
 ```
 
-- [ ] **Step 3: Add a positive in-scope control**
+- [x] **Step 3: Add a positive in-scope control**
 
 Add a test proving the stricter path still answers when the ECDICT profile has the active scope tag:
 
@@ -150,7 +150,7 @@ def test_gaokao_meaning_lookup_accepts_current_scope_ecdict_tags():
     ]
 ```
 
-- [ ] **Step 4: Run the red tests**
+- [x] **Step 4: Run the red tests**
 
 Run:
 
@@ -168,7 +168,7 @@ Expected: the new rejection tests fail because `ecdict_meaning_vocabulary()` cur
 - Modify: `backend/app/answering/advanced_lookup.py`
 - Modify: `backend/tests/test_advanced_lookup.py`
 
-- [ ] **Step 1: Remove widening fallback from `ecdict_meaning_vocabulary()`**
+- [x] **Step 1: Remove widening fallback from `ecdict_meaning_vocabulary()`**
 
 Change `AdvancedLookupService.ecdict_meaning_vocabulary()` so `meaning_core` candidates are searched only through:
 
@@ -200,7 +200,7 @@ matches_profile
 
 Keep the existing sort and candidate conversion. The result should be an empty candidate list when no current-scope ECDICT profile matches.
 
-- [ ] **Step 2: Verify the service now returns conservative no-match**
+- [x] **Step 2: Verify the service now returns conservative no-match**
 
 Run:
 
@@ -210,7 +210,7 @@ $env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\U
 
 Expected: all meaning lookup tests pass, including existing P1 cases such as `遵守的英文是啥` under `postgrad`.
 
-- [ ] **Step 3: Check for unintended call sites**
+- [x] **Step 3: Check for unintended call sites**
 
 Search:
 
@@ -228,7 +228,7 @@ Expected: no other caller depends on `ecdict_meaning_vocabulary()` widening outs
 - Modify: `backend/tests/test_ordinary_lookup_answer.py`
 - Do not modify unless the guardrail fails: `backend/app/answering/ordinary_lookup.py`
 
-- [ ] **Step 1: Add an ordinary lookup guardrail**
+- [x] **Step 1: Add an ordinary lookup guardrail**
 
 Add a test near the ECDICT fallback tests:
 
@@ -261,7 +261,7 @@ def test_ordinary_lookup_keeps_global_ecdict_fallback_for_non_scope_tags(tmp_pat
     assert grounding["mainAnswer"][0]["scopeCodes"] == []
 ```
 
-- [ ] **Step 2: Run the ordinary lookup guardrail**
+- [x] **Step 2: Run the ordinary lookup guardrail**
 
 Run:
 
@@ -282,7 +282,7 @@ Expected: PASS without changing `ordinary_lookup.py`. If it fails because the cu
 - Modify: `progress.md`
 - Optionally modify: `bugs.md`
 
-- [ ] **Step 1: Add stable smoke cases only if the local CSV supports them**
+- [x] **Step 1: Add stable smoke cases only if the local CSV supports them**
 
 If the local ignored ECDICT CSV reliably contains the needed rows, add one or two smoke cases:
 
@@ -303,7 +303,7 @@ If the local ignored ECDICT CSV reliably contains the needed rows, add one or tw
 
 Do not add fragile smoke if the assertion depends on rows that may differ across ECDICT downloads. In that case, keep this as pytest-only coverage.
 
-- [ ] **Step 2: Run focused backend verification**
+- [x] **Step 2: Run focused backend verification**
 
 Run:
 
@@ -313,7 +313,7 @@ $env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\U
 
 Expected: PASS.
 
-- [ ] **Step 3: Run smoke tests**
+- [x] **Step 3: Run smoke tests**
 
 Run:
 
@@ -323,7 +323,7 @@ corepack pnpm test scripts/lib/fastapi-db-unavailable-smoke.test.ts scripts/lib/
 
 Expected: PASS. If smoke cases were not changed, this is still the required guard that the no-DB and migrated FastAPI matrices remain stable.
 
-- [ ] **Step 4: Optional live FastAPI smoke**
+- [x] **Step 4: Optional live FastAPI smoke**
 
 If the implementation changes the real `/api/chat` path in a way not fully covered by unit tests, start a temporary FastAPI server with:
 
@@ -337,7 +337,7 @@ Then manually smoke:
 - `gaokao + viaduct 是什么意思` -> ordinary ECDICT answer is still allowed.
 - `postgrad + 遵守的英文是啥` -> resolved `meaning_core`, no provider request.
 
-- [ ] **Step 5: Update handoff docs**
+- [x] **Step 5: Update handoff docs**
 
 Update `progress.md` with:
 
@@ -353,7 +353,7 @@ Update `docs/README.md`:
 
 Update `bugs.md` only if a confirmed issue remains.
 
-- [ ] **Step 6: Final diff checks**
+- [x] **Step 6: Final diff checks**
 
 Run:
 
@@ -363,6 +363,15 @@ git status --short
 ```
 
 Expected: no whitespace errors; only intentional files changed.
+
+---
+
+## Task 4 Completion Notes
+
+- Smoke case decision: local CSV confirms `viaduct` is `gre` and `ventiduct` is untagged, but this task did not add real smoke cases. The existing smoke definition tests use exact matrices, and updating those tests is outside this task's write set; the less fragile coverage remains the fixture-based pytest regressions from Tasks 1-3.
+- Focused backend verification: `$env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\Users\Chen\anaconda3\python.exe' -m pytest -q backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py -p no:cacheprovider` -> `144 passed in 1.33s`.
+- Smoke verification: `corepack pnpm test scripts/lib/fastapi-db-unavailable-smoke.test.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> `2 passed` test files / `15 passed` tests.
+- Live FastAPI smoke skipped: Task 4 did not change the real `/api/chat` production path; the scope behavior is covered by focused pytest and existing no-DB / migrated FastAPI smoke matrices.
 
 ---
 
