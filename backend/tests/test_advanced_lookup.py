@@ -1191,6 +1191,120 @@ def test_meaning_lookup_uses_ecdict_when_structured_repository_unavailable():
     assert [item["lemma"] for item in grounding["mainAnswer"]][:1] == ["activity"]
 
 
+def test_gaokao_meaning_lookup_rejects_non_current_ecdict_tags():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile(
+                "viaduct",
+                ["n. \u9ad8\u67b6\u6865\uff1b\u9ad8\u67b6\u94c1\u8def"],
+                tag="gre",
+            ),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="gaokao",
+        query="\u9ad8\u67b6\u6865\u600e\u4e48\u8bf4",
+        request_id="req_viaduct_gre_rejected",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = [item["lemma"] for item in grounding.get("mainAnswer", [])]
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["queryMode"] == "meaning_lookup"
+    assert grounding["resolution"] == "no_match"
+    assert "viaduct" not in main_lemmas
+
+
+def test_gaokao_meaning_lookup_rejects_untagged_ecdict_candidates():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile(
+                "ventiduct",
+                ["n. \u901a\u98ce\u7ba1"],
+                tag="",
+            ),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="gaokao",
+        query="\u901a\u98ce\u7ba1\u600e\u4e48\u8bf4",
+        request_id="req_ventiduct_untagged_rejected",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = [item["lemma"] for item in grounding.get("mainAnswer", [])]
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["queryMode"] == "meaning_lookup"
+    assert grounding["resolution"] == "no_match"
+    assert "ventiduct" not in main_lemmas
+
+
+def test_gaokao_meaning_lookup_accepts_current_scope_ecdict_tags():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile(
+                "restrict",
+                ["v. \u9650\u5236\uff1b\u7ea6\u675f"],
+                tag="gk",
+            ),
+            ecdict_profile(
+                "constrain",
+                ["v. \u9650\u5236\uff1b\u7ea6\u675f\uff1b\u5f3a\u8feb"],
+                tag="gre",
+            ),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="gaokao",
+        query="\u9650\u5236\u7528\u82f1\u8bed\u600e\u4e48\u8bf4",
+        request_id="req_restrict_gaokao_scope",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["queryMode"] == "meaning_lookup"
+    assert grounding["resolution"] == "resolved"
+    assert [item["lemma"] for item in grounding["mainAnswer"]][:1] == [
+        "restrict",
+    ]
+
+
 def test_chinese_expression_recall_uses_cleaned_ecdict_meaning_hint():
     ecdict_lookup = SearchableEcdictLookup(
         [
