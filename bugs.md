@@ -1,5 +1,30 @@
 # EngGo 已知问题与环境坑
 
+## 2026-05-24 隔离 worktree 缺少 ignored ECDICT 文件会让 live smoke 误报 no_match（环境坑）
+### 症状
+在 `C:\tmp\enggo-worktrees\conversation-context-v1` 隔离 worktree 里启动 FastAPI 后，`corepack pnpm eval:fastapi:conversation-context-smoke` 首次失败：
+- `access assess excess -> 第二个是什么意思` 通过。
+- `给我几个跟 evaluate 易混的单词 -> 第二个怎么用` 失败，turn 1 缺少 `evaluate/evacuate` context，turn 2 退成 clarification。
+- `response 的派生词 -> 把这组都收藏` 失败，turn 1 缺少 `respond/response/responsive/responsible` context，turn 2 退成 clarification。
+
+直接探测 `/api/chat` 时，这两类 ECDICT-backed broad/word-family query 都返回 no_match 或空候选；但主 workspace 下 `C:\Users\Chen\Desktop\EngGo\output\external-dictionaries\ecdict.csv` 存在。
+
+### 根因判断
+`output/external-dictionaries/ecdict.csv` 是本地 ignored 资产，不会随 git worktree 复制。FastAPI 默认按当前工作目录读取 `output/external-dictionaries/ecdict.csv`，隔离 worktree 缺文件时 ECDICT lookup 为空；因此依赖 ECDICT 的 shape neighbor / word family live smoke 会假失败。这不是 resolver 或产品逻辑回归。
+
+### 处理方式
+在隔离 worktree 跑 live FastAPI smoke 时，显式设置：
+
+```powershell
+$env:ENGGO_ECDICT_PATH='C:\Users\Chen\Desktop\EngGo\output\external-dictionaries\ecdict.csv'
+```
+
+或以等价方式在启动 dev stack 的环境变量里注入该路径。2026-05-24 本轮重启后，`corepack pnpm eval:fastapi:conversation-context-smoke` -> 5 total / 5 pass / 0 fail。
+
+### 后续防回归
+- 遇到 ECDICT-backed live smoke no_match，先确认 `ENGGO_ECDICT_PATH` 和文件存在，不要先改 resolver 或候选排序。
+- 不要把 66MB ignored ECDICT CSV 提交进 repo；worktree 验证用环境变量指向主 workspace 本地文件即可。
+
 ## 2026-05-19 meaning lookup 仍走 structured DB 导致中译英 500（已修，需防回归）
 ### 症状
 用户在 Next proxy 里连续问 `遵循的英文是什么`、`活动的英文是什么`，页面返回“当前回答服务暂时不可用”。`.runlogs/chat-interaction.jsonl` 记录 500，FastAPI 错误栈指向 `AdvancedLookupService.answer_meaning()` 里的 `repository.find_meaning_candidates()`，最终由 `StructuredLookupUnavailable: connection timeout expired` 冒泡。

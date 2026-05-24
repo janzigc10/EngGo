@@ -1,13 +1,27 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-24 conversational learning context V1 plan）
-- 当前产品判断：EngGo 的主入口是聊天式学习。单轮普通查词、易混/形近召回、word family、meaning lookup、ECDICT-first fallback 和收藏生词本已经足够进入维护态；当前最高优先级是把“追问不断片”做成 V1，而不是先做复习卡片。
-- 完整能力 spec：`docs/superpowers/specs/2026-05-24-conversational-learning-context-design.md`。它定义短期会话上下文、追问解析、resolved query routing、UI 上下文提示、失败反问、V1/V2/V3 阶段拆分和未来个人长期记忆边界。
-- 当前活跃 implementation plan：`docs/superpowers/plans/2026-05-24-conversational-learning-context-v1.md`。V1 只做最近一轮学习话题的 `ConversationalLearningContext`、确定性 Follow-up Resolver、FastAPI resolved query/action/clarification 路由、前端 session context 传递、轻量上下文提示和多轮 smoke matrix；不做长期记忆、跨会话恢复、复习算法、开放式 Agent 或多主题并行。
-- 当前执行进度：已在 `codex/conversation-context-v1` 完成 V1 plan Task 1-6。Task 1 提交 `e67305d`，新增 `ConversationalLearningContext` schema、`build_conversation_context()` 和 capture 单测；Task 2 提交 `25c78fa`，新增确定性 `resolve_follow_up()`；Task 3 提交 `087a48f`，接入 FastAPI `/api/chat`；Task 4 提交 `11c5b86` + `0164941`，前端保存/发送未过期 context；Task 5 提交 `9c54b40` + `6bb7255`，显示轻量追问提示和 clarification options；Task 6 提交 `2e97cee`，新增 stateful multi-turn smoke evaluator、runner 和 `eval:fastapi:conversation-context-smoke`。
-- 最新验证：Task 6 spec reviewer PASS，quality reviewer PASS。本 session 复跑 `corepack pnpm test scripts/lib/conversational-learning-context-smoke.test.ts` -> 1 file / 7 passed；复跑 `corepack pnpm lint scripts/lib/conversational-learning-context-smoke.ts scripts/run-conversational-learning-context-smoke.ts` -> passed。Task 5 UI focused 最近证据：2 files / 23 passed；Task 4 frontend broader focused suite 最近证据：4 files / 30 passed；Task 3 后端 focused matrix 最近证据：114 passed。
-- 下一步交接：执行 V1 plan Task 7 Final Verification And Handoff：跑 backend focused、frontend focused、changed-files lint；若 FastAPI 可用再跑 live `corepack pnpm eval:fastapi:conversation-context-smoke`；最后更新 `progress.md` 和 `docs/README.md`，必要时只把真实失败/延期项写入 `bugs.md`。
-- 已完成但需防回归的最近边界：普通 exact lookup 不应被 follow-up resolver 污染；无上下文的序号追问必须 clarification；混合显式词和序号引用必须 clarification；前端第二个后续追问不得继续发送已过期 context；澄清选项只在最新未被用户回复的 assistant clarification 后显示；conversation smoke 中 `遵循的英文是什么 -> 还有更适合作文的吗` 明确延后，不伪造 V1 支持。
+## 当前状态与下一步（2026-05-24 conversational learning context V1 已完成）
+- 当前产品判断：EngGo 仍是聊天式学习主入口。单轮普通查词、易混/形近召回、word family、meaning lookup、ECDICT-first fallback 和收藏生词本进入维护态；本轮已把“追问不断片”完成为 V1，复习卡片继续排在后面。
+- 已完成 plan：`docs/superpowers/plans/2026-05-24-conversational-learning-context-v1.md`。分支为 `codex/conversation-context-v1`，本 plan 变更范围为 `a29850d..HEAD`。
+- 已落地能力：
+  1. 后端 schema 新增 `ConversationalLearningContext`、`LearningCandidateRef`、`LearningFocus`，`ChatRequest` 可携带最近学习上下文，`ChatSuccessResponse` 可返回 `conversationContext` / `resolvedFollowUp`。
+  2. `backend/app/conversation/learning_context.py` 捕获 grounded answer 的候选顺序，并确定性解析 `第二个是什么意思`、`第二个怎么用`、`这组怎么背`、`收藏第二个`、`把这组都收藏`。
+  3. FastAPI `/api/chat` 在普通服务路由前先解析追问；可返回 rewritten query、local collection action 或 clarification；普通 exact lookup 不被 resolver 污染。
+  4. 前端 session 会保存最近未过期 context、随下一轮请求发送、展示轻量 `正在追问` 提示，并在 clarification 后给出最多 5 个选项；collection action 在本地收藏 store 落地。
+  5. 新增 stateful live smoke：`corepack pnpm eval:fastapi:conversation-context-smoke`，覆盖 `access/assess/excess -> 第二个是什么意思`、`这组怎么背`、`evaluate -> 第二个怎么用`、`response 派生词 -> 把这组都收藏`、无上下文序号追问 clarification。
+- 本轮关键提交：`e67305d` context contract；`25c78fa` resolver；`087a48f` FastAPI routing；`11c5b86` + `0164941` frontend context persistence 与过期修复；`9c54b40` + `6bb7255` context hint / clarification UI 与 stale option 修复；`2e97cee` smoke matrix；本 handoff docs commit 收尾。
+- 最新验证：
+  1. Backend focused：`$env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\Users\Chen\anaconda3\python.exe' -m pytest -q backend/tests/test_learning_context.py backend/tests/test_chat_contract.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py -p no:cacheprovider` -> 133 passed in 1.14s。
+  2. Frontend focused：`corepack pnpm test src/features/chat/conversation-context.test.ts src/components/chat/chat-workspace.test.tsx src/components/chat/answer-actions.test.tsx src/features/collections/collection-store.test.ts scripts/lib/conversational-learning-context-smoke.test.ts` -> 5 files / 40 tests passed。
+  3. Changed-file lint：`corepack pnpm lint src/features/chat/types.ts src/features/chat/use-chat-session.ts src/features/chat/conversation-context.ts src/components/chat/chat-workspace.tsx src/components/chat/message-thread.tsx scripts/lib/conversational-learning-context-smoke.ts scripts/run-conversational-learning-context-smoke.ts` -> passed。
+  4. Live FastAPI smoke：先发现隔离 worktree 缺少 ignored ECDICT 文件会导致 `evaluate` / `response` ECDICT-backed case no_match；设置 `ENGGO_ECDICT_PATH=C:\Users\Chen\Desktop\EngGo\output\external-dictionaries\ecdict.csv` 后重启 dev stack，`corepack pnpm eval:fastapi:conversation-context-smoke` -> 5 total / 5 pass / 0 fail。验证后已停止本次启动的 8000/3000 服务。
+- 仍需防回归的边界：
+  1. 无上下文、过期上下文、空候选、混合引用或不支持的序号表达必须 clarification，不猜目标。
+  2. 显式词查询如 `access 是什么意思` 即使带 context，也应走原始普通查词路径，不被改写。
+  3. collection follow-up 只做本地 action，不调用 provider。
+  4. 前端 context 只保留最近学习话题，按 user turn 过期；stale clarification options 不应在后续用户消息后继续显示。
+  5. `遵循的英文是什么 -> 还有更适合作文的吗`、跨会话长期记忆、多主题并行、`换成考研范围`、review cards、账号/cloud sync 均仍显式延后，不伪装成 V1 支持。
+- 下一步建议：先合并或继续验收 `codex/conversation-context-v1`。后续产品顺序建议是先用真实聊天手测普通查词 exact lookup、direct compare 和 V1 追问体验是否干净；确认后再回到复习卡片/学习闭环下一刀。
 
 ## 历史快照（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
 - 产品方向已从“postgrad 没有官方机器词表，所以 ECDICT 只能泛外部兜底”调整为：ECDICT 作为更大的基础词汇底座；自有 structured 词库作为高信任覆盖层。覆盖层仍优先，但只在当前考试范围内命中时覆盖。

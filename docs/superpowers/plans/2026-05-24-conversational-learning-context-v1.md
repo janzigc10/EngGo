@@ -700,7 +700,7 @@ git commit -m "test: add conversational context smoke matrix"
 - Modify: `docs/README.md`
 - Modify only if needed: `bugs.md`
 
-- [ ] **Step 1: Run focused backend verification**
+- [x] **Step 1: Run focused backend verification**
 
 Run:
 
@@ -710,7 +710,7 @@ $env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\U
 
 Expected: pass.
 
-- [ ] **Step 2: Run focused frontend verification**
+- [x] **Step 2: Run focused frontend verification**
 
 Run:
 
@@ -720,7 +720,7 @@ corepack pnpm test src/features/chat/conversation-context.test.ts src/components
 
 Expected: pass.
 
-- [ ] **Step 3: Run lint on changed files**
+- [x] **Step 3: Run lint on changed files**
 
 Run:
 
@@ -730,7 +730,7 @@ corepack pnpm lint src/features/chat/types.ts src/features/chat/use-chat-session
 
 Python files are covered here by focused pytest/import execution; do not add a new formatter requirement unless the repo already has one.
 
-- [ ] **Step 4: Run live smoke when FastAPI is available**
+- [x] **Step 4: Run live smoke when FastAPI is available**
 
 Start the existing dev stack if needed, then run:
 
@@ -740,7 +740,7 @@ corepack pnpm eval:fastapi:conversation-context-smoke
 
 Expected: all V1 cases pass. If local FastAPI cannot be started because of known Windows/Prisma instability, run the pure test matrix and record the live-smoke skip reason in `progress.md`.
 
-- [ ] **Step 5: Update docs**
+- [x] **Step 5: Update docs**
 
 Update `progress.md`:
 
@@ -756,7 +756,7 @@ Update `docs/README.md`:
 
 Update `bugs.md` only for confirmed bugs or deferred risk, not for generic future ideas.
 
-- [ ] **Step 6: Final diff checks**
+- [x] **Step 6: Final diff checks**
 
 Run:
 
@@ -767,7 +767,7 @@ git status --short --branch
 
 Expected: no whitespace errors; only intentional files changed before final commit.
 
-- [ ] **Step 7: Final commit**
+- [x] **Step 7: Final commit**
 
 ```powershell
 git add progress.md docs/README.md bugs.md
