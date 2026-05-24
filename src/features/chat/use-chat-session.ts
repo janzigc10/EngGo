@@ -2,6 +2,10 @@
 
 import { useState, useSyncExternalStore } from "react";
 
+import {
+  applyResolvedFollowUpAction,
+  latestConversationContext,
+} from "@/features/chat/conversation-context";
 import type { ChatApiSuccessResponse, ChatHistoryMessage, ChatMessage } from "@/features/chat/types";
 import {
   getServerExamTargetSnapshot,
@@ -160,6 +164,14 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
       content: prompt,
     };
     const nextMessages = [...messages, userMessage];
+    const requestExamTarget = activeExamTarget ?? fallbackExamTarget;
+    const conversationContext = latestConversationContext(messages);
+    const requestBody = {
+      activeExamTarget: requestExamTarget,
+      query: prompt,
+      history: toHistory(messages),
+      ...(conversationContext ? { conversationContext } : {}),
+    };
 
     setMessages(nextMessages);
     persistChatTranscript(nextMessages);
@@ -173,11 +185,7 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          activeExamTarget: activeExamTarget ?? fallbackExamTarget,
-          query: prompt,
-          history: toHistory(messages),
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const payload = (await response.json()) as
@@ -186,6 +194,10 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
 
       if (!response.ok || !("answer" in payload)) {
         throw new Error(getChatErrorMessage(payload));
+      }
+
+      if (payload.resolvedFollowUp?.kind === "resolved_action") {
+        applyResolvedFollowUpAction(payload.resolvedFollowUp, requestExamTarget);
       }
 
       setMessages((previousMessages) => {
@@ -199,6 +211,8 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
             grounding: payload.grounding,
             requestId: payload.requestId,
             providerRequestId: payload.providerRequestId,
+            conversationContext: payload.conversationContext,
+            resolvedFollowUp: payload.resolvedFollowUp,
           },
         ];
 

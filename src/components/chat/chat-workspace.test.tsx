@@ -1,14 +1,31 @@
 // @vitest-environment jsdom
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ChatWorkspace } from "@/components/chat/chat-workspace";
+import type {
+  ConversationalLearningContext,
+  ResolvedFollowUp,
+} from "@/features/chat/types";
+
+function getSubmitButton() {
+  const button = screen
+    .getByTestId("chat-input")
+    .parentElement?.querySelector("button");
+
+  if (!button) {
+    throw new Error("Chat submit button was not found");
+  }
+
+  return button as HTMLButtonElement;
+}
 
 describe("ChatWorkspace", () => {
   afterEach(() => {
     window.history.pushState({}, "", "/");
+    window.localStorage.clear();
     window.sessionStorage.clear();
     vi.restoreAllMocks();
   });
@@ -121,6 +138,150 @@ describe("ChatWorkspace", () => {
     expect(screen.getByText(/下一步/)).toBeInTheDocument();
   });
 
+  it("sends the latest conversation context with the next follow-up prompt", async () => {
+    const user = userEvent.setup();
+    const conversationContext: ConversationalLearningContext = {
+      version: 1,
+      activeExamTarget: "cet6",
+      sourceMessageId: "assistant-context-1",
+      topicKind: "confusion_untangle",
+      focus: {
+        kind: "group",
+        label: "comply / conform",
+      },
+      candidates: [
+        {
+          index: 1,
+          lemma: "comply",
+          label: "comply",
+          entryId: "comply",
+          sourceKind: "structured",
+          partOfSpeech: "v.",
+          meaningZh: "follow a rule",
+          reviewStatus: "unreviewed",
+        },
+        {
+          index: 2,
+          lemma: "conform",
+          label: "conform",
+          entryId: "conform",
+          sourceKind: "structured",
+          partOfSpeech: "v.",
+          meaningZh: "match a standard",
+          reviewStatus: "unreviewed",
+        },
+      ],
+      availableActions: ["collect_one", "collect_group"],
+      expiresAfterTurns: 2,
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          answer: "comply is about following a rule; conform is about matching a standard.",
+          answerKind: "plain",
+          requestId: "req_context_1",
+          providerRequestId: null,
+          conversationContext,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          answer: "The second one is conform.",
+          answerKind: "plain",
+          requestId: "req_context_2",
+          providerRequestId: null,
+        }),
+      });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "comply conform");
+    await user.click(getSubmitButton());
+
+    expect(
+      await screen.findByText(
+        "comply is about following a rule; conform is about matching a standard.",
+      ),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByTestId("chat-input"), "第二个是什么意思");
+    await user.click(getSubmitButton());
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    const requestBody = JSON.parse(
+      fetchMock.mock.calls[1]?.[1]?.body as string,
+    ) as Record<string, unknown>;
+
+    expect(requestBody.conversationContext).toEqual(conversationContext);
+  });
+
+  it("applies resolved collect_group follow-up actions to localStorage", async () => {
+    const user = userEvent.setup();
+    const resolvedFollowUp: ResolvedFollowUp = {
+      kind: "resolved_action",
+      action: "collect_group",
+      activeExamTarget: "cet6",
+      targetRefs: [
+        {
+          index: 1,
+          lemma: "comply",
+          label: "comply",
+          sourceKind: "structured",
+          partOfSpeech: "v.",
+          meaningZh: "follow a rule",
+          reviewStatus: "unreviewed",
+        },
+        {
+          index: 2,
+          lemma: "conform",
+          label: "conform",
+          sourceKind: "structured",
+          partOfSpeech: "v.",
+          meaningZh: "match a standard",
+          reviewStatus: "unreviewed",
+        },
+      ],
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer: "I collected comply and conform for this session.",
+        answerKind: "plain",
+        requestId: "req_collect_group",
+        providerRequestId: null,
+        resolvedFollowUp,
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "收藏这一组");
+    await user.click(getSubmitButton());
+
+    expect(
+      await screen.findByText("I collected comply and conform for this session."),
+    ).toBeInTheDocument();
+
+    const stored = JSON.parse(
+      window.localStorage.getItem("enggo.collectedWords") ?? "{}",
+    ) as {
+      cet6?: Array<Record<string, unknown>>;
+    };
+
+    expect(stored.cet6?.map((item) => item.lemma)).toEqual([
+      "comply",
+      "conform",
+    ]);
+  });
+
   it("restores the latest chat transcript after remount", async () => {
     const user = userEvent.setup();
     window.sessionStorage.clear();
@@ -156,6 +317,29 @@ describe("ChatWorkspace", () => {
     expect(
       screen.getByText("commit usually means to promise, do, or spend resources."),
     ).toBeInTheDocument();
+  });
+
+  it("restores old stored transcripts without conversation context fields", () => {
+    window.sessionStorage.setItem(
+      "enggo.chatTranscript",
+      JSON.stringify([
+        {
+          id: "legacy-user-1",
+          role: "user",
+          content: "legacy question",
+        },
+        {
+          id: "legacy-assistant-1",
+          role: "assistant",
+          content: "legacy answer",
+        },
+      ]),
+    );
+
+    render(<ChatWorkspace />);
+
+    expect(screen.getByText("legacy question")).toBeInTheDocument();
+    expect(screen.getByText("legacy answer")).toBeInTheDocument();
   });
 
   it("summarizes broad resolved answers without duplicating the main-answer list", async () => {
