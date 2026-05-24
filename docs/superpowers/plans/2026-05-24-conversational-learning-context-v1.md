@@ -417,7 +417,7 @@ git commit -m "feat: route chat follow-ups through context resolver"
 - Modify: `src/components/chat/chat-workspace.test.tsx`
 - Modify if needed: `src/features/collections/collection-store.ts`
 
-- [ ] **Step 1: Add frontend types**
+- [x] **Step 1: Add frontend types**
 
 In `src/features/chat/types.ts`, add:
 
@@ -452,7 +452,7 @@ export type ResolvedFollowUp =
 
 Add `conversationContext?: ConversationalLearningContext` and `resolvedFollowUp?: ResolvedFollowUp` to both `ChatMessage` and `ChatApiSuccessResponse`.
 
-- [ ] **Step 2: Add client helpers and tests**
+- [x] **Step 2: Add client helpers and tests**
 
 Create `src/features/chat/conversation-context.ts` with:
 
@@ -470,7 +470,7 @@ Test:
 - collect group writes all target lemmas to `enggo.collectedWords`.
 - source metadata is preserved (`partOfSpeech`, `meaningZh`, `sourceKind`, `reviewStatus`).
 
-- [ ] **Step 3: Send latest context in `useChatSession()`**
+- [x] **Step 3: Send latest context in `useChatSession()`**
 
 In `submitPrompt()`:
 
@@ -496,7 +496,7 @@ resolvedFollowUp: payload.resolvedFollowUp,
 
 Keep `sessionStorage` transcript normalization tolerant of missing new fields.
 
-- [ ] **Step 4: Apply resolved collection actions**
+- [x] **Step 4: Apply resolved collection actions**
 
 When a successful payload has `resolvedFollowUp.kind === "resolved_action"`:
 
@@ -506,7 +506,7 @@ When a successful payload has `resolvedFollowUp.kind === "resolved_action"`:
 
 Do not run collection logic for `resolved_query` or `clarification`.
 
-- [ ] **Step 5: Add ChatWorkspace tests**
+- [x] **Step 5: Add ChatWorkspace tests**
 
 In `src/components/chat/chat-workspace.test.tsx`, add cases:
 
@@ -514,7 +514,7 @@ In `src/components/chat/chat-workspace.test.tsx`, add cases:
 - A `resolved_action collect_group` response writes all target lemmas to localStorage.
 - Old stored transcripts without context still restore correctly.
 
-- [ ] **Step 6: Run frontend verification**
+- [x] **Step 6: Run frontend verification**
 
 Run:
 
@@ -524,7 +524,7 @@ corepack pnpm test src/features/chat/conversation-context.test.ts src/components
 
 Expected: all pass.
 
-- [ ] **Step 7: Commit checkpoint**
+- [x] **Step 7: Commit checkpoint**
 
 ```powershell
 git add src/features/chat/types.ts src/features/chat/conversation-context.ts src/features/chat/conversation-context.test.ts src/features/chat/use-chat-session.ts src/components/chat/chat-workspace.test.tsx src/features/collections/collection-store.ts
