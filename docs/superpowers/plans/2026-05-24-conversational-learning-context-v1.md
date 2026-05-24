@@ -542,7 +542,7 @@ Only include `collection-store.ts` if it was actually changed.
 - Modify if needed: `src/components/chat/message-thread.tsx`
 - Modify: `src/components/chat/chat-workspace.test.tsx`
 
-- [ ] **Step 1: Add a quiet context hint**
+- [x] **Step 1: Add a quiet context hint**
 
 In `ChatWorkspace`, derive the latest context from `messages` and render a compact line near the input, for example:
 
@@ -556,7 +556,7 @@ In `ChatWorkspace`, derive the latest context from `messages` and render a compa
 
 Keep it small. Do not introduce a new large card or sidebar redesign.
 
-- [ ] **Step 2: Render clarification options**
+- [x] **Step 2: Render clarification options**
 
 When the latest assistant message has `resolvedFollowUp.kind === "clarification"` and options:
 
@@ -566,11 +566,11 @@ When the latest assistant message has `resolvedFollowUp.kind === "clarification"
 
 This keeps the failure path useful without guessing.
 
-- [ ] **Step 3: Keep plain answers clean**
+- [x] **Step 3: Keep plain answers clean**
 
 Add assertions that greeting/general plain answers without `resolvedFollowUp` do not show the context hint or option buttons.
 
-- [ ] **Step 4: Run focused UI tests and lint**
+- [x] **Step 4: Run focused UI tests and lint**
 
 Run:
 
@@ -581,7 +581,7 @@ corepack pnpm lint src/components/chat/chat-workspace.tsx src/components/chat/me
 
 Expected: pass. If lint includes unchanged files and flags unrelated existing debt, document it in `progress.md` instead of widening the task.
 
-- [ ] **Step 5: Commit checkpoint**
+- [x] **Step 5: Commit checkpoint**
 
 ```powershell
 git add src/components/chat/chat-workspace.tsx src/components/chat/message-thread.tsx src/components/chat/chat-workspace.test.tsx src/features/chat/conversation-context.ts src/features/chat/conversation-context.test.ts
