@@ -221,6 +221,123 @@ describe("ChatWorkspace", () => {
     expect(requestBody.conversationContext).toEqual(conversationContext);
   });
 
+  it("shows a quiet context hint after an assistant response with conversation context", async () => {
+    const user = userEvent.setup();
+    const conversationContext: ConversationalLearningContext = {
+      version: 1,
+      activeExamTarget: "cet6",
+      sourceMessageId: "assistant-context-hint",
+      topicKind: "confusion_untangle",
+      focus: {
+        kind: "group",
+        label: "comply / conform",
+      },
+      candidates: [
+        {
+          index: 1,
+          lemma: "comply",
+          label: "comply",
+        },
+        {
+          index: 2,
+          lemma: "conform",
+          label: "conform",
+        },
+      ],
+      availableActions: ["collect_one", "collect_group"],
+      expiresAfterTurns: 2,
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer: "comply / conform context ready.",
+        answerKind: "plain",
+        requestId: "req_context_hint",
+        providerRequestId: null,
+        conversationContext,
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "comply conform");
+    await user.click(getSubmitButton());
+
+    expect(await screen.findByText("comply / conform context ready.")).toBeInTheDocument();
+    expect(screen.getByText("正在追问：comply / conform")).toBeInTheDocument();
+  });
+
+  it("renders clarification option buttons that fill the composer without submitting", async () => {
+    const user = userEvent.setup();
+    const resolvedFollowUp: ResolvedFollowUp = {
+      kind: "clarification",
+      message: "Which word do you mean?",
+      options: [
+        {
+          index: 1,
+          lemma: "access",
+          label: "access",
+        },
+        {
+          index: 2,
+          lemma: "assess",
+          label: "assess",
+        },
+        {
+          index: 3,
+          lemma: "excess",
+          label: "excess",
+        },
+        {
+          index: 4,
+          lemma: "accept",
+          label: "accept",
+        },
+        {
+          index: 5,
+          lemma: "except",
+          label: "except",
+        },
+        {
+          index: 6,
+          lemma: "accent",
+          label: "accent",
+        },
+      ],
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer: "I need one more detail before answering.",
+        answerKind: "plain",
+        requestId: "req_clarification_options",
+        providerRequestId: null,
+        resolvedFollowUp,
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "a 开头那个词是什么意思");
+    await user.click(getSubmitButton());
+
+    expect(
+      await screen.findByText("I need one more detail before answering."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "access 是什么意思" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "except 是什么意思" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "accent 是什么意思" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "access 是什么意思" }));
+
+    expect(screen.getByDisplayValue("access 是什么意思")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("does not send an expired conversation context on a later follow-up prompt", async () => {
     const user = userEvent.setup();
     const conversationContext: ConversationalLearningContext = {
@@ -613,6 +730,8 @@ describe("ChatWorkspace", () => {
     expect(screen.queryByText("暂未稳定命中")).not.toBeInTheDocument();
     expect(screen.queryByText("收藏工具")).not.toBeInTheDocument();
     expect(screen.queryByText(/加入收藏/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^正在追问：/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /是什么意思/ })).not.toBeInTheDocument();
   });
 
   it("renders plain general-learning answers without grounded support tools", async () => {
@@ -640,6 +759,8 @@ describe("ChatWorkspace", () => {
     expect(screen.queryByText("暂未稳定命中")).not.toBeInTheDocument();
     expect(screen.queryByText("收藏工具")).not.toBeInTheDocument();
     expect(screen.queryByText(/加入收藏/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^正在追问：/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /是什么意思/ })).not.toBeInTheDocument();
   });
 
   it("shows a staged loading state while the answer is being prepared", async () => {
