@@ -1,10 +1,10 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-24 conversational learning context 设计入口）
-- 当前产品判断：EngGo 的主入口是聊天式学习。单轮普通查词、易混/形近召回、word family、meaning lookup、ECDICT-first fallback 和收藏生词本已经足够进入维护态；下一步优先级应从“复习卡片 1.0”前移到“聊天式学习上下文能力”，先解决追问时像重新开一轮、`第二个呢` / `这个怎么用` / `这组怎么背` 发呆的问题。
-- 新增完整能力 spec：`docs/superpowers/specs/2026-05-24-conversational-learning-context-design.md`。该 spec 设计完整能力版图：短期会话上下文、追问解析、resolved query routing、UI 上下文提示、失败反问、V1/V2/V3 阶段拆分，以及未来个人长期记忆边界。
-- V1 切片边界：只做“同一学习话题内不断片”的最小能力，不做长期记忆、跨会话恢复、复杂复习算法、开放式 Agent 或多主题并行。第一刀应保存最近一轮可追问对象，解析 `这个/它/第二个/这组`，支持 `是什么意思/怎么用/怎么区分/怎么背/收藏`，解析失败就反问。
-- 下一步交接：先写 implementation plan，不直接改 runtime。计划应围绕 `ConversationalLearningContext` / `Follow-up Resolver` / 多轮 smoke matrix 展开；复习卡片延后到多轮上下文 V1 验证后再接。
+## 当前状态与下一步（2026-05-24 conversational learning context V1 plan）
+- 当前产品判断：EngGo 的主入口是聊天式学习。单轮普通查词、易混/形近召回、word family、meaning lookup、ECDICT-first fallback 和收藏生词本已经足够进入维护态；当前最高优先级是把“追问不断片”做成 V1，而不是先做复习卡片。
+- 完整能力 spec：`docs/superpowers/specs/2026-05-24-conversational-learning-context-design.md`。它定义短期会话上下文、追问解析、resolved query routing、UI 上下文提示、失败反问、V1/V2/V3 阶段拆分和未来个人长期记忆边界。
+- 当前活跃 implementation plan：`docs/superpowers/plans/2026-05-24-conversational-learning-context-v1.md`。V1 只做最近一轮学习话题的 `ConversationalLearningContext`、确定性 Follow-up Resolver、FastAPI resolved query/action/clarification 路由、前端 session context 传递、轻量上下文提示和多轮 smoke matrix；不做长期记忆、跨会话恢复、复习算法、开放式 Agent 或多主题并行。
+- 下一步交接：严格按 V1 plan 从 Task 1 开始执行，先写后端 context contract / capture 红测，再实现 schema 与 capture helper。每完成一个 task 立即勾选 plan、更新本文件并验证；测试未通过不进入下一 task。
 - 已完成但需防回归的最近后端边界：`docs/superpowers/plans/2026-05-20-meaning-lookup-scope-tag-filter.md` 已完成并转入历史计划；中译英 `meaning_lookup / meaning_core` 只允许当前 scope 的 ECDICT tag 候选进入主答案，普通英文查词仍保持全局 ECDICT fallback；保持 ECDICT-first + DB-optional，不重新引入默认 structured DB 依赖。
 
 ## 历史快照（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）

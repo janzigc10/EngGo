@@ -36,7 +36,8 @@
   - 初始技术设计。
 
 ## 当前活跃计划
-- 暂无。
+- `docs/superpowers/plans/2026-05-24-conversational-learning-context-v1.md`
+  - 聊天式学习上下文 V1 implementation plan：先做短期 `ConversationalLearningContext`、确定性 Follow-up Resolver、FastAPI resolved query/action/clarification 路由、前端 session context 传递、轻量上下文提示，以及多轮 smoke matrix；不做长期个人记忆、复习卡片或多主题并行。
 
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。
