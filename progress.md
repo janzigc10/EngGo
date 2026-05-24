@@ -1,18 +1,11 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-20 meaning lookup scope tag 过滤收口）
-- 当前修复分支：`codex/meaning-lookup-scope-filter`，工作区 `C:\Users\Chen\Desktop\EngGo`。本轮提交链：`ac0c119` 计划入口、`e9670f2` 红测、`d08b838` 生产修复、`2ce4135` 普通 lookup 保护测试、`3f3a0c9` 文档与验证收口、`490c0f1` handoff evidence polish；本次只做小范围中译英 scope tag 过滤，不改产品大方向。
-- 行为结论：
-  1. 中译英 `meaning_lookup / meaning_core` 现在只允许当前 scope 的 ECDICT tag 候选进入主答案；`gaokao` 下 `gre` 或无标签候选不会成为 main answer。
-  2. 普通英文查词仍保持全局 ECDICT fallback；例如 `viaduct 是什么意思` 这类 English exact lookup 仍可返回 `external_dictionary_exact` / `external_dictionary_basic`，即使 `scopeCodes=[]`。
-  3. 保持 ECDICT-first + DB-optional 方向；没有重命名 ECDICT，也没有重新引入默认 structured DB 依赖。
-- Smoke case 决策：本地 CSV 确认 `viaduct` 是 `gre`、`ventiduct` 无考试标签；但当前 smoke 定义测试是精确矩阵快照，新增 real smoke 需要同步改 `.test.ts`，超出本轮 Write Set。最终不新增 smoke case，把 `viaduct` / untagged 拒绝保留在 fixture-based pytest 覆盖里，避免 smoke 绑定到可下载词典差异或越界改测试。
-- 最新验证：
-  1. GREEN：`$env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\Users\Chen\anaconda3\python.exe' -m pytest -q backend/tests/test_ecdict.py backend/tests/test_normalize_query.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_chat_contract.py -p no:cacheprovider` -> `144 passed in 1.33s`。
-  2. GREEN：`corepack pnpm test scripts/lib/fastapi-db-unavailable-smoke.test.ts scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> `2 passed` test files / `15 passed` tests。
-  3. Live FastAPI smoke 本轮跳过：Task 4 未改真实 `/api/chat` 生产路径，fixture pytest 已覆盖新范围规则，两个 FastAPI smoke 矩阵已覆盖 no-DB / migrated slice 回归。
-- 当前活跃 plan：暂无。`docs/superpowers/plans/2026-05-20-meaning-lookup-scope-tag-filter.md` 已完成并转入历史计划。
-- 下一步交接：若继续产品打磨，优先回到聊天主舞台展示、移动端阅读和收藏动作体验；若继续检索语义边界，只在新的 plan/spec 里定义，不把 `re+con` 这类语义/词根理论问题硬塞进词形过滤 parser。
+## 当前状态与下一步（2026-05-24 conversational learning context 设计入口）
+- 当前产品判断：EngGo 的主入口是聊天式学习。单轮普通查词、易混/形近召回、word family、meaning lookup、ECDICT-first fallback 和收藏生词本已经足够进入维护态；下一步优先级应从“复习卡片 1.0”前移到“聊天式学习上下文能力”，先解决追问时像重新开一轮、`第二个呢` / `这个怎么用` / `这组怎么背` 发呆的问题。
+- 新增完整能力 spec：`docs/superpowers/specs/2026-05-24-conversational-learning-context-design.md`。该 spec 设计完整能力版图：短期会话上下文、追问解析、resolved query routing、UI 上下文提示、失败反问、V1/V2/V3 阶段拆分，以及未来个人长期记忆边界。
+- V1 切片边界：只做“同一学习话题内不断片”的最小能力，不做长期记忆、跨会话恢复、复杂复习算法、开放式 Agent 或多主题并行。第一刀应保存最近一轮可追问对象，解析 `这个/它/第二个/这组`，支持 `是什么意思/怎么用/怎么区分/怎么背/收藏`，解析失败就反问。
+- 下一步交接：先写 implementation plan，不直接改 runtime。计划应围绕 `ConversationalLearningContext` / `Follow-up Resolver` / 多轮 smoke matrix 展开；复习卡片延后到多轮上下文 V1 验证后再接。
+- 已完成但需防回归的最近后端边界：`docs/superpowers/plans/2026-05-20-meaning-lookup-scope-tag-filter.md` 已完成并转入历史计划；中译英 `meaning_lookup / meaning_core` 只允许当前 scope 的 ECDICT tag 候选进入主答案，普通英文查词仍保持全局 ECDICT fallback；保持 ECDICT-first + DB-optional，不重新引入默认 structured DB 依赖。
 
 ## 历史快照（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
 - 产品方向已从“postgrad 没有官方机器词表，所以 ECDICT 只能泛外部兜底”调整为：ECDICT 作为更大的基础词汇底座；自有 structured 词库作为高信任覆盖层。覆盖层仍优先，但只在当前考试范围内命中时覆盖。
@@ -52,7 +45,7 @@
   2. 执行时优先保护现有已通过样例：`co开头的意思是合作的单词`、`re开头cile结尾的单词`、`sow/row`、`evacuate/evaluate`、普通 exact lookup。
   3. 前端后续可以把 `external_dictionary_basic + scopeCodes=[当前范围]` 显示成“ECDICT 考研标签”这类轻身份；不要显示成自有人工词库。
 
-## 当前状态与下一步（2026-05-16 收藏生词本整理 1.0）
+## 历史快照（2026-05-16 收藏生词本整理 1.0，下一步建议已被 2026-05-24 覆盖）
 
 - 主体功能状态：
   1. 聊天主舞台里的普通查词、形近/易混召回、direct compare、no-match、ECDICT 基础查词和范围标签已经完成本轮收口，可以进入维护状态。
@@ -72,10 +65,10 @@
   3. 聊天收藏动作会把候选的词性、短义、来源身份和外部词典未校验状态写进收藏。
   4. `/collections` 现在按词书分组展示总数、来源标签、词性/短义、收藏日期，并支持删除。
   5. 收藏项提供 `继续追问 <lemma>` 链接，跳回 `/?draft=...` 并预填聊天输入框，不自动发送。
-- 下一阶段产品判断：
+- 当时的下一阶段产品判断（已被 2026-05-24 conversational learning context 方向覆盖）：
   1. 最初设计 spec 明确 EngGo 是“聊天主舞台 + 二级学习骨架”，二级层包括 current wordbook、learning flow、review flow、collections/new-word book、notes/progress。
-  2. 当前聊天命中已经能沉淀为较干净的本地学习资产；下一刀建议接“复习卡片 1.0”。
-  3. 复习卡片 1.0 建议范围：正面单词，反面词性 + 中文核心义，按钮为 `认识 / 模糊 / 不会`，先记录本地 review state。
+  2. 当时判断是：聊天命中已经能沉淀为较干净的本地学习资产，下一刀可接“复习卡片 1.0”。当前已调整为先做聊天式学习上下文 V1，复习卡片延后到追问不断片能力验证后。
+  3. 复习卡片 1.0 的原建议范围仍可作为后续参考：正面单词，反面词性 + 中文核心义，按钮为 `认识 / 模糊 / 不会`，先记录本地 review state。
   4. 再后续才补“进度页 1.0”：每个词书的收藏数、已复习数、薄弱词数，先用本地数据，不做复杂算法。
 - 明确暂不做：
   1. 不先做完整传统词书浏览/背单词大系统，避免产品退化成普通背词 App。

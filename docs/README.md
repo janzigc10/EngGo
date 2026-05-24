@@ -8,6 +8,8 @@
 - `context.md`：长期项目地图和代码地图。
 
 ## 当前有效设计
+- `docs/superpowers/specs/2026-05-24-conversational-learning-context-design.md`
+  - 聊天主舞台下一层核心能力：设计短期会话上下文、追问解析、resolved query routing、UI 上下文提示、失败反问和阶段拆分；V1 只做同一学习话题内的追问不断片，长期个人记忆放到后续阶段。
 - `docs/superpowers/specs/2026-05-18-ecdict-backbone-structured-overlay-design.md`
   - 最新词库主干方向：ECDICT 作为默认大词库底座，旧 structured DB 降级为冻结覆盖层 / 回归样例 / 可选增强；后续只做轻量人工 override，不再维护全量复杂结构化词库。
 - `docs/superpowers/specs/2026-05-12-dynamic-light-grounding-design.md`
