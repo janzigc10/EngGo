@@ -30,6 +30,7 @@
     "eval:grounding-strategy:probe": "tsx scripts/run-grounding-strategy-probe.ts",
     "eval:fastapi:migrated-smoke": "tsx scripts/run-fastapi-migrated-slice-smoke.ts",
     "eval:fastapi:migrated-smoke:proxy": "tsx scripts/run-fastapi-migrated-slice-smoke.ts --base-url http://127.0.0.1:3000 --label next-proxy",
+    "eval:fastapi:conversation-context-smoke": "tsx scripts/run-conversational-learning-context-smoke.ts",
     "eval:fastapi:db-unavailable-smoke": "tsx scripts/run-fastapi-db-unavailable-smoke.ts",
     "eval:default-fastapi-smoke": "tsx scripts/run-default-fastapi-smoke.ts",
     "verify": "corepack pnpm lint && corepack pnpm test:unit && corepack pnpm test:integration && corepack pnpm test:e2e"
