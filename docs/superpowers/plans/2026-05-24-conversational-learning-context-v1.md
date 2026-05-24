@@ -222,7 +222,7 @@ git commit -m "feat: add chat learning context contract"
 - Modify: `backend/app/conversation/learning_context.py`
 - Modify: `backend/tests/test_learning_context.py`
 
-- [ ] **Step 1: Add red resolver tests**
+- [x] **Step 1: Add red resolver tests**
 
 Add pure tests for these cases:
 
@@ -235,7 +235,7 @@ Add pure tests for these cases:
 7. `这个是什么意思` with multiple candidates and no focus lemma -> `clarification` options.
 8. `access 是什么意思` with context -> `not_follow_up`.
 
-- [ ] **Step 2: Implement intent detection without provider**
+- [x] **Step 2: Implement intent detection without provider**
 
 In `learning_context.py`, add:
 
@@ -262,7 +262,7 @@ Use simple deterministic patterns:
 
 Keep the resolver small and explicit. Do not call `normalize_query()` inside it except possibly for a final safeguard; the resolver should only rewrite obvious follow-ups.
 
-- [ ] **Step 3: Rewrite to existing query shapes**
+- [x] **Step 3: Rewrite to existing query shapes**
 
 Use these V1 rewrites:
 
@@ -293,7 +293,7 @@ For clarification:
 }
 ```
 
-- [ ] **Step 4: Run resolver tests**
+- [x] **Step 4: Run resolver tests**
 
 Run:
 
@@ -303,7 +303,7 @@ $env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\U
 
 Expected: all resolver and capture tests pass.
 
-- [ ] **Step 5: Commit checkpoint**
+- [x] **Step 5: Commit checkpoint**
 
 ```powershell
 git add backend/app/conversation/learning_context.py backend/tests/test_learning_context.py
