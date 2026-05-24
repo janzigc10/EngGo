@@ -63,6 +63,6 @@ test("chat MVP flow can switch targets and save a collected word", async ({
 
   await page.goto("/collections");
 
-  await expect(page.getByText(/comply/i)).toBeVisible();
+  await expect(page.getByText("comply", { exact: true })).toBeVisible();
   await expect(page.getByText(/CET-4/i)).toBeVisible();
 });
