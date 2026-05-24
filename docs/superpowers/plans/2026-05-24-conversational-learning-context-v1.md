@@ -70,7 +70,7 @@
 - Add: `backend/tests/test_learning_context.py`
 - Modify: `backend/app/schemas/chat.py`
 
-- [ ] **Step 1: Write red tests for context capture from existing grounding**
+- [x] **Step 1: Write red tests for context capture from existing grounding**
 
 Create `backend/tests/test_learning_context.py` with fixture payloads that mirror real response `grounding`.
 
@@ -118,7 +118,7 @@ Also add capture tests for:
 - broad word family from `mainAnswer` / `learningIntentPlan.task == "word_family"` -> candidates preserve returned order.
 - no-match or plain response -> returns `None`.
 
-- [ ] **Step 2: Add schema models in `backend/app/schemas/chat.py`**
+- [x] **Step 2: Add schema models in `backend/app/schemas/chat.py`**
 
 Add Pydantic models with minimal fields needed by V1:
 
@@ -168,7 +168,7 @@ class ChatSuccessResponse(BaseModel):
 
 Do not make these fields required; old clients and existing tests must keep passing.
 
-- [ ] **Step 3: Implement `build_conversation_context()`**
+- [x] **Step 3: Implement `build_conversation_context()`**
 
 Implement in `backend/app/conversation/learning_context.py`.
 
@@ -195,7 +195,7 @@ Derive `topicKind` from:
 - `broad_vocab` for other resolved broad/root/semantic/form results,
 - `standard_lookup` for ordinary lookup.
 
-- [ ] **Step 4: Run focused backend tests**
+- [x] **Step 4: Run focused backend tests**
 
 Run:
 
@@ -205,7 +205,7 @@ $env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\U
 
 Expected after implementation: all tests pass. If `test_chat_contract.py` fails only because new optional fields are serialized as `null`, adjust `response_json()` in Task 3 to prune `None` fields consistently.
 
-- [ ] **Step 5: Commit checkpoint**
+- [x] **Step 5: Commit checkpoint**
 
 Commit only Task 1 files after green tests:
 

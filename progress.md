@@ -4,7 +4,9 @@
 - 当前产品判断：EngGo 的主入口是聊天式学习。单轮普通查词、易混/形近召回、word family、meaning lookup、ECDICT-first fallback 和收藏生词本已经足够进入维护态；当前最高优先级是把“追问不断片”做成 V1，而不是先做复习卡片。
 - 完整能力 spec：`docs/superpowers/specs/2026-05-24-conversational-learning-context-design.md`。它定义短期会话上下文、追问解析、resolved query routing、UI 上下文提示、失败反问、V1/V2/V3 阶段拆分和未来个人长期记忆边界。
 - 当前活跃 implementation plan：`docs/superpowers/plans/2026-05-24-conversational-learning-context-v1.md`。V1 只做最近一轮学习话题的 `ConversationalLearningContext`、确定性 Follow-up Resolver、FastAPI resolved query/action/clarification 路由、前端 session context 传递、轻量上下文提示和多轮 smoke matrix；不做长期记忆、跨会话恢复、复习算法、开放式 Agent 或多主题并行。
-- 下一步交接：严格按 V1 plan 从 Task 1 开始执行，先写后端 context contract / capture 红测，再实现 schema 与 capture helper。每完成一个 task 立即勾选 plan、更新本文件并验证；测试未通过不进入下一 task。
+- 当前执行进度：已在 `codex/conversation-context-v1` 完成 V1 plan Task 1，提交 `e67305d`。后端已新增 `ConversationalLearningContext` schema、`build_conversation_context()` 和 capture 单测；多候选 context 同时暴露 `collect_one/collect_group`，坏 `comparisonView/rootFamilyView` 可在无有效候选时回落到 `mainAnswer`。
+- Task 1 验证：实现子代理红测先失败于缺少 `backend.app.conversation`；修复后 `$env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\Users\Chen\anaconda3\python.exe' -m pytest -q backend/tests/test_learning_context.py backend/tests/test_chat_contract.py -p no:cacheprovider` -> 15 passed。规格复审通过，代码质量复审通过。
+- 下一步交接：继续严格按 V1 plan 执行 Task 2，先为确定性 Follow-up Resolver 写红测，再实现 `resolve_follow_up()`。Task 3 之前不要把 resolver 接入 FastAPI，也不要提前处理 `response_json()` 的 optional null 裁剪。
 - 已完成但需防回归的最近后端边界：`docs/superpowers/plans/2026-05-20-meaning-lookup-scope-tag-filter.md` 已完成并转入历史计划；中译英 `meaning_lookup / meaning_core` 只允许当前 scope 的 ECDICT tag 候选进入主答案，普通英文查词仍保持全局 ECDICT fallback；保持 ECDICT-first + DB-optional，不重新引入默认 structured DB 依赖。
 
 ## 历史快照（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
