@@ -319,7 +319,7 @@ git commit -m "feat: resolve short chat follow-ups"
 - Modify: `backend/tests/test_chat_contract.py`
 - Modify if not already handled: `backend/app/schemas/chat.py`
 
-- [ ] **Step 1: Add API contract tests first**
+- [x] **Step 1: Add API contract tests first**
 
 Add tests to `backend/tests/test_chat_contract.py`:
 
@@ -331,7 +331,7 @@ Add tests to `backend/tests/test_chat_contract.py`:
 
 Use fake services with `calls` arrays so assertions prove the rewritten query actually enters the existing service cascade.
 
-- [ ] **Step 2: Extract a small routing helper to avoid duplicated service cascade**
+- [x] **Step 2: Extract a small routing helper to avoid duplicated service cascade**
 
 In `backend/app/api/chat.py`, extract the existing ordinary -> direct compare -> advanced sequence into a helper:
 
@@ -344,7 +344,7 @@ or a helper that returns `(ChatSuccessResponse | ChatErrorResponse, status_code)
 
 Keep behavior identical for non-follow-up requests.
 
-- [ ] **Step 3: Resolve before routing**
+- [x] **Step 3: Resolve before routing**
 
 In `post_chat()`:
 
@@ -359,7 +359,7 @@ In `post_chat()`:
 5. If `kind == "resolved_query"`, route `resolved["query"]` through existing services.
 6. If `kind == "not_follow_up"`, route the original query.
 
-- [ ] **Step 4: Attach response context after successful grounded answers**
+- [x] **Step 4: Attach response context after successful grounded answers**
 
 After a service returns `ChatSuccessResponse`, call `build_conversation_context()` and attach:
 
@@ -376,7 +376,7 @@ source_message_id = f"{request_id}:assistant"
 
 If the answer is plain or no-match with no candidates, leave `conversationContext` absent.
 
-- [ ] **Step 5: Prune optional null fields from JSON**
+- [x] **Step 5: Prune optional null fields from JSON**
 
 Update `response_json()` so it removes optional `None` fields:
 
@@ -388,7 +388,7 @@ for key in ("grounding", "conversationContext", "resolvedFollowUp"):
 
 Do not remove `providerRequestId`; clients rely on explicit `null`.
 
-- [ ] **Step 6: Run backend contract verification**
+- [x] **Step 6: Run backend contract verification**
 
 Run:
 
@@ -398,7 +398,7 @@ $env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\U
 
 Expected: all pass. Pay attention to ordinary exact lookup and meaning lookup tests; failures there usually mean the resolver is too eager.
 
-- [ ] **Step 7: Commit checkpoint**
+- [x] **Step 7: Commit checkpoint**
 
 ```powershell
 git add backend/app/api/chat.py backend/app/schemas/chat.py backend/app/conversation/learning_context.py backend/tests/test_chat_contract.py backend/tests/test_learning_context.py
