@@ -91,6 +91,30 @@ describe("conversation context helpers", () => {
     ).toBeNull();
   });
 
+  it("ignores the latest assistant context when the active exam target changed", () => {
+    const context = createContext({ activeExamTarget: "cet6" });
+    const assistantWithContext: ChatMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      content: "access / assess / excess",
+      conversationContext: context,
+    };
+
+    expect(
+      latestConversationContext(
+        [
+          assistantWithContext,
+          {
+            id: "user-1",
+            role: "user",
+            content: "把这组都收藏",
+          },
+        ],
+        "postgrad",
+      ),
+    ).toBeNull();
+  });
+
   it("collect_group writes all target lemmas to enggo.collectedWords", () => {
     const action: ResolvedFollowUp = {
       kind: "resolved_action",

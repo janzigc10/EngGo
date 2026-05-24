@@ -13,6 +13,7 @@ from backend.app.schemas.chat import (
 def _context(
     lemmas: list[str],
     *,
+    active_exam_target: str = "cet6",
     topic_kind: str = "direct_compare",
     focus_index: int | None = None,
     expires_after_turns: int = 2,
@@ -32,7 +33,7 @@ def _context(
         )
 
     return ConversationalLearningContext(
-        activeExamTarget="cet6",
+        activeExamTarget=active_exam_target,
         sourceMessageId="assistant_test",
         topicKind=topic_kind,
         focus=focus,
@@ -359,6 +360,17 @@ def test_resolver_maps_group_collect_to_group_action():
         "assess",
         "excess",
     ]
+
+
+def test_resolver_clarifies_when_context_exam_target_mismatches_request():
+    result = resolve_follow_up(
+        "把这组都收藏",
+        _context(["access", "assess", "excess"], active_exam_target="cet6"),
+        "postgrad",
+    )
+
+    assert result["kind"] == "clarification"
+    assert result["options"] == []
 
 
 def test_resolver_clarifies_follow_up_without_context():

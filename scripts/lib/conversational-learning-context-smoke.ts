@@ -10,7 +10,9 @@ export type ConversationContextSmokeTurn = {
   expectedResolvedQuery?: string;
   expectedAction?: string;
   expectedTargetLemmas?: string[];
+  expectedExactTargetLemmas?: string[];
   expectedContextLemmas?: string[];
+  expectedExactContextLemmas?: string[];
   expectedProviderRequest?: "absent" | "allowed";
 };
 
@@ -172,6 +174,16 @@ export function buildConversationalLearningContextSmokeCases():
           expectedAnswerKind: "grounded",
           expectedGrounding: "present",
           expectedContextLemmas: ["respond", "response", "responsive", "responsible"],
+          expectedExactContextLemmas: [
+            "response",
+            "responsive",
+            "respond",
+            "responsible",
+            "respondent",
+            "responsiveness",
+            "responsibility",
+            "respondents",
+          ],
           expectedProviderRequest: "absent",
         },
         {
@@ -183,6 +195,16 @@ export function buildConversationalLearningContextSmokeCases():
           expectedResolvedKind: "resolved_action",
           expectedAction: "collect_group",
           expectedTargetLemmas: ["respond", "response", "responsive", "responsible"],
+          expectedExactTargetLemmas: [
+            "response",
+            "responsive",
+            "respond",
+            "responsible",
+            "respondent",
+            "responsiveness",
+            "responsibility",
+            "respondents",
+          ],
           expectedProviderRequest: "absent",
         },
       ],
@@ -225,6 +247,26 @@ function addIfMismatch<T>(
 
 function missingLemmas(expected: string[], actual: string[]) {
   return expected.filter((lemma) => !actual.includes(lemma));
+}
+
+function formatLemmaList(lemmas: string[]) {
+  return lemmas.length > 0 ? lemmas.join(", ") : "(none)";
+}
+
+function addIfLemmaListMismatch(
+  failures: string[],
+  label: string,
+  actual: string[],
+  expected: string[],
+) {
+  if (
+    actual.length !== expected.length ||
+    actual.some((lemma, index) => lemma !== expected[index])
+  ) {
+    failures.push(
+      `${label} expected exactly ${formatLemmaList(expected)}, received ${formatLemmaList(actual)}`,
+    );
+  }
 }
 
 function evaluateTurn(
@@ -302,11 +344,29 @@ function evaluateTurn(
     failures.push(`${prefix} context missing ${lemma}`);
   }
 
+  if (turnDef.expectedExactContextLemmas) {
+    addIfLemmaListMismatch(
+      failures,
+      `${prefix} context`,
+      observation.contextLemmas,
+      turnDef.expectedExactContextLemmas,
+    );
+  }
+
   for (const lemma of missingLemmas(
     turnDef.expectedTargetLemmas ?? [],
     observation.targetLemmas,
   )) {
     failures.push(`${prefix} target missing ${lemma}`);
+  }
+
+  if (turnDef.expectedExactTargetLemmas) {
+    addIfLemmaListMismatch(
+      failures,
+      `${prefix} target`,
+      observation.targetLemmas,
+      turnDef.expectedExactTargetLemmas,
+    );
   }
 
   if (

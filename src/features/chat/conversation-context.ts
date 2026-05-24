@@ -50,6 +50,7 @@ function toCollectedWordInput(candidate: LearningCandidateRef): CollectedWordInp
 
 export function latestConversationContext(
   messages: ChatMessage[],
+  activeExamTarget?: ExamTargetCode,
 ): ConversationalLearningContext | null {
   let laterUserTurns = 0;
 
@@ -62,7 +63,13 @@ export function latestConversationContext(
     }
 
     if (message.conversationContext) {
-      if (laterUserTurns <= message.conversationContext.expiresAfterTurns) {
+      if (
+        laterUserTurns <= message.conversationContext.expiresAfterTurns &&
+        (
+          !activeExamTarget ||
+          message.conversationContext.activeExamTarget === activeExamTarget
+        )
+      ) {
         return message.conversationContext;
       }
     }

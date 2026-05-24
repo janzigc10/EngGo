@@ -69,6 +69,9 @@ def resolve_follow_up(
     if _contains_explicit_candidate(text, context):
         return {"kind": "not_follow_up"}
 
+    if context and context.activeExamTarget != active_exam_target:
+        return _clarification(None)
+
     if not _usable_context(context):
         return _clarification(context)
 

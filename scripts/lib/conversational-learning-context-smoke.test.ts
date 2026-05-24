@@ -103,6 +103,16 @@ describe("conversational learning-context smoke", () => {
           expect.objectContaining({
             query: "response 的派生词",
             expectedContextLemmas: ["respond", "response", "responsive", "responsible"],
+            expectedExactContextLemmas: [
+              "response",
+              "responsive",
+              "respond",
+              "responsible",
+              "respondent",
+              "responsiveness",
+              "responsibility",
+              "respondents",
+            ],
           }),
           expect.objectContaining({
             query: "把这组都收藏",
@@ -111,6 +121,16 @@ describe("conversational learning-context smoke", () => {
             expectedAction: "collect_group",
             expectedProviderRequest: "absent",
             expectedTargetLemmas: ["respond", "response", "responsive", "responsible"],
+            expectedExactTargetLemmas: [
+              "response",
+              "responsive",
+              "respond",
+              "responsible",
+              "respondent",
+              "responsiveness",
+              "responsibility",
+              "respondents",
+            ],
           }),
         ],
       }),
@@ -206,6 +226,50 @@ describe("conversational learning-context smoke", () => {
     expect(result.verdict).toBe("fail");
     expect(result.failures).toEqual([
       "turn 2 providerRequestId expected absent",
+    ]);
+  });
+
+  it("catches extra target lemmas when a turn requires the exact target set", () => {
+    const result = evaluateConversationContextSmoke(
+      {
+        name: "strict collect group",
+        turns: [
+          {
+            query: "response 的派生词",
+            activeExamTarget: "postgrad",
+            expectedStatus: 200,
+            expectedAnswerKind: "grounded",
+            expectedExactContextLemmas: ["response", "responsive"],
+          },
+          {
+            query: "把这组都收藏",
+            activeExamTarget: "postgrad",
+            expectedStatus: 200,
+            expectedAnswerKind: "plain",
+            expectedResolvedKind: "resolved_action",
+            expectedAction: "collect_group",
+            expectedExactTargetLemmas: ["response", "responsive"],
+            expectedProviderRequest: "absent",
+          },
+        ],
+      },
+      [
+        observation({ contextLemmas: ["response", "responsive", "correspond"] }),
+        observation({
+          answerKind: "plain",
+          hasGrounding: false,
+          resolvedKind: "resolved_action",
+          action: "collect_group",
+          targetLemmas: ["response", "responsive", "correspond"],
+          contextLemmas: [],
+        }),
+      ],
+    );
+
+    expect(result.verdict).toBe("fail");
+    expect(result.failures).toEqual([
+      "turn 1 context expected exactly response, responsive, received response, responsive, correspond",
+      "turn 2 target expected exactly response, responsive, received response, responsive, correspond",
     ]);
   });
 

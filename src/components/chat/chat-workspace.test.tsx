@@ -221,6 +221,76 @@ describe("ChatWorkspace", () => {
     expect(requestBody.conversationContext).toEqual(conversationContext);
   });
 
+  it("does not send an old conversation context after the active exam target changes", async () => {
+    const user = userEvent.setup();
+    const conversationContext: ConversationalLearningContext = {
+      version: 1,
+      activeExamTarget: "cet6",
+      sourceMessageId: "assistant-context-scope",
+      topicKind: "confusion_untangle",
+      focus: {
+        kind: "group",
+        label: "access / assess",
+      },
+      candidates: [
+        {
+          index: 1,
+          lemma: "access",
+          label: "access",
+        },
+        {
+          index: 2,
+          lemma: "assess",
+          label: "assess",
+        },
+      ],
+      availableActions: ["collect_one", "collect_group"],
+      expiresAfterTurns: 2,
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          answer: "access / assess context ready.",
+          answerKind: "plain",
+          requestId: "req_scope_1",
+          providerRequestId: null,
+          conversationContext,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          answer: "Tell me the group again under this wordbook.",
+          answerKind: "plain",
+          requestId: "req_scope_2",
+          providerRequestId: null,
+        }),
+      });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "access assess 怎么区分");
+    await user.click(getSubmitButton());
+    expect(await screen.findByText("access / assess context ready.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /考研/i }));
+    await user.type(screen.getByTestId("chat-input"), "把这组都收藏");
+    await user.click(getSubmitButton());
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    const secondRequestBody = JSON.parse(
+      fetchMock.mock.calls[1]?.[1]?.body as string,
+    ) as Record<string, unknown>;
+
+    expect(secondRequestBody.activeExamTarget).toBe("postgrad");
+    expect(secondRequestBody).not.toHaveProperty("conversationContext");
+  });
+
   it("shows a quiet context hint after an assistant response with conversation context", async () => {
     const user = userEvent.setup();
     const conversationContext: ConversationalLearningContext = {

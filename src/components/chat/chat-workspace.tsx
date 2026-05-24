@@ -64,7 +64,7 @@ export function ChatWorkspace() {
   } = useChatSession({
     initialPrompt: readDraftPromptFromLocation(),
   });
-  const currentContext = latestConversationContext(messages);
+  const currentContext = latestConversationContext(messages, activeExamTarget);
   const contextHintLabel = currentContext
     ? buildContextHintLabel(currentContext)
     : "";
