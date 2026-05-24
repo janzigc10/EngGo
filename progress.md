@@ -8,18 +8,18 @@
   2. `backend/app/conversation/learning_context.py` 捕获 grounded answer 的候选顺序，并确定性解析 `第二个是什么意思`、`第二个怎么用`、`这组怎么背`、`收藏第二个`、`把这组都收藏`。
   3. FastAPI `/api/chat` 在普通服务路由前先解析追问；可返回 rewritten query、local collection action 或 clarification；普通 exact lookup 不被 resolver 污染。
   4. 前端 session 会保存最近未过期 context、随下一轮请求发送、展示轻量 `正在追问` 提示，并在 clarification 后给出最多 5 个选项；collection action 在本地收藏 store 落地。
-  5. 新增 stateful live smoke：`corepack pnpm eval:fastapi:conversation-context-smoke`，覆盖 `access/assess/excess -> 第二个是什么意思`、`这组怎么背`、`evaluate -> 第二个怎么用`、`response 派生词 -> 把这组都收藏`、无上下文序号追问 clarification。
-- 本轮关键提交：`e67305d` context contract；`25c78fa` resolver；`087a48f` FastAPI routing；`11c5b86` + `0164941` frontend context persistence 与过期修复；`9c54b40` + `6bb7255` context hint / clarification UI 与 stale option 修复；`2e97cee` smoke matrix；本 handoff docs commit 收尾。
+  5. 新增 stateful live smoke：`corepack pnpm eval:fastapi:conversation-context-smoke`，覆盖 `access/assess/excess -> 第二个是什么意思`、`这组怎么背`、`evaluate -> 第二个怎么用`、`response 派生词 -> 把这组都收藏`、无上下文序号追问 clarification；`response` 词族 case 现在还精确断言可收藏 target set，防止污染候选悄悄混入。
+- 本轮关键提交：`e67305d` context contract；`25c78fa` resolver；`087a48f` FastAPI routing；`11c5b86` + `0164941` frontend context persistence 与过期修复；`9c54b40` + `6bb7255` context hint / clarification UI 与 stale option 修复；`2e97cee` smoke matrix；`bd0d446` handoff docs；`0f46bb3` 修复最终 reviewer 发现的 scope mismatch 与 smoke exact-target 风险。
 - 最新验证：
-  1. Backend focused：`$env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\Users\Chen\anaconda3\python.exe' -m pytest -q backend/tests/test_learning_context.py backend/tests/test_chat_contract.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py -p no:cacheprovider` -> 133 passed in 1.14s。
-  2. Frontend focused：`corepack pnpm test src/features/chat/conversation-context.test.ts src/components/chat/chat-workspace.test.tsx src/components/chat/answer-actions.test.tsx src/features/collections/collection-store.test.ts scripts/lib/conversational-learning-context-smoke.test.ts` -> 5 files / 40 tests passed。
+  1. Backend focused：`$env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\Users\Chen\anaconda3\python.exe' -m pytest -q backend/tests/test_learning_context.py backend/tests/test_chat_contract.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py -p no:cacheprovider` -> 134 passed in 0.96s。
+  2. Frontend focused：`corepack pnpm test src/features/chat/conversation-context.test.ts src/components/chat/chat-workspace.test.tsx src/components/chat/answer-actions.test.tsx src/features/collections/collection-store.test.ts scripts/lib/conversational-learning-context-smoke.test.ts` -> 5 files / 43 tests passed。
   3. Changed-file lint：`corepack pnpm lint src/features/chat/types.ts src/features/chat/use-chat-session.ts src/features/chat/conversation-context.ts src/components/chat/chat-workspace.tsx src/components/chat/message-thread.tsx scripts/lib/conversational-learning-context-smoke.ts scripts/run-conversational-learning-context-smoke.ts` -> passed。
-  4. Live FastAPI smoke：先发现隔离 worktree 缺少 ignored ECDICT 文件会导致 `evaluate` / `response` ECDICT-backed case no_match；设置 `ENGGO_ECDICT_PATH=C:\Users\Chen\Desktop\EngGo\output\external-dictionaries\ecdict.csv` 后重启 dev stack，`corepack pnpm eval:fastapi:conversation-context-smoke` -> 5 total / 5 pass / 0 fail。验证后已停止本次启动的 8000/3000 服务。
+  4. Live FastAPI smoke：先发现隔离 worktree 缺少 ignored ECDICT 文件会导致 `evaluate` / `response` ECDICT-backed case no_match；设置 `ENGGO_ECDICT_PATH=C:\Users\Chen\Desktop\EngGo\output\external-dictionaries\ecdict.csv` 后重启 dev stack，review fix 后复跑 `corepack pnpm eval:fastapi:conversation-context-smoke` -> 5 total / 5 pass / 0 fail。验证后已停止本次启动的 8000/3000 服务。
 - 仍需防回归的边界：
   1. 无上下文、过期上下文、空候选、混合引用或不支持的序号表达必须 clarification，不猜目标。
   2. 显式词查询如 `access 是什么意思` 即使带 context，也应走原始普通查词路径，不被改写。
   3. collection follow-up 只做本地 action，不调用 provider。
-  4. 前端 context 只保留最近学习话题，按 user turn 过期；stale clarification options 不应在后续用户消息后继续显示。
+  4. 前端 context 只保留最近学习话题，按 user turn 过期；active exam target 改变后不再发送旧 context，后端收到 scope 不匹配 context 也会 clarification；stale clarification options 不应在后续用户消息后继续显示。
   5. `遵循的英文是什么 -> 还有更适合作文的吗`、跨会话长期记忆、多主题并行、`换成考研范围`、review cards、账号/cloud sync 均仍显式延后，不伪装成 V1 支持。
 - 下一步建议：先合并或继续验收 `codex/conversation-context-v1`。后续产品顺序建议是先用真实聊天手测普通查词 exact lookup、direct compare 和 V1 追问体验是否干净；确认后再回到复习卡片/学习闭环下一刀。
 
