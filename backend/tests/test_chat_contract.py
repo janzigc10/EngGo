@@ -17,6 +17,42 @@ from backend.app.retrieval.types import (
 from backend.app.schemas.chat import ChatSuccessResponse
 
 
+ACCESS_ASSESS_EXCESS_GROUNDING = {
+    "activeExamTarget": "cet6",
+    "queryMode": "direct_compare",
+    "answerStyle": "confusion_untangle",
+    "resolution": "resolved",
+    "mainAnswer": [],
+    "confusionBoundary": [],
+    "comparisonView": {
+        "id": "access-assess-excess",
+        "members": [
+            {
+                "entryId": "access",
+                "lemma": "access",
+                "partOfSpeech": "n. / v.",
+                "meaningZh": "进入权；使用权",
+                "sourceKind": "structured",
+            },
+            {
+                "entryId": "assess",
+                "lemma": "assess",
+                "partOfSpeech": "v.",
+                "meaningZh": "评估",
+                "sourceKind": "structured",
+            },
+            {
+                "entryId": "excess",
+                "lemma": "excess",
+                "partOfSpeech": "n.",
+                "meaningZh": "过量",
+                "sourceKind": "structured",
+            },
+        ],
+    },
+}
+
+
 class FakeRepository:
     def __init__(self, candidates=None, groups=None):
         self.candidates = candidates or {}
@@ -43,6 +79,49 @@ def create_client(
     )
 
 
+class RecordingService:
+    def __init__(
+        self,
+        *,
+        answer="ok",
+        answer_kind="grounded",
+        grounding=None,
+        status_code=200,
+    ):
+        self.calls = []
+        self.answer_text = answer
+        self.answer_kind = answer_kind
+        self.grounding = grounding
+        self.status_code = status_code
+
+    def answer(self, **kwargs):
+        self.calls.append(kwargs)
+        return AdvancedLookupResult(
+            status_code=self.status_code,
+            payload=ChatSuccessResponse(
+                answer=self.answer_text,
+                answerKind=self.answer_kind,
+                grounding=self.grounding,
+                requestId=kwargs["request_id"],
+                providerRequestId=None,
+            ),
+        )
+
+
+class RejectingService:
+    def __init__(self):
+        self.calls = []
+
+    def answer(self, **kwargs):
+        self.calls.append(kwargs)
+        raise UnsupportedQueryMode("unsupported")
+
+
+class FailingIfCalled:
+    def answer(self, **_kwargs):
+        raise AssertionError("service should not be called")
+
+
 def test_chat_rejects_invalid_request_with_400():
     client = create_client()
 
@@ -61,6 +140,249 @@ def test_chat_rejects_invalid_request_with_400():
     assert response.headers["x-request-id"] == payload["requestId"]
     assert payload["error"]["code"] == "invalid_request"
     assert payload["providerRequestId"] is None
+
+
+def test_chat_attaches_conversation_context_to_grounded_direct_compare():
+    direct_service = RecordingService(
+        answer="access / assess / excess",
+        grounding=ACCESS_ASSESS_EXCESS_GROUNDING,
+    )
+    client = create_client(
+        ordinary_lookup_service=RejectingService(),
+        direct_compare_service=direct_service,
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "access assess excess 怎么区分",
+            "history": [],
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["conversationContext"]["topicKind"] == "direct_compare"
+    assert [
+        item["lemma"]
+        for item in payload["conversationContext"]["candidates"]
+    ] == ["access", "assess", "excess"]
+
+
+def test_chat_routes_resolved_ordinal_follow_up_through_ordinary_lookup():
+    ordinary_service = RecordingService(
+        answer="assess\n\nv. 评估",
+        grounding={
+            "activeExamTarget": "cet6",
+            "queryMode": "direct_lookup",
+            "answerStyle": "standard_lookup",
+            "resolution": "resolved",
+            "mainAnswer": [
+                {
+                    "entryId": "assess",
+                    "lemma": "assess",
+                    "partOfSpeech": "v.",
+                    "meaningZh": "评估",
+                    "sourceKind": "structured",
+                }
+            ],
+        },
+    )
+    client = create_client(ordinary_lookup_service=ordinary_service)
+
+    first_context = {
+        "version": 1,
+        "activeExamTarget": "cet6",
+        "sourceMessageId": "turn_1:assistant",
+        "topicKind": "direct_compare",
+        "focus": None,
+        "candidates": [
+            {"index": 1, "lemma": "access", "label": "access"},
+            {"index": 2, "lemma": "assess", "label": "assess"},
+            {"index": 3, "lemma": "excess", "label": "excess"},
+        ],
+        "availableActions": ["collect_one", "collect_group"],
+        "expiresAfterTurns": 2,
+    }
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "第二个是什么意思",
+            "history": [],
+            "conversationContext": first_context,
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert ordinary_service.calls[0]["query"] == "assess 是什么意思"
+    assert payload["resolvedFollowUp"]["kind"] == "resolved_query"
+    assert [
+        item["lemma"]
+        for item in payload["resolvedFollowUp"]["targetRefs"]
+    ] == ["assess"]
+
+
+def test_chat_clarifies_follow_up_without_context_without_calling_services():
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "第二个是什么意思",
+            "history": [],
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answerKind"] == "plain"
+    assert payload["providerRequestId"] is None
+    assert payload["resolvedFollowUp"]["kind"] == "clarification"
+    assert "grounding" not in payload
+
+
+def test_chat_resolves_collect_group_action_without_calling_lookup_services():
+    first_context = {
+        "version": 1,
+        "activeExamTarget": "cet6",
+        "sourceMessageId": "turn_1:assistant",
+        "topicKind": "direct_compare",
+        "focus": None,
+        "candidates": [
+            {"index": 1, "lemma": "access", "label": "access"},
+            {"index": 2, "lemma": "assess", "label": "assess"},
+            {"index": 3, "lemma": "excess", "label": "excess"},
+        ],
+        "availableActions": ["collect_one", "collect_group"],
+        "expiresAfterTurns": 2,
+    }
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "把这组都收藏",
+            "history": [],
+            "conversationContext": first_context,
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answerKind"] == "plain"
+    assert payload["providerRequestId"] is None
+    assert payload["resolvedFollowUp"]["kind"] == "resolved_action"
+    assert payload["resolvedFollowUp"]["action"] == "collect_group"
+    assert [
+        item["lemma"]
+        for item in payload["resolvedFollowUp"]["targetRefs"]
+    ] == ["access", "assess", "excess"]
+
+
+def test_chat_keeps_normal_query_with_context_on_original_route():
+    ordinary_service = RecordingService(
+        answer="make up\n\nphr. 组成；编造",
+        grounding={
+            "activeExamTarget": "cet6",
+            "queryMode": "direct_lookup",
+            "answerStyle": "standard_lookup",
+            "resolution": "resolved",
+            "mainAnswer": [
+                {
+                    "entryId": "make-up",
+                    "lemma": "make up",
+                    "partOfSpeech": "phr.",
+                    "meaningZh": "组成；编造",
+                    "sourceKind": "external_dictionary_basic",
+                }
+            ],
+        },
+    )
+    client = create_client(ordinary_lookup_service=ordinary_service)
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "make up 是什么意思",
+            "history": [],
+            "conversationContext": {
+                "version": 1,
+                "activeExamTarget": "cet6",
+                "sourceMessageId": "turn_1:assistant",
+                "topicKind": "direct_compare",
+                "focus": None,
+                "candidates": [
+                    {"index": 1, "lemma": "access", "label": "access"},
+                    {"index": 2, "lemma": "assess", "label": "assess"},
+                    {"index": 3, "lemma": "excess", "label": "excess"},
+                ],
+                "availableActions": ["collect_one", "collect_group"],
+                "expiresAfterTurns": 2,
+            },
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert ordinary_service.calls[0]["query"] == "make up 是什么意思"
+    assert "resolvedFollowUp" not in payload
+
+
+def test_chat_clarifies_mixed_explicit_and_ordinal_reference_without_services():
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "access 和第二个怎么区分",
+            "history": [],
+            "conversationContext": {
+                "version": 1,
+                "activeExamTarget": "cet6",
+                "sourceMessageId": "turn_1:assistant",
+                "topicKind": "direct_compare",
+                "focus": None,
+                "candidates": [
+                    {"index": 1, "lemma": "access", "label": "access"},
+                    {"index": 2, "lemma": "assess", "label": "assess"},
+                    {"index": 3, "lemma": "excess", "label": "excess"},
+                ],
+                "availableActions": ["collect_one", "collect_group"],
+                "expiresAfterTurns": 2,
+            },
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answerKind"] == "plain"
+    assert payload["resolvedFollowUp"]["kind"] == "clarification"
 
 
 def test_chat_returns_plain_greeting_without_grounding():
