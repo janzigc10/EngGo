@@ -338,6 +338,58 @@ describe("ChatWorkspace", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("hides old clarification options after the user submits another message that fails", async () => {
+    const user = userEvent.setup();
+    const resolvedFollowUp: ResolvedFollowUp = {
+      kind: "clarification",
+      message: "Which word do you mean?",
+      options: [
+        {
+          index: 1,
+          lemma: "access",
+          label: "access",
+        },
+      ],
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          answer: "I need one more detail before answering.",
+          answerKind: "plain",
+          requestId: "req_old_clarification",
+          providerRequestId: null,
+          resolvedFollowUp,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          error: {
+            message: "Temporary failure.",
+          },
+        }),
+      });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "第二个是什么意思");
+    await user.click(getSubmitButton());
+
+    expect(await screen.findByRole("button", { name: "access 是什么意思" })).toBeInTheDocument();
+
+    await user.type(screen.getByTestId("chat-input"), "assess 是什么意思");
+    await user.click(getSubmitButton());
+
+    expect(
+      await screen.findByText("当前回答服务暂时不可用，请稍后再试。"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "access 是什么意思" })).not.toBeInTheDocument();
+  });
+
   it("does not send an expired conversation context on a later follow-up prompt", async () => {
     const user = userEvent.setup();
     const conversationContext: ConversationalLearningContext = {

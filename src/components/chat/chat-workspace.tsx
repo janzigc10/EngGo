@@ -33,9 +33,13 @@ function buildContextHintLabel(context: ConversationalLearningContext) {
     .join(" / ");
 }
 
-function findLatestAssistantMessage(messages: ChatMessage[]) {
+function findLatestUnansweredAssistantMessage(messages: ChatMessage[]) {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
+
+    if (message.role === "user") {
+      return null;
+    }
 
     if (message.role === "assistant") {
       return message;
@@ -64,7 +68,7 @@ export function ChatWorkspace() {
   const contextHintLabel = currentContext
     ? buildContextHintLabel(currentContext)
     : "";
-  const latestAssistantMessage = findLatestAssistantMessage(messages);
+  const latestAssistantMessage = findLatestUnansweredAssistantMessage(messages);
   const clarificationOptions =
     latestAssistantMessage?.resolvedFollowUp?.kind === "clarification"
       ? latestAssistantMessage.resolvedFollowUp.options.slice(0, 5)
