@@ -221,6 +221,87 @@ describe("ChatWorkspace", () => {
     expect(requestBody.conversationContext).toEqual(conversationContext);
   });
 
+  it("does not send an expired conversation context on a later follow-up prompt", async () => {
+    const user = userEvent.setup();
+    const conversationContext: ConversationalLearningContext = {
+      version: 1,
+      activeExamTarget: "cet6",
+      sourceMessageId: "assistant-context-expiring",
+      topicKind: "confusion_untangle",
+      focus: {
+        kind: "group",
+        label: "access / assess",
+      },
+      candidates: [
+        {
+          index: 1,
+          lemma: "access",
+          label: "access",
+        },
+        {
+          index: 2,
+          lemma: "assess",
+          label: "assess",
+        },
+      ],
+      availableActions: ["collect_one", "collect_group"],
+      expiresAfterTurns: 1,
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          answer: "access and assess are close in form.",
+          answerKind: "plain",
+          requestId: "req_expiry_1",
+          providerRequestId: null,
+          conversationContext,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          answer: "assess means to evaluate.",
+          answerKind: "plain",
+          requestId: "req_expiry_2",
+          providerRequestId: null,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          answer: "Tell me which word you mean.",
+          answerKind: "plain",
+          requestId: "req_expiry_3",
+          providerRequestId: null,
+        }),
+      });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "access assess");
+    await user.click(getSubmitButton());
+    expect(await screen.findByText("access and assess are close in form.")).toBeInTheDocument();
+
+    await user.type(screen.getByTestId("chat-input"), "第二个是什么意思");
+    await user.click(getSubmitButton());
+    expect(await screen.findByText("assess means to evaluate.")).toBeInTheDocument();
+
+    await user.type(screen.getByTestId("chat-input"), "再讲一下第二个");
+    await user.click(getSubmitButton());
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+
+    const thirdRequestBody = JSON.parse(
+      fetchMock.mock.calls[2]?.[1]?.body as string,
+    ) as Record<string, unknown>;
+
+    expect(thirdRequestBody).not.toHaveProperty("conversationContext");
+  });
+
   it("applies resolved collect_group follow-up actions to localStorage", async () => {
     const user = userEvent.setup();
     const resolvedFollowUp: ResolvedFollowUp = {

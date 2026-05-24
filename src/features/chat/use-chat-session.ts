@@ -165,7 +165,7 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
     };
     const nextMessages = [...messages, userMessage];
     const requestExamTarget = activeExamTarget ?? fallbackExamTarget;
-    const conversationContext = latestConversationContext(messages);
+    const conversationContext = latestConversationContext(nextMessages);
     const requestBody = {
       activeExamTarget: requestExamTarget,
       query: prompt,
