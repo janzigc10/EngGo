@@ -1,5 +1,417 @@
-from backend.app.conversation.learning_context import build_conversation_context
-from backend.app.schemas.chat import ChatSuccessResponse
+from backend.app.conversation.learning_context import (
+    build_conversation_context,
+    resolve_follow_up,
+)
+from backend.app.schemas.chat import (
+    ChatSuccessResponse,
+    ConversationalLearningContext,
+    LearningCandidateRef,
+    LearningFocus,
+)
+
+
+def _context(
+    lemmas: list[str],
+    *,
+    topic_kind: str = "direct_compare",
+    focus_index: int | None = None,
+    expires_after_turns: int = 2,
+) -> ConversationalLearningContext:
+    candidates = [
+        LearningCandidateRef(index=index, lemma=lemma, label=lemma)
+        for index, lemma in enumerate(lemmas, start=1)
+    ]
+    focus = None
+    if focus_index is not None:
+        candidate = candidates[focus_index - 1]
+        focus = LearningFocus(
+            kind="lemma",
+            label=candidate.label,
+            lemma=candidate.lemma,
+            index=candidate.index,
+        )
+
+    return ConversationalLearningContext(
+        activeExamTarget="cet6",
+        sourceMessageId="assistant_test",
+        topicKind=topic_kind,
+        focus=focus,
+        candidates=candidates,
+        availableActions=["collect_one", "collect_group"],
+        expiresAfterTurns=expires_after_turns,
+    )
+
+
+def _target_refs(result: dict) -> list[dict]:
+    return result["targetRefs"]
+
+
+def test_resolver_rewrites_ordinal_meaning_follow_up():
+    result = resolve_follow_up(
+        "第二个是什么意思",
+        _context(["access", "assess", "excess"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "resolved_query"
+    assert result["query"] == "assess 是什么意思"
+    assert result["activeExamTarget"] == "cet6"
+    assert [item["lemma"] for item in _target_refs(result)] == ["assess"]
+    assert result["reason"] == "ordinal_target"
+
+
+def test_resolver_rewrites_ordinal_what_is_follow_up_as_meaning():
+    result = resolve_follow_up(
+        "第二个是什么",
+        _context(["access", "assess", "excess"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "resolved_query"
+    assert result["query"] == "assess 是什么意思"
+    assert [item["lemma"] for item in _target_refs(result)] == ["assess"]
+    assert result["reason"] == "ordinal_target"
+
+
+def test_resolver_clarifies_relative_ordinal_reference():
+    result = resolve_follow_up(
+        "倒数第二个是什么意思",
+        _context(["access", "assess", "excess"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "clarification"
+    assert [item["lemma"] for item in result["options"]] == [
+        "access",
+        "assess",
+        "excess",
+    ]
+
+
+def test_resolver_rewrites_fourth_ordinal_meaning_follow_up():
+    result = resolve_follow_up(
+        "第四个是什么意思",
+        _context(["access", "assess", "excess", "axis"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "resolved_query"
+    assert result["query"] == "axis 是什么意思"
+    assert [item["lemma"] for item in _target_refs(result)] == ["axis"]
+
+
+def test_resolver_rewrites_fourth_digit_ordinal_meaning_follow_up():
+    result = resolve_follow_up(
+        "第4个是什么意思",
+        _context(["access", "assess", "excess", "axis"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "resolved_query"
+    assert result["query"] == "axis 是什么意思"
+    assert [item["lemma"] for item in _target_refs(result)] == ["axis"]
+
+
+def test_resolver_clarifies_unsupported_ordinal_reference():
+    result = resolve_follow_up(
+        "第六个是什么意思",
+        _context(["access", "assess", "excess", "axis", "asset"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "clarification"
+    assert [item["lemma"] for item in result["options"]] == [
+        "access",
+        "assess",
+        "excess",
+        "axis",
+        "asset",
+    ]
+
+
+def test_resolver_clarifies_unsupported_digit_ordinal_reference():
+    result = resolve_follow_up(
+        "第7个是什么意思",
+        _context(["access", "assess", "excess", "axis", "asset"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "clarification"
+    assert [item["lemma"] for item in result["options"]] == [
+        "access",
+        "assess",
+        "excess",
+        "axis",
+        "asset",
+    ]
+
+
+def test_resolver_clarifies_multi_digit_unsupported_ordinal_reference():
+    result = resolve_follow_up(
+        "第11个是什么意思",
+        _context(["access", "assess", "excess", "axis", "asset"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "clarification"
+    assert [item["lemma"] for item in result["options"]] == [
+        "access",
+        "assess",
+        "excess",
+        "axis",
+        "asset",
+    ]
+
+
+def test_resolver_clarifies_chinese_number_unsupported_ordinal_reference():
+    result = resolve_follow_up(
+        "第十一个是什么意思",
+        _context(["access", "assess", "excess", "axis", "asset"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "clarification"
+    assert [item["lemma"] for item in result["options"]] == [
+        "access",
+        "assess",
+        "excess",
+        "axis",
+        "asset",
+    ]
+
+
+def test_resolver_clarifies_traditional_marker_unsupported_ordinal_reference():
+    result = resolve_follow_up(
+        "第十一個是什么意思",
+        _context(["access", "assess", "excess", "axis", "asset"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "clarification"
+    assert [item["lemma"] for item in result["options"]] == [
+        "access",
+        "assess",
+        "excess",
+        "axis",
+        "asset",
+    ]
+
+
+def test_resolver_rewrites_ordinal_usage_follow_up_for_shape_neighbors():
+    result = resolve_follow_up(
+        "第二个怎么用",
+        _context(["evaluate", "evacuate", "escalate"], topic_kind="shape_neighbors"),
+        "cet6",
+    )
+
+    assert result["kind"] == "resolved_query"
+    assert result["query"] == "evacuate 怎么用"
+    assert [item["lemma"] for item in _target_refs(result)] == ["evacuate"]
+
+
+def test_resolver_rewrites_group_memory_follow_up():
+    result = resolve_follow_up(
+        "这组怎么背",
+        _context(["access", "assess", "excess"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "resolved_query"
+    assert result["query"] == "access assess excess 怎么背"
+    assert [item["lemma"] for item in _target_refs(result)] == [
+        "access",
+        "assess",
+        "excess",
+    ]
+
+
+def test_resolver_rewrites_group_compare_follow_up():
+    result = resolve_follow_up(
+        "这组怎么区分",
+        _context(["access", "assess", "excess"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "resolved_query"
+    assert result["query"] == "access assess excess 怎么区分"
+    assert [item["lemma"] for item in _target_refs(result)] == [
+        "access",
+        "assess",
+        "excess",
+    ]
+
+
+def test_resolver_maps_ordinal_collect_to_single_candidate_action():
+    result = resolve_follow_up(
+        "收藏第二个",
+        _context(["access", "assess", "excess"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "resolved_action"
+    assert result["action"] == "collect_one"
+    assert result["activeExamTarget"] == "cet6"
+    assert [item["lemma"] for item in _target_refs(result)] == ["assess"]
+
+
+def test_resolver_clarifies_collect_with_multiple_ordinals():
+    result = resolve_follow_up(
+        "收藏第二个和第三个",
+        _context(["access", "assess", "excess"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "clarification"
+    assert "action" not in result
+    assert [item["lemma"] for item in result["options"]] == [
+        "access",
+        "assess",
+        "excess",
+    ]
+
+
+def test_resolver_clarifies_mixed_last_and_ordinal_references():
+    result = resolve_follow_up(
+        "最后一个和第一个怎么区分",
+        _context(["access", "assess", "excess"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "clarification"
+    assert [item["lemma"] for item in result["options"]] == [
+        "access",
+        "assess",
+        "excess",
+    ]
+
+
+def test_resolver_clarifies_mixed_last_and_ordinal_usage_reference():
+    result = resolve_follow_up(
+        "最后一个和第一个怎么用",
+        _context(["access", "assess", "excess"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "clarification"
+    assert [item["lemma"] for item in result["options"]] == [
+        "access",
+        "assess",
+        "excess",
+    ]
+
+
+def test_resolver_clarifies_mixed_ordinal_and_near_reference():
+    result = resolve_follow_up(
+        "第二个和这个是什么意思",
+        _context(["access", "assess", "excess"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "clarification"
+    assert [item["lemma"] for item in result["options"]] == [
+        "access",
+        "assess",
+        "excess",
+    ]
+
+
+def test_resolver_clarifies_mixed_explicit_candidate_and_ordinal_reference():
+    result = resolve_follow_up(
+        "access 和第二个怎么区分",
+        _context(["access", "assess", "excess"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "clarification"
+    assert [item["lemma"] for item in result["options"]] == [
+        "access",
+        "assess",
+        "excess",
+    ]
+
+
+def test_resolver_clarifies_mixed_explicit_candidate_and_unsupported_ordinal():
+    result = resolve_follow_up(
+        "access 和第十一个怎么区分",
+        _context(["access", "assess", "excess"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "clarification"
+    assert [item["lemma"] for item in result["options"]] == [
+        "access",
+        "assess",
+        "excess",
+    ]
+
+
+def test_resolver_maps_group_collect_to_group_action():
+    result = resolve_follow_up(
+        "把这组都收藏",
+        _context(["access", "assess", "excess"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "resolved_action"
+    assert result["action"] == "collect_group"
+    assert [item["lemma"] for item in _target_refs(result)] == [
+        "access",
+        "assess",
+        "excess",
+    ]
+
+
+def test_resolver_clarifies_follow_up_without_context():
+    result = resolve_follow_up("第二个是什么意思", None, "cet6")
+
+    assert result["kind"] == "clarification"
+    assert "哪一个词" in result["message"]
+    assert result["options"] == []
+
+
+def test_resolver_clarifies_follow_up_with_stale_context():
+    result = resolve_follow_up(
+        "第二个是什么意思",
+        _context(["access", "assess"], expires_after_turns=0),
+        "cet6",
+    )
+
+    assert result["kind"] == "clarification"
+    assert "query" not in result
+    assert [item["lemma"] for item in result["options"]] == ["access", "assess"]
+
+
+def test_resolver_clarifies_follow_up_with_empty_context():
+    result = resolve_follow_up("第二个是什么意思", _context([]), "cet6")
+
+    assert result["kind"] == "clarification"
+    assert "query" not in result
+    assert result["options"] == []
+
+
+def test_resolver_clarifies_near_reference_with_multiple_candidates_and_no_focus():
+    result = resolve_follow_up(
+        "这个是什么意思",
+        _context(["access", "assess", "excess"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "clarification"
+    assert [item["lemma"] for item in result["options"]] == [
+        "access",
+        "assess",
+        "excess",
+    ]
+
+
+def test_resolver_ignores_explicit_normal_lookup_with_context():
+    result = resolve_follow_up(
+        "access 是什么意思",
+        _context(["access", "assess", "excess"]),
+        "cet6",
+    )
+
+    assert result == {"kind": "not_follow_up"}
 
 
 def test_context_capture_from_direct_compare_uses_comparison_member_order():
