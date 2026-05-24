@@ -600,7 +600,7 @@ Only stage files actually changed.
 - Add: `scripts/run-conversational-learning-context-smoke.ts`
 - Modify: `package.json`
 
-- [ ] **Step 1: Implement a pure smoke evaluator test first**
+- [x] **Step 1: Implement a pure smoke evaluator test first**
 
 The smoke library should support stateful cases:
 
@@ -627,7 +627,7 @@ Add tests proving the evaluator catches:
 - wrong resolved query on turn 2,
 - accidental provider call for collection action.
 
-- [ ] **Step 2: Add the V1 smoke matrix**
+- [x] **Step 2: Add the V1 smoke matrix**
 
 Add cases:
 
@@ -645,7 +645,7 @@ Add cases:
 6. No context `第二个是什么意思`
    - expects `plain` clarification, no grounding, provider absent.
 
-- [ ] **Step 3: Implement runner**
+- [x] **Step 3: Implement runner**
 
 The runner should:
 
@@ -664,7 +664,7 @@ The runner should:
 
 4. Validate each turn and print a compact pass/fail summary.
 
-- [ ] **Step 4: Add package script**
+- [x] **Step 4: Add package script**
 
 Add:
 
@@ -674,7 +674,7 @@ Add:
 
 Keep default base URL as `http://127.0.0.1:8000`, matching migrated FastAPI smoke conventions.
 
-- [ ] **Step 5: Run smoke library tests**
+- [x] **Step 5: Run smoke library tests**
 
 Run:
 
@@ -684,7 +684,7 @@ corepack pnpm test scripts/lib/conversational-learning-context-smoke.test.ts
 
 Expected: pass.
 
-- [ ] **Step 6: Commit checkpoint**
+- [x] **Step 6: Commit checkpoint**
 
 ```powershell
 git add package.json scripts/lib/conversational-learning-context-smoke.ts scripts/lib/conversational-learning-context-smoke.test.ts scripts/run-conversational-learning-context-smoke.ts
