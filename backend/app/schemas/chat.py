@@ -8,6 +8,35 @@ MessageRole = Literal["user", "assistant"]
 AnswerKind = Literal["grounded", "plain"]
 
 
+class LearningCandidateRef(BaseModel):
+    index: int
+    lemma: str
+    label: str
+    entryId: str | None = None
+    sourceKind: str | None = None
+    partOfSpeech: str | None = None
+    meaningZh: str | None = None
+    reviewStatus: str | None = None
+
+
+class LearningFocus(BaseModel):
+    kind: Literal["lemma", "phrase", "candidate_group", "meaning_candidate"]
+    label: str
+    lemma: str | None = None
+    index: int | None = None
+
+
+class ConversationalLearningContext(BaseModel):
+    version: Literal[1] = 1
+    activeExamTarget: ExamTarget
+    sourceMessageId: str
+    topicKind: str
+    focus: LearningFocus | None = None
+    candidates: list[LearningCandidateRef] = Field(default_factory=list)
+    availableActions: list[str] = Field(default_factory=list)
+    expiresAfterTurns: int = 2
+
+
 class ChatHistoryMessage(BaseModel):
     role: MessageRole
     content: str = Field(min_length=1)
@@ -25,6 +54,7 @@ class ChatRequest(BaseModel):
     activeExamTarget: ExamTarget
     query: str = Field(min_length=1)
     history: list[ChatHistoryMessage] = Field(default_factory=list)
+    conversationContext: ConversationalLearningContext | None = None
 
     @field_validator("query")
     @classmethod
@@ -47,6 +77,8 @@ class ChatSuccessResponse(BaseModel):
     grounding: dict[str, Any] | None = None
     requestId: str
     providerRequestId: str | None = None
+    conversationContext: ConversationalLearningContext | None = None
+    resolvedFollowUp: dict[str, Any] | None = None
 
 
 class ChatErrorResponse(BaseModel):
