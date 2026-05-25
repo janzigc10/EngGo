@@ -226,6 +226,12 @@ def test_resolver_rewrites_group_memory_follow_up():
     ]
 
 
+def test_resolver_ignores_group_marker_when_query_has_explicit_seed_without_context():
+    result = resolve_follow_up("sign这组词怎么背", None, "cet6")
+
+    assert result["kind"] == "not_follow_up"
+
+
 def test_resolver_rewrites_group_compare_follow_up():
     result = resolve_follow_up(
         "这组怎么区分",

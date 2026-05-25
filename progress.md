@@ -16,13 +16,16 @@
   3. Changed-file lint：`corepack pnpm lint src/features/chat/types.ts src/features/chat/use-chat-session.ts src/features/chat/conversation-context.ts src/components/chat/chat-workspace.tsx src/components/chat/message-thread.tsx scripts/lib/conversational-learning-context-smoke.ts scripts/run-conversational-learning-context-smoke.ts` -> passed。
   4. Live FastAPI smoke：先发现隔离 worktree 缺少 ignored ECDICT 文件会导致 `evaluate` / `response` ECDICT-backed case no_match；设置 `ENGGO_ECDICT_PATH=C:\Users\Chen\Desktop\EngGo\output\external-dictionaries\ecdict.csv` 后重启 dev stack，review fix 后复跑 `corepack pnpm eval:fastapi:conversation-context-smoke` -> 5 total / 5 pass / 0 fail。验证后已停止本次启动的 8000/3000 服务。
   5. Playwright E2E：直接 `corepack pnpm test:e2e` 时 3 个用例实际均显示 ok，但 Playwright 托管的 Next dev server 在 Google Fonts 下载失败警告下未退出并被外层 timeout 截断；修窄 `chat-mvp.spec.ts` 中 `comply` 断言后，手动启动 Next 并让 Playwright 复用现有 3000 服务复跑 `corepack pnpm test:e2e` -> 3 passed in 2.9s，随后已停止 3000 服务。
+  6. 2026-05-25 合并闸门补验：发现 `sign这组词怎么背` 会被 resolver 当成无上下文的 `这组` 追问并 clarification；已改为“带显式英文 seed 的请求不走 follow-up 改写”，复跑 `backend/tests/test_learning_context.py backend/tests/test_chat_contract.py` -> 49 passed，`corepack pnpm eval:fastapi:conversation-context-smoke` -> 5/5 pass，`corepack pnpm test:e2e` -> 3 passed。
+  7. 2026-05-25 合并闸门 caveat：`corepack pnpm eval:default-fastapi-smoke` 在 feature 分支和主线 `codex/chat-shell-bootstrap` 对照下均为 42 total / 38 pass / 4 fail；剩余失败集中在既有中文 meaning/expression recall（`遵从/遵守/表达观点` 期望 `comply/express`），不是 conversation-context 新增改动造成，但默认 smoke 仍未全绿。
 - 仍需防回归的边界：
   1. 无上下文、过期上下文、空候选、混合引用或不支持的序号表达必须 clarification，不猜目标。
   2. 显式词查询如 `access 是什么意思` 即使带 context，也应走原始普通查词路径，不被改写。
   3. collection follow-up 只做本地 action，不调用 provider。
   4. 前端 context 只保留最近学习话题，按 user turn 过期；active exam target 改变后不再发送旧 context，后端收到 scope 不匹配 context 也会 clarification；stale clarification options 不应在后续用户消息后继续显示。
-  5. `遵循的英文是什么 -> 还有更适合作文的吗`、跨会话长期记忆、多主题并行、`换成考研范围`、review cards、账号/cloud sync 均仍显式延后，不伪装成 V1 支持。
-- 下一步建议：先合并或继续验收 `codex/conversation-context-v1`。后续产品顺序建议是先用真实聊天手测普通查词 exact lookup、direct compare 和 V1 追问体验是否干净；确认后再回到复习卡片/学习闭环下一刀。
+  5. 带显式英文 seed 的请求如 `sign这组词怎么背` 不应被 `这组` 指代规则劫持；应回到普通检索/word-family 路径。
+  6. `遵循的英文是什么 -> 还有更适合作文的吗`、跨会话长期记忆、多主题并行、`换成考研范围`、review cards、账号/cloud sync 均仍显式延后，不伪装成 V1 支持。
+- 下一步建议：`codex/conversation-context-v1` 的 conversation-context 范围已通过 focused / live / E2E；合主线前若坚持默认 smoke 全绿，需要先处理主线已存在的 4 个中文 meaning/expression recall smoke 失败，或显式接受该 caveat 后再合并。
 
 ## 历史快照（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
 - 产品方向已从“postgrad 没有官方机器词表，所以 ECDICT 只能泛外部兜底”调整为：ECDICT 作为更大的基础词汇底座；自有 structured 词库作为高信任覆盖层。覆盖层仍优先，但只在当前考试范围内命中时覆盖。

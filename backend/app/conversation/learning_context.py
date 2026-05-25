@@ -66,6 +66,9 @@ def resolve_follow_up(
     if reference in {"multiple_ordinals", "unsupported_ordinal"}:
         return _clarification(context)
 
+    if _contains_explicit_seed(text):
+        return {"kind": "not_follow_up"}
+
     if _contains_explicit_candidate(text, context):
         return {"kind": "not_follow_up"}
 
@@ -353,6 +356,10 @@ def _contains_explicit_candidate(
         return False
     lowered = query.lower()
     return any(candidate.lemma.lower() in lowered for candidate in context.candidates)
+
+
+def _contains_explicit_seed(query: str) -> bool:
+    return bool(re.search(r"[A-Za-z][A-Za-z'-]*", query))
 
 
 def _usable_context(context: ConversationalLearningContext | None) -> bool:
