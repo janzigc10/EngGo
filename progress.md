@@ -25,7 +25,10 @@
   4. 前端 context 只保留最近学习话题，按 user turn 过期；active exam target 改变后不再发送旧 context，后端收到 scope 不匹配 context 也会 clarification；stale clarification options 不应在后续用户消息后继续显示。
   5. 带显式英文 seed 的请求如 `sign这组词怎么背` 不应被 `这组` 指代规则劫持；应回到普通检索/word-family 路径。
   6. `遵循的英文是什么 -> 还有更适合作文的吗`、跨会话长期记忆、多主题并行、`换成考研范围`、review cards、账号/cloud sync 均仍显式延后，不伪装成 V1 支持。
-- 下一步建议：V1 已在当前主线可继续验收。短期先用真实聊天手测普通查词 exact lookup、direct compare、word family 与 V1 追问链路是否干净；如果要把默认 smoke 重新拉到全绿，下一刀应先处理主线已存在的 4 个中文 meaning/expression recall smoke 失败（`遵从/遵守/表达观点` 相关），这不是 conversation-context 新增回归，但会影响后续合并闸门判断。
+- 下一步建议：先不要直接开大 V2。下一刀按三步走：
+  1. 先做 V1 acceptance 收口，用真实聊天手测普通查词 exact lookup、direct compare、word family、`第二个是什么意思`、`这组怎么背`、`把这组都收藏`，确认追问链路和 UI 提示都干净。
+  2. 再把默认 smoke 重新拉干净，优先处理主线已存在的 4 个中文 meaning/expression recall smoke 失败（`遵从/遵守/表达观点` 相关）。这不是 conversation-context 新增回归，但会影响后续 V2 合并闸门判断。
+  3. 上面两步完成后再开 V2 implementation plan。V2 先做短期上下文增强，不做长期个人记忆：范围切换（`换成考研/四级范围`）、`还有吗`、`这组怎么背` 质量增强、`更适合作文吗` 这种基于上一轮候选的语境选择，以及收藏到复习入口的轻闭环。
 
 ## 历史快照（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
 - 产品方向已从“postgrad 没有官方机器词表，所以 ECDICT 只能泛外部兜底”调整为：ECDICT 作为更大的基础词汇底座；自有 structured 词库作为高信任覆盖层。覆盖层仍优先，但只在当前考试范围内命中时覆盖。
