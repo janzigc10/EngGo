@@ -1,3 +1,5 @@
+import json
+
 from backend.app.answering.advanced_lookup import (
     AdvancedLookupService,
     root_fragment_query,
@@ -162,6 +164,69 @@ def write_source_lemma_fixture(base_dir, lemmas: list[str]) -> None:
         "lemma\tsource_scope\n"
         + "\n".join(f"{lemma}\tcet6-extra" for lemma in lemmas)
         + "\n",
+        encoding="utf-8",
+    )
+
+
+def write_seed_expression_fixture(base_dir) -> None:
+    seed_dir = base_dir / "seed"
+    seed_dir.mkdir()
+    (seed_dir / "entries.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "comply",
+                    "lemma": "comply",
+                    "aliases": ["comply with"],
+                    "pos": ["verb"],
+                    "meaningsZh": ["\u9075\u4ece", "\u9075\u5b88", "\u4f9d\u4ece"],
+                    "examScopes": ["cet6", "postgrad"],
+                },
+                {
+                    "id": "conform",
+                    "lemma": "conform",
+                    "aliases": ["conform to"],
+                    "pos": ["verb"],
+                    "meaningsZh": ["\u7b26\u5408", "\u9075\u4ece", "\u4f7f\u4e00\u81f4"],
+                    "examScopes": ["cet6", "postgrad"],
+                },
+                {
+                    "id": "defer",
+                    "lemma": "defer",
+                    "aliases": ["defer to"],
+                    "pos": ["verb"],
+                    "meaningsZh": ["\u542c\u4ece", "\u987a\u4ece", "\u63a8\u8fdf"],
+                    "examScopes": ["cet6", "postgrad"],
+                },
+            ],
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    (seed_dir / "confusion-groups.json").write_text(
+        json.dumps(
+            [
+                {
+                    "id": "comply-conform-defer",
+                    "members": ["comply", "conform", "defer"],
+                    "labels": ["meaning_near", "collocation_boundary"],
+                    "purposes": ["expression_recall", "confusion_untangle"],
+                    "teachFirst": "comply",
+                    "whyConfusing": "test seed group",
+                    "commonMisusePoints": ["watch the collocation"],
+                    "semanticBoundaryNotes": [
+                        "comply emphasizes following a rule or request.",
+                        "conform emphasizes matching a standard.",
+                        "defer emphasizes yielding to judgment.",
+                    ],
+                    "memberNotes": {
+                        "conform": "conform to a standard",
+                        "defer": "defer to authority",
+                    },
+                },
+            ],
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
 
@@ -1304,6 +1369,106 @@ def test_gaokao_meaning_lookup_accepts_current_scope_ecdict_tags():
         "restrict",
     ]
     assert "constrain" not in [item["lemma"] for item in grounding["mainAnswer"]]
+
+
+def test_meaning_lookup_uses_seed_expression_group_when_structured_repository_unavailable(tmp_path):
+    write_seed_expression_fixture(tmp_path)
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        provider=provider,
+        source_lemma_base_dir=tmp_path,
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="\u9075\u4ece\u600e\u4e48\u8bf4",
+        request_id="req_seed_comply_conform_defer",
+        history=[{"role": "user", "content": "previous message"}],
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.answer == "provider advanced answer"
+    assert result.payload.providerRequestId == "provider_req_advanced"
+    assert grounding["queryMode"] == "meaning_lookup"
+    assert grounding["answerStyle"] == "expression_recall"
+    assert grounding["comparisonView"]["id"] == "comply-conform-defer"
+    assert grounding["mainAnswer"][0]["lemma"] == "comply"
+    assert [item["lemma"] for item in grounding["confusionBoundary"]] == [
+        "conform",
+        "defer",
+    ]
+    assert provider.calls[0]["history"] == [{"role": "user", "content": "previous message"}]
+
+
+def test_postgrad_obey_meaning_lookup_prefers_exam_expression_verb():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("compliance", ["n. \u9075\u5b88\uff1b\u987a\u4ece"], tag="ky"),
+            ecdict_profile("obedience", ["n. \u670d\u4ece\uff1b\u9075\u5b88"], tag="ky"),
+            ecdict_profile("obedient", ["adj. \u670d\u4ece\u7684\uff1b\u987a\u4ece\u7684"], tag="ky"),
+            ecdict_profile("obey", ["v. \u9075\u5b88\uff1b\u670d\u4ece"], tag="ky"),
+            ecdict_profile("abide", ["v. \u9075\u5b88\uff1b\u5fcd\u53d7"], tag="ky"),
+            ecdict_profile("comply", ["v. \u9075\u5b88\uff1b\u670d\u4ece"], tag="ky"),
+            ecdict_profile("conform", ["v. \u9075\u5b88\uff1b\u7b26\u5408"], tag="ky"),
+        ],
+    )
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="\u9075\u5b88\u7684\u82f1\u6587\u662f\u5565",
+        request_id="req_obey_meaning_prefers_comply",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+
+    assert result.status_code == 200
+    assert grounding["queryMode"] == "meaning_lookup"
+    assert grounding["learningIntentPlan"]["task"] == "meaning_core"
+    assert main_lemmas[0] == "comply"
+
+
+def test_postgrad_express_opinion_lookup_prefers_expression_verb():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("expression", ["n. \u8868\u8fbe\uff1b\u8868\u60c5"], tag="ky"),
+            ecdict_profile("outlook", ["n. \u89c2\u70b9\uff1b\u524d\u666f"], tag="ky"),
+            ecdict_profile("statement", ["n. \u9648\u8ff0\uff1b\u58f0\u660e"], tag="ky"),
+            ecdict_profile("viewpoint", ["n. \u89c2\u70b9"], tag="ky"),
+            ecdict_profile("express", ["vt. \u5feb\u9012\uff1b\u8868\u8fbe\uff1b\u8868\u793a"], tag="ky"),
+        ],
+    )
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="\u8868\u793a\u8868\u8fbe\u89c2\u70b9\u7684\u8bcd\u6709\u54ea\u4e9b\u54ea\u4e9b\u8003\u8bd5\u5e38\u89c1",
+        request_id="req_express_opinion_prefers_verb",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+
+    assert result.status_code == 200
+    assert grounding["queryMode"] == "meaning_lookup"
+    assert grounding["learningIntentPlan"]["task"] == "meaning_core"
+    assert main_lemmas[0] == "express"
 
 
 def test_chinese_expression_recall_uses_cleaned_ecdict_meaning_hint():

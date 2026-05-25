@@ -284,6 +284,13 @@ def contains_shape_neighbor_cue(normalized_text: str) -> bool:
     )
 
 
+def is_plain_like_single_word_query(normalized_query: NormalizedQuery) -> bool:
+    return (
+        len(normalized_query.english_terms) == 1
+        and plain_like_word_pattern.search(normalized_query.normalized_text) is not None
+    )
+
+
 def contains_lookalike_collection_recall_cue(normalized_text: str) -> bool:
     if semantic_similarity_pattern.search(normalized_text) is not None:
         return False

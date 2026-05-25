@@ -1,12 +1,17 @@
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Callable
 
 from backend.app.content.ecdict import EcdictBasicProfile, scope_codes_for_profile
 from backend.app.content.source_lemmas import find_source_lemma_memberships_for_lookup
 from backend.app.answering.no_match_policy import maybe_plain_no_match_response
-from backend.app.retrieval.normalize_query import NormalizedQuery, normalize_query
+from backend.app.retrieval.learning_intent import build_learning_intent_plan
+from backend.app.retrieval.normalize_query import (
+    NormalizedQuery,
+    is_plain_like_single_word_query,
+    normalize_query,
+)
 from backend.app.retrieval.repository import StructuredLookupUnavailable
 from backend.app.retrieval.types import RetrievalCandidate
 from backend.app.schemas.chat import ChatSuccessResponse
@@ -532,6 +537,16 @@ class OrdinaryLookupService:
         normalized_query = normalize_query(query)
 
         if not normalized_query.is_supported_ordinary_lookup:
+            typo_result = self.answer_plain_like_typo_if_possible(
+                active_exam_target=active_exam_target,
+                query=query,
+                request_id=request_id,
+                history=history,
+                normalized_query=normalized_query,
+            )
+            if typo_result:
+                return typo_result
+
             raise UnsupportedQueryMode(normalized_query.query_mode)
 
         if normalized_query.query_mode == "fuzzy_recall" and len(normalized_query.english_terms) != 1:
@@ -751,6 +766,105 @@ class OrdinaryLookupService:
             request_id=request_id,
             normalized_query=normalized_query,
             history=history,
+        )
+
+    def answer_plain_like_typo_if_possible(
+        self,
+        *,
+        active_exam_target: str,
+        query: str,
+        request_id: str,
+        history: list[dict[str, str]] | None,
+        normalized_query: NormalizedQuery,
+    ) -> OrdinaryLookupResult | None:
+        if (
+            normalized_query.query_mode != "shape_neighbor_search"
+            or not is_plain_like_single_word_query(normalized_query)
+            or not hasattr(self.repository, "find_english_candidates")
+        ):
+            return None
+
+        needle = normalized_query.english_terms[0]
+
+        try:
+            structured_candidate = self.repository.find_exact_entry(active_exam_target, needle)
+        except StructuredLookupUnavailable:
+            return None
+
+        if structured_candidate:
+            return None
+
+        if source_lemma_candidate(
+            active_exam_target=active_exam_target,
+            lookup=needle,
+            source_lemma_base_dir=self.source_lemma_base_dir,
+        ):
+            return None
+
+        if self.ecdict_lookup(needle):
+            return None
+
+        try:
+            ranked_candidates = self.repository.find_english_candidates(
+                active_exam_target,
+                needle,
+            )
+        except StructuredLookupUnavailable:
+            return None
+
+        selection = select_typo_fallback_candidate(needle, ranked_candidates)
+        if not selection:
+            return None
+
+        fuzzy_query = replace(
+            normalized_query,
+            query_mode="fuzzy_recall",
+            is_supported_ordinary_lookup=True,
+        )
+        fuzzy_query = replace(
+            fuzzy_query,
+            intent_plan=build_learning_intent_plan(fuzzy_query),
+        )
+        grounding = build_grounding(
+            active_exam_target=active_exam_target,
+            query=query,
+            normalized_query=fuzzy_query,
+            resolution="resolved",
+            no_match_reason=None,
+            match_type=None,
+            main_answer=[selection],
+            candidates=ranked_candidates,
+        )
+
+        if self.provider and grounding["spellingCorrection"]:
+            provider_result = self.provider.generate_answer(
+                query=query,
+                history=history or [],
+                request_id=request_id,
+                system_prompt=build_spelling_correction_prompt(),
+                grounding=grounding,
+            )
+
+            return OrdinaryLookupResult(
+                status_code=200,
+                payload=ChatSuccessResponse(
+                    answer=provider_result.answer,
+                    answerKind="grounded",
+                    grounding=grounding,
+                    requestId=request_id,
+                    providerRequestId=provider_result.provider_request_id,
+                ),
+            )
+
+        return OrdinaryLookupResult(
+            status_code=200,
+            payload=ChatSuccessResponse(
+                answer=build_structured_standard_lookup_answer(selection),
+                answerKind="grounded",
+                grounding=grounding,
+                requestId=request_id,
+                providerRequestId=None,
+            ),
         )
 
     def no_match(

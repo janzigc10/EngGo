@@ -1,5 +1,28 @@
 # EngGo 已知问题与环境坑
 
+## 2026-05-25 Windows `Start-Process` 环境变量里同时存在 `Path` / `PATH` 会导致 dev stack 假启动（环境坑）
+### 症状
+在 PowerShell 里用 `Start-Process` 启动 `corepack pnpm dev:fastapi` 时，进程可能直接失败并报：
+
+```text
+已添加项。字典中的关键字:“Path”所添加的关键字:“PATH”
+```
+
+这会让后续 smoke 误以为服务已重启，但 8000/3000 实际仍可能是旧进程或未监听。
+
+### 处理方式
+启动 dev stack 前先把当前进程环境里的 `PATH` / `Path` 归一化，再设置 ECDICT 与 structured runtime 变量：
+
+```powershell
+$env:ENGGO_ECDICT_PATH = 'C:\Users\Chen\Desktop\EngGo\output\external-dictionaries\ecdict.csv'
+$env:ENGGO_USE_STRUCTURED_RUNTIME = 'true'
+$pathValue = [System.Environment]::GetEnvironmentVariable('Path', 'Process')
+[System.Environment]::SetEnvironmentVariable('PATH', $null, 'Process')
+[System.Environment]::SetEnvironmentVariable('Path', $pathValue, 'Process')
+```
+
+随后再 `Start-Process`，并用 `netstat -ano | Select-String -Pattern ':8000|:3000'` 与 `.runlogs` 里的 health / Ready 日志确认真实监听的是新进程。
+
 ## 2026-05-24 隔离 worktree 缺少 ignored ECDICT 文件会让 live smoke 误报 no_match（环境坑）
 ### 症状
 在 `C:\tmp\enggo-worktrees\conversation-context-v1` 隔离 worktree 里启动 FastAPI 后，`corepack pnpm eval:fastapi:conversation-context-smoke` 首次失败：

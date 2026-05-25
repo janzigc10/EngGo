@@ -250,6 +250,7 @@ def test_direct_compare_keeps_exact_resolved_terms_without_shared_group():
     ]
     assert grounding["confusionBoundary"] == []
     assert grounding["comparisonView"] is None
+    assert grounding["answerStyle"] == "confusion_untangle"
 
 
 def test_direct_compare_no_match_when_less_than_two_terms_resolve():

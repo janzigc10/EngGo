@@ -1,34 +1,30 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-25 conversational learning context V1 已合回主线）
-- 当前产品判断：EngGo 仍是聊天式学习主入口。单轮普通查词、易混/形近召回、word family、meaning lookup、ECDICT-first fallback 和收藏生词本进入维护态；本轮已把“追问不断片”完成为 V1，复习卡片继续排在后面。
-- 已完成 plan：`docs/superpowers/plans/2026-05-24-conversational-learning-context-v1.md`。原实现分支为 `codex/conversation-context-v1`，现已合回当前主线 worktree `codex/chat-shell-bootstrap`；当前本地最新提交为 `b99ddee`，V1 变更范围从 `a29850d` 延续到 `b99ddee`。
-- 已落地能力：
-  1. 后端 schema 新增 `ConversationalLearningContext`、`LearningCandidateRef`、`LearningFocus`，`ChatRequest` 可携带最近学习上下文，`ChatSuccessResponse` 可返回 `conversationContext` / `resolvedFollowUp`。
-  2. `backend/app/conversation/learning_context.py` 捕获 grounded answer 的候选顺序，并确定性解析 `第二个是什么意思`、`第二个怎么用`、`这组怎么背`、`收藏第二个`、`把这组都收藏`。
-  3. FastAPI `/api/chat` 在普通服务路由前先解析追问；可返回 rewritten query、local collection action 或 clarification；普通 exact lookup 不被 resolver 污染。
-  4. 前端 session 会保存最近未过期 context、随下一轮请求发送、展示轻量 `正在追问` 提示，并在 clarification 后给出最多 5 个选项；collection action 在本地收藏 store 落地。
-  5. 新增 stateful live smoke：`corepack pnpm eval:fastapi:conversation-context-smoke`，覆盖 `access/assess/excess -> 第二个是什么意思`、`这组怎么背`、`evaluate -> 第二个怎么用`、`response 派生词 -> 把这组都收藏`、无上下文序号追问 clarification；`response` 词族 case 现在还精确断言可收藏 target set，防止污染候选悄悄混入。
-- 本轮关键提交：`e67305d` context contract；`25c78fa` resolver；`087a48f` FastAPI routing；`11c5b86` + `0164941` frontend context persistence 与过期修复；`9c54b40` + `6bb7255` context hint / clarification UI 与 stale option 修复；`2e97cee` smoke matrix；`bd0d446` handoff docs；`0f46bb3` 修复最终 reviewer 发现的 scope mismatch 与 smoke exact-target 风险；`771ad14` 收紧 chat MVP e2e 断言；`b99ddee` 修复显式英文 seed 被 follow-up resolver 误拦截。
+## 当前状态与下一步（2026-05-25 default smoke 清理完成）
+- 当前产品判断：EngGo 仍是聊天式学习主入口。conversational learning context V1 已合回当前主线 worktree `codex/chat-shell-bootstrap`；本轮继续补完 `progress.md` 里遗留的默认 smoke 闸门，普通查词、中文 meaning/expression recall、拼写纠错、direct compare 和多轮追问 smoke 现在都回到绿色。
+- 本轮完成：
+  1. 清理本地状态噪音：`.gitignore` 新增 `/.pnpm-store/`，避免本地 pnpm store 作为未跟踪目录干扰后续 git 状态判断。
+  2. 修复中文 meaning/expression recall：`遵从怎么说` 在 CET-6 structured runtime 不可用时可从 seed expression group 回到 `comply/conform/defer`；`遵守的英文是啥` 和 `表示表达观点的词有哪些哪些考试常见` 在考研 ECDICT fallback 中优先返回更像表达动词的 `comply` / `express`，不再被 `abide`、`expression` 等排序压住。
+  3. 修复 plain-like typo probe：`有个像 reqeust 的词`、`有个像 recomand 的词` 会先确认该英文片段不是 exact/source/ECDICT 真词，再只在唯一稳定拼写候选存在时转成 `fuzzy_recall` 标准查词；`有个像 institute 的词` 这类真词仍留给 shape-neighbor 流程。
+  4. 修复 direct compare 样式：无共享 confusion group 但已解析出两词以上的 `direct_compare` 仍呈现 `confusion_untangle`，覆盖 `stationary 和 stationery 哪个是文具` 这类选择题式辨析。
 - 最新验证：
-  1. Backend focused：`$env:TMP='C:\tmp\enggo-pytest-tmp'; $env:TEMP='C:\tmp\enggo-pytest-tmp'; & 'C:\Users\Chen\anaconda3\python.exe' -m pytest -q backend/tests/test_learning_context.py backend/tests/test_chat_contract.py backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py -p no:cacheprovider` -> 134 passed in 1.81s。
-  2. Frontend focused：`corepack pnpm test src/features/chat/conversation-context.test.ts src/components/chat/chat-workspace.test.tsx src/components/chat/answer-actions.test.tsx src/features/collections/collection-store.test.ts scripts/lib/conversational-learning-context-smoke.test.ts` -> 5 files / 43 tests passed。
-  3. Changed-file lint：`corepack pnpm lint src/features/chat/types.ts src/features/chat/use-chat-session.ts src/features/chat/conversation-context.ts src/components/chat/chat-workspace.tsx src/components/chat/message-thread.tsx scripts/lib/conversational-learning-context-smoke.ts scripts/run-conversational-learning-context-smoke.ts` -> passed。
-  4. Live FastAPI smoke：先发现隔离 worktree 缺少 ignored ECDICT 文件会导致 `evaluate` / `response` ECDICT-backed case no_match；设置 `ENGGO_ECDICT_PATH=C:\Users\Chen\Desktop\EngGo\output\external-dictionaries\ecdict.csv` 后重启 dev stack，review fix 后复跑 `corepack pnpm eval:fastapi:conversation-context-smoke` -> 5 total / 5 pass / 0 fail。验证后已停止本次启动的 8000/3000 服务。
-  5. Playwright E2E：直接 `corepack pnpm test:e2e` 时 3 个用例实际均显示 ok，但 Playwright 托管的 Next dev server 在 Google Fonts 下载失败警告下未退出并被外层 timeout 截断；修窄 `chat-mvp.spec.ts` 中 `comply` 断言后，手动启动 Next 并让 Playwright 复用现有 3000 服务复跑 `corepack pnpm test:e2e` -> 3 passed in 2.9s，随后已停止 3000 服务。
-  6. 2026-05-25 合并闸门补验：发现 `sign这组词怎么背` 会被 resolver 当成无上下文的 `这组` 追问并 clarification；已改为“带显式英文 seed 的请求不走 follow-up 改写”，复跑 `backend/tests/test_learning_context.py backend/tests/test_chat_contract.py` -> 49 passed，`corepack pnpm eval:fastapi:conversation-context-smoke` -> 5/5 pass，`corepack pnpm test:e2e` -> 3 passed。
-  7. 2026-05-25 合并闸门 caveat：`corepack pnpm eval:default-fastapi-smoke` 在 feature 分支和主线 `codex/chat-shell-bootstrap` 对照下均为 42 total / 38 pass / 4 fail；剩余失败集中在既有中文 meaning/expression recall（`遵从/遵守/表达观点` 期望 `comply/express`），不是 conversation-context 新增改动造成，但默认 smoke 仍未全绿。
+  1. 红测先失败并定位当前缺口：plain-like typo probe 原先被 `shape_neighbor_search` 拒绝；无共享组 direct compare 原先 `answerStyle=standard_lookup`。
+  2. `& 'C:\Users\Chen\anaconda3\python.exe' -m pytest -q backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py -p no:cacheprovider` -> 29 passed。
+  3. `& 'C:\Users\Chen\anaconda3\python.exe' -m pytest -q backend/tests/test_ordinary_lookup_answer.py backend/tests/test_direct_compare_answer.py backend/tests/test_normalize_query.py backend/tests/test_advanced_lookup.py -p no:cacheprovider` -> 130 passed。
+  4. `& 'C:\Users\Chen\anaconda3\python.exe' -m pytest -q backend/tests -p no:cacheprovider` -> 292 passed。
+  5. 使用 `ENGGO_ECDICT_PATH=C:\Users\Chen\Desktop\EngGo\output\external-dictionaries\ecdict.csv` 与 `ENGGO_USE_STRUCTURED_RUNTIME=true` 重启 dev stack 后，`corepack pnpm eval:default-fastapi-smoke` -> migrated proxy 42/42 pass，product HTTP proxy 39/39 pass。
+  6. `corepack pnpm eval:fastapi:conversation-context-smoke` -> 5 total / 5 pass / 0 fail，确认本轮检索修复没有打断 V1 多轮追问。
+  7. `git diff --check` -> 无 whitespace error，仅 Git 在 Windows 上提示这些工作区文件下次 touch 时 LF 会替换为 CRLF。
+  8. 本轮验证启动的 FastAPI `127.0.0.1:8000` 与 Next `127.0.0.1:3000` 已停止；`netstat` 只剩 `TIME_WAIT`，无 8000/3000 `LISTENING`。
 - 仍需防回归的边界：
-  1. 无上下文、过期上下文、空候选、混合引用或不支持的序号表达必须 clarification，不猜目标。
-  2. 显式词查询如 `access 是什么意思` 即使带 context，也应走原始普通查词路径，不被改写。
-  3. collection follow-up 只做本地 action，不调用 provider。
-  4. 前端 context 只保留最近学习话题，按 user turn 过期；active exam target 改变后不再发送旧 context，后端收到 scope 不匹配 context 也会 clarification；stale clarification options 不应在后续用户消息后继续显示。
-  5. 带显式英文 seed 的请求如 `sign这组词怎么背` 不应被 `这组` 指代规则劫持；应回到普通检索/word-family 路径。
-  6. `遵循的英文是什么 -> 还有更适合作文的吗`、跨会话长期记忆、多主题并行、`换成考研范围`、review cards、账号/cloud sync 均仍显式延后，不伪装成 V1 支持。
-- 下一步建议：先不要直接开大 V2。下一刀按三步走：
-  1. 先做 V1 acceptance 收口，用真实聊天手测普通查词 exact lookup、direct compare、word family、`第二个是什么意思`、`这组怎么背`、`把这组都收藏`，确认追问链路和 UI 提示都干净。
-  2. 再把默认 smoke 重新拉干净，优先处理主线已存在的 4 个中文 meaning/expression recall smoke 失败（`遵从/遵守/表达观点` 相关）。这不是 conversation-context 新增回归，但会影响后续 V2 合并闸门判断。
-  3. 上面两步完成后再开 V2 implementation plan。V2 先做短期上下文增强，不做长期个人记忆：范围切换（`换成考研/四级范围`）、`还有吗`、`这组怎么背` 质量增强、`更适合作文吗` 这种基于上一轮候选的语境选择，以及收藏到复习入口的轻闭环。
+  1. 普通 exact lookup 不能因为中文 meaning/expression 排序而泄露裸 `confusion_group`、范围话术或主动扩词。
+  2. `像 X 的词` 要区分 typo probe 和 shape-neighbor recall：未知拼错片段可以纠错，已知真词仍应进入形近词/易混词召回。
+  3. 无上下文、过期上下文、空候选、混合引用或不支持的序号表达必须 clarification，不猜目标；显式词查询如 `access 是什么意思` 即使带 context，也应走原始普通查词路径。
+  4. `遵循的英文是什么 -> 还有更适合作文的吗`、跨会话长期记忆、多主题并行、`换成考研范围`、review cards、账号/cloud sync 仍显式延后，不伪装成 V1 支持。
+- 下一步建议：
+  1. 这一版默认 smoke 与多轮 V1 smoke 已经能作为合并闸门；如果要合，可以按当前 diff 做最后 code review / commit。
+  2. 如果继续补“大模型这一块”，不要直接堆 prompt。下一刀应开 V2 plan，围绕短期会话状态做：范围切换（`换成考研/四级范围`）、`还有吗`、`这组怎么背` 质量增强、`更适合作文吗` 这种基于上一轮候选的语境选择，以及收藏到复习入口的轻闭环。
+  3. 暂不做长期个人记忆、多主题并行和云端账号同步；这些需要单独产品边界和数据模型。
 
 ## 历史快照（2026-05-17 ECDICT 大底座 + 自有词库覆盖层）
 - 产品方向已从“postgrad 没有官方机器词表，所以 ECDICT 只能泛外部兜底”调整为：ECDICT 作为更大的基础词汇底座；自有 structured 词库作为高信任覆盖层。覆盖层仍优先，但只在当前考试范围内命中时覆盖。

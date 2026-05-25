@@ -1,5 +1,7 @@
+import json
 import re
 from dataclasses import dataclass, replace
+from functools import lru_cache
 from pathlib import Path
 
 from backend.app.answering.broad_vocab import (
@@ -34,7 +36,11 @@ from backend.app.retrieval.dynamic_light_grounding import (
     source_lemma_vocabulary,
     word_family_evidence as score_word_family_evidence,
 )
-from backend.app.retrieval.types import ConfusionGroup, RetrievalCandidate
+from backend.app.retrieval.types import (
+    ConfusionGroup,
+    ConfusionGroupMember,
+    RetrievalCandidate,
+)
 from backend.app.schemas.chat import ChatSuccessResponse
 
 
@@ -71,6 +77,116 @@ def build_simple_answer(candidates: list[RetrievalCandidate]) -> str:
             ],
         ],
     )
+
+
+def seed_part_of_speech(entry: dict[str, object]) -> str | None:
+    parts = [
+        str(part)
+        for part in entry.get("pos", [])
+        if str(part).strip()
+    ]
+    return " / ".join(parts) if parts else None
+
+
+def seed_candidate(entry: dict[str, object]) -> RetrievalCandidate | None:
+    entry_id = str(entry.get("id") or "").strip()
+    lemma = str(entry.get("lemma") or "").strip()
+    meanings = [
+        str(meaning)
+        for meaning in entry.get("meaningsZh", [])
+        if str(meaning).strip()
+    ]
+    scope_codes = [
+        str(scope)
+        for scope in entry.get("examScopes", [])
+        if str(scope).strip()
+    ]
+    if not entry_id or not lemma or not meanings or not scope_codes:
+        return None
+
+    return RetrievalCandidate(
+        entry_id=entry_id,
+        lemma=lemma,
+        meanings_zh=meanings,
+        matched_alias=None,
+        scope_codes=scope_codes,
+        in_scope=True,
+        reason="curated seed expression candidate",
+        score=100,
+        part_of_speech=seed_part_of_speech(entry),
+        source_kind="structured_seed",
+    )
+
+
+@lru_cache(maxsize=16)
+def load_curated_seed_content(base_dir: str) -> tuple[
+    tuple[RetrievalCandidate, ...],
+    tuple[ConfusionGroup, ...],
+]:
+    seed_dir = Path(base_dir) / "seed"
+    entries_path = seed_dir / "entries.json"
+    groups_path = seed_dir / "confusion-groups.json"
+    if not entries_path.exists() or not groups_path.exists():
+        return (), ()
+
+    raw_entries = json.loads(entries_path.read_text(encoding="utf-8"))
+    candidates = [
+        candidate
+        for candidate in (seed_candidate(entry) for entry in raw_entries)
+        if candidate is not None
+    ]
+    candidate_by_id = {candidate.entry_id: candidate for candidate in candidates}
+
+    raw_groups = json.loads(groups_path.read_text(encoding="utf-8"))
+    groups: list[ConfusionGroup] = []
+    for raw_group in raw_groups:
+        member_notes = raw_group.get("memberNotes", {})
+        members = [
+            ConfusionGroupMember(
+                candidate=candidate_by_id[entry_id],
+                ordinal=index,
+                emphasis_note=member_notes.get(entry_id) if isinstance(member_notes, dict) else None,
+            )
+            for index, entry_id in enumerate(raw_group.get("members", []))
+            if entry_id in candidate_by_id
+        ]
+        if not members:
+            continue
+
+        teach_first = str(raw_group.get("teachFirst") or members[0].entry_id)
+        groups.append(
+            ConfusionGroup(
+                id=str(raw_group.get("id") or ""),
+                teach_first_entry_id=teach_first,
+                why_confusing=str(raw_group.get("whyConfusing") or ""),
+                common_misuse_points=[
+                    str(item)
+                    for item in raw_group.get("commonMisusePoints", [])
+                    if str(item).strip()
+                ],
+                semantic_boundary_notes=[
+                    str(item)
+                    for item in raw_group.get("semanticBoundaryNotes", [])
+                    if str(item).strip()
+                ],
+                labels=[
+                    str(item)
+                    for item in raw_group.get("labels", [])
+                    if str(item).strip()
+                ],
+                purposes=[
+                    str(item)
+                    for item in raw_group.get("purposes", [])
+                    if str(item).strip()
+                ],
+                anchor_pattern=raw_group.get("anchorPattern"),
+                quick_distinction=raw_group.get("quickDistinction"),
+                exam_hook=raw_group.get("examHook"),
+                members=members,
+            ),
+        )
+
+    return tuple(candidates), tuple(groups)
 
 
 def external_dictionary_candidate(
@@ -515,6 +631,21 @@ meaning_lookup_aliases = {
     "表达观点": ("表达观点", "表达", "表示", "陈述", "观点"),
     "观点": ("观点", "看法", "意见"),
 }
+meaning_lookup_preferred_lemmas = {
+    "遵从": ("comply", "conform", "defer", "obey", "abide", "follow"),
+    "遵守": ("comply", "obey", "abide", "conform", "follow", "observe"),
+    "遵循": ("follow", "comply", "obey", "abide", "conform"),
+    "服从": ("obey", "comply", "submit", "defer", "conform"),
+    "表达观点": ("express", "state", "voice", "articulate"),
+    "表达": ("express", "state", "voice", "articulate"),
+    "表示": ("express", "state", "represent", "indicate"),
+    "陈述": ("state", "express", "articulate"),
+}
+seed_expression_query_suffixes = (
+    "怎么说",
+    "用英语怎么说",
+    "用英文怎么说",
+)
 meaning_lookup_prefixes = (
     "有没有表示",
     "有没有表达",
@@ -600,6 +731,30 @@ def meaning_lookup_hints(hint: str) -> tuple[str, ...]:
     return tuple(result)
 
 
+def preferred_meaning_lemma_rank(lemma: str, hint: str) -> int | None:
+    normalized_lemma = lemma.strip().lower()
+    if not normalized_lemma:
+        return None
+
+    for lookup_hint in meaning_lookup_hints(hint):
+        preferred_lemmas = meaning_lookup_preferred_lemmas.get(lookup_hint, ())
+        if normalized_lemma in preferred_lemmas:
+            return preferred_lemmas.index(normalized_lemma)
+
+    return None
+
+
+def candidate_matches_meaning_hint(
+    candidate: RetrievalCandidate,
+    hint: str,
+) -> bool:
+    if not hint:
+        return False
+
+    haystack = "\n".join(candidate.meanings_zh)
+    return any(lookup_hint in haystack for lookup_hint in meaning_lookup_hints(hint))
+
+
 def profile_matching_meaning_hint(
     profile: EcdictBasicProfile,
     hint: str,
@@ -649,8 +804,11 @@ def ecdict_meaning_sort_key(
         if any(item in primary_segment for item in hints)
         else 2
     )
+    preferred_rank = preferred_meaning_lemma_rank(profile.canonical, hint)
 
     return (
+        0 if preferred_rank is not None else 1,
+        preferred_rank if preferred_rank is not None else 999,
         primary_rank,
         0
         if scope_codes_for_profile(
@@ -804,6 +962,16 @@ class AdvancedLookupService:
     ) -> AdvancedLookupResult:
         normalized_query = normalize_query(query)
 
+        seed_expression_result = self.answer_seed_expression_if_possible(
+            active_exam_target=active_exam_target,
+            query=query,
+            request_id=request_id,
+            history=history or [],
+            normalized_query=normalized_query,
+        )
+        if seed_expression_result:
+            return seed_expression_result
+
         broad_result = self.answer_broad_vocab_if_possible(
             active_exam_target=active_exam_target,
             query=query,
@@ -859,6 +1027,131 @@ class AdvancedLookupService:
         )
 
         return merge_dynamic_vocabulary(structured, source)
+
+    def seed_expression_candidates(
+        self,
+        *,
+        active_exam_target: str,
+        meaning_hint: str,
+    ) -> tuple[list[RetrievalCandidate], list[ConfusionGroup]]:
+        if not self.source_lemma_base_dir:
+            return [], []
+
+        clean_hint = clean_meaning_lookup_hint(meaning_hint)
+        if not clean_hint:
+            return [], []
+
+        candidates, groups = load_curated_seed_content(
+            str(self.source_lemma_base_dir.resolve()),
+        )
+        scoped_candidates = [
+            candidate
+            for candidate in candidates
+            if active_exam_target in candidate.scope_codes
+        ]
+        scoped_candidate_by_id = {
+            candidate.entry_id: candidate
+            for candidate in scoped_candidates
+        }
+        matched_entry_ids = {
+            candidate.entry_id
+            for candidate in scoped_candidates
+            if candidate_matches_meaning_hint(candidate, clean_hint)
+        }
+        if not matched_entry_ids:
+            return [], []
+
+        matched_groups: list[ConfusionGroup] = []
+        for group in groups:
+            if "expression_recall" not in group.purposes:
+                continue
+            if not any(member.entry_id in matched_entry_ids for member in group.members):
+                continue
+
+            scoped_members = [
+                ConfusionGroupMember(
+                    candidate=scoped_candidate_by_id[member.entry_id],
+                    ordinal=member.ordinal,
+                    emphasis_note=member.emphasis_note,
+                )
+                for member in group.members
+                if member.entry_id in scoped_candidate_by_id
+            ]
+            if len(scoped_members) < 2:
+                continue
+
+            matched_groups.append(
+                replace(
+                    group,
+                    members=scoped_members,
+                ),
+            )
+
+        if not matched_groups:
+            return [], []
+
+        group = sorted(matched_groups, key=lambda item: item.id)[0]
+        return [member.candidate for member in group.members], [group]
+
+    def answer_seed_expression_if_possible(
+        self,
+        *,
+        active_exam_target: str,
+        query: str,
+        request_id: str,
+        history: list[dict[str, str]],
+        normalized_query: NormalizedQuery,
+    ) -> AdvancedLookupResult | None:
+        if active_exam_target != "cet6":
+            return None
+        if normalized_query.query_mode != "meaning_lookup":
+            return None
+        if not any(query.strip().endswith(suffix) for suffix in seed_expression_query_suffixes):
+            return None
+
+        candidates, groups = self.seed_expression_candidates(
+            active_exam_target=active_exam_target,
+            meaning_hint=normalized_query.meaning_hint or normalized_query.normalized_text,
+        )
+        group = pick_expression_group(candidates, groups)
+        selected = select_meaning_main_candidate(candidates, group)
+        if not selected:
+            return None
+
+        main_answer = [selected]
+        confusion_boundary = (
+            build_boundary_candidates(group, {selected.entry_id})
+            if group
+            else []
+        )
+        comparison_view = build_comparison_view(group) if group else None
+        grounding = build_grounding(
+            active_exam_target=active_exam_target,
+            query=query,
+            normalized_query=normalized_query,
+            resolution="resolved",
+            no_match_reason=None,
+            match_type=None,
+            main_answer=main_answer,
+            confusion_boundary=confusion_boundary,
+            comparison_view=comparison_view,
+            candidates=candidates,
+        )
+        answer = build_direct_compare_answer(main_answer, confusion_boundary, comparison_view)
+
+        return AdvancedLookupResult(
+            status_code=200,
+            payload=provider_or_fallback(
+                provider=self.provider,
+                answer=answer,
+                answer_kind="grounded",
+                grounding=grounding,
+                query=query,
+                history=history,
+                request_id=request_id,
+                system_prompt="你是 EngGo 的中文表达召回助手。请严格根据 grounding 回答。",
+            ),
+        )
 
     def ecdict_fragment_vocabulary(
         self,
@@ -1123,18 +1416,25 @@ class AdvancedLookupService:
             )
             if candidate:
                 matched_hint = profile_matching_meaning_hint(profile, clean_hint)
-                primary_meaning_match = (
-                    ecdict_meaning_sort_key(
-                        profile,
-                        active_exam_target=active_exam_target,
-                        hint=clean_hint,
-                    )[0]
-                    == 0
+                sort_key = ecdict_meaning_sort_key(
+                    profile,
+                    active_exam_target=active_exam_target,
+                    hint=clean_hint,
                 )
+                preferred_rank = preferred_meaning_lemma_rank(
+                    profile.canonical,
+                    clean_hint,
+                )
+                primary_meaning_match = sort_key[2] == 0
+                score = candidate.score
+                if preferred_rank is not None:
+                    score = max(score, 50 - preferred_rank)
+                elif primary_meaning_match:
+                    score = max(score, 40)
                 candidates.append(
                     replace(
                         candidate,
-                        score=40 if primary_meaning_match else candidate.score,
+                        score=score,
                         semantic_match_hints=[
                             *candidate.semantic_match_hints,
                             clean_hint,

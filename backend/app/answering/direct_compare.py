@@ -290,6 +290,7 @@ class DirectCompareService:
         )
         if normalized_query.intent_plan is not None:
             grounding["learningIntentPlan"] = normalized_query.intent_plan.to_json()
+        grounding["answerStyle"] = "confusion_untangle"
 
         return DirectCompareResult(
             status_code=200,

@@ -526,6 +526,78 @@ def test_fuzzy_typo_resolution_uses_grounded_provider_correction(tmp_path):
     assert provider.calls[0]["grounding"]["spellingCorrection"]["lemma"] == "generate"
 
 
+def test_plain_like_typo_probe_uses_grounded_fuzzy_lookup(tmp_path):
+    provider = FakeProvider("you probably mean request")
+    request = RetrievalCandidate(
+        entry_id="request",
+        lemma="request",
+        part_of_speech="v. / n.",
+        meanings_zh=["ask for"],
+        matched_alias=None,
+        scope_codes=["cet4", "cet6"],
+        in_scope=True,
+        reason="english fragment similar",
+        score=420,
+        source_kind="structured",
+        text_score=0.72,
+    )
+    service = OrdinaryLookupService(
+        repository=FakeRepository({}, [request]),
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda _query: None,
+        provider=provider,
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="\u6709\u4e2a\u50cf reqeust \u7684\u8bcd",
+        request_id="req_reqeust",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.answer == "you probably mean request"
+    assert result.payload.answerKind == "grounded"
+    assert grounding["queryMode"] == "fuzzy_recall"
+    assert grounding["answerStyle"] == "standard_lookup"
+    assert grounding["spellingCorrection"] == {
+        "input": "reqeust",
+        "lemma": "request",
+    }
+    assert result.payload.providerRequestId == "provider_req_plain"
+    assert provider.calls[0]["grounding"]["queryMode"] == "fuzzy_recall"
+
+
+def test_plain_like_exact_word_stays_shape_neighbor_query(tmp_path):
+    institute = RetrievalCandidate(
+        entry_id="institute",
+        lemma="institute",
+        part_of_speech="n. / v.",
+        meanings_zh=["institute meaning"],
+        matched_alias=None,
+        scope_codes=["cet6"],
+        in_scope=True,
+        reason="structured exact match",
+        score=100,
+        source_kind="structured",
+        exact_lemma=True,
+        text_score=1,
+    )
+    service = OrdinaryLookupService(
+        repository=FakeRepository({"institute": institute}, [institute]),
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda _query: None,
+    )
+
+    with pytest.raises(UnsupportedQueryMode):
+        service.answer(
+            active_exam_target="cet6",
+            query="\u6709\u4e2a\u50cf institute \u7684\u8bcd",
+            request_id="req_institute_shape",
+        )
+
+
 def test_root_query_is_not_converted_to_ordinary_no_match(tmp_path):
     service = OrdinaryLookupService(
         repository=FakeRepository({}),
