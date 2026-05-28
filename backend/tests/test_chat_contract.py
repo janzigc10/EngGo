@@ -4,7 +4,7 @@ from backend.app.answering.direct_compare import DirectCompareService
 from backend.app.answering.advanced_lookup import AdvancedLookupResult
 from backend.app.answering.ordinary_lookup import OrdinaryLookupService
 from backend.app.answering.ordinary_lookup import UnsupportedQueryMode
-from backend.app.answering.provider import ChatProviderError
+from backend.app.answering.provider import ChatProviderError, GenerateAnswerResult
 from backend.app.content.ecdict import EcdictBasicProfile
 from backend.app.core.config import Settings
 import backend.app.main as app_main
@@ -120,6 +120,19 @@ class RejectingService:
 class FailingIfCalled:
     def answer(self, **_kwargs):
         raise AssertionError("service should not be called")
+
+
+class RecordingProvider:
+    def __init__(self, answer="study guidance answer"):
+        self.calls = []
+        self.answer = answer
+
+    def generate_answer(self, **kwargs):
+        self.calls.append(kwargs)
+        return GenerateAnswerResult(
+            answer=self.answer,
+            provider_request_id="provider_study_1",
+        )
 
 
 def test_chat_rejects_invalid_request_with_400():
@@ -294,6 +307,206 @@ def test_chat_resolves_collect_group_action_without_calling_lookup_services():
     assert [
         item["lemma"]
         for item in payload["resolvedFollowUp"]["targetRefs"]
+    ] == ["access", "assess", "excess"]
+
+
+def test_chat_scope_switch_reuses_source_query_with_new_exam_target():
+    ordinary_service = RecordingService(
+        answer="postgrad compare answer",
+        grounding={
+            "activeExamTarget": "postgrad",
+            "query": "access assess excess 怎么区分",
+            "queryMode": "direct_compare",
+            "answerStyle": "confusion_untangle",
+            "resolution": "resolved",
+            "mainAnswer": [
+                {"entryId": "access", "lemma": "access", "meaningZh": "进入权"},
+                {"entryId": "assess", "lemma": "assess", "meaningZh": "评估"},
+            ],
+            "confusionBoundary": [],
+        },
+    )
+    client = create_client(ordinary_lookup_service=ordinary_service)
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "换成考研范围",
+            "history": [],
+            "conversationContext": {
+                "version": 1,
+                "activeExamTarget": "cet6",
+                "sourceMessageId": "turn_1:assistant",
+                "topicKind": "direct_compare",
+                "sourceQuery": "access assess excess 怎么区分",
+                "focus": None,
+                "candidates": [
+                    {"index": 1, "lemma": "access", "label": "access"},
+                    {"index": 2, "lemma": "assess", "label": "assess"},
+                    {"index": 3, "lemma": "excess", "label": "excess"},
+                ],
+                "availableActions": ["collect_one", "switch_scope", "study_guidance", "collect_group"],
+                "expiresAfterTurns": 2,
+            },
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert ordinary_service.calls[0]["active_exam_target"] == "postgrad"
+    assert ordinary_service.calls[0]["query"] == "access assess excess 怎么区分"
+    assert payload["resolvedFollowUp"]["kind"] == "resolved_query"
+    assert payload["resolvedFollowUp"]["reason"] == "scope_switch"
+    assert payload["resolvedFollowUp"]["activeExamTarget"] == "postgrad"
+    assert payload["conversationContext"]["activeExamTarget"] == "postgrad"
+
+
+def test_chat_switches_scope_without_context_without_calling_services():
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "只看四级",
+            "history": [],
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answerKind"] == "plain"
+    assert payload["providerRequestId"] is None
+    assert payload["resolvedFollowUp"]["kind"] == "resolved_action"
+    assert payload["resolvedFollowUp"]["action"] == "switch_scope"
+    assert payload["resolvedFollowUp"]["activeExamTarget"] == "cet4"
+
+
+def test_chat_show_more_uses_continuation_candidates_without_calling_services():
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "postgrad",
+            "query": "还有吗",
+            "history": [],
+            "conversationContext": {
+                "version": 1,
+                "activeExamTarget": "postgrad",
+                "sourceMessageId": "turn_1:assistant",
+                "topicKind": "shape_neighbors",
+                "sourceQuery": "给我几个跟 evaluate 易混的单词",
+                "focus": None,
+                "candidates": [
+                    {"index": 1, "lemma": "evaluate", "label": "evaluate"},
+                    {"index": 2, "lemma": "evacuate", "label": "evacuate"},
+                ],
+                "continuationCandidates": [
+                    {"index": 1, "lemma": "escalate", "label": "escalate", "meaningZh": "升级"},
+                    {"index": 2, "lemma": "graduate", "label": "graduate", "meaningZh": "毕业"},
+                    {"index": 3, "lemma": "valuable", "label": "valuable", "meaningZh": "有价值的"},
+                ],
+                "availableActions": ["collect_one", "switch_scope", "study_guidance", "collect_group", "show_more"],
+                "expiresAfterTurns": 2,
+            },
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["providerRequestId"] is None
+    assert payload["resolvedFollowUp"]["action"] == "show_more"
+    assert [
+        item["lemma"]
+        for item in payload["resolvedFollowUp"]["targetRefs"]
+    ] == ["escalate", "graduate", "valuable"]
+    assert "escalate" in payload["answer"]
+    assert [
+        item["lemma"]
+        for item in payload["conversationContext"]["candidates"]
+    ] == ["escalate", "graduate", "valuable"]
+
+
+def test_chat_show_more_without_context_clarifies_without_services():
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "还有吗",
+            "history": [],
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answerKind"] == "plain"
+    assert payload["resolvedFollowUp"]["kind"] == "clarification"
+    assert "grounding" not in payload
+
+
+def test_chat_study_guidance_uses_provider_with_locked_target_refs():
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+    provider = RecordingProvider()
+    client.app.state.provider = provider
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "这组怎么背",
+            "history": [],
+            "conversationContext": {
+                "version": 1,
+                "activeExamTarget": "cet6",
+                "sourceMessageId": "turn_1:assistant",
+                "topicKind": "direct_compare",
+                "sourceQuery": "access assess excess 怎么区分",
+                "focus": None,
+                "candidates": [
+                    {"index": 1, "lemma": "access", "label": "access"},
+                    {"index": 2, "lemma": "assess", "label": "assess"},
+                    {"index": 3, "lemma": "excess", "label": "excess"},
+                ],
+                "availableActions": ["collect_one", "switch_scope", "study_guidance", "collect_group"],
+                "expiresAfterTurns": 2,
+            },
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answer"] == "study guidance answer"
+    assert payload["providerRequestId"] == "provider_study_1"
+    assert payload["resolvedFollowUp"]["action"] == "study_guidance"
+    assert set(provider.calls[0]["grounding"].keys()) == {"targetRefs", "rules"}
+    assert [
+        item["lemma"]
+        for item in provider.calls[0]["grounding"]["targetRefs"]
     ] == ["access", "assess", "excess"]
 
 

@@ -27,6 +27,7 @@ export type ConversationalLearningContext = {
   activeExamTarget: ExamTargetCode;
   sourceMessageId: string;
   topicKind: string;
+  sourceQuery?: string | null;
   focus?: {
     kind: string;
     label: string;
@@ -34,6 +35,7 @@ export type ConversationalLearningContext = {
     index?: number | null;
   } | null;
   candidates: LearningCandidateRef[];
+  continuationCandidates?: LearningCandidateRef[];
   availableActions: string[];
   expiresAfterTurns: number;
 };
@@ -48,7 +50,13 @@ export type ResolvedFollowUp =
     }
   | {
       kind: "resolved_action";
-      action: "collect_one" | "collect_group" | string;
+      action:
+        | "collect_one"
+        | "collect_group"
+        | "switch_scope"
+        | "show_more"
+        | "study_guidance"
+        | string;
       activeExamTarget: ExamTargetCode;
       targetRefs: LearningCandidateRef[];
     }

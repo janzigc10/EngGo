@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import {
   applyResolvedFollowUpAction,
@@ -143,6 +143,12 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (options.initialExamTarget) {
+      persistExamTarget(options.initialExamTarget);
+    }
+  }, [options.initialExamTarget]);
+
   function setActiveExamTarget(nextExamTarget: ExamTargetCode) {
     persistExamTarget(nextExamTarget);
   }
@@ -197,6 +203,14 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
 
       if (!response.ok || !("answer" in payload)) {
         throw new Error(getChatErrorMessage(payload));
+      }
+
+      if (
+        payload.resolvedFollowUp
+        && "activeExamTarget" in payload.resolvedFollowUp
+        && payload.resolvedFollowUp.activeExamTarget !== requestExamTarget
+      ) {
+        persistExamTarget(payload.resolvedFollowUp.activeExamTarget);
       }
 
       if (payload.resolvedFollowUp?.kind === "resolved_action") {

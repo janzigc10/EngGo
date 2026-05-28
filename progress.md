@@ -1,5 +1,23 @@
 # EngGo 滚动交接
 
+## 当前状态与下一步（2026-05-28 conversational context V2 完成）
+- 当前产品判断：Conversational Learning Context V2 已按 `docs/superpowers/plans/2026-05-28-conversational-learning-context-v2.md` 收口，只覆盖范围切换、`还有吗`、受控 `怎么背`、收藏页继续追问闭环；`更适合作文吗`、长期记忆、多主题并行、复习卡片和云同步仍不属于本轮。
+- 本轮已完成：
+  1. conversation context contract 新增 optional `sourceQuery`、`continuationCandidates`，并扩展 `show_more`、`switch_scope`、`study_guidance` action。
+  2. resolver 支持 `换成/只看 + 高考/四级/六级/考研`、`还有吗/再来几个`、`这组怎么背/第二个怎么记`；显式英文 seed 仍保护为普通查询，不误当上下文追问。
+  3. `/api/chat` 新增 `switch_scope` ack、`show_more` deterministic continuation、provider-backed locked-target `study_guidance`；收藏 action 仍保持 deterministic 且不调用 provider。
+  4. 前端收到 scope-switch follow-up 会同步 `enggo.activeExamTarget`；收藏页继续追问链接会携带 exam target，首页落地后同步词书并预填 draft。
+  5. subagent 复核后收紧两个边界：`study_guidance` provider grounding 只保留 `targetRefs` 和 `rules`；conversation-context smoke 会校验 scope-switch 后的 resolved/context active target，并在 runner 后续轮次沿用切换后的词书。
+- 最新验证：
+  1. `& 'C:\Users\Chen\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m pytest -q backend/tests -p no:cacheprovider` -> 305 passed。
+  2. `node_modules\.bin\vitest.CMD run --maxWorkers=1 src/features/chat/conversation-context.test.ts src/components/chat/chat-workspace.test.tsx src/features/collections/study-panels.test.tsx scripts/lib/conversational-learning-context-smoke.test.ts` -> 38 passed。
+  3. `node_modules\.bin\eslint.CMD src/features/chat/types.ts src/features/chat/use-chat-session.ts src/components/chat/chat-workspace.tsx src/features/collections/study-panels.tsx src/features/collections/study-panels.test.tsx src/components/chat/chat-workspace.test.tsx scripts/lib/conversational-learning-context-smoke.ts scripts/lib/conversational-learning-context-smoke.test.ts` -> passed。
+  4. `git diff --check` -> 无 whitespace error；仅 Windows 上 LF/CRLF 替换提示。
+  5. 已从 `skywind3000/ECDICT` 下载 full `ecdict.csv` 到 ignored 路径 `output/external-dictionaries/ecdict.csv`，大小 65,933,428 bytes；项目 parser 可读入 770,611 rows / 360,889 profiles，核心词 `access/assess/excess/evaluate/evacuate/response` 均可命中对应 scope tags。
+  6. 使用 FastAPI `TestClient` + 真实 ECDICT 跑通确定性 V2 链路：`access assess excess 怎么区分 -> 换成考研范围` 能在 postgrad 重跑；`给我几个跟 evaluate 易混的单词 -> 还有吗` 能从 continuation candidates 继续展示，且不调用 provider。
+  7. 真实 FastAPI HTTP smoke 已跑完：`node_modules\.bin\tsx.CMD scripts\run-conversational-learning-context-smoke.ts` -> 7 total / 7 pass / 0 fail；覆盖 scope switch、`还有吗`、collect group、无 context clarification，以及真实 provider/env 下的 `study_guidance` HTTP 路由。
+- 下一步建议：V2 可以进入 commit 前 review；若继续 V3，优先开独立 spec 做候选内语境选择（如 `更适合作文吗`），不要把它塞回 V2。
+
 ## 当前状态与下一步（2026-05-25 default smoke 清理完成）
 - 当前产品判断：EngGo 仍是聊天式学习主入口。conversational learning context V1 已合回当前主线 worktree `codex/chat-shell-bootstrap`；本轮继续补完 `progress.md` 里遗留的默认 smoke 闸门，普通查词、中文 meaning/expression recall、拼写纠错、direct compare 和多轮追问 smoke 现在都回到绿色。
 - 本轮完成：

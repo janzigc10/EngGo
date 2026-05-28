@@ -10,6 +10,8 @@ import {
   type ConversationContextSmokeResult,
 } from "./lib/conversational-learning-context-smoke";
 
+type ActiveExamTarget = ConversationContextSmokeCase["turns"][number]["activeExamTarget"];
+
 type ChatHistoryMessage = {
   role: "user" | "assistant";
   content: string;
@@ -39,6 +41,15 @@ function asArray(value: unknown): unknown[] {
 
 function getString(value: unknown) {
   return typeof value === "string" ? value : null;
+}
+
+function getExamTarget(
+  value: unknown,
+): ActiveExamTarget | null {
+  return typeof value === "string"
+    && ["gaokao", "cet4", "cet6", "postgrad"].includes(value)
+    ? value as ActiveExamTarget
+    : null;
 }
 
 function getResolvedKind(
@@ -90,6 +101,8 @@ export function toConversationContextSmokeObservation(
     resolvedKind: getResolvedKind(resolvedFollowUp.kind),
     resolvedQuery: getString(resolvedFollowUp.query),
     action: getString(resolvedFollowUp.action),
+    resolvedActiveExamTarget: getExamTarget(resolvedFollowUp.activeExamTarget),
+    contextActiveExamTarget: getExamTarget(conversationContext.activeExamTarget),
     targetLemmas: uniqueValues(collectLemmasFromRecords(resolvedFollowUp.targetRefs)),
     contextLemmas: uniqueValues(collectLemmasFromRecords(conversationContext.candidates)),
   };
@@ -124,11 +137,12 @@ function formatTurnLine(
 async function postTurn(
   baseUrl: string,
   turn: ConversationContextSmokeCase["turns"][number],
+  activeExamTarget: ActiveExamTarget,
   history: ChatHistoryMessage[],
   conversationContext: unknown,
 ) {
   const body: Record<string, unknown> = {
-    activeExamTarget: turn.activeExamTarget,
+    activeExamTarget,
     query: turn.query,
     history,
   };
@@ -160,6 +174,7 @@ async function runCase(
   const turnMeta: RunnerTurnResult[] = [];
   const history: ChatHistoryMessage[] = [];
   let conversationContext: unknown = null;
+  let activeExamTarget = caseDef.turns[0]?.activeExamTarget ?? "cet6";
 
   for (let index = 0; index < caseDef.turns.length; index += 1) {
     const turn = caseDef.turns[index];
@@ -167,6 +182,7 @@ async function runCase(
     const { response, payload } = await postTurn(
       baseUrl,
       turn,
+      activeExamTarget,
       history,
       conversationContext,
     );
@@ -185,6 +201,9 @@ async function runCase(
     if (payload.conversationContext) {
       conversationContext = payload.conversationContext;
     }
+    activeExamTarget = observation.resolvedActiveExamTarget
+      ?? observation.contextActiveExamTarget
+      ?? activeExamTarget;
 
     history.push({ role: "user", content: turn.query });
     history.push({

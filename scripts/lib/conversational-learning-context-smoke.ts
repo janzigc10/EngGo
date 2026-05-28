@@ -9,6 +9,8 @@ export type ConversationContextSmokeTurn = {
   expectedResolvedKind?: "resolved_query" | "resolved_action" | "clarification";
   expectedResolvedQuery?: string;
   expectedAction?: string;
+  expectedResolvedActiveExamTarget?: ExamScopeCode;
+  expectedContextActiveExamTarget?: ExamScopeCode;
   expectedTargetLemmas?: string[];
   expectedExactTargetLemmas?: string[];
   expectedContextLemmas?: string[];
@@ -29,6 +31,8 @@ export type ConversationContextSmokeObservation = {
   resolvedKind: "resolved_query" | "resolved_action" | "clarification" | null;
   resolvedQuery: string | null;
   action: string | null;
+  resolvedActiveExamTarget: ExamScopeCode | null;
+  contextActiveExamTarget: ExamScopeCode | null;
   targetLemmas: string[];
   contextLemmas: string[];
 };
@@ -115,6 +119,33 @@ export function buildConversationalLearningContextSmokeCases():
       ],
     },
     {
+      name: "access compare then scope switch",
+      turns: [
+        {
+          query: "access assess excess 怎么区分",
+          activeExamTarget: "cet6",
+          expectedStatus: 200,
+          expectedAnswerKind: "grounded",
+          expectedGrounding: "present",
+          expectedContextLemmas: ["access", "assess", "excess"],
+          expectedProviderRequest: "absent",
+        },
+        {
+          query: "换成考研范围",
+          activeExamTarget: "cet6",
+          expectedStatus: 200,
+          expectedAnswerKind: "grounded",
+          expectedGrounding: "present",
+          expectedResolvedKind: "resolved_query",
+          expectedResolvedQuery: "access assess excess 怎么区分",
+          expectedResolvedActiveExamTarget: "postgrad",
+          expectedContextActiveExamTarget: "postgrad",
+          expectedTargetLemmas: ["access", "assess", "excess"],
+          expectedProviderRequest: "absent",
+        },
+      ],
+    },
+    {
       name: "access compare then group memory",
       turns: [
         {
@@ -130,10 +161,10 @@ export function buildConversationalLearningContextSmokeCases():
           query: "这组怎么背",
           activeExamTarget: "cet6",
           expectedStatus: 200,
-          expectedAnswerKind: "grounded",
-          expectedGrounding: "present",
-          expectedResolvedKind: "resolved_query",
-          expectedResolvedQuery: "access assess excess 怎么背",
+          expectedAnswerKind: "plain",
+          expectedGrounding: "absent",
+          expectedResolvedKind: "resolved_action",
+          expectedAction: "study_guidance",
           expectedTargetLemmas: ["access", "assess", "excess"],
           expectedProviderRequest: "allowed",
         },
@@ -161,6 +192,31 @@ export function buildConversationalLearningContextSmokeCases():
           expectedResolvedQuery: "evacuate 怎么用",
           expectedTargetLemmas: ["evacuate"],
           expectedProviderRequest: "allowed",
+        },
+      ],
+    },
+    {
+      name: "evaluate lookalikes then show more",
+      turns: [
+        {
+          query: "给我几个跟 evaluate 易混的单词",
+          activeExamTarget: "postgrad",
+          expectedStatus: 200,
+          expectedAnswerKind: "grounded",
+          expectedGrounding: "present",
+          expectedContextLemmas: ["evaluate", "evacuate"],
+          expectedProviderRequest: "absent",
+        },
+        {
+          query: "还有吗",
+          activeExamTarget: "postgrad",
+          expectedStatus: 200,
+          expectedAnswerKind: "plain",
+          expectedGrounding: "absent",
+          expectedResolvedKind: "resolved_action",
+          expectedAction: "show_more",
+          expectedTargetLemmas: ["salute", "value"],
+          expectedProviderRequest: "absent",
         },
       ],
     },
@@ -334,6 +390,24 @@ function evaluateTurn(
       `${prefix} action`,
       observation.action,
       turnDef.expectedAction,
+    );
+  }
+
+  if (turnDef.expectedResolvedActiveExamTarget) {
+    addIfMismatch(
+      failures,
+      `${prefix} resolvedActiveExamTarget`,
+      observation.resolvedActiveExamTarget,
+      turnDef.expectedResolvedActiveExamTarget,
+    );
+  }
+
+  if (turnDef.expectedContextActiveExamTarget) {
+    addIfMismatch(
+      failures,
+      `${prefix} contextActiveExamTarget`,
+      observation.contextActiveExamTarget,
+      turnDef.expectedContextActiveExamTarget,
     );
   }
 

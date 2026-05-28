@@ -44,6 +44,8 @@ function observation(
     resolvedKind: null,
     resolvedQuery: null,
     action: null,
+    resolvedActiveExamTarget: null,
+    contextActiveExamTarget: null,
     targetLemmas: [],
     contextLemmas: ["access", "assess", "excess"],
     ...overrides,
@@ -51,7 +53,7 @@ function observation(
 }
 
 describe("conversational learning-context smoke", () => {
-  it("defines the V1 stateful smoke matrix without unsupported semantic follow-ups", () => {
+  it("defines the V2 stateful smoke matrix without unsupported semantic follow-ups", () => {
     expect(buildConversationalLearningContextSmokeCases()).toEqual([
       expect.objectContaining({
         name: "access compare then ordinal meaning",
@@ -69,6 +71,22 @@ describe("conversational learning-context smoke", () => {
         ],
       }),
       expect.objectContaining({
+        name: "access compare then scope switch",
+        turns: [
+          expect.objectContaining({
+            query: "access assess excess 怎么区分",
+          }),
+          expect.objectContaining({
+            query: "换成考研范围",
+            expectedResolvedKind: "resolved_query",
+            expectedResolvedQuery: "access assess excess 怎么区分",
+            expectedResolvedActiveExamTarget: "postgrad",
+            expectedContextActiveExamTarget: "postgrad",
+            expectedTargetLemmas: ["access", "assess", "excess"],
+          }),
+        ],
+      }),
+      expect.objectContaining({
         name: "access compare then group memory",
         turns: [
           expect.objectContaining({
@@ -76,8 +94,8 @@ describe("conversational learning-context smoke", () => {
           }),
           expect.objectContaining({
             query: "这组怎么背",
-            expectedResolvedKind: "resolved_query",
-            expectedResolvedQuery: "access assess excess 怎么背",
+            expectedResolvedKind: "resolved_action",
+            expectedAction: "study_guidance",
             expectedTargetLemmas: ["access", "assess", "excess"],
           }),
         ],
@@ -94,6 +112,21 @@ describe("conversational learning-context smoke", () => {
             expectedResolvedKind: "resolved_query",
             expectedResolvedQuery: "evacuate 怎么用",
             expectedTargetLemmas: ["evacuate"],
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        name: "evaluate lookalikes then show more",
+        turns: [
+          expect.objectContaining({
+            query: "给我几个跟 evaluate 易混的单词",
+            expectedContextLemmas: ["evaluate", "evacuate"],
+          }),
+          expect.objectContaining({
+            query: "还有吗",
+            expectedResolvedKind: "resolved_action",
+            expectedAction: "show_more",
+            expectedTargetLemmas: ["salute", "value"],
           }),
         ],
       }),
@@ -182,6 +215,37 @@ describe("conversational learning-context smoke", () => {
     expect(result.verdict).toBe("fail");
     expect(result.failures).toEqual([
       "turn 2 resolvedQuery expected assess 是什么意思, received excess 是什么意思",
+    ]);
+  });
+
+  it("catches a scope switch that does not change the active target", () => {
+    const result = evaluateConversationContextSmoke(
+      {
+        name: "scope switch",
+        turns: [
+          {
+            query: "换成考研范围",
+            activeExamTarget: "cet6",
+            expectedStatus: 200,
+            expectedResolvedKind: "resolved_query",
+            expectedResolvedActiveExamTarget: "postgrad",
+            expectedContextActiveExamTarget: "postgrad",
+          },
+        ],
+      },
+      [
+        observation({
+          resolvedKind: "resolved_query",
+          resolvedActiveExamTarget: "cet6",
+          contextActiveExamTarget: "cet6",
+        }),
+      ],
+    );
+
+    expect(result.verdict).toBe("fail");
+    expect(result.failures).toEqual([
+      "turn 1 resolvedActiveExamTarget expected postgrad, received cet6",
+      "turn 1 contextActiveExamTarget expected postgrad, received cet6",
     ]);
   });
 

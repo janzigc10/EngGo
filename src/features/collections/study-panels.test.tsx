@@ -44,7 +44,10 @@ describe("CollectionsPanel", () => {
     expect(within(cet4Section).getByText("2026-05-16")).toBeInTheDocument();
     expect(
       within(cet4Section).getByRole("link", { name: "继续追问 make up" }),
-    ).toHaveAttribute("href", "/?draft=make%20up%20%E6%80%8E%E4%B9%88%E7%94%A8");
+    ).toHaveAttribute(
+      "href",
+      "/?draft=make%20up%20%E6%80%8E%E4%B9%88%E7%94%A8&examTarget=cet4",
+    );
   });
 
   it("removes a collected word from the page and storage", async () => {

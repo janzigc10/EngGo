@@ -39,6 +39,7 @@ def create_app(
         base_url=settings.openai_base_url,
         model=settings.openai_model or "gpt-5.4",
     )
+    app.state.provider = provider
     ecdict_lookup = create_ecdict_basic_profile_lookup(
         dictionary_path=settings.ecdict_dictionary_path,
     )

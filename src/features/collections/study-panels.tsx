@@ -79,10 +79,10 @@ function formatCollectedDate(value: string) {
   return date.toISOString().slice(0, 10);
 }
 
-function buildDraftHref(lemma: string) {
+function buildDraftHref(lemma: string, examTarget: CollectionSection["code"]) {
   const draft = `${lemma} 怎么用`;
 
-  return `/?draft=${encodeURIComponent(draft)}`;
+  return `/?draft=${encodeURIComponent(draft)}&examTarget=${examTarget}`;
 }
 
 export function CollectionsPanel() {
@@ -160,7 +160,7 @@ export function CollectionsPanel() {
                         </div>
                         <div className="flex shrink-0 flex-wrap items-center gap-2">
                           <Link
-                            href={buildDraftHref(word.lemma)}
+                            href={buildDraftHref(word.lemma, section.code)}
                             className="inline-flex items-center justify-center rounded-full border border-sky-200 bg-white px-3 py-1.5 text-sm font-medium text-sky-900 transition hover:border-sky-300 hover:bg-sky-50"
                           >
                             继续追问 {word.lemma}

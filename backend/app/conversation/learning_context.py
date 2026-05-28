@@ -27,6 +27,10 @@ def build_conversation_context(
     if not candidates:
         return None
 
+    continuation_candidates = _continuation_candidate_refs_from_grounding(
+        grounding,
+        candidates,
+    )
     focus = None
     if len(candidates) == 1:
         candidate = candidates[0]
@@ -41,9 +45,51 @@ def build_conversation_context(
         activeExamTarget=active_exam_target,
         sourceMessageId=source_message_id,
         topicKind=_topic_kind(grounding),
+        sourceQuery=_optional_str(grounding.get("query")),
         focus=focus,
         candidates=candidates,
-        availableActions=_available_actions(candidates),
+        continuationCandidates=continuation_candidates,
+        availableActions=_available_actions(candidates, continuation_candidates),
+    )
+
+
+def build_manual_conversation_context(
+    *,
+    active_exam_target: ExamTarget,
+    source_message_id: str,
+    topic_kind: str,
+    candidates: list[LearningCandidateRef],
+    source_query: str | None = None,
+    continuation_candidates: list[LearningCandidateRef] | None = None,
+) -> ConversationalLearningContext | None:
+    if not candidates:
+        return None
+
+    reindexed_candidates = _reindex_candidates(candidates)
+    reindexed_continuation = _reindex_candidates(continuation_candidates or [])
+    focus = None
+
+    if len(reindexed_candidates) == 1:
+        candidate = reindexed_candidates[0]
+        focus = LearningFocus(
+            kind="lemma",
+            label=candidate.label,
+            lemma=candidate.lemma,
+            index=candidate.index,
+        )
+
+    return ConversationalLearningContext(
+        activeExamTarget=active_exam_target,
+        sourceMessageId=source_message_id,
+        topicKind=topic_kind,
+        sourceQuery=source_query,
+        focus=focus,
+        candidates=reindexed_candidates,
+        continuationCandidates=reindexed_continuation,
+        availableActions=_available_actions(
+            reindexed_candidates,
+            reindexed_continuation,
+        ),
     )
 
 
@@ -53,6 +99,18 @@ def resolve_follow_up(
     active_exam_target: ExamTarget,
 ) -> dict[str, Any]:
     text = query.strip()
+    scope_target = _scope_switch_target(text)
+    if scope_target and not _contains_explicit_seed_outside_scope(text):
+        return _resolve_scope_switch(
+            context=context,
+            target_exam=scope_target,
+        )
+
+    if _is_show_more_request(text):
+        if _contains_explicit_seed(text):
+            return {"kind": "not_follow_up"}
+        return _resolve_show_more(context, active_exam_target)
+
     intent = _follow_up_intent(text)
 
     if _has_mixed_reference_categories(_reference_categories(text, context)):
@@ -91,6 +149,14 @@ def resolve_follow_up(
             "targetRefs": [_candidate_payload(candidate) for candidate in targets],
         }
 
+    if intent == "memory":
+        return {
+            "kind": "resolved_action",
+            "action": "study_guidance",
+            "activeExamTarget": active_exam_target,
+            "targetRefs": [_candidate_payload(candidate) for candidate in targets],
+        }
+
     query_text = _rewrite_follow_up_query(intent, targets)
     if not query_text:
         return _clarification(context)
@@ -112,6 +178,23 @@ def _candidate_refs_from_grounding(
         if refs:
             return refs
     return []
+
+
+def _continuation_candidate_refs_from_grounding(
+    grounding: dict[str, Any],
+    selected_candidates: list[LearningCandidateRef],
+) -> list[LearningCandidateRef]:
+    light_candidates = grounding.get("lightCandidates")
+    if not isinstance(light_candidates, list):
+        return []
+
+    selected_lemmas = {candidate.lemma.lower() for candidate in selected_candidates}
+    refs = _candidate_refs_from_items(light_candidates)
+    continuation = [
+        candidate for candidate in refs if candidate.lemma.lower() not in selected_lemmas
+    ]
+
+    return _reindex_candidates(continuation)
 
 
 def _candidate_refs_from_items(items: list[Any]) -> list[LearningCandidateRef]:
@@ -145,6 +228,13 @@ def _candidate_refs_from_items(items: list[Any]) -> list[LearningCandidateRef]:
         )
 
     return refs
+
+
+def _reindex_candidates(candidates: list[LearningCandidateRef]) -> list[LearningCandidateRef]:
+    return [
+        candidate.model_copy(update={"index": index})
+        for index, candidate in enumerate(candidates, start=1)
+    ]
 
 
 def _candidate_sources(grounding: dict[str, Any]) -> list[list[Any]]:
@@ -224,10 +314,91 @@ def _is_broad_vocab_grounding(grounding: dict[str, Any]) -> bool:
     )
 
 
-def _available_actions(candidates: list[LearningCandidateRef]) -> list[str]:
-    if len(candidates) == 1:
-        return ["collect_one"]
-    return ["collect_one", "collect_group"]
+def _available_actions(
+    candidates: list[LearningCandidateRef],
+    continuation_candidates: list[LearningCandidateRef],
+) -> list[str]:
+    actions = ["collect_one", "switch_scope", "study_guidance"]
+
+    if len(candidates) > 1:
+        actions.append("collect_group")
+
+    if continuation_candidates:
+        actions.append("show_more")
+
+    return actions
+
+
+def _scope_switch_target(query: str) -> str | None:
+    if not _contains_any(
+        query,
+        ["换成", "切到", "切换到", "改成", "只看", "看一下", "按"],
+    ):
+        return None
+
+    normalized = query.lower()
+    if "高考" in query or "gaokao" in normalized:
+        return "gaokao"
+    if "四级" in query or "cet4" in normalized or "cet-4" in normalized:
+        return "cet4"
+    if "六级" in query or "cet6" in normalized or "cet-6" in normalized:
+        return "cet6"
+    if "考研" in query or "研究生" in query or "postgrad" in normalized:
+        return "postgrad"
+
+    return None
+
+
+def _resolve_scope_switch(
+    *,
+    context: ConversationalLearningContext | None,
+    target_exam: str,
+) -> dict[str, Any]:
+    source_query = _optional_str(getattr(context, "sourceQuery", None)) if context else None
+
+    if _usable_context(context) and source_query:
+        return {
+            "kind": "resolved_query",
+            "query": source_query,
+            "activeExamTarget": target_exam,
+            "targetRefs": [_candidate_payload(candidate) for candidate in context.candidates],
+            "reason": "scope_switch",
+        }
+
+    return {
+        "kind": "resolved_action",
+        "action": "switch_scope",
+        "activeExamTarget": target_exam,
+        "targetRefs": [],
+    }
+
+
+def _is_show_more_request(query: str) -> bool:
+    normalized = query.strip()
+    return _contains_any(
+        normalized,
+        ["还有吗", "还有没有", "还有么", "还有嘛", "再来几个", "再给几个", "再给我几个", "更多"],
+    )
+
+
+def _resolve_show_more(
+    context: ConversationalLearningContext | None,
+    active_exam_target: ExamTarget,
+) -> dict[str, Any]:
+    if not _usable_context(context):
+        return _clarification(context)
+
+    if context.activeExamTarget != active_exam_target:
+        return _clarification(None)
+
+    target_refs = list(getattr(context, "continuationCandidates", []) or [])[:5]
+
+    return {
+        "kind": "resolved_action",
+        "action": "show_more",
+        "activeExamTarget": context.activeExamTarget,
+        "targetRefs": [_candidate_payload(candidate) for candidate in target_refs],
+    }
 
 
 def _follow_up_intent(query: str) -> str | None:
@@ -360,6 +531,16 @@ def _contains_explicit_candidate(
 
 def _contains_explicit_seed(query: str) -> bool:
     return bool(re.search(r"[A-Za-z][A-Za-z'-]*", query))
+
+
+def _contains_explicit_seed_outside_scope(query: str) -> bool:
+    without_scope_tokens = re.sub(
+        r"\b(?:cet-?4|cet-?6|postgrad|gaokao)\b",
+        " ",
+        query,
+        flags=re.IGNORECASE,
+    )
+    return _contains_explicit_seed(without_scope_tokens)
 
 
 def _usable_context(context: ConversationalLearningContext | None) -> bool:

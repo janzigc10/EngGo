@@ -31,8 +31,10 @@ class ConversationalLearningContext(BaseModel):
     activeExamTarget: ExamTarget
     sourceMessageId: str
     topicKind: str
+    sourceQuery: str | None = None
     focus: LearningFocus | None = None
     candidates: list[LearningCandidateRef] = Field(default_factory=list)
+    continuationCandidates: list[LearningCandidateRef] = Field(default_factory=list)
     availableActions: list[str] = Field(default_factory=list)
     expiresAfterTurns: int = 2
 

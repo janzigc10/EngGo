@@ -17,10 +17,16 @@ def _context(
     topic_kind: str = "direct_compare",
     focus_index: int | None = None,
     expires_after_turns: int = 2,
+    source_query: str | None = "access assess excess 怎么区分",
+    continuation_lemmas: list[str] | None = None,
 ) -> ConversationalLearningContext:
     candidates = [
         LearningCandidateRef(index=index, lemma=lemma, label=lemma)
         for index, lemma in enumerate(lemmas, start=1)
+    ]
+    continuation_candidates = [
+        LearningCandidateRef(index=index, lemma=lemma, label=lemma)
+        for index, lemma in enumerate(continuation_lemmas or [], start=1)
     ]
     focus = None
     if focus_index is not None:
@@ -36,8 +42,10 @@ def _context(
         activeExamTarget=active_exam_target,
         sourceMessageId="assistant_test",
         topicKind=topic_kind,
+        sourceQuery=source_query,
         focus=focus,
         candidates=candidates,
+        continuationCandidates=continuation_candidates,
         availableActions=["collect_one", "collect_group"],
         expiresAfterTurns=expires_after_turns,
     )
@@ -210,20 +218,121 @@ def test_resolver_rewrites_ordinal_usage_follow_up_for_shape_neighbors():
     assert [item["lemma"] for item in _target_refs(result)] == ["evacuate"]
 
 
-def test_resolver_rewrites_group_memory_follow_up():
+def test_resolver_maps_group_memory_follow_up_to_study_guidance_action():
     result = resolve_follow_up(
         "这组怎么背",
         _context(["access", "assess", "excess"]),
         "cet6",
     )
 
-    assert result["kind"] == "resolved_query"
-    assert result["query"] == "access assess excess 怎么背"
+    assert result["kind"] == "resolved_action"
+    assert result["action"] == "study_guidance"
     assert [item["lemma"] for item in _target_refs(result)] == [
         "access",
         "assess",
         "excess",
     ]
+
+
+def test_resolver_maps_ordinal_memory_follow_up_to_study_guidance_action():
+    result = resolve_follow_up(
+        "第二个怎么记",
+        _context(["access", "assess", "excess"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "resolved_action"
+    assert result["action"] == "study_guidance"
+    assert [item["lemma"] for item in _target_refs(result)] == ["assess"]
+
+
+def test_resolver_reuses_source_query_for_scope_switch_with_context():
+    result = resolve_follow_up(
+        "换成考研范围",
+        _context(
+            ["access", "assess", "excess"],
+            source_query="access assess excess 怎么区分",
+        ),
+        "cet6",
+    )
+
+    assert result["kind"] == "resolved_query"
+    assert result["query"] == "access assess excess 怎么区分"
+    assert result["activeExamTarget"] == "postgrad"
+    assert result["reason"] == "scope_switch"
+    assert [item["lemma"] for item in _target_refs(result)] == [
+        "access",
+        "assess",
+        "excess",
+    ]
+
+
+def test_resolver_maps_scope_switch_without_context_to_action():
+    result = resolve_follow_up("只看四级", None, "cet6")
+
+    assert result["kind"] == "resolved_action"
+    assert result["action"] == "switch_scope"
+    assert result["activeExamTarget"] == "cet4"
+    assert result["targetRefs"] == []
+
+
+def test_resolver_does_not_scope_switch_from_context_when_query_has_seed():
+    result = resolve_follow_up(
+        "access 换成考研范围",
+        _context(
+            ["evaluate", "evacuate"],
+            source_query="evaluate evacuate 怎么区分",
+        ),
+        "cet6",
+    )
+
+    assert result["kind"] == "not_follow_up"
+
+
+def test_resolver_scope_switch_allows_english_scope_token():
+    result = resolve_follow_up(
+        "切到 CET-4 范围",
+        _context(
+            ["access", "assess", "excess"],
+            source_query="access assess excess 怎么区分",
+        ),
+        "cet6",
+    )
+
+    assert result["kind"] == "resolved_query"
+    assert result["activeExamTarget"] == "cet4"
+
+
+def test_resolver_maps_show_more_to_continuation_candidates():
+    result = resolve_follow_up(
+        "还有吗",
+        _context(
+            ["evaluate", "evacuate"],
+            topic_kind="shape_neighbors",
+            continuation_lemmas=["escalate", "graduate", "valuable"],
+        ),
+        "cet6",
+    )
+
+    assert result["kind"] == "resolved_action"
+    assert result["action"] == "show_more"
+    assert [item["lemma"] for item in _target_refs(result)] == [
+        "escalate",
+        "graduate",
+        "valuable",
+    ]
+
+
+def test_resolver_maps_show_more_without_continuation_to_empty_action():
+    result = resolve_follow_up(
+        "还有吗",
+        _context(["evaluate", "evacuate"], topic_kind="shape_neighbors"),
+        "cet6",
+    )
+
+    assert result["kind"] == "resolved_action"
+    assert result["action"] == "show_more"
+    assert result["targetRefs"] == []
 
 
 def test_resolver_ignores_group_marker_when_query_has_explicit_seed_without_context():
@@ -488,7 +597,13 @@ def test_context_capture_from_direct_compare_uses_comparison_member_order():
         "excess",
     ]
     assert [item.index for item in context.candidates] == [1, 2, 3]
-    assert context.availableActions == ["collect_one", "collect_group"]
+    assert context.sourceQuery is None
+    assert context.availableActions == [
+        "collect_one",
+        "switch_scope",
+        "study_guidance",
+        "collect_group",
+    ]
 
 
 def test_context_capture_falls_back_to_main_answer_when_view_members_are_malformed():
@@ -605,6 +720,47 @@ def test_context_capture_from_word_family_preserves_main_answer_order():
         "responsible",
     ]
     assert [item.index for item in context.candidates] == [1, 2, 3]
+
+
+def test_context_capture_records_source_query_and_continuation_candidates():
+    payload = ChatSuccessResponse(
+        answer="evaluate / evacuate",
+        answerKind="grounded",
+        grounding={
+            "activeExamTarget": "postgrad",
+            "query": "给我几个跟 evaluate 易混的单词",
+            "queryMode": "shape_neighbor_search",
+            "answerStyle": "broad_vocab_summary",
+            "resolution": "resolved",
+            "mainAnswer": [
+                {"entryId": "evaluate", "lemma": "evaluate", "meaningZh": "评估"},
+                {"entryId": "evacuate", "lemma": "evacuate", "meaningZh": "撤离"},
+            ],
+            "confusionBoundary": [],
+            "lightCandidates": [
+                {"entryId": "evaluate", "lemma": "evaluate", "meaningZh": "评估"},
+                {"entryId": "evacuate", "lemma": "evacuate", "meaningZh": "撤离"},
+                {"entryId": "escalate", "lemma": "escalate", "meaningZh": "升级"},
+                {"entryId": "graduate", "lemma": "graduate", "meaningZh": "毕业"},
+            ],
+        },
+        requestId="req_more",
+    )
+
+    context = build_conversation_context(
+        payload=payload,
+        active_exam_target="postgrad",
+        source_message_id="assistant_more",
+    )
+
+    assert context is not None
+    assert context.sourceQuery == "给我几个跟 evaluate 易混的单词"
+    assert [item.lemma for item in context.candidates] == ["evaluate", "evacuate"]
+    assert [item.lemma for item in context.continuationCandidates] == [
+        "escalate",
+        "graduate",
+    ]
+    assert "show_more" in context.availableActions
 
 
 def test_context_capture_returns_none_for_no_match_or_plain_response():

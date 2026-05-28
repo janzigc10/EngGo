@@ -9,6 +9,7 @@ import type {
   ChatMessage,
   ConversationalLearningContext,
 } from "@/features/chat/types";
+import { isExamTargetCode } from "@/features/exam-target/model";
 import { useChatSession } from "@/features/chat/use-chat-session";
 
 function readDraftPromptFromLocation() {
@@ -17,6 +18,16 @@ function readDraftPromptFromLocation() {
   }
 
   return new URLSearchParams(window.location.search).get("draft") ?? undefined;
+}
+
+function readInitialExamTargetFromLocation() {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  const value = new URLSearchParams(window.location.search).get("examTarget");
+
+  return value && isExamTargetCode(value) ? value : undefined;
 }
 
 function buildContextHintLabel(context: ConversationalLearningContext) {
@@ -63,6 +74,7 @@ export function ChatWorkspace() {
     submitPrompt,
   } = useChatSession({
     initialPrompt: readDraftPromptFromLocation(),
+    initialExamTarget: readInitialExamTargetFromLocation(),
   });
   const currentContext = latestConversationContext(messages, activeExamTarget);
   const contextHintLabel = currentContext

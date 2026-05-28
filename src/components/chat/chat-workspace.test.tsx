@@ -42,6 +42,23 @@ describe("ChatWorkspace", () => {
     expect(screen.getByDisplayValue("make up 怎么用")).toBeInTheDocument();
   });
 
+  it("syncs the active exam target from a collection follow-up link", async () => {
+    window.history.pushState(
+      {},
+      "",
+      "/?draft=make%20up%20%E6%80%8E%E4%B9%88%E7%94%A8&examTarget=cet4",
+    );
+
+    render(<ChatWorkspace />);
+
+    expect(screen.getByDisplayValue("make up 怎么用")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem("enggo.activeExamTarget")).toBe("cet4");
+    });
+    expect(screen.getByTestId("active-exam-target")).toHaveTextContent("当前词书：CET-4");
+  });
+
   it("persists active exam target and sends prompt", async () => {
     const user = userEvent.setup();
     window.localStorage.clear();
@@ -289,6 +306,38 @@ describe("ChatWorkspace", () => {
 
     expect(secondRequestBody.activeExamTarget).toBe("postgrad");
     expect(secondRequestBody).not.toHaveProperty("conversationContext");
+  });
+
+  it("syncs active exam target from a scope-switch follow-up response", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer: "已切换到考研范围。",
+        answerKind: "plain",
+        requestId: "req_scope_switch",
+        providerRequestId: null,
+        resolvedFollowUp: {
+          kind: "resolved_action",
+          action: "switch_scope",
+          activeExamTarget: "postgrad",
+          targetRefs: [],
+        },
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "换成考研范围");
+    await user.click(getSubmitButton());
+
+    expect(await screen.findByText("已切换到考研范围。")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(window.localStorage.getItem("enggo.activeExamTarget")).toBe("postgrad");
+    });
+    expect(screen.getByTestId("active-exam-target")).toHaveTextContent("当前词书：考研");
   });
 
   it("shows a quiet context hint after an assistant response with conversation context", async () => {
