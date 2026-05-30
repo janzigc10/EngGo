@@ -42,7 +42,8 @@
   - 初始技术设计。
 
 ## 当前活跃计划
-- 暂无正在执行的 implementation plan。下一步从 `progress.md` 的当前状态与下一步选择。
+- `docs/superpowers/plans/2026-05-30-wordbook-learn-review-experience-polish-v1.md`
+  - Wordbook Learn/Review 下一轮体验打磨 implementation plan。执行时严格按 Task 0 -> Task 7 顺序推进；每完成一个 task，立即更新 plan checkbox 与 `progress.md`。本计划仍留在 `codex/wordbook-learn-review-v1` 分支，不 merge 主线。
 
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。
