@@ -111,6 +111,9 @@ def resolve_follow_up(
             return {"kind": "not_follow_up"}
         return _resolve_show_more(context, active_exam_target)
 
+    if _is_context_choice_request(text):
+        return _resolve_context_choice(context, active_exam_target)
+
     intent = _follow_up_intent(text)
 
     if _has_mixed_reference_categories(_reference_categories(text, context)):
@@ -322,6 +325,7 @@ def _available_actions(
 
     if len(candidates) > 1:
         actions.append("collect_group")
+        actions.append("context_choice")
 
     if continuation_candidates:
         actions.append("show_more")
@@ -398,6 +402,45 @@ def _resolve_show_more(
         "action": "show_more",
         "activeExamTarget": context.activeExamTarget,
         "targetRefs": [_candidate_payload(candidate) for candidate in target_refs],
+    }
+
+
+def _is_context_choice_request(query: str) -> bool:
+    if not _contains_any(query, ["哪个", "哪一个", "哪种", "哪条"]):
+        return False
+
+    return _contains_any(
+        query,
+        [
+            "正式",
+            "常用",
+            "自然",
+            "适合",
+            "考试",
+            "阅读",
+            "表达",
+            "书面",
+            "口语",
+            "写作",
+        ],
+    )
+
+
+def _resolve_context_choice(
+    context: ConversationalLearningContext | None,
+    active_exam_target: ExamTarget,
+) -> dict[str, Any]:
+    if not _usable_context(context) or len(context.candidates) < 2:
+        return _clarification(context)
+
+    if context.activeExamTarget != active_exam_target:
+        return _clarification(None)
+
+    return {
+        "kind": "resolved_action",
+        "action": "context_choice",
+        "activeExamTarget": active_exam_target,
+        "targetRefs": [_candidate_payload(candidate) for candidate in context.candidates],
     }
 
 

@@ -1,22 +1,26 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-28 conversational context V2 完成）
-- 当前产品判断：Conversational Learning Context V2 已按 `docs/superpowers/plans/2026-05-28-conversational-learning-context-v2.md` 收口，只覆盖范围切换、`还有吗`、受控 `怎么背`、收藏页继续追问闭环；`更适合作文吗`、长期记忆、多主题并行、复习卡片和云同步仍不属于本轮。
+## 当前状态与下一步（2026-05-30 wordbook learn/review plan 已开）
+- 当前产品判断：V3 已按 `docs/superpowers/plans/2026-05-29-conversational-context-v3-bounded-fallback.md` 完成并收口，范围锁定为“有边界聊天兜底 + 候选内语境选择”；长期个人记忆、多主题并行、复习系统和云同步仍不进入本轮。
+- 本次收尾：已回退未经确认的 `这三个词具体怎么用` / `怎么学英语最快` 临时补丁；这两类真实问法先进入后续边界样例池，不计入 V3 已交付能力。
+- 方向调整已记录到 `docs/superpowers/specs/2026-05-30-vocabulary-learning-first-direction.md`：聊天/模型多轮调试进入维护状态，下一阶段转向“词汇学习主流程 + AI 辅助入口”。
+- 最新产品 spec 已落到 `docs/superpowers/specs/2026-05-30-wordbook-learn-review-state-machine-design.md`：根据不背单词截图和用户体验复盘，第一刀从“本地生词本复习”修正为“词书驱动 Learn / Review 状态机”；核心是 `cet6-foundation-v1` 词书、10 词 session、四选一新词识别、无提示复习判断、错误回流、3 点掌握进度和本地状态持久化。收藏词继续作为辅助资产，不作为 V1 主数据源。
+- 当前活跃实现 plan 已落到 `docs/superpowers/plans/2026-05-30-wordbook-learn-review-v1.md`：执行顺序从数据和状态机开始，再接 UI；第一步是 Task 0 保护当前未提交 V3 diff 和激活 plan，随后 Task 1 做 wordbook types/data adapter。
 - 本轮已完成：
-  1. conversation context contract 新增 optional `sourceQuery`、`continuationCandidates`，并扩展 `show_more`、`switch_scope`、`study_guidance` action。
-  2. resolver 支持 `换成/只看 + 高考/四级/六级/考研`、`还有吗/再来几个`、`这组怎么背/第二个怎么记`；显式英文 seed 仍保护为普通查询，不误当上下文追问。
-  3. `/api/chat` 新增 `switch_scope` ack、`show_more` deterministic continuation、provider-backed locked-target `study_guidance`；收藏 action 仍保持 deterministic 且不调用 provider。
-  4. 前端收到 scope-switch follow-up 会同步 `enggo.activeExamTarget`；收藏页继续追问链接会携带 exam target，首页落地后同步词书并预填 draft。
-  5. subagent 复核后收紧两个边界：`study_guidance` provider grounding 只保留 `targetRefs` 和 `rules`；conversation-context smoke 会校验 scope-switch 后的 resolved/context active target，并在 runner 后续轮次沿用切换后的词书。
-- 最新验证：
-  1. `& 'C:\Users\Chen\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -m pytest -q backend/tests -p no:cacheprovider` -> 305 passed。
-  2. `node_modules\.bin\vitest.CMD run --maxWorkers=1 src/features/chat/conversation-context.test.ts src/components/chat/chat-workspace.test.tsx src/features/collections/study-panels.test.tsx scripts/lib/conversational-learning-context-smoke.test.ts` -> 38 passed。
-  3. `node_modules\.bin\eslint.CMD src/features/chat/types.ts src/features/chat/use-chat-session.ts src/components/chat/chat-workspace.tsx src/features/collections/study-panels.tsx src/features/collections/study-panels.test.tsx src/components/chat/chat-workspace.test.tsx scripts/lib/conversational-learning-context-smoke.ts scripts/lib/conversational-learning-context-smoke.test.ts` -> passed。
+  1. conversation context 新增 `context_choice` action：只有存在 usable 上下文且上一轮候选数大于 1 时，`哪个更正式/更常用/更自然/更适合考试表达` 这类追问才会解析；`targetRefs` 只来自上一轮候选并保持顺序。
+  2. `/api/chat` 新增 provider-backed `context_choice` handler：grounding 只传 `targetRefs` 和规则，不传开放检索结果；provider 不可用时返回 200 plain 的保守说明。
+  3. `/api/chat` 新增 bounded chat fallback：`你好`、`你能干嘛`、`我今天不想背词` 等正常输入直接 200 plain；所有 services 都拒绝的正常问法不再默认 501；随机英文串仍保持保守说明，不硬猜。
+  4. 前端已显式承载 `context_choice` action；服务端返回可读错误 message 时优先展示，疑似 key/token/trace 等敏感内容仍降级为通用不可用文案。
+  5. conversational learning context smoke 已扩展 V3 样例：候选内语境选择、能力询问兜底、学习状态闲聊兜底、无上下文语境选择 clarification。
+- 最新验证（回退临时补丁后复跑）：
+  1. `& 'C:\Users\Chen\anaconda3\python.exe' -m pytest -q backend/tests/test_learning_context.py backend/tests/test_chat_contract.py -p no:cacheprovider` -> 71 passed。
+  2. `corepack pnpm exec vitest run --maxWorkers=1 src\features\chat\conversation-context.test.ts src\components\chat\chat-workspace.test.tsx scripts\lib\conversational-learning-context-smoke.test.ts` -> 3 files / 38 tests passed。
+  3. `corepack pnpm lint -- src\features\chat\types.ts src\features\chat\use-chat-session.ts src\features\chat\conversation-context.ts src\features\chat\conversation-context.test.ts src\components\chat\chat-workspace.test.tsx scripts\lib\conversational-learning-context-smoke.ts scripts\lib\conversational-learning-context-smoke.test.ts` -> passed。
   4. `git diff --check` -> 无 whitespace error；仅 Windows 上 LF/CRLF 替换提示。
-  5. 已从 `skywind3000/ECDICT` 下载 full `ecdict.csv` 到 ignored 路径 `output/external-dictionaries/ecdict.csv`，大小 65,933,428 bytes；项目 parser 可读入 770,611 rows / 360,889 profiles，核心词 `access/assess/excess/evaluate/evacuate/response` 均可命中对应 scope tags。
-  6. 使用 FastAPI `TestClient` + 真实 ECDICT 跑通确定性 V2 链路：`access assess excess 怎么区分 -> 换成考研范围` 能在 postgrad 重跑；`给我几个跟 evaluate 易混的单词 -> 还有吗` 能从 continuation candidates 继续展示，且不调用 provider。
-  7. 真实 FastAPI HTTP smoke 已跑完：`node_modules\.bin\tsx.CMD scripts\run-conversational-learning-context-smoke.ts` -> 7 total / 7 pass / 0 fail；覆盖 scope switch、`还有吗`、collect group、无 context clarification，以及真实 provider/env 下的 `study_guidance` HTTP 路由。
-- 下一步建议：V2 可以进入 commit 前 review；若继续 V3，优先开独立 spec 做候选内语境选择（如 `更适合作文吗`），不要把它塞回 V2。
+  5. 临时启动 FastAPI `127.0.0.1:8000` 后，`corepack pnpm eval:fastapi:conversation-context-smoke` -> 11 total / 11 pass / 0 fail；覆盖 V3 新增候选内语境选择、普通聊天兜底和无上下文 clarification。临时 FastAPI 进程已停止。
+- 下一步：
+  1. 先把 clean V3 与方向调整文档一起 commit，避免后续复习功能混进同一个 diff。
+  2. 执行 `2026-05-30-wordbook-learn-review-v1.md` 时严格按 checkbox 顺序推进：Task 0 -> Task 1，不先跳 UI；每完成 step 更新 plan checkbox，每完成 task 更新本文件。
 
 ## 当前状态与下一步（2026-05-25 default smoke 清理完成）
 - 当前产品判断：EngGo 仍是聊天式学习主入口。conversational learning context V1 已合回当前主线 worktree `codex/chat-shell-bootstrap`；本轮继续补完 `progress.md` 里遗留的默认 smoke 闸门，普通查词、中文 meaning/expression recall、拼写纠错、direct compare 和多轮追问 smoke 现在都回到绿色。

@@ -335,6 +335,52 @@ def test_resolver_maps_show_more_without_continuation_to_empty_action():
     assert result["targetRefs"] == []
 
 
+def test_resolver_maps_context_choice_to_locked_candidate_set():
+    result = resolve_follow_up(
+        "哪个更正式",
+        _context(["follow", "obey", "comply"], topic_kind="meaning_lookup"),
+        "cet6",
+    )
+
+    assert result["kind"] == "resolved_action"
+    assert result["action"] == "context_choice"
+    assert [item["lemma"] for item in _target_refs(result)] == [
+        "follow",
+        "obey",
+        "comply",
+    ]
+
+
+def test_resolver_maps_exam_context_choice_to_locked_candidate_set():
+    result = resolve_follow_up(
+        "哪个更适合考试表达",
+        _context(["access", "assess", "excess"]),
+        "cet6",
+    )
+
+    assert result["kind"] == "resolved_action"
+    assert result["action"] == "context_choice"
+    assert [item["lemma"] for item in _target_refs(result)] == [
+        "access",
+        "assess",
+        "excess",
+    ]
+
+
+def test_resolver_clarifies_context_choice_without_context():
+    result = resolve_follow_up("哪个更正式", None, "cet6")
+
+    assert result["kind"] == "clarification"
+    assert result["options"] == []
+
+
+def test_resolver_clarifies_context_choice_with_single_candidate():
+    result = resolve_follow_up("哪个更常用", _context(["follow"]), "cet6")
+
+    assert result["kind"] == "clarification"
+    assert [item["lemma"] for item in result["options"]] == ["follow"]
+
+
 def test_resolver_ignores_group_marker_when_query_has_explicit_seed_without_context():
     result = resolve_follow_up("sign这组词怎么背", None, "cet6")
 
@@ -603,6 +649,7 @@ def test_context_capture_from_direct_compare_uses_comparison_member_order():
         "switch_scope",
         "study_guidance",
         "collect_group",
+        "context_choice",
     ]
 
 

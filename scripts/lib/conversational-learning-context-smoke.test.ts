@@ -53,7 +53,7 @@ function observation(
 }
 
 describe("conversational learning-context smoke", () => {
-  it("defines the V2 stateful smoke matrix without unsupported semantic follow-ups", () => {
+  it("defines the V3 stateful smoke matrix with bounded fallbacks", () => {
     expect(buildConversationalLearningContextSmokeCases()).toEqual([
       expect.objectContaining({
         name: "access compare then ordinal meaning",
@@ -97,6 +97,23 @@ describe("conversational learning-context smoke", () => {
             expectedResolvedKind: "resolved_action",
             expectedAction: "study_guidance",
             expectedTargetLemmas: ["access", "assess", "excess"],
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        name: "access compare then context choice",
+        turns: [
+          expect.objectContaining({
+            query: "access assess excess 怎么区分",
+          }),
+          expect.objectContaining({
+            query: "哪个更适合考试表达",
+            expectedAnswerKind: "plain",
+            expectedGrounding: "absent",
+            expectedResolvedKind: "resolved_action",
+            expectedAction: "context_choice",
+            expectedExactTargetLemmas: ["access", "assess", "excess"],
+            expectedProviderRequest: "allowed",
           }),
         ],
       }),
@@ -164,6 +181,40 @@ describe("conversational learning-context smoke", () => {
               "responsibility",
               "respondents",
             ],
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        name: "capability fallback answers without grounding",
+        turns: [
+          expect.objectContaining({
+            query: "你能干嘛",
+            expectedAnswerKind: "plain",
+            expectedGrounding: "absent",
+            expectedProviderRequest: "absent",
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        name: "learning mood fallback answers without grounding",
+        turns: [
+          expect.objectContaining({
+            query: "我今天不想背词",
+            expectedAnswerKind: "plain",
+            expectedGrounding: "absent",
+            expectedProviderRequest: "absent",
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        name: "no context context choice asks for clarification",
+        turns: [
+          expect.objectContaining({
+            query: "哪个更正式",
+            expectedAnswerKind: "plain",
+            expectedGrounding: "absent",
+            expectedResolvedKind: "clarification",
+            expectedProviderRequest: "absent",
           }),
         ],
       }),

@@ -510,6 +510,119 @@ def test_chat_study_guidance_uses_provider_with_locked_target_refs():
     ] == ["access", "assess", "excess"]
 
 
+def test_chat_context_choice_uses_provider_with_locked_target_refs():
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+    provider = RecordingProvider(answer="comply is the most formal choice.")
+    client.app.state.provider = provider
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "哪个更正式",
+            "history": [],
+            "conversationContext": {
+                "version": 1,
+                "activeExamTarget": "cet6",
+                "sourceMessageId": "turn_1:assistant",
+                "topicKind": "meaning_lookup",
+                "sourceQuery": "遵循的英文是什么",
+                "focus": None,
+                "candidates": [
+                    {"index": 1, "lemma": "follow", "label": "follow"},
+                    {"index": 2, "lemma": "obey", "label": "obey"},
+                    {"index": 3, "lemma": "comply", "label": "comply"},
+                ],
+                "availableActions": ["collect_one", "switch_scope", "study_guidance", "collect_group", "context_choice"],
+                "expiresAfterTurns": 2,
+            },
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answer"] == "comply is the most formal choice."
+    assert payload["providerRequestId"] == "provider_study_1"
+    assert payload["resolvedFollowUp"]["kind"] == "resolved_action"
+    assert payload["resolvedFollowUp"]["action"] == "context_choice"
+    assert set(provider.calls[0]["grounding"].keys()) == {"targetRefs", "rules"}
+    assert [
+        item["lemma"]
+        for item in provider.calls[0]["grounding"]["targetRefs"]
+    ] == ["follow", "obey", "comply"]
+
+
+def test_chat_context_choice_without_provider_returns_safe_plain_answer():
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "哪个更适合考试表达",
+            "history": [],
+            "conversationContext": {
+                "version": 1,
+                "activeExamTarget": "cet6",
+                "sourceMessageId": "turn_1:assistant",
+                "topicKind": "direct_compare",
+                "sourceQuery": "access assess excess 怎么区分",
+                "focus": None,
+                "candidates": [
+                    {"index": 1, "lemma": "access", "label": "access"},
+                    {"index": 2, "lemma": "assess", "label": "assess"},
+                    {"index": 3, "lemma": "excess", "label": "excess"},
+                ],
+                "availableActions": ["collect_one", "switch_scope", "study_guidance", "collect_group", "context_choice"],
+                "expiresAfterTurns": 2,
+            },
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answerKind"] == "plain"
+    assert payload["providerRequestId"] is None
+    assert "access / assess / excess" in payload["answer"]
+    assert "暂时不可用" not in payload["answer"]
+    assert payload["resolvedFollowUp"]["action"] == "context_choice"
+
+
+def test_chat_context_choice_without_context_clarifies_without_provider():
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "哪个更正式",
+            "history": [],
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answerKind"] == "plain"
+    assert payload["providerRequestId"] is None
+    assert payload["resolvedFollowUp"]["kind"] == "clarification"
+    assert "grounding" not in payload
+
+
 def test_chat_keeps_normal_query_with_context_on_original_route():
     ordinary_service = RecordingService(
         answer="make up\n\nphr. 组成；编造",
@@ -617,7 +730,57 @@ def test_chat_returns_plain_greeting_without_grounding():
     assert payload["answerKind"] == "plain"
     assert payload["providerRequestId"] is None
     assert "grounding" not in payload
-    assert "缩小备考范围" in payload["answer"]
+    assert "我可以陪你" in payload["answer"]
+
+
+def test_chat_returns_plain_capability_answer_without_grounding():
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "你能干嘛",
+            "history": [],
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answerKind"] == "plain"
+    assert payload["providerRequestId"] is None
+    assert "查词" in payload["answer"]
+    assert "grounding" not in payload
+
+
+def test_chat_returns_plain_learning_mood_answer_without_grounding():
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "我今天不想背词",
+            "history": [],
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answerKind"] == "plain"
+    assert payload["providerRequestId"] is None
+    assert "先不硬背" in payload["answer"]
+    assert "grounding" not in payload
 
 
 def test_chat_returns_grounded_ordinary_lookup_from_fastapi_service(tmp_path):
@@ -953,7 +1116,7 @@ def test_chat_maps_provider_failure_to_generation_failed():
     assert payload["providerRequestId"] == "provider_req_123"
 
 
-def test_chat_returns_not_implemented_when_all_services_reject_query_mode(tmp_path):
+def test_chat_returns_bounded_fallback_when_all_services_reject_normal_query(tmp_path):
     class RejectingService:
         def answer(self, **_kwargs):
             raise UnsupportedQueryMode("root_family_summary")
@@ -973,15 +1136,16 @@ def test_chat_returns_not_implemented_when_all_services_reject_query_mode(tmp_pa
         "/api/chat",
         json={
             "activeExamTarget": "cet6",
-            "query": "re+con 的词根有什么词",
+            "query": "帮我安排一个两分钟小练习",
             "history": [],
         },
     )
 
     payload = response.json()
 
-    assert response.status_code == 501
+    assert response.status_code == 200
     assert response.headers["x-request-id"] == payload["requestId"]
-    assert payload["error"]["code"] == "not_implemented"
     assert payload["providerRequestId"] is None
+    assert payload["answerKind"] == "plain"
+    assert "这句话我先接住" in payload["answer"]
     assert "grounding" not in payload

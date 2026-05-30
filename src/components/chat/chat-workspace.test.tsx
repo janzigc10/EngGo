@@ -503,9 +503,7 @@ describe("ChatWorkspace", () => {
     await user.type(screen.getByTestId("chat-input"), "assess 是什么意思");
     await user.click(getSubmitButton());
 
-    expect(
-      await screen.findByText("当前回答服务暂时不可用，请稍后再试。"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Temporary failure.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "access 是什么意思" })).not.toBeInTheDocument();
   });
 
@@ -649,6 +647,47 @@ describe("ChatWorkspace", () => {
       "comply",
       "conform",
     ]);
+  });
+
+  it("renders context_choice follow-up answers without collecting target words", async () => {
+    const user = userEvent.setup();
+    const resolvedFollowUp: ResolvedFollowUp = {
+      kind: "resolved_action",
+      action: "context_choice",
+      activeExamTarget: "cet6",
+      targetRefs: [
+        {
+          index: 1,
+          lemma: "access",
+          label: "access",
+        },
+        {
+          index: 2,
+          lemma: "assess",
+          label: "assess",
+        },
+      ],
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer: "考试表达里优先用 access。它指进入权或使用权；assess 是评估。",
+        answerKind: "plain",
+        requestId: "req_context_choice",
+        providerRequestId: "resp_context_choice",
+        resolvedFollowUp,
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "哪个更适合考试表达");
+    await user.click(getSubmitButton());
+
+    expect(await screen.findByText(/优先用 access/)).toBeInTheDocument();
+    expect(window.localStorage.getItem("enggo.collectedWords")).toBeNull();
   });
 
   it("restores the latest chat transcript after remount", async () => {

@@ -26,6 +26,14 @@ const defaultExamplePrompts = [
 ];
 const genericChatErrorMessage = "当前回答服务暂时不可用，请稍后再试。";
 const chatTranscriptStorageKey = "enggo.chatTranscript";
+const sensitiveErrorPatterns = [
+  /api[_-]?key/i,
+  /secret/i,
+  /token/i,
+  /configured on the server/i,
+  /traceback/i,
+  /stack trace/i,
+];
 
 type ChatApiErrorResponse = {
   error?: {
@@ -120,7 +128,14 @@ function getChatErrorMessage(
   payload: ChatApiSuccessResponse | ChatApiErrorResponse,
 ) {
   if ("error" in payload) {
-    return payload.error?.message ?? genericChatErrorMessage;
+    const message = payload.error?.message?.trim();
+
+    if (
+      message
+      && !sensitiveErrorPatterns.some((pattern) => pattern.test(message))
+    ) {
+      return message;
+    }
   }
 
   return genericChatErrorMessage;
@@ -237,8 +252,12 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
 
         return updatedMessages;
       });
-    } catch {
-      setErrorMessage(genericChatErrorMessage);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error && error.message.trim().length > 0
+          ? error.message
+          : genericChatErrorMessage,
+      );
     } finally {
       setIsLoading(false);
     }

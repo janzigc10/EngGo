@@ -8,14 +8,18 @@
 - `context.md`：长期项目地图和代码地图。
 
 ## 当前有效设计
+- `docs/superpowers/specs/2026-05-30-wordbook-learn-review-state-machine-design.md`
+  - 当前词汇学习主线设计：借鉴不背单词的产品内核，但只抄 Learn / Review 两条队列背后的状态机；第一刀做 `cet6-foundation-v1` 词书、10 词 session、四选一新词识别、无提示复习判断、错误回流、3 点掌握进度和本地持久化，不复制商业词书内容、视觉资产或完整 SRS。
+- `docs/superpowers/specs/2026-05-30-vocabulary-learning-first-direction.md`
+  - 产品方向调整记录：聊天/模型多轮调试进入维护状态，下一阶段转向“词汇学习主流程 + AI 辅助入口”。其中“先做本地生词本复习闭环”的第一判断已被 `2026-05-30-wordbook-learn-review-state-machine-design.md` 修正为“先做词书驱动 Learn / Review 状态机”。
 - `docs/superpowers/specs/2026-05-24-conversational-learning-context-design.md`
-  - 聊天主舞台下一层核心能力：设计短期会话上下文、追问解析、resolved query routing、UI 上下文提示、失败反问和阶段拆分；V1 只做同一学习话题内的追问不断片，长期个人记忆放到后续阶段。
+  - 聊天主舞台下一层核心能力：设计短期会话上下文、追问解析、resolved query routing、UI 上下文提示、失败反问和阶段拆分；当前已完成到 V3，后续进入维护状态，不再作为近期主线继续深挖模型多轮能力。
 - `docs/superpowers/specs/2026-05-18-ecdict-backbone-structured-overlay-design.md`
   - 最新词库主干方向：ECDICT 作为默认大词库底座，旧 structured DB 降级为冻结覆盖层 / 回归样例 / 可选增强；后续只做轻量人工 override，不再维护全量复杂结构化词库。
 - `docs/superpowers/specs/2026-05-12-dynamic-light-grounding-design.md`
   - 8k 词库后的 dynamic light grounding 设计：用动态候选 grounding 接管泛问主流程，旧 `confusion_group` / `root_family` 只做 boost、fixture 和 regression baseline。
 - `docs/superpowers/specs/2026-05-16-collection-organizer-design.md`
-  - 学习闭环第一刀：把聊天收藏沉淀为可整理的本地生词本，保留结构化元数据、删除和回到聊天追问入口。
+  - 收藏页基础设计：把聊天收藏沉淀为可整理的本地生词本，保留结构化元数据、删除和回到聊天追问入口；它仍是学习资产来源之一，但不再是下一阶段核心背词流程的第一刀。
 - `docs/superpowers/specs/2026-05-10-fastapi-backend-split-design.md`
   - Python FastAPI 后端拆分设计：Next 前端保留，`/api/chat` 当前默认代理 FastAPI；`ENGGO_BACKEND_URL` 仅用于覆盖默认后端地址。
 - `docs/superpowers/specs/2026-05-09-ecdict-basic-lookup-design.md`
@@ -36,11 +40,16 @@
   - 初始技术设计。
 
 ## 当前活跃计划
-- 暂无正在执行的 implementation plan。下一步从 `progress.md` 的当前状态与下一步选择；`2026-05-24` 聊天式学习上下文 V1 已完成并移入历史计划。
+- `docs/superpowers/plans/2026-05-30-wordbook-learn-review-v1.md`
+  - 当前待执行实现计划：按词书数据适配、localStorage 进度、四选一干扰项、Learn 状态机、Review 状态机、Learn/Review UI、Progress/Collections 回归的顺序推进。执行时按 plan checkbox 更新，不改 `/api/chat`。
 
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。
 
+- `docs/superpowers/plans/2026-05-29-conversational-context-v3-bounded-fallback.md`
+  - 聊天式学习上下文 V3 已完成：新增候选内 `context_choice` 追问、provider grounding 锁定上一轮候选、无上下文 clarification、正常聊天 200 plain 兜底、前端 `context_choice` 承载与可读错误展示；长期个人记忆、多主题并行、复习卡片和云同步仍不属于本轮。
+- `docs/superpowers/plans/2026-05-28-conversational-learning-context-v2.md`
+  - 聊天式学习上下文 V2 已完成：范围切换、`还有吗` continuation、受控 `怎么背` study guidance、收藏页继续追问 exam target 闭环均已落地；`更适合作文吗`、长期个人记忆、多主题并行、复习卡片和云同步仍留到后续独立 spec。
 - `docs/superpowers/plans/2026-05-24-conversational-learning-context-v1.md`
   - 聊天式学习上下文 V1 已完成：后端 `ConversationalLearningContext`、确定性 Follow-up Resolver、FastAPI resolved query/action/clarification 路由、前端 session context 传递、轻量上下文提示、clarification options、local collection action，以及多轮 live smoke matrix 均已落地；长期个人记忆、复习卡片和多主题并行仍留到后续阶段。
 - `docs/superpowers/plans/2026-05-20-meaning-lookup-scope-tag-filter.md`

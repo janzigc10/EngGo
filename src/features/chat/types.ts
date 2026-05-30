@@ -56,6 +56,7 @@ export type ResolvedFollowUp =
         | "switch_scope"
         | "show_more"
         | "study_guidance"
+        | "context_choice"
         | string;
       activeExamTarget: ExamTargetCode;
       targetRefs: LearningCandidateRef[];

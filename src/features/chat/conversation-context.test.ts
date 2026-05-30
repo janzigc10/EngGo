@@ -184,4 +184,27 @@ describe("conversation context helpers", () => {
       reviewStatus: "unreviewed",
     });
   });
+
+  it("carries context_choice follow-up actions without applying local collection side effects", () => {
+    const action: ResolvedFollowUp = {
+      kind: "resolved_action",
+      action: "context_choice",
+      activeExamTarget: "cet6",
+      targetRefs: [
+        {
+          index: 1,
+          lemma: "access",
+          label: "access",
+        },
+        {
+          index: 2,
+          lemma: "assess",
+          label: "assess",
+        },
+      ],
+    };
+
+    expect(applyResolvedFollowUpAction(action, "cet6")).toBe("");
+    expect(window.localStorage.getItem("enggo.collectedWords")).toBeNull();
+  });
 });

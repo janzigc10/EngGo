@@ -171,6 +171,31 @@ export function buildConversationalLearningContextSmokeCases():
       ],
     },
     {
+      name: "access compare then context choice",
+      turns: [
+        {
+          query: "access assess excess 怎么区分",
+          activeExamTarget: "cet6",
+          expectedStatus: 200,
+          expectedAnswerKind: "grounded",
+          expectedGrounding: "present",
+          expectedContextLemmas: ["access", "assess", "excess"],
+          expectedProviderRequest: "absent",
+        },
+        {
+          query: "哪个更适合考试表达",
+          activeExamTarget: "cet6",
+          expectedStatus: 200,
+          expectedAnswerKind: "plain",
+          expectedGrounding: "absent",
+          expectedResolvedKind: "resolved_action",
+          expectedAction: "context_choice",
+          expectedExactTargetLemmas: ["access", "assess", "excess"],
+          expectedProviderRequest: "allowed",
+        },
+      ],
+    },
+    {
       name: "evaluate lookalikes then ordinal usage",
       turns: [
         {
@@ -267,6 +292,46 @@ export function buildConversationalLearningContextSmokeCases():
     },
     // Deferred by design: "遵循的英文是什么" -> "还有更适合作文的吗"
     // needs semantic style follow-up support that V1 does not safely resolve yet.
+    {
+      name: "capability fallback answers without grounding",
+      turns: [
+        {
+          query: "你能干嘛",
+          activeExamTarget: "cet6",
+          expectedStatus: 200,
+          expectedAnswerKind: "plain",
+          expectedGrounding: "absent",
+          expectedProviderRequest: "absent",
+        },
+      ],
+    },
+    {
+      name: "learning mood fallback answers without grounding",
+      turns: [
+        {
+          query: "我今天不想背词",
+          activeExamTarget: "cet6",
+          expectedStatus: 200,
+          expectedAnswerKind: "plain",
+          expectedGrounding: "absent",
+          expectedProviderRequest: "absent",
+        },
+      ],
+    },
+    {
+      name: "no context context choice asks for clarification",
+      turns: [
+        {
+          query: "哪个更正式",
+          activeExamTarget: "cet6",
+          expectedStatus: 200,
+          expectedAnswerKind: "plain",
+          expectedGrounding: "absent",
+          expectedResolvedKind: "clarification",
+          expectedProviderRequest: "absent",
+        },
+      ],
+    },
     {
       name: "no context ordinal asks for clarification",
       turns: [
