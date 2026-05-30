@@ -54,7 +54,11 @@ function clampReviewStrength(value: number): ReviewStrength {
   return 0;
 }
 
-function toTarget(progress: WordStudyProgress, wordbook: Wordbook): StudySessionTarget {
+function toTarget(
+  progress: WordStudyProgress,
+  wordbook: Wordbook,
+  resumeStage: StudyCardStage,
+): StudySessionTarget {
   const entry = wordbook.entries.find((item) => item.lemma === progress.lemma);
 
   if (!entry) {
@@ -66,6 +70,8 @@ function toTarget(progress: WordStudyProgress, wordbook: Wordbook): StudySession
     progress,
     masteryDots: 0,
     failedAttempts: 0,
+    resumeStage,
+    eligibleAfterExposure: 0,
   };
 }
 
@@ -80,15 +86,12 @@ function createState(
     mode,
     sessionId: input.sessionId,
     wordbookId: input.wordbook.id,
-    stage: current
-      ? mode === "learn"
-        ? "recognitionChoice"
-        : "hiddenSelfRecall"
-      : "complete",
+    stage: current ? current.resumeStage : "complete",
     current: current ?? null,
     pending,
     completedTargetLemmas: [],
     totalTargets: targets.length,
+    cardExposureCount: current ? 1 : 0,
   };
 }
 
@@ -127,7 +130,7 @@ function selectReviewProgress(input: CreateSessionInput) {
 
 export function createLearnSession(input: CreateSessionInput): StudySessionState {
   const targets = selectLearnProgress(input).map((progress) =>
-    toTarget(progress, input.wordbook),
+    toTarget(progress, input.wordbook, "recognitionChoice"),
   );
 
   return createState(input, "learn", targets);
@@ -135,7 +138,7 @@ export function createLearnSession(input: CreateSessionInput): StudySessionState
 
 export function createReviewSession(input: CreateSessionInput): StudySessionState {
   const targets = selectReviewProgress(input).map((progress) =>
-    toTarget(progress, input.wordbook),
+    toTarget(progress, input.wordbook, "hiddenSelfRecall"),
   );
 
   return createState(input, "review", targets);
@@ -149,24 +152,70 @@ function finishCurrentTarget(
     return { state, progressUpdates: [] };
   }
 
-  const [next, ...rest] = state.pending;
   const completedTargetLemmas = [
     ...state.completedTargetLemmas,
     state.current.entry.lemma,
   ];
 
+  const nextState = advanceToNextTarget({
+    ...state,
+    completedTargetLemmas,
+  });
+
   return {
-    state: {
+    state: nextState,
+    progressUpdates: update ? [update] : [],
+  };
+}
+
+function advanceToNextTarget(state: StudySessionState): StudySessionState {
+  if (state.pending.length === 0) {
+    return {
       ...state,
-      current: next ?? null,
-      pending: rest,
-      completedTargetLemmas,
-      stage: next
-        ? state.mode === "learn"
-          ? "recognitionChoice"
-          : "hiddenSelfRecall"
-        : "complete",
-    },
+      current: null,
+      stage: "complete",
+    };
+  }
+
+  const eligibleIndex = state.pending.findIndex(
+    (target) => target.eligibleAfterExposure <= state.cardExposureCount,
+  );
+  const nextIndex = eligibleIndex >= 0 ? eligibleIndex : 0;
+  const next = state.pending[nextIndex];
+  const rest = state.pending.filter((_, index) => index !== nextIndex);
+
+  return {
+    ...state,
+    current: next,
+    pending: rest,
+    stage: next.resumeStage,
+    cardExposureCount: state.cardExposureCount + 1,
+  };
+}
+
+function requeueWithDelay(
+  state: StudySessionState,
+  current: StudySessionTarget,
+  delay: number,
+  resumeStage: StudyCardStage,
+  update?: WordStudyProgress,
+): StudyEngineResult {
+  const nextPending = [...state.pending];
+  const insertionIndex = Math.min(delay, nextPending.length);
+
+  nextPending.splice(insertionIndex, 0, {
+    ...current,
+    resumeStage,
+    eligibleAfterExposure: state.cardExposureCount + delay,
+  });
+
+  const nextState = advanceToNextTarget({
+    ...state,
+    pending: nextPending,
+  });
+
+  return {
+    state: nextState,
     progressUpdates: update ? [update] : [],
   };
 }
@@ -174,32 +223,44 @@ function finishCurrentTarget(
 function requeueCurrentTarget(
   state: StudySessionState,
   current: StudySessionTarget,
+  options: {
+    delay?: number;
+    resumeStage?: StudyCardStage;
+    update?: WordStudyProgress;
+  } = {},
+): StudyEngineResult {
+  const delay = options.delay ?? 3;
+  const resumeStage = options.resumeStage ?? current.resumeStage;
+
+  if (current.failedAttempts >= 3) {
+    return finishCurrentTarget(state, options.update);
+  }
+
+  return requeueWithDelay(
+    state,
+    current,
+    delay,
+    resumeStage,
+    options.update,
+  );
+}
+
+function requeueLearnTarget(
+  state: StudySessionState,
+  current: StudySessionTarget,
+  resumeStage: StudyCardStage,
+  delay: number,
   update?: WordStudyProgress,
 ): StudyEngineResult {
   if (current.failedAttempts >= 3) {
     return finishCurrentTarget(state, update);
   }
 
-  const nextPending = [...state.pending];
-  const insertionIndex = Math.min(3, nextPending.length);
-
-  nextPending.splice(insertionIndex, 0, current);
-
-  const [next, ...rest] = nextPending;
-
-  return {
-    state: {
-      ...state,
-      current: next ?? null,
-      pending: rest,
-      stage: next
-        ? state.mode === "learn"
-          ? "recognitionChoice"
-          : "hiddenSelfRecall"
-        : "complete",
-    },
-    progressUpdates: update ? [update] : [],
-  };
+  return requeueCurrentTarget(state, current, {
+    delay,
+    resumeStage,
+    update,
+  });
 }
 
 function buildProgressUpdate(
@@ -301,7 +362,9 @@ function passLearnTarget(
   state: StudySessionState,
   current: StudySessionTarget,
   now: Date,
+  options: { countAnswer?: boolean } = {},
 ): StudyEngineResult {
+  const shouldCountAnswer = options.countAnswer ?? true;
   const update = buildProgressUpdate(
     state,
     current,
@@ -309,8 +372,8 @@ function passLearnTarget(
       status: "passed",
       masteryDots: 3,
       reviewStrength: 1,
-      seenCount: current.progress.seenCount + 1,
-      correctCount: current.progress.correctCount + 1,
+      seenCount: current.progress.seenCount + (shouldCountAnswer ? 1 : 0),
+      correctCount: current.progress.correctCount + (shouldCountAnswer ? 1 : 0),
       nextReviewAt: getNextReviewAt(now, 1),
     },
     now,
@@ -324,7 +387,9 @@ function passReviewTarget(
   current: StudySessionTarget,
   now: Date,
   strength: ReviewStrength,
+  options: { countAnswer?: boolean } = {},
 ): StudyEngineResult {
+  const shouldCountAnswer = options.countAnswer ?? true;
   const update = buildProgressUpdate(
     state,
     current,
@@ -332,8 +397,8 @@ function passReviewTarget(
       status: "passed",
       masteryDots: 3,
       reviewStrength: strength,
-      seenCount: current.progress.seenCount + 1,
-      correctCount: current.progress.correctCount + 1,
+      seenCount: current.progress.seenCount + (shouldCountAnswer ? 1 : 0),
+      correctCount: current.progress.correctCount + (shouldCountAnswer ? 1 : 0),
       nextReviewAt: getNextReviewAt(now, strength),
     },
     now,
@@ -373,7 +438,7 @@ function lapseReviewTarget(
       progress: update,
       reviewPath: "forgotten",
     },
-    update,
+    { update },
   );
 }
 
@@ -433,14 +498,19 @@ export function applyStudyAction(
     }
 
     if (action.type === "continueFromDetail" && state.stage === "answerReveal") {
-      return requeueCurrentTarget(state, current);
+      return requeueCurrentTarget(state, current, { delay: 2 });
     }
 
     if (action.type === "continueFromDetail" && state.stage === "detailReveal") {
-      return {
-        state: { ...state, stage: "guidedRecall" },
-        progressUpdates: [],
-      };
+      return requeueLearnTarget(state, current, "guidedRecall", 3);
+    }
+
+    if (action.type === "continueFromDetail" && state.stage === "guidedDetail") {
+      return requeueLearnTarget(state, current, "finalRecall", 4);
+    }
+
+    if (action.type === "continueFromDetail" && state.stage === "passDetail") {
+      return passLearnTarget(state, current, now, { countAnswer: false });
     }
 
     if (action.type === "markKnown" && state.stage === "guidedRecall") {
@@ -464,18 +534,37 @@ export function applyStudyAction(
             masteryDots: clampDots(2),
             progress: progressUpdate,
           },
-          stage: "finalRecall",
+          stage: "guidedDetail",
         },
         progressUpdates: [progressUpdate],
       };
     }
 
     if (action.type === "markKnown" && state.stage === "finalRecall") {
-      return passLearnTarget(
+      const progressUpdate = buildProgressUpdate(
         state,
-        { ...current, masteryDots: clampDots(3) },
+        current,
+        {
+          status: "learning",
+          masteryDots: 3,
+          seenCount: current.progress.seenCount + 1,
+          correctCount: current.progress.correctCount + 1,
+        },
         now,
       );
+
+      return {
+        state: {
+          ...state,
+          current: {
+            ...current,
+            masteryDots: clampDots(3),
+            progress: progressUpdate,
+          },
+          stage: "passDetail",
+        },
+        progressUpdates: [progressUpdate],
+      };
     }
   }
 
@@ -564,6 +653,7 @@ export function applyStudyAction(
         current,
         now,
         clampReviewStrength(current.progress.reviewStrength + 1),
+        { countAnswer: false },
       );
     }
 

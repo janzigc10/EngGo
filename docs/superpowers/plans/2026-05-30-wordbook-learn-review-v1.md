@@ -10,6 +10,30 @@
 
 ---
 
+## Follow-up: Learn Scheduler Polish
+
+- [x] **Step 1: Preserve existing V1 fixes and review the current dirty worktree**
+
+Keep the existing part-of-speech display fix in `StudySession` and build on top of the dirty worktree without reverting user/previous-agent changes.
+
+- [x] **Step 2: Replace same-word Learn advancement with interleaved scheduling**
+
+After the first mastery dot, requeue the word for `guidedRecall` after at least 3 other card exposures. After the second mastery dot, requeue it for `finalRecall` after at least 4 other card exposures. Wrong answers or `showAnswer` requeue after 2 exposures.
+
+- [x] **Step 3: Fix confirmed V1 rough edges**
+
+Avoid double-counting remembered Review cards on `认识 -> 下一词`, change the Review dashboard metric from `可学习` to `未到期`, and replace stale `/progress` placeholder copy with current wordbook/collection progress copy.
+
+- [x] **Step 4: Validate focused tests, lint, and browser hand-feel**
+
+Run focused wordbook/collections/chat regressions, focused lint, `git diff --check`, and a browser check for the first Learn card moving away after the first mastery dot; record the result in `progress.md`.
+
+- [x] **Step 5: Align mastery-dot detail feedback**
+
+Make all three Learn mastery dots use the same feedback model: after a successful check, show the full detail card first. The first detail continues into the delayed guided-recall queue, the second detail continues into the delayed final-recall queue, and the third detail continues into the pass/next-word transition.
+
+---
+
 ## Source Spec
 
 - Product spec: `docs/superpowers/specs/2026-05-30-wordbook-learn-review-state-machine-design.md`

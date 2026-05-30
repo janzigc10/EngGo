@@ -1,7 +1,8 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-30 Wordbook Learn/Review V1 已完成）
+## 当前状态与下一步（2026-05-30 Wordbook Learn/Review V1 初版 + 绿灯反馈对齐）
 - 当前产品判断：聊天式学习上下文 V3 已提交为 `6b1e889 feat: complete conversational context v3 handoff`；聊天/模型多轮调试进入维护状态，近期主线已切到“词汇学习主流程 + AI 辅助入口”。
+- 当前合并判断：Wordbook Learn/Review 仍是粗糙初版，不建议直接 merge 到主线；这轮只修正已确认的学习手感与明显文案/计数问题，继续作为迭代分支打磨。
 - 本轮完成 `docs/superpowers/plans/2026-05-30-wordbook-learn-review-v1.md`：新增 client-only 的 Wordbook Learn/Review V1，不改 `/api/chat`、FastAPI、Prisma、provider prompts，也不复用或修改 `enggo.collectedWords`。
 - 本轮功能：
   1. 新增 `src/features/wordbook/`：`cet6-foundation-v1` 词书适配、wordbook types、localStorage 进度 store、review scheduling、确定性四选一干扰项、Learn/Review 纯状态机。
@@ -9,6 +10,10 @@
   3. `/review` 现在显示同一词书 dashboard；到期 review 词从 hidden self recall 开始，支持 `认识 / 模糊 / 忘记了`，忘记路径会回到更低信心测试并降低 review strength。
   4. `/progress` 新增词书 learned / total、due review、blocked content 摘要，同时保留原有收藏总数和按考试范围分组计数。
   5. `/collections` 添加、展示、删除本地收藏的行为保持不变；收藏仍是辅助资产，不是 V1 主数据源。
+  6. Learn/Review 详情卡词性展示已从词头下方独立 `adjective` 改为释义行内缩写，例如 `adj. 绝对的；完全的`；词头区域不再单独显示英文词性全称。
+  7. Learn 状态机已改为队列式间隔调度：第 1 个绿点后至少穿插 3 次其他卡片曝光再回到 guided recall，第 2 个绿点后至少穿插 4 次其他卡片曝光再回到 final recall；答错或看答案后延迟 2 次曝光再回访，候选不足时才退化为队尾兜底。
+  8. Review `认识 -> 下一词` 不再重复增加 `seenCount/correctCount`；`/review` dashboard 第三项从 `可学习` 改为 `未到期`；`/progress` 旧占位文案已改为当前词书/收藏双轨统计说明。
+  9. Learn 三颗绿灯反馈已对齐：第 1/2/3 次成功判断都会先进入完整详情页。详情页之后分别进入“延迟回访第二灯”“延迟回访第三灯”“通过并切下一词”，避免第 2/3 灯直接跳走。
 - 最新验证：
   1. baseline：`corepack pnpm test src\features\collections\collection-store.test.ts src\features\collections\study-panels.test.tsx` -> 2 files / 7 tests passed。
   2. pure wordbook modules：`corepack pnpm test src\features\wordbook\wordbook-data.test.ts src\features\wordbook\wordbook-progress-store.test.ts src\features\wordbook\distractors.test.ts src\features\wordbook\session-engine.test.ts` -> 4 files / 23 tests passed。
@@ -18,8 +23,13 @@
   6. `git diff --check` -> 无 whitespace error；仅 Windows 上 LF/CRLF 替换提示。
   7. Browser QA：临时 Next `127.0.0.1:3000` 验证 `/learn`、`/review`、`/progress`；390px viewport 无横向溢出；手动 Learn 把 `abandon` 走完三点后 `/progress` reload 仍显示 `1 / 546`；`/review` 在无到期词时显示 disabled `开始 Review (0)`；修复 reviewer 边界后复查 `/learn` 与 `/progress` 仍无横向溢出且进度保留。
   8. Review gates：spec reviewer 的 P1“每次 answer 后立即持久化”已修；code reviewer 的 `lapsed` Review 入口计数与 `blockedContent` 可达性已修；blocked 词现在在 session 初始化前预检并写入 `blockedContent`，不启动不可答卡片。
+  9. 词性展示小修验证：`corepack pnpm test src\features\wordbook\study-session.test.tsx src\features\wordbook\wordbook-dashboard.test.tsx` -> 2 files / 13 tests passed；`corepack pnpm lint -- src\features\wordbook\study-session.tsx src\features\wordbook\study-session.test.tsx` -> passed；浏览器复查 `/learn` dashboard 正常加载，词头区域无 standalone `adjective`。
+  10. 队列调度小修验证：`corepack pnpm test src\features\wordbook\session-engine.test.ts` -> 1 file / 10 tests passed；`corepack pnpm test src\features\wordbook\study-session.test.tsx src\features\wordbook\wordbook-dashboard.test.tsx src\features\collections\study-panels.test.tsx` -> 3 files / 15 tests passed。
+  11. 绿灯反馈对齐验证：`corepack pnpm test src\features\wordbook\session-engine.test.ts` -> 1 file / 10 tests passed；`corepack pnpm test src\features\wordbook\study-session.test.tsx src\features\wordbook\wordbook-dashboard.test.tsx src\features\collections\study-panels.test.tsx` -> 3 files / 15 tests passed。
+  12. 最新聚焦回归：`corepack pnpm test src\features\wordbook\wordbook-data.test.ts src\features\wordbook\wordbook-progress-store.test.ts src\features\wordbook\distractors.test.ts src\features\wordbook\session-engine.test.ts src\features\wordbook\wordbook-dashboard.test.tsx src\features\wordbook\study-session.test.tsx src\features\wordbook\wordbook-progress-summary.test.tsx src\features\collections\collection-store.test.ts src\features\collections\study-panels.test.tsx src\components\chat\answer-actions.test.tsx src\components\chat\chat-workspace.test.tsx` -> 11 files / 75 tests passed；`corepack pnpm lint -- src\features\wordbook src\features\collections\study-panels.tsx src\app\learn\learn-client.tsx src\app\review\review-client.tsx` -> passed；`git diff --check` -> 无 whitespace error，仅 Windows LF/CRLF 提示。
+  13. 浏览器复查：临时 Next dev 用 `http://localhost:3000/learn` 验证，390px viewport 下 `abandon` 第一题答对并点击继续后切到 `ability`，没有原地进入第二颗绿点；回到 `abandon` 第 2 灯点 `认识` 后显示详情页且按钮为 `继续`；回到第 3 灯点 `认识` 后显示详情页且按钮为 `下一词`；页面无横向溢出。`127.0.0.1` 会被 Next dev HMR allowedDevOrigins 拦截，浏览器验证需用 `localhost`。
 - 下一步：
-  1. 如果继续迭代 V1，优先补“学习中断后更细粒度恢复”和“Review 到期样例的浏览器手测入口”；不要先扩成完整 SRS 或官方全量词书。
+  1. 如果继续迭代 V1，优先做浏览器手测新的 Learn 间隔手感，再补“学习中断后更细粒度恢复”和“Review 到期样例的浏览器手测入口”；不要先扩成完整 SRS 或官方全量词书。
   2. postgrad 仍不能伪造词书；当前只显示“考研词书还没接入可机读来源，先用 CET-6 基础词书 V1”。
   3. 后续若让收藏词进入自定义词书，需要单独 spec，不要污染 `enggo.collectedWords` 现有 schema。
 

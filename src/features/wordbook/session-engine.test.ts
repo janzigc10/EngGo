@@ -7,7 +7,10 @@ import {
   createLearnSession,
   createReviewSession,
 } from "@/features/wordbook/session-engine";
-import type { WordStudyProgress } from "@/features/wordbook/wordbook-types";
+import type {
+  StudySessionState,
+  WordStudyProgress,
+} from "@/features/wordbook/wordbook-types";
 
 const now = new Date("2026-05-30T12:00:00.000Z");
 
@@ -26,6 +29,38 @@ function passedProgress(lemma: string, reviewStrength = 1): WordStudyProgress {
   };
 }
 
+function advanceLearnCardCorrectly(state: StudySessionState) {
+  if (state.stage === "recognitionChoice") {
+    const detail = applyStudyAction(
+      state,
+      { type: "chooseMeaning", isCorrect: true },
+      { now },
+    );
+
+    expect(detail.state.stage).toBe("detailReveal");
+
+    return applyStudyAction(
+      detail.state,
+      { type: "continueFromDetail" },
+      { now },
+    ).state;
+  }
+
+  if (state.stage === "guidedRecall" || state.stage === "finalRecall") {
+    const detail = applyStudyAction(state, { type: "markKnown" }, { now });
+
+    expect(["guidedDetail", "passDetail"]).toContain(detail.state.stage);
+
+    return applyStudyAction(
+      detail.state,
+      { type: "continueFromDetail" },
+      { now },
+    ).state;
+  }
+
+  throw new Error(`Cannot advance Learn card from ${state.stage}`);
+}
+
 describe("learn session engine", () => {
   it("starts with up to 10 unseen or learning entries", () => {
     const wordbook = getDefaultWordbook();
@@ -42,7 +77,7 @@ describe("learn session engine", () => {
     expect(session.current?.entry.lemma).toBe(wordbook.entries[0].lemma);
   });
 
-  it("passes a new word only after recognition, guided recall, and final recall", () => {
+  it("interleaves a Learn word between mastery dots before passing it", () => {
     const wordbook = getDefaultWordbook();
     const session = createLearnSession({
       wordbook,
@@ -50,6 +85,7 @@ describe("learn session engine", () => {
       now,
       sessionId: "learn-1",
     });
+    const firstLemma = session.current?.entry.lemma;
 
     const recognition = applyStudyAction(
       session,
@@ -64,26 +100,63 @@ describe("learn session engine", () => {
     expect(recognitionState.stage).toBe("detailReveal");
     expect(recognitionState.current?.masteryDots).toBe(1);
 
-    const guided = applyStudyAction(
+    let state = applyStudyAction(
       recognitionState,
       { type: "continueFromDetail" },
       { now },
     ).state;
-    const guidedKnown = applyStudyAction(guided, { type: "markKnown" }, { now });
+    expect(state.current?.entry.lemma).not.toBe(firstLemma);
+    expect(state.stage).toBe("recognitionChoice");
+
+    for (let index = 0; index < 3; index += 1) {
+      state = advanceLearnCardCorrectly(state);
+    }
+
+    expect(state.current?.entry.lemma).toBe(firstLemma);
+    expect(state.stage).toBe("guidedRecall");
+    expect(state.current?.masteryDots).toBe(1);
+
+    const guidedKnown = applyStudyAction(state, { type: "markKnown" }, { now });
     expect(guidedKnown.progressUpdates[0]).toMatchObject({
       status: "learning",
       masteryDots: 2,
     });
-    const final = guidedKnown.state;
-    expect(final.stage).toBe("finalRecall");
-    expect(final.current?.masteryDots).toBe(2);
+    expect(guidedKnown.state.stage).toBe("guidedDetail");
 
-    const result = applyStudyAction(final, { type: "markKnown" }, { now });
+    state = applyStudyAction(
+      guidedKnown.state,
+      { type: "continueFromDetail" },
+      { now },
+    ).state;
+    expect(state.current?.entry.lemma).not.toBe(firstLemma);
+
+    for (let index = 0; index < 4; index += 1) {
+      state = advanceLearnCardCorrectly(state);
+    }
+
+    expect(state.current?.entry.lemma).toBe(firstLemma);
+    expect(state.stage).toBe("finalRecall");
+    expect(state.current?.masteryDots).toBe(2);
+
+    const finalDetail = applyStudyAction(state, { type: "markKnown" }, { now });
+    expect(finalDetail.state.stage).toBe("passDetail");
+    expect(finalDetail.progressUpdates[0]).toMatchObject({
+      status: "learning",
+      masteryDots: 3,
+    });
+
+    const result = applyStudyAction(
+      finalDetail.state,
+      { type: "continueFromDetail" },
+      { now },
+    );
 
     expect(result.progressUpdates[0]).toMatchObject({
       status: "passed",
       masteryDots: 3,
       reviewStrength: 1,
+      seenCount: 3,
+      correctCount: 3,
     });
     expect(result.progressUpdates[0].nextReviewAt).toBe(getNextReviewAt(now, 1));
     expect(result.state.completedTargetLemmas).toContain(session.current?.entry.lemma);
@@ -198,6 +271,8 @@ describe("review session engine", () => {
     expect(result.progressUpdates[0]).toMatchObject({
       status: "passed",
       reviewStrength: 2,
+      seenCount: 2,
+      correctCount: 2,
     });
   });
 

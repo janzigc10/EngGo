@@ -50,6 +50,8 @@ export type StudyMode = "learn" | "review";
 export type StudyCardStage =
   | "recognitionChoice"
   | "detailReveal"
+  | "guidedDetail"
+  | "passDetail"
   | "answerReveal"
   | "guidedRecall"
   | "finalRecall"
@@ -64,6 +66,8 @@ export type StudySessionTarget = {
   progress: WordStudyProgress;
   masteryDots: MasteryDots;
   failedAttempts: number;
+  resumeStage: StudyCardStage;
+  eligibleAfterExposure: number;
   reviewPath?: "remembered" | "fuzzy" | "forgotten";
 };
 
@@ -76,6 +80,7 @@ export type StudySessionState = {
   pending: StudySessionTarget[];
   completedTargetLemmas: string[];
   totalTargets: number;
+  cardExposureCount: number;
 };
 
 export type StudySessionAction =

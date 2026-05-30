@@ -112,9 +112,6 @@ export function StudySession({ mode, onExit }: StudySessionProps) {
             </h2>
             <MasteryDots dots={current.masteryDots} />
           </div>
-          {current.entry.pos.length > 0 ? (
-            <p className="text-sm text-slate-500">{current.entry.pos.join(" / ")}</p>
-          ) : null}
         </div>
 
         <StageBody
@@ -257,13 +254,16 @@ function StageBody({
 
   if (
     state.stage === "detailReveal" ||
+    state.stage === "guidedDetail" ||
+    state.stage === "passDetail" ||
     state.stage === "reviewDetail" ||
     state.stage === "fuzzyDetail" ||
     state.stage === "forgotDetail" ||
     state.stage === "answerReveal"
   ) {
     const isReviewPass = state.stage === "reviewDetail";
-    const buttonLabel = isReviewPass ? "下一词" : "继续";
+    const isLearnPass = state.stage === "passDetail";
+    const buttonLabel = isReviewPass || isLearnPass ? "下一词" : "继续";
     const actionType = isReviewPass ? "nextCard" : "continueFromDetail";
 
     return (
@@ -317,6 +317,8 @@ function DetailBlock({ state }: { state: StudySessionState }) {
     return null;
   }
 
+  const meaningLine = formatMeaningLine(entry.pos, entry.meaningsZh);
+
   return (
     <div className="space-y-4 rounded-2xl bg-slate-50 px-5 py-5 text-slate-700">
       <div>
@@ -324,7 +326,7 @@ function DetailBlock({ state }: { state: StudySessionState }) {
           Meaning
         </p>
         <p className="mt-2 text-lg font-semibold text-slate-950">
-          {entry.meaningsZh.join("；")}
+          {meaningLine}
         </p>
       </div>
       {entry.examples[0] ? (
@@ -335,6 +337,36 @@ function DetailBlock({ state }: { state: StudySessionState }) {
       ) : null}
     </div>
   );
+}
+
+function formatMeaningLine(pos: string[], meaningsZh: string[]) {
+  const posLabel = formatPartOfSpeech(pos);
+  const meaningText = meaningsZh.join("；");
+
+  return posLabel ? `${posLabel} ${meaningText}` : meaningText;
+}
+
+function formatPartOfSpeech(pos: string[]) {
+  const labels: Record<string, string> = {
+    adjective: "adj.",
+    adverb: "adv.",
+    conjunction: "conj.",
+    determiner: "det.",
+    interjection: "interj.",
+    noun: "n.",
+    preposition: "prep.",
+    pronoun: "pron.",
+    verb: "v.",
+  };
+
+  return pos
+    .map((part) => {
+      const normalized = part.trim().toLowerCase();
+
+      return labels[normalized] ?? part.trim();
+    })
+    .filter(Boolean)
+    .join("/");
 }
 
 function ActionGroup({ children }: { children: ReactNode }) {

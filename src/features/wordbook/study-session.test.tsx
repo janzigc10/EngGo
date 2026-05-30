@@ -15,12 +15,22 @@ import {
   saveWordProgress,
   wordbookProgressStorageKey,
 } from "@/features/wordbook/wordbook-progress-store";
-import type { Wordbook } from "@/features/wordbook/wordbook-types";
+import type { Wordbook, WordbookEntry } from "@/features/wordbook/wordbook-types";
 
 function storedRecords() {
   return JSON.parse(window.localStorage.getItem(wordbookProgressStorageKey) ?? "{}") as {
     records?: Array<{ lemma: string; status: string; reviewStrength: number }>;
   };
+}
+
+function savePassedEntry(entry: WordbookEntry, wordbook: Wordbook) {
+  saveWordProgress({
+    ...createDefaultProgress(entry, wordbook.id, new Date("2026-05-29")),
+    status: "passed",
+    masteryDots: 3,
+    reviewStrength: 1,
+    nextReviewAt: getNextReviewAt(new Date("2026-05-29"), 1),
+  });
 }
 
 describe("StudySession", () => {
@@ -43,10 +53,11 @@ describe("StudySession", () => {
     expect(optionButtons).toHaveLength(4);
   });
 
-  it("passes a Learn word after three mastery checks and persists progress", async () => {
+  it("moves away from a Learn word after the first mastery dot", async () => {
     const user = userEvent.setup();
     const wordbook = getDefaultWordbook();
     const entry = wordbook.entries[0];
+    const nextEntry = wordbook.entries[1];
 
     render(<StudySession mode="learn" onExit={vi.fn()} />);
 
@@ -54,15 +65,13 @@ describe("StudySession", () => {
     expect(screen.getByText("Meaning")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "继续" }));
-    await user.click(screen.getByRole("button", { name: "认识" }));
-    await user.click(screen.getByRole("button", { name: "认识" }));
 
-    await waitFor(() => {
-      expect(storedRecords().records?.[0]).toMatchObject({
-        lemma: entry.lemma,
-        status: "passed",
-        reviewStrength: 1,
-      });
+    expect(screen.queryByText(entry.lemma)).not.toBeInTheDocument();
+    expect(screen.getByText(nextEntry.lemma)).toBeInTheDocument();
+    expect(storedRecords().records?.[0]).toMatchObject({
+      lemma: entry.lemma,
+      status: "learning",
+      masteryDots: 1,
     });
   });
 
@@ -87,11 +96,34 @@ describe("StudySession", () => {
     await user.click(wrongButton!);
 
     expect(screen.getByText("Meaning")).toBeInTheDocument();
-    expect(screen.getByText(entry.meaningsZh.join("；"))).toBeInTheDocument();
+    expect(screen.getByText("v. 放弃；抛弃")).toBeInTheDocument();
     expect(storedRecords().records?.[0]).toMatchObject({
       lemma: entry.lemma,
       status: "learning",
     });
+  });
+
+  it("keeps abbreviated part of speech inside the Chinese meaning line", async () => {
+    const user = userEvent.setup();
+    const wordbook = getDefaultWordbook();
+    const entryIndex = wordbook.entries.findIndex((candidate) => candidate.lemma === "able");
+
+    expect(entryIndex).toBeGreaterThanOrEqual(0);
+    const entry = wordbook.entries[entryIndex];
+
+    wordbook.entries
+      .slice(0, entryIndex)
+      .forEach((candidate) => savePassedEntry(candidate, wordbook));
+
+    render(<StudySession mode="learn" onExit={vi.fn()} />);
+
+    expect(screen.getByText("able")).toBeInTheDocument();
+    expect(screen.queryByText("adjective")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: entry.meaningsZh[0] }));
+
+    expect(screen.queryByText("adjective")).not.toBeInTheDocument();
+    expect(screen.getByText("adj. 能够的；有能力的")).toBeInTheDocument();
   });
 
   it("starts Review with hidden self recall and passes remembered words", async () => {

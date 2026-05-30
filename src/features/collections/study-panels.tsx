@@ -287,8 +287,7 @@ export function ProgressPanel() {
           </p>
         </div>
         <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-white/80 p-6 text-sm leading-7 text-slate-600">
-          这一阶段先关注“能收藏、能查看、能按考试目标分组”。
-          等后续接入更完整的数据层，再把复习命中率和阶段进度补上。
+          词书进度来自本地 Learn / Review 记录；收藏词条继续按考试范围单独统计。
         </div>
       </div>
       <div className="rounded-[1.5rem] border border-slate-200 bg-white/90 p-6 shadow-sm">

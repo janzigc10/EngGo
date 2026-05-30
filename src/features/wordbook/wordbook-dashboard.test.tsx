@@ -44,6 +44,8 @@ describe("WordbookDashboard", () => {
 
     expect(screen.getByRole("button", { name: /开始 Review/ })).toBeDisabled();
     expect(screen.getByText("现在没有到期复习词。")).toBeInTheDocument();
+    expect(screen.getByText("未到期")).toBeInTheDocument();
+    expect(screen.queryByText("可学习")).not.toBeInTheDocument();
   });
 
   it("enables Review when a passed word is due", () => {

@@ -50,6 +50,9 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
   const isLearn = mode === "learn";
   const primaryCount = isLearn ? snapshot.learnable : snapshot.dueReview;
   const primaryLabel = isLearn ? "开始 Learn" : "开始 Review";
+  const thirdMetric = isLearn
+    ? { label: "可学习", value: snapshot.learnable }
+    : { label: "未到期", value: Math.max(snapshot.passed - snapshot.dueReview, 0) };
 
   return (
     <div className="space-y-5">
@@ -86,7 +89,7 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
         <div className="mt-6 grid gap-3 sm:grid-cols-4">
           <Metric label="总词数" value={snapshot.total} />
           <Metric label="已学会" value={snapshot.passed} />
-          <Metric label="可学习" value={snapshot.learnable} />
+          <Metric label={thirdMetric.label} value={thirdMetric.value} />
           <Metric label="待复习" value={snapshot.dueReview} />
         </div>
 
