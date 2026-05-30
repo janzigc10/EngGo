@@ -42,7 +42,8 @@
   - 初始技术设计。
 
 ## 当前活跃计划
-- 暂无。`docs/superpowers/plans/2026-05-30-wordbook-learn-review-experience-polish-v1.md` 已完成；继续任务前先写新的 plan，或明确只做验收、合并、推送。
+- `docs/superpowers/plans/2026-05-30-wordbook-learn-review-v2-product-hardening.md`
+  - Wordbook Learn/Review V2 轻量产品硬化计划：在 V1 手感成型的基础上，按顺序补齐 baseline 验证、词书选择入口、Review 调度语义、学习数据解释、恢复/空状态和 focused QA。范围继续保持 client-only，不做完整 SRS、账号/云同步、全量词书、聊天主舞台改造或 UI 视觉精修。
 
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。
