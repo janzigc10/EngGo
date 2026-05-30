@@ -8,6 +8,8 @@
 - `context.md`：长期项目地图和代码地图。
 
 ## 当前有效设计
+- `docs/superpowers/specs/2026-05-30-wordbook-learn-review-experience-polish-v1.md`
+  - Wordbook Learn/Review 下一轮体验打磨设计：聚焦学习节奏、Learn 三灯失败不降级、三灯详情分层、Review 一灯快速验收且失败仍留在 Review、错因对比页，以及学习设置里的每组学习/复习词数 10/20/30 三档。本轮不做 UI 精修、完整 SRS、账号同步、全量词书或主线 merge。
 - `docs/superpowers/specs/2026-05-30-wordbook-learn-review-state-machine-design.md`
   - 当前词汇学习主线设计：借鉴不背单词的产品内核，但只抄 Learn / Review 两条队列背后的状态机；第一刀做 `cet6-foundation-v1` 词书、10 词 session、四选一新词识别、无提示复习判断、错误回流、3 点掌握进度和本地持久化，不复制商业词书内容、视觉资产或完整 SRS。
 - `docs/superpowers/specs/2026-05-30-vocabulary-learning-first-direction.md`

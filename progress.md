@@ -29,9 +29,9 @@
   12. 最新聚焦回归：`corepack pnpm test src\features\wordbook\wordbook-data.test.ts src\features\wordbook\wordbook-progress-store.test.ts src\features\wordbook\distractors.test.ts src\features\wordbook\session-engine.test.ts src\features\wordbook\wordbook-dashboard.test.tsx src\features\wordbook\study-session.test.tsx src\features\wordbook\wordbook-progress-summary.test.tsx src\features\collections\collection-store.test.ts src\features\collections\study-panels.test.tsx src\components\chat\answer-actions.test.tsx src\components\chat\chat-workspace.test.tsx` -> 11 files / 75 tests passed；`corepack pnpm lint -- src\features\wordbook src\features\collections\study-panels.tsx src\app\learn\learn-client.tsx src\app\review\review-client.tsx` -> passed；`git diff --check` -> 无 whitespace error，仅 Windows LF/CRLF 提示。
   13. 浏览器复查：临时 Next dev 用 `http://localhost:3000/learn` 验证，390px viewport 下 `abandon` 第一题答对并点击继续后切到 `ability`，没有原地进入第二颗绿点；回到 `abandon` 第 2 灯点 `认识` 后显示详情页且按钮为 `继续`；回到第 3 灯点 `认识` 后显示详情页且按钮为 `下一词`；页面无横向溢出。`127.0.0.1` 会被 Next dev HMR allowedDevOrigins 拦截，浏览器验证需用 `localhost`。
 - 下一步：
-  1. 如果继续迭代 V1，优先做浏览器手测新的 Learn 间隔手感，再补“学习中断后更细粒度恢复”和“Review 到期样例的浏览器手测入口”；不要先扩成完整 SRS 或官方全量词书。
-  2. postgrad 仍不能伪造词书；当前只显示“考研词书还没接入可机读来源，先用 CET-6 基础词书 V1”。
-  3. 后续若让收藏词进入自定义词书，需要单独 spec，不要污染 `enggo.collectedWords` 现有 schema。
+  1. 已新增下一轮打磨 spec：`docs/superpowers/specs/2026-05-30-wordbook-learn-review-experience-polish-v1.md`。执行时按该 spec 收敛范围：学习节奏、Learn 失败不降级、三灯详情分层、Review 一灯快速验收且失败仍留在 Review、错因对比页、学习设置 10/20/30 三档。
+  2. 下一轮仍在 `codex/wordbook-learn-review-v1` 分支继续打磨，不 merge 主线；不做 UI 精修、完整 SRS、账号同步、全量词书、收藏词自定义词书或 `/api/chat` 相关改动。
+  3. postgrad 仍不能伪造词书；当前只显示“考研词书还没接入可机读来源，先用 CET-6 基础词书 V1”。后续若让收藏词进入自定义词书，需要单独 spec，不要污染 `enggo.collectedWords` 现有 schema。
 
 ## 当前状态与下一步（2026-05-25 default smoke 清理完成）
 - 当前产品判断：EngGo 仍是聊天式学习主入口。conversational learning context V1 已合回当前主线 worktree `codex/chat-shell-bootstrap`；本轮继续补完 `progress.md` 里遗留的默认 smoke 闸门，普通查词、中文 meaning/expression recall、拼写纠错、direct compare 和多轮追问 smoke 现在都回到绿色。
