@@ -40,12 +40,13 @@
   - 初始技术设计。
 
 ## 当前活跃计划
-- `docs/superpowers/plans/2026-05-30-wordbook-learn-review-v1.md`
-  - 当前待执行实现计划：按词书数据适配、localStorage 进度、四选一干扰项、Learn 状态机、Review 状态机、Learn/Review UI、Progress/Collections 回归的顺序推进。执行时按 plan checkbox 更新，不改 `/api/chat`。
+- 暂无正在执行的 implementation plan。下一步从 `progress.md` 的当前状态与下一步选择。
 
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。
 
+- `docs/superpowers/plans/2026-05-30-wordbook-learn-review-v1.md`
+  - Wordbook Learn/Review V1 已完成：新增 `cet6-foundation-v1` 静态词书、localStorage 进度、四选一干扰项、Learn/Review 状态机、Learn/Review session UI 和 Progress 词书摘要；实现保持 client-only，未改 `/api/chat`、FastAPI、Prisma、provider prompts 或 `enggo.collectedWords`。
 - `docs/superpowers/plans/2026-05-29-conversational-context-v3-bounded-fallback.md`
   - 聊天式学习上下文 V3 已完成：新增候选内 `context_choice` 追问、provider grounding 锁定上一轮候选、无上下文 clarification、正常聊天 200 plain 兜底、前端 `context_choice` 承载与可读错误展示；长期个人记忆、多主题并行、复习卡片和云同步仍不属于本轮。
 - `docs/superpowers/plans/2026-05-28-conversational-learning-context-v2.md`

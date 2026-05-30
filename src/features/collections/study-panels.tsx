@@ -13,7 +13,16 @@ import {
   readStoredExamTarget,
   subscribeExamTarget,
 } from "@/features/exam-target/exam-target-store";
-import { examTargets, getExamTargetLabel } from "@/features/exam-target/model";
+import { examTargets } from "@/features/exam-target/model";
+import { StudySession } from "@/features/wordbook/study-session";
+import { WordbookDashboard } from "@/features/wordbook/wordbook-dashboard";
+import { getDefaultWordbook } from "@/features/wordbook/wordbook-data";
+import {
+  buildWordbookProgressSnapshot,
+  loadProgressRecords,
+  subscribeWordbookProgressChanges,
+} from "@/features/wordbook/wordbook-progress-store";
+import type { StudyMode } from "@/features/wordbook/wordbook-types";
 
 type CollectionSection = {
   code: (typeof examTargets)[number]["code"];
@@ -32,10 +41,18 @@ function loadCollectionSections(): CollectionSection[] {
 function loadProgressSnapshot() {
   const sections = loadCollectionSections();
   const total = sections.reduce((sum, section) => sum + section.words.length, 0);
+  const wordbook = getDefaultWordbook();
+  const wordbookProgress = buildWordbookProgressSnapshot(
+    wordbook,
+    new Date(),
+    loadProgressRecords(),
+  );
 
   return {
     total,
     sections,
+    wordbook,
+    wordbookProgress,
   };
 }
 
@@ -47,6 +64,36 @@ function useCollectionSections() {
   );
 
   return JSON.parse(sectionsJson) as CollectionSection[];
+}
+
+function useProgressSnapshot() {
+  const snapshotJson = useSyncExternalStore(
+    (listener) => {
+      const unsubscribeCollection = subscribeCollectionChanges(listener);
+      const unsubscribeWordbook = subscribeWordbookProgressChanges(listener);
+
+      return () => {
+        unsubscribeCollection();
+        unsubscribeWordbook();
+      };
+    },
+    () => JSON.stringify(loadProgressSnapshot()),
+    () =>
+      JSON.stringify({
+        total: 0,
+        sections: [],
+        wordbook: getDefaultWordbook(),
+        wordbookProgress: {
+          total: 0,
+          passed: 0,
+          learnable: 0,
+          dueReview: 0,
+          blocked: 0,
+        },
+      }),
+  );
+
+  return JSON.parse(snapshotJson) as ReturnType<typeof loadProgressSnapshot>;
 }
 
 function getSourceLabel(word: CollectionSection["words"][number]) {
@@ -192,60 +239,32 @@ export function CollectionsPanel() {
 }
 
 export function LearnPanel() {
-  const activeExamTarget = useSyncExternalStore(
+  const [activeSessionMode, setActiveSessionMode] = useState<StudyMode | null>(null);
+
+  if (activeSessionMode) {
+    return <StudySession mode={activeSessionMode} onExit={() => setActiveSessionMode(null)} />;
+  }
+
+  return <WordbookDashboard mode="learn" onStartSession={setActiveSessionMode} />;
+}
+
+export function ReviewPanel() {
+  const [activeSessionMode, setActiveSessionMode] = useState<StudyMode | null>(null);
+
+  if (activeSessionMode) {
+    return <StudySession mode={activeSessionMode} onExit={() => setActiveSessionMode(null)} />;
+  }
+
+  return <WordbookDashboard mode="review" onStartSession={setActiveSessionMode} />;
+}
+
+export function ProgressPanel() {
+  useSyncExternalStore(
     subscribeExamTarget,
     readStoredExamTarget,
     getServerExamTargetSnapshot,
   );
-
-  return (
-    <div className="space-y-5">
-      <div className="space-y-2">
-        <p className="text-sm font-medium uppercase tracking-[0.22em] text-slate-500">
-          Learn
-        </p>
-        <h2 className="font-serif text-3xl font-semibold tracking-tight text-slate-950">
-          当前目标先固定住，后面再补系统练习
-        </h2>
-      </div>
-      <div className="rounded-[1.5rem] border border-slate-200 bg-white/90 p-6 shadow-sm">
-        <p className="text-sm text-slate-500">当前考试目标</p>
-        <p className="mt-2 text-2xl font-semibold text-slate-950">
-          {getExamTargetLabel(activeExamTarget)}
-        </p>
-        <p className="mt-3 text-sm leading-7 text-slate-600">
-          这一页先放学习骨架和后续开发提示，不抢聊天主舞台的注意力。
-        </p>
-      </div>
-      <div className="rounded-[1.5rem] border border-dashed border-sky-200 bg-sky-50/70 p-6 text-sm leading-7 text-sky-900">
-        后续会把收藏词、错词回顾和分阶段练习接进来。现在先把入口站稳，保持页面足够轻。
-      </div>
-    </div>
-  );
-}
-
-export function ReviewPanel() {
-  return (
-    <div className="space-y-5">
-      <div className="space-y-2">
-        <p className="text-sm font-medium uppercase tracking-[0.22em] text-slate-500">
-          Review
-        </p>
-        <h2 className="font-serif text-3xl font-semibold tracking-tight text-slate-950">
-          复习入口先占位，内容后续再往里补
-        </h2>
-      </div>
-      <div className="rounded-[1.5rem] border border-slate-200 bg-white/90 p-6 shadow-sm">
-        <p className="text-sm leading-7 text-slate-600">
-          这里会承接以后更细的复习流程，比如错词列表、间隔重复和再测入口。Task 6 先保留一个干净的挂载点。
-        </p>
-      </div>
-    </div>
-  );
-}
-
-export function ProgressPanel() {
-  const [snapshot] = useState(() => loadProgressSnapshot());
+  const snapshot = useProgressSnapshot();
 
   return (
     <div className="space-y-5">
@@ -270,6 +289,39 @@ export function ProgressPanel() {
         <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-white/80 p-6 text-sm leading-7 text-slate-600">
           这一阶段先关注“能收藏、能查看、能按考试目标分组”。
           等后续接入更完整的数据层，再把复习命中率和阶段进度补上。
+        </div>
+      </div>
+      <div className="rounded-[1.5rem] border border-slate-200 bg-white/90 p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm text-slate-500">词书进度</p>
+            <p className="mt-1 text-xl font-semibold text-slate-950">
+              {snapshot.wordbook.label}
+            </p>
+          </div>
+          <p className="text-sm text-slate-500">
+            {snapshot.wordbookProgress.passed} / {snapshot.wordbookProgress.total}
+          </p>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl bg-slate-50 px-4 py-3">
+            <p className="text-xs text-slate-500">已学会</p>
+            <p className="mt-1 text-2xl font-semibold text-slate-950">
+              {snapshot.wordbookProgress.passed}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 px-4 py-3">
+            <p className="text-xs text-slate-500">待复习</p>
+            <p className="mt-1 text-2xl font-semibold text-slate-950">
+              {snapshot.wordbookProgress.dueReview}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 px-4 py-3">
+            <p className="text-xs text-slate-500">内容不足</p>
+            <p className="mt-1 text-2xl font-semibold text-slate-950">
+              {snapshot.wordbookProgress.blocked}
+            </p>
+          </div>
         </div>
       </div>
       <div className="space-y-3">

@@ -1,6 +1,6 @@
-# Wordbook Learn/Review V1 Implementation Plan
+﻿# Wordbook Learn/Review V1 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Build the first usable wordbook-driven Learn/Review loop: a CET-6 foundation wordbook, local progress, 10-word sessions, staged Learn checks, hidden-recall Review, wrong-answer requeue, and persisted counts.
 
@@ -54,7 +54,7 @@
 - Modify: `docs/superpowers/plans/2026-05-30-wordbook-learn-review-v1.md`
 - Modify: `progress.md`
 
-- [ ] **Step 1: Confirm the active spec and plan**
+- [x] **Step 1: Confirm the active spec and plan**
 
 Read:
 
@@ -65,7 +65,7 @@ Get-Content -Raw -Encoding UTF8 docs\superpowers\plans\2026-05-30-wordbook-learn
 
 Expected: the plan matches the state-machine spec and starts from data/state modules before UI.
 
-- [ ] **Step 2: Check worktree state**
+- [x] **Step 2: Check worktree state**
 
 Run:
 
@@ -75,15 +75,15 @@ git status --short
 
 Expected: identify whether V3 files are still dirty. If unrelated dirty files exist, do not stage or revert them.
 
-- [ ] **Step 3: Update this task checkbox**
+- [x] **Step 3: Update this task checkbox**
 
-Change this task's completed steps from `- [ ]` to `- [x]` as they finish.
+Change this task's completed steps from `- [x]` to `- [x]` as they finish.
 
-- [ ] **Step 4: Update progress handoff**
+- [x] **Step 4: Update progress handoff**
 
 Update `progress.md` with the fact that Wordbook Learn/Review V1 implementation has started and Task 0 is complete. Keep old completed/obsolete next steps compressed.
 
-- [ ] **Step 5: Commit only if the worktree is isolated**
+- [x] **Step 5: Commit only if the worktree is isolated**
 
 If the V3 diff has already been committed and this plan activation is isolated:
 
@@ -103,7 +103,7 @@ If unrelated dirty files remain, skip commit and record why in `progress.md`.
 - Create: `src/features/wordbook/wordbook-data.ts`
 - Create: `src/features/wordbook/wordbook-data.test.ts`
 
-- [ ] **Step 1: Write failing data adapter tests**
+- [x] **Step 1: Write failing data adapter tests**
 
 Create `src/features/wordbook/wordbook-data.test.ts` with tests for:
 
@@ -132,7 +132,7 @@ describe("wordbook data", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run:
 
@@ -142,7 +142,7 @@ corepack pnpm test src\features\wordbook\wordbook-data.test.ts
 
 Expected: FAIL because the module does not exist.
 
-- [ ] **Step 3: Add shared types**
+- [x] **Step 3: Add shared types**
 
 Create `src/features/wordbook/wordbook-types.ts`:
 
@@ -168,7 +168,7 @@ export type Wordbook = {
 };
 ```
 
-- [ ] **Step 4: Implement the data adapter**
+- [x] **Step 4: Implement the data adapter**
 
 Create `src/features/wordbook/wordbook-data.ts`. Import `data/exam-vocab/real-smoke/entries.json`, normalize only valid CET-6 entries, and export:
 
@@ -185,7 +185,7 @@ Implementation rules:
 - Keep `examples` and `collocations` when present.
 - Do not include `postgrad`-only entries.
 
-- [ ] **Step 5: Run data tests**
+- [x] **Step 5: Run data tests**
 
 Run:
 
@@ -195,7 +195,7 @@ corepack pnpm test src\features\wordbook\wordbook-data.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit Task 1 if isolated**
+- [x] **Step 6: Commit Task 1 if isolated**
 
 ```powershell
 git add src\features\wordbook\wordbook-types.ts src\features\wordbook\wordbook-data.ts src\features\wordbook\wordbook-data.test.ts docs\superpowers\plans\2026-05-30-wordbook-learn-review-v1.md progress.md
@@ -211,7 +211,7 @@ Expected: commit includes only Task 1 files plus plan/progress checkbox updates.
 - Create: `src/features/wordbook/wordbook-progress-store.ts`
 - Create: `src/features/wordbook/wordbook-progress-store.test.ts`
 
-- [ ] **Step 1: Write failing store tests**
+- [x] **Step 1: Write failing store tests**
 
 Cover:
 
@@ -221,7 +221,7 @@ Cover:
 - progress records for lemmas no longer in the wordbook are ignored in dashboard snapshots.
 - subscription listeners fire after writes.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```powershell
 corepack pnpm test src\features\wordbook\wordbook-progress-store.test.ts
@@ -229,7 +229,7 @@ corepack pnpm test src\features\wordbook\wordbook-progress-store.test.ts
 
 Expected: FAIL because the store does not exist.
 
-- [ ] **Step 3: Extend types**
+- [x] **Step 3: Extend types**
 
 Add to `wordbook-types.ts`:
 
@@ -260,7 +260,7 @@ export type WordStudyProgress = {
 };
 ```
 
-- [ ] **Step 4: Implement localStorage repository**
+- [x] **Step 4: Implement localStorage repository**
 
 Create `wordbook-progress-store.ts` with:
 
@@ -280,7 +280,7 @@ Snapshot counts:
 - `dueReview`: passed/reviewing entries where `nextReviewAt <= now`.
 - `blocked`: `blockedContent`.
 
-- [ ] **Step 5: Run store tests**
+- [x] **Step 5: Run store tests**
 
 ```powershell
 corepack pnpm test src\features\wordbook\wordbook-progress-store.test.ts
@@ -288,7 +288,7 @@ corepack pnpm test src\features\wordbook\wordbook-progress-store.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit Task 2 if isolated**
+- [x] **Step 6: Commit Task 2 if isolated**
 
 ```powershell
 git add src\features\wordbook\wordbook-types.ts src\features\wordbook\wordbook-progress-store.ts src\features\wordbook\wordbook-progress-store.test.ts docs\superpowers\plans\2026-05-30-wordbook-learn-review-v1.md progress.md
@@ -301,7 +301,7 @@ git commit -m "feat: add wordbook progress store"
 - Create: `src/features/wordbook/distractors.ts`
 - Create: `src/features/wordbook/distractors.test.ts`
 
-- [ ] **Step 1: Write failing distractor tests**
+- [x] **Step 1: Write failing distractor tests**
 
 Cover:
 
@@ -312,7 +312,7 @@ Cover:
 - shuffle order is deterministic for the same seed and changes for a different seed.
 - insufficient distractors returns a blocked result.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 ```powershell
 corepack pnpm test src\features\wordbook\distractors.test.ts
@@ -320,7 +320,7 @@ corepack pnpm test src\features\wordbook\distractors.test.ts
 
 Expected: FAIL because the module does not exist.
 
-- [ ] **Step 3: Implement distractor result types**
+- [x] **Step 3: Implement distractor result types**
 
 Add types in `distractors.ts`:
 
@@ -338,7 +338,7 @@ export type MeaningChoiceResult =
   | { kind: "blocked"; reason: "missing_correct_meaning" | "insufficient_distractors" };
 ```
 
-- [ ] **Step 4: Implement deterministic choice building**
+- [x] **Step 4: Implement deterministic choice building**
 
 Export `buildMeaningChoice({ entry, allEntries, seed })`.
 
@@ -350,7 +350,7 @@ Rules:
 - exclude duplicate `meaningZh`.
 - use a simple stable hash / seeded shuffle; do not use `Math.random()`.
 
-- [ ] **Step 5: Run distractor tests**
+- [x] **Step 5: Run distractor tests**
 
 ```powershell
 corepack pnpm test src\features\wordbook\distractors.test.ts
@@ -358,7 +358,7 @@ corepack pnpm test src\features\wordbook\distractors.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit Task 3 if isolated**
+- [x] **Step 6: Commit Task 3 if isolated**
 
 ```powershell
 git add src\features\wordbook\distractors.ts src\features\wordbook\distractors.test.ts docs\superpowers\plans\2026-05-30-wordbook-learn-review-v1.md progress.md
@@ -372,7 +372,7 @@ git commit -m "feat: add wordbook distractors"
 - Create: `src/features/wordbook/session-engine.ts`
 - Create: `src/features/wordbook/session-engine.test.ts`
 
-- [ ] **Step 1: Write failing Learn engine tests**
+- [x] **Step 1: Write failing Learn engine tests**
 
 Cover:
 
@@ -383,7 +383,7 @@ Cover:
 - `finalRecall` `认识` adds third dot and returns a persisted `passed` progress update.
 - a word with repeated failures does not block session completion forever.
 
-- [ ] **Step 2: Run Learn tests to verify they fail**
+- [x] **Step 2: Run Learn tests to verify they fail**
 
 ```powershell
 corepack pnpm test src\features\wordbook\session-engine.test.ts
@@ -391,7 +391,7 @@ corepack pnpm test src\features\wordbook\session-engine.test.ts
 
 Expected: FAIL because the engine does not exist.
 
-- [ ] **Step 3: Add session types**
+- [x] **Step 3: Add session types**
 
 Add types for:
 
@@ -403,7 +403,7 @@ Add types for:
 
 Keep engine state serializable and UI-independent.
 
-- [ ] **Step 4: Implement Learn session creation**
+- [x] **Step 4: Implement Learn session creation**
 
 Export `createLearnSession({ wordbook, progressRecords, now, sessionId })`.
 
@@ -414,7 +414,7 @@ Rules:
 - initialize current card at `recognitionChoice`.
 - track target lemmas separately from raw card exposures.
 
-- [ ] **Step 5: Implement Learn reducers**
+- [x] **Step 5: Implement Learn reducers**
 
 Export `applyStudyAction(state, action, helpers)`.
 
@@ -433,7 +433,7 @@ Requeue rule:
 - if not enough cards remain, requeue at the end.
 - after 3 failed attempts, leave status `learning` and let session complete.
 
-- [ ] **Step 6: Run Learn engine tests**
+- [x] **Step 6: Run Learn engine tests**
 
 ```powershell
 corepack pnpm test src\features\wordbook\session-engine.test.ts
@@ -441,7 +441,7 @@ corepack pnpm test src\features\wordbook\session-engine.test.ts
 
 Expected: Learn tests PASS.
 
-- [ ] **Step 7: Commit Task 4 if isolated**
+- [x] **Step 7: Commit Task 4 if isolated**
 
 ```powershell
 git add src\features\wordbook\wordbook-types.ts src\features\wordbook\session-engine.ts src\features\wordbook\session-engine.test.ts docs\superpowers\plans\2026-05-30-wordbook-learn-review-v1.md progress.md
@@ -456,7 +456,7 @@ git commit -m "feat: add learn session engine"
 - Modify: `src/features/wordbook/wordbook-progress-store.ts`
 - Modify: `src/features/wordbook/wordbook-progress-store.test.ts`
 
-- [ ] **Step 1: Write failing Review engine tests**
+- [x] **Step 1: Write failing Review engine tests**
 
 Cover:
 
@@ -467,7 +467,7 @@ Cover:
 - `忘记了` shows detail, routes through recognition choice, and reduces review strength.
 - schedule offsets are strength 0 today, 1 tomorrow, 2 in 3 days, 3 in 7 days.
 
-- [ ] **Step 2: Run Review tests to verify they fail**
+- [x] **Step 2: Run Review tests to verify they fail**
 
 ```powershell
 corepack pnpm test src\features\wordbook\session-engine.test.ts src\features\wordbook\wordbook-progress-store.test.ts
@@ -475,7 +475,7 @@ corepack pnpm test src\features\wordbook\session-engine.test.ts src\features\wor
 
 Expected: FAIL on review cases.
 
-- [ ] **Step 3: Implement review scheduling helper**
+- [x] **Step 3: Implement review scheduling helper**
 
 Add a pure helper in `wordbook-progress-store.ts` or `session-engine.ts`:
 
@@ -485,7 +485,7 @@ export function getNextReviewAt(now: Date, reviewStrength: ReviewStrength): stri
 
 Use local-day offsets from the spec.
 
-- [ ] **Step 4: Implement Review session creation**
+- [x] **Step 4: Implement Review session creation**
 
 Export `createReviewSession({ wordbook, progressRecords, now, sessionId })`.
 
@@ -496,7 +496,7 @@ Rules:
 - start at `hiddenSelfRecall`.
 - keep target word count at up to 10.
 
-- [ ] **Step 5: Implement Review reducer branches**
+- [x] **Step 5: Implement Review reducer branches**
 
 Actions:
 
@@ -505,7 +505,7 @@ Actions:
 - `markForgotten` -> detail -> recognition choice later.
 - `markUnknown` / `wrong choice` -> lapsed and requeue.
 
-- [ ] **Step 6: Run Review engine tests**
+- [x] **Step 6: Run Review engine tests**
 
 ```powershell
 corepack pnpm test src\features\wordbook\session-engine.test.ts src\features\wordbook\wordbook-progress-store.test.ts
@@ -513,7 +513,7 @@ corepack pnpm test src\features\wordbook\session-engine.test.ts src\features\wor
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit Task 5 if isolated**
+- [x] **Step 7: Commit Task 5 if isolated**
 
 ```powershell
 git add src\features\wordbook\session-engine.ts src\features\wordbook\session-engine.test.ts src\features\wordbook\wordbook-progress-store.ts src\features\wordbook\wordbook-progress-store.test.ts docs\superpowers\plans\2026-05-30-wordbook-learn-review-v1.md progress.md
@@ -529,7 +529,7 @@ git commit -m "feat: add review session engine"
 - Modify: `src/app/learn/learn-client.tsx` if imports move
 - Modify: `src/app/review/review-client.tsx` if imports move
 
-- [ ] **Step 1: Write failing dashboard component tests**
+- [x] **Step 1: Write failing dashboard component tests**
 
 Cover:
 
@@ -539,7 +539,7 @@ Cover:
 - Review button is disabled or quiet when due review count is 0.
 - postgrad active target shows the boundary note instead of fabricating a postgrad wordbook.
 
-- [ ] **Step 2: Run dashboard tests to verify they fail**
+- [x] **Step 2: Run dashboard tests to verify they fail**
 
 ```powershell
 corepack pnpm test src\features\wordbook\wordbook-dashboard.test.tsx
@@ -547,7 +547,7 @@ corepack pnpm test src\features\wordbook\wordbook-dashboard.test.tsx
 
 Expected: FAIL because component does not exist.
 
-- [ ] **Step 3: Implement dashboard component**
+- [x] **Step 3: Implement dashboard component**
 
 Create `WordbookDashboard` with props:
 
@@ -560,13 +560,13 @@ type WordbookDashboardProps = {
 
 Use `useSyncExternalStore` with `subscribeWordbookProgressChanges`.
 
-- [ ] **Step 4: Replace placeholders**
+- [x] **Step 4: Replace placeholders**
 
 In `study-panels.tsx`, replace `LearnPanel` and `ReviewPanel` placeholder content with dashboard mounts.
 
 Keep `CollectionsPanel` behavior untouched.
 
-- [ ] **Step 5: Run dashboard tests**
+- [x] **Step 5: Run dashboard tests**
 
 ```powershell
 corepack pnpm test src\features\wordbook\wordbook-dashboard.test.tsx src\features\collections\study-panels.test.tsx
@@ -574,7 +574,7 @@ corepack pnpm test src\features\wordbook\wordbook-dashboard.test.tsx src\feature
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit Task 6 if isolated**
+- [x] **Step 6: Commit Task 6 if isolated**
 
 ```powershell
 git add src\features\wordbook\wordbook-dashboard.tsx src\features\wordbook\wordbook-dashboard.test.tsx src\features\collections\study-panels.tsx src\app\learn\learn-client.tsx src\app\review\review-client.tsx docs\superpowers\plans\2026-05-30-wordbook-learn-review-v1.md progress.md
@@ -589,7 +589,7 @@ git commit -m "feat: add wordbook dashboard"
 - Modify: `src/features/wordbook/wordbook-dashboard.tsx`
 - Modify: `src/features/collections/study-panels.tsx`
 
-- [ ] **Step 1: Write failing Learn UI tests**
+- [x] **Step 1: Write failing Learn UI tests**
 
 Cover:
 
@@ -600,7 +600,7 @@ Cover:
 - final `认识` persists passed progress after 3 dots.
 - wrong option reveals answer and requeues the same word.
 
-- [ ] **Step 2: Write failing Review UI tests**
+- [x] **Step 2: Write failing Review UI tests**
 
 Seed localStorage with a due passed word and cover:
 
@@ -608,7 +608,7 @@ Seed localStorage with a due passed word and cover:
 - `认识` shows detail and then passes review.
 - `忘记了` shows detail and then routes to recognition choice.
 
-- [ ] **Step 3: Run UI tests to verify they fail**
+- [x] **Step 3: Run UI tests to verify they fail**
 
 ```powershell
 corepack pnpm test src\features\wordbook\study-session.test.tsx
@@ -616,7 +616,7 @@ corepack pnpm test src\features\wordbook\study-session.test.tsx
 
 Expected: FAIL because session UI does not exist.
 
-- [ ] **Step 4: Implement session component shell**
+- [x] **Step 4: Implement session component shell**
 
 Create `StudySession` props:
 
@@ -636,7 +636,7 @@ Render:
 - stage-specific body.
 - bottom actions.
 
-- [ ] **Step 5: Wire engine to store**
+- [x] **Step 5: Wire engine to store**
 
 On each persisted update:
 
@@ -644,7 +644,7 @@ On each persisted update:
 - advance session state.
 - let dashboard counts refresh through progress listeners.
 
-- [ ] **Step 6: Keep UI focused**
+- [x] **Step 6: Keep UI focused**
 
 Style rules:
 
@@ -654,7 +654,7 @@ Style rules:
 - mobile width 390px must not overflow.
 - use short button labels: `认识`, `模糊`, `忘记了`, `看答案`, `继续`, `下一词`, `记错了`.
 
-- [ ] **Step 7: Run session UI tests**
+- [x] **Step 7: Run session UI tests**
 
 ```powershell
 corepack pnpm test src\features\wordbook\study-session.test.tsx src\features\wordbook\wordbook-dashboard.test.tsx
@@ -662,7 +662,7 @@ corepack pnpm test src\features\wordbook\study-session.test.tsx src\features\wor
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit Task 7 if isolated**
+- [x] **Step 8: Commit Task 7 if isolated**
 
 ```powershell
 git add src\features\wordbook\study-session.tsx src\features\wordbook\study-session.test.tsx src\features\wordbook\wordbook-dashboard.tsx src\features\collections\study-panels.tsx docs\superpowers\plans\2026-05-30-wordbook-learn-review-v1.md progress.md
@@ -676,7 +676,7 @@ git commit -m "feat: add wordbook study sessions"
 - Create or modify: `src/features/wordbook/wordbook-progress-summary.test.tsx`
 - Modify: `src/features/collections/study-panels.test.tsx`
 
-- [ ] **Step 1: Write failing progress summary tests**
+- [x] **Step 1: Write failing progress summary tests**
 
 Cover:
 
@@ -684,7 +684,7 @@ Cover:
 - Progress panel shows due review count.
 - Existing collection total is still visible.
 
-- [ ] **Step 2: Run progress tests to verify they fail**
+- [x] **Step 2: Run progress tests to verify they fail**
 
 ```powershell
 corepack pnpm test src\features\collections\study-panels.test.tsx src\features\wordbook\wordbook-progress-summary.test.tsx
@@ -692,7 +692,7 @@ corepack pnpm test src\features\collections\study-panels.test.tsx src\features\w
 
 Expected: FAIL on missing wordbook progress summary.
 
-- [ ] **Step 3: Implement ProgressPanel summary**
+- [x] **Step 3: Implement ProgressPanel summary**
 
 Add a compact wordbook summary to `ProgressPanel`:
 
@@ -703,7 +703,7 @@ Add a compact wordbook summary to `ProgressPanel`:
 
 Do not remove existing collection count.
 
-- [ ] **Step 4: Run collection regression tests**
+- [x] **Step 4: Run collection regression tests**
 
 ```powershell
 corepack pnpm test src\features\collections\collection-store.test.ts src\features\collections\study-panels.test.tsx src\components\chat\answer-actions.test.tsx
@@ -711,7 +711,7 @@ corepack pnpm test src\features\collections\collection-store.test.ts src\feature
 
 Expected: PASS. Existing collection add/list/delete behavior remains unchanged.
 
-- [ ] **Step 5: Commit Task 8 if isolated**
+- [x] **Step 5: Commit Task 8 if isolated**
 
 ```powershell
 git add src\features\collections\study-panels.tsx src\features\collections\study-panels.test.tsx src\features\wordbook\wordbook-progress-summary.test.tsx docs\superpowers\plans\2026-05-30-wordbook-learn-review-v1.md progress.md
@@ -725,7 +725,7 @@ git commit -m "feat: show wordbook progress"
 - Modify: `progress.md`
 - Modify: `docs/superpowers/plans/2026-05-30-wordbook-learn-review-v1.md`
 
-- [ ] **Step 1: Run focused wordbook tests**
+- [x] **Step 1: Run focused wordbook tests**
 
 ```powershell
 corepack pnpm test src\features\wordbook\wordbook-data.test.ts src\features\wordbook\wordbook-progress-store.test.ts src\features\wordbook\distractors.test.ts src\features\wordbook\session-engine.test.ts src\features\wordbook\wordbook-dashboard.test.tsx src\features\wordbook\study-session.test.tsx
@@ -733,7 +733,7 @@ corepack pnpm test src\features\wordbook\wordbook-data.test.ts src\features\word
 
 Expected: all wordbook tests PASS.
 
-- [ ] **Step 2: Run collection/chat regression tests**
+- [x] **Step 2: Run collection/chat regression tests**
 
 ```powershell
 corepack pnpm test src\features\collections\collection-store.test.ts src\features\collections\study-panels.test.tsx src\components\chat\answer-actions.test.tsx src\components\chat\chat-workspace.test.tsx
@@ -741,7 +741,7 @@ corepack pnpm test src\features\collections\collection-store.test.ts src\feature
 
 Expected: PASS. This protects existing collection and chat follow-up behavior.
 
-- [ ] **Step 3: Run focused lint**
+- [x] **Step 3: Run focused lint**
 
 ```powershell
 corepack pnpm lint -- src\features\wordbook src\features\collections\study-panels.tsx src\app\learn\learn-client.tsx src\app\review\review-client.tsx
@@ -749,7 +749,7 @@ corepack pnpm lint -- src\features\wordbook src\features\collections\study-panel
 
 Expected: PASS.
 
-- [ ] **Step 4: Run whitespace check**
+- [x] **Step 4: Run whitespace check**
 
 ```powershell
 git diff --check
@@ -757,7 +757,7 @@ git diff --check
 
 Expected: no whitespace errors. Windows LF/CRLF warnings are acceptable if there are no actual whitespace errors.
 
-- [ ] **Step 5: Run browser QA**
+- [x] **Step 5: Run browser QA**
 
 Start dev server only after the focused tests pass:
 
@@ -779,14 +779,14 @@ Manual checks:
 - After reload, counts persist.
 - Collections page still lists and deletes existing collected words.
 
-- [ ] **Step 6: Update docs and progress**
+- [x] **Step 6: Update docs and progress**
 
 Update:
 
 - `docs/README.md`: mark plan completed and keep spec as current design.
 - `progress.md`: compress old next steps and record verification outputs.
 
-- [ ] **Step 7: Commit Task 9 if isolated**
+- [x] **Step 7: Commit Task 9 if isolated**
 
 ```powershell
 git add docs\README.md progress.md docs\superpowers\plans\2026-05-30-wordbook-learn-review-v1.md
@@ -795,17 +795,17 @@ git commit -m "docs: complete wordbook learn review handoff"
 
 ## Final Acceptance
 
-- [ ] `/learn` shows `cet6-foundation-v1` dashboard with total, learned, learnable, and due-review counts.
-- [ ] Starting Learn opens a 10-word target session from unseen / learning words.
-- [ ] Learn recognition cards show exactly four Chinese options with one correct answer.
-- [ ] A new word only becomes passed after three mastery dots.
-- [ ] Wrong Learn answers reveal the answer and requeue the word.
-- [ ] `/review` starts due words with hidden self recall and `认识 / 模糊 / 忘记了`.
-- [ ] Review `认识` passes the word for this review after detail reveal.
-- [ ] Review `忘记了` routes through detail and lower-confidence testing.
-- [ ] Wordbook counts persist after reload.
-- [ ] Existing collections still add, display, and delete correctly.
-- [ ] No backend, provider, or Prisma changes are required.
+- [x] `/learn` shows `cet6-foundation-v1` dashboard with total, learned, learnable, and due-review counts.
+- [x] Starting Learn opens a 10-word target session from unseen / learning words.
+- [x] Learn recognition cards show exactly four Chinese options with one correct answer.
+- [x] A new word only becomes passed after three mastery dots.
+- [x] Wrong Learn answers reveal the answer and requeue the word.
+- [x] `/review` starts due words with hidden self recall and `认识 / 模糊 / 忘记了`.
+- [x] Review `认识` passes the word for this review after detail reveal.
+- [x] Review `忘记了` routes through detail and lower-confidence testing.
+- [x] Wordbook counts persist after reload.
+- [x] Existing collections still add, display, and delete correctly.
+- [x] No backend, provider, or Prisma changes are required.
 
 ## Suggested Final Verification Bundle
 

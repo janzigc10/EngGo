@@ -1,26 +1,27 @@
 # EngGo 滚动交接
 
-## 当前状态与下一步（2026-05-30 wordbook learn/review plan 已开）
-- 当前产品判断：V3 已按 `docs/superpowers/plans/2026-05-29-conversational-context-v3-bounded-fallback.md` 完成并收口，范围锁定为“有边界聊天兜底 + 候选内语境选择”；长期个人记忆、多主题并行、复习系统和云同步仍不进入本轮。
-- 本次收尾：已回退未经确认的 `这三个词具体怎么用` / `怎么学英语最快` 临时补丁；这两类真实问法先进入后续边界样例池，不计入 V3 已交付能力。
-- 方向调整已记录到 `docs/superpowers/specs/2026-05-30-vocabulary-learning-first-direction.md`：聊天/模型多轮调试进入维护状态，下一阶段转向“词汇学习主流程 + AI 辅助入口”。
-- 最新产品 spec 已落到 `docs/superpowers/specs/2026-05-30-wordbook-learn-review-state-machine-design.md`：根据不背单词截图和用户体验复盘，第一刀从“本地生词本复习”修正为“词书驱动 Learn / Review 状态机”；核心是 `cet6-foundation-v1` 词书、10 词 session、四选一新词识别、无提示复习判断、错误回流、3 点掌握进度和本地状态持久化。收藏词继续作为辅助资产，不作为 V1 主数据源。
-- 当前活跃实现 plan 已落到 `docs/superpowers/plans/2026-05-30-wordbook-learn-review-v1.md`：执行顺序从数据和状态机开始，再接 UI；第一步是 Task 0 保护当前未提交 V3 diff 和激活 plan，随后 Task 1 做 wordbook types/data adapter。
-- 本轮已完成：
-  1. conversation context 新增 `context_choice` action：只有存在 usable 上下文且上一轮候选数大于 1 时，`哪个更正式/更常用/更自然/更适合考试表达` 这类追问才会解析；`targetRefs` 只来自上一轮候选并保持顺序。
-  2. `/api/chat` 新增 provider-backed `context_choice` handler：grounding 只传 `targetRefs` 和规则，不传开放检索结果；provider 不可用时返回 200 plain 的保守说明。
-  3. `/api/chat` 新增 bounded chat fallback：`你好`、`你能干嘛`、`我今天不想背词` 等正常输入直接 200 plain；所有 services 都拒绝的正常问法不再默认 501；随机英文串仍保持保守说明，不硬猜。
-  4. 前端已显式承载 `context_choice` action；服务端返回可读错误 message 时优先展示，疑似 key/token/trace 等敏感内容仍降级为通用不可用文案。
-  5. conversational learning context smoke 已扩展 V3 样例：候选内语境选择、能力询问兜底、学习状态闲聊兜底、无上下文语境选择 clarification。
-- 最新验证（回退临时补丁后复跑）：
-  1. `& 'C:\Users\Chen\anaconda3\python.exe' -m pytest -q backend/tests/test_learning_context.py backend/tests/test_chat_contract.py -p no:cacheprovider` -> 71 passed。
-  2. `corepack pnpm exec vitest run --maxWorkers=1 src\features\chat\conversation-context.test.ts src\components\chat\chat-workspace.test.tsx scripts\lib\conversational-learning-context-smoke.test.ts` -> 3 files / 38 tests passed。
-  3. `corepack pnpm lint -- src\features\chat\types.ts src\features\chat\use-chat-session.ts src\features\chat\conversation-context.ts src\features\chat\conversation-context.test.ts src\components\chat\chat-workspace.test.tsx scripts\lib\conversational-learning-context-smoke.ts scripts\lib\conversational-learning-context-smoke.test.ts` -> passed。
-  4. `git diff --check` -> 无 whitespace error；仅 Windows 上 LF/CRLF 替换提示。
-  5. 临时启动 FastAPI `127.0.0.1:8000` 后，`corepack pnpm eval:fastapi:conversation-context-smoke` -> 11 total / 11 pass / 0 fail；覆盖 V3 新增候选内语境选择、普通聊天兜底和无上下文 clarification。临时 FastAPI 进程已停止。
+## 当前状态与下一步（2026-05-30 Wordbook Learn/Review V1 已完成）
+- 当前产品判断：聊天式学习上下文 V3 已提交为 `6b1e889 feat: complete conversational context v3 handoff`；聊天/模型多轮调试进入维护状态，近期主线已切到“词汇学习主流程 + AI 辅助入口”。
+- 本轮完成 `docs/superpowers/plans/2026-05-30-wordbook-learn-review-v1.md`：新增 client-only 的 Wordbook Learn/Review V1，不改 `/api/chat`、FastAPI、Prisma、provider prompts，也不复用或修改 `enggo.collectedWords`。
+- 本轮功能：
+  1. 新增 `src/features/wordbook/`：`cet6-foundation-v1` 词书适配、wordbook types、localStorage 进度 store、review scheduling、确定性四选一干扰项、Learn/Review 纯状态机。
+  2. `/learn` 现在显示 `CET-6 基础词书 V1` dashboard，可从 unseen / learning / lapsed 词启动 10 词 Learn session；新词需 recognition、detail/guided recall、final recall 三点通过后才持久化为 `passed`。
+  3. `/review` 现在显示同一词书 dashboard；到期 review 词从 hidden self recall 开始，支持 `认识 / 模糊 / 忘记了`，忘记路径会回到更低信心测试并降低 review strength。
+  4. `/progress` 新增词书 learned / total、due review、blocked content 摘要，同时保留原有收藏总数和按考试范围分组计数。
+  5. `/collections` 添加、展示、删除本地收藏的行为保持不变；收藏仍是辅助资产，不是 V1 主数据源。
+- 最新验证：
+  1. baseline：`corepack pnpm test src\features\collections\collection-store.test.ts src\features\collections\study-panels.test.tsx` -> 2 files / 7 tests passed。
+  2. pure wordbook modules：`corepack pnpm test src\features\wordbook\wordbook-data.test.ts src\features\wordbook\wordbook-progress-store.test.ts src\features\wordbook\distractors.test.ts src\features\wordbook\session-engine.test.ts` -> 4 files / 23 tests passed。
+  3. UI + progress integration：`corepack pnpm test src\features\wordbook\wordbook-dashboard.test.tsx src\features\wordbook\study-session.test.tsx src\features\wordbook\wordbook-progress-summary.test.tsx src\features\collections\study-panels.test.tsx` -> 4 files / 13 tests passed。
+  4. final focused bundle：`corepack pnpm test src\features\wordbook\wordbook-data.test.ts src\features\wordbook\wordbook-progress-store.test.ts src\features\wordbook\distractors.test.ts src\features\wordbook\session-engine.test.ts src\features\wordbook\wordbook-dashboard.test.tsx src\features\wordbook\study-session.test.tsx src\features\wordbook\wordbook-progress-summary.test.tsx src\features\collections\collection-store.test.ts src\features\collections\study-panels.test.tsx src\components\chat\answer-actions.test.tsx src\components\chat\chat-workspace.test.tsx` -> 11 files / 74 tests passed。
+  5. focused lint：`corepack pnpm lint -- src\features\wordbook src\features\collections\study-panels.tsx src\app\learn\learn-client.tsx src\app\review\review-client.tsx` -> passed。
+  6. `git diff --check` -> 无 whitespace error；仅 Windows 上 LF/CRLF 替换提示。
+  7. Browser QA：临时 Next `127.0.0.1:3000` 验证 `/learn`、`/review`、`/progress`；390px viewport 无横向溢出；手动 Learn 把 `abandon` 走完三点后 `/progress` reload 仍显示 `1 / 546`；`/review` 在无到期词时显示 disabled `开始 Review (0)`；修复 reviewer 边界后复查 `/learn` 与 `/progress` 仍无横向溢出且进度保留。
+  8. Review gates：spec reviewer 的 P1“每次 answer 后立即持久化”已修；code reviewer 的 `lapsed` Review 入口计数与 `blockedContent` 可达性已修；blocked 词现在在 session 初始化前预检并写入 `blockedContent`，不启动不可答卡片。
 - 下一步：
-  1. 先把 clean V3 与方向调整文档一起 commit，避免后续复习功能混进同一个 diff。
-  2. 执行 `2026-05-30-wordbook-learn-review-v1.md` 时严格按 checkbox 顺序推进：Task 0 -> Task 1，不先跳 UI；每完成 step 更新 plan checkbox，每完成 task 更新本文件。
+  1. 如果继续迭代 V1，优先补“学习中断后更细粒度恢复”和“Review 到期样例的浏览器手测入口”；不要先扩成完整 SRS 或官方全量词书。
+  2. postgrad 仍不能伪造词书；当前只显示“考研词书还没接入可机读来源，先用 CET-6 基础词书 V1”。
+  3. 后续若让收藏词进入自定义词书，需要单独 spec，不要污染 `enggo.collectedWords` 现有 schema。
 
 ## 当前状态与下一步（2026-05-25 default smoke 清理完成）
 - 当前产品判断：EngGo 仍是聊天式学习主入口。conversational learning context V1 已合回当前主线 worktree `codex/chat-shell-bootstrap`；本轮继续补完 `progress.md` 里遗留的默认 smoke 闸门，普通查词、中文 meaning/expression recall、拼写纠错、direct compare 和多轮追问 smoke 现在都回到绿色。
