@@ -652,7 +652,7 @@ describe("review session engine", () => {
     });
   });
 
-  it("keeps fuzzy review words in Review after detail", () => {
+  it("queues fuzzy review words for Review relearn after detail", () => {
     const wordbook = getDefaultWordbook();
     const firstEntry = wordbook.entries[0];
     const secondEntry = wordbook.entries[1];
@@ -681,12 +681,15 @@ describe("review session engine", () => {
     });
     expect(requeued.stage).toBe("hiddenSelfRecall");
     expect(requeued.current?.entry.lemma).toBe(secondEntry.lemma);
-    expect(requeued.pending.map((target) => target.entry.lemma)).toContain(
-      firstEntry.lemma,
-    );
+    expect(
+      requeued.pending.find((target) => target.entry.lemma === firstEntry.lemma),
+    ).toMatchObject({
+      resumeStage: "recognitionChoice",
+      progress: { status: "reviewLapsed" },
+    });
   });
 
-  it("keeps forgotten review words in Review after detail", () => {
+  it("queues forgotten review words for Review relearn after detail", () => {
     const wordbook = getDefaultWordbook();
     const firstEntry = wordbook.entries[0];
     const secondEntry = wordbook.entries[1];
@@ -715,9 +718,12 @@ describe("review session engine", () => {
     });
     expect(requeued.stage).toBe("hiddenSelfRecall");
     expect(requeued.current?.entry.lemma).toBe(secondEntry.lemma);
-    expect(requeued.pending.map((target) => target.entry.lemma)).toContain(
-      firstEntry.lemma,
-    );
+    expect(
+      requeued.pending.find((target) => target.entry.lemma === firstEntry.lemma),
+    ).toMatchObject({
+      resumeStage: "recognitionChoice",
+      progress: { status: "reviewLapsed" },
+    });
   });
 
   it("returns a failed review word after other cards", () => {
@@ -756,7 +762,7 @@ describe("review session engine", () => {
       ).state;
     }
 
-    expect(state.stage).toBe("hiddenSelfRecall");
+    expect(state.stage).toBe("recognitionChoice");
     expect(state.current?.entry.lemma).toBe(failedLemma);
     expect(state.completedTargetLemmas).not.toContain(failedLemma);
   });
@@ -840,13 +846,33 @@ describe("review session engine", () => {
       { type: "nextCard" },
       { now },
     ).state;
+    const rescueRecognitionDetail = applyStudyAction(
+      rescueState,
+      { type: "chooseMeaning", isCorrect: true },
+      { now },
+    ).state;
+    rescueState = applyStudyAction(
+      rescueRecognitionDetail,
+      { type: "continueFromDetail" },
+      { now },
+    ).state;
     const rescueDetail = applyStudyAction(
       rescueState,
       { type: "markKnown" },
       { now },
     ).state;
-    const rescueResult = applyStudyAction(
+    rescueState = applyStudyAction(
       rescueDetail,
+      { type: "continueFromDetail" },
+      { now },
+    ).state;
+    const rescueFinalDetail = applyStudyAction(
+      rescueState,
+      { type: "markKnown" },
+      { now },
+    ).state;
+    const rescueResult = applyStudyAction(
+      rescueFinalDetail,
       { type: "nextCard" },
       { now },
     );
@@ -867,7 +893,7 @@ describe("review session engine", () => {
     expect(rescueNextReviewAt).toBeLessThan(cleanNextReviewAt);
   });
 
-  it("selects legacy lapsed words for Review but not Learn", () => {
+  it("selects legacy lapsed words for Review relearn but not Learn", () => {
     const wordbook = getDefaultWordbook();
     const lapsedProgress: WordStudyProgress = {
       ...passedProgress(wordbook.entries[0].lemma, 1),
@@ -889,6 +915,8 @@ describe("review session engine", () => {
     });
 
     expect(reviewSession.current?.entry.lemma).toBe(wordbook.entries[0].lemma);
+    expect(reviewSession.stage).toBe("recognitionChoice");
+    expect(reviewSession.current?.failedAttempts).toBe(1);
     expect(
       [
         learnSession.current?.entry.lemma,
@@ -897,7 +925,69 @@ describe("review session engine", () => {
     ).not.toContain(wordbook.entries[0].lemma);
   });
 
-  it("can complete a rescued review target after one later self recall", () => {
+  it("resumes partially rescued Review-lapsed words at the next Review light", () => {
+    const wordbook = getDefaultWordbook();
+    const partiallyRescuedProgress: WordStudyProgress = {
+      ...passedProgress(wordbook.entries[0].lemma, 1),
+      status: "reviewLapsed",
+      masteryDots: 1,
+      reviewStrength: 1,
+    };
+    const session = createReviewSession({
+      wordbook,
+      progressRecords: [partiallyRescuedProgress],
+      now,
+      sessionId: "review-partial-rescue",
+      targetCount: 10,
+    });
+
+    expect(session.stage).toBe("guidedRecall");
+    expect(session.current?.failedAttempts).toBe(1);
+    expect(session.current?.masteryDots).toBe(1);
+
+    const detail = applyStudyAction(session, { type: "markKnown" }, { now }).state;
+    expect(detail.stage).toBe("guidedDetail");
+    const finalRecall = applyStudyAction(
+      detail,
+      { type: "continueFromDetail" },
+      { now },
+    ).state;
+    expect(finalRecall.stage).toBe("finalRecall");
+    const finalDetail = applyStudyAction(
+      finalRecall,
+      { type: "markKnown" },
+      { now },
+    ).state;
+    const result = applyStudyAction(finalDetail, { type: "nextCard" }, { now });
+
+    expect(result.progressUpdates[0]).toMatchObject({
+      status: "passed",
+      reviewStrength: 1,
+    });
+  });
+
+  it("resumes two-dot Review-lapsed words at final confirmation", () => {
+    const wordbook = getDefaultWordbook();
+    const partiallyRescuedProgress: WordStudyProgress = {
+      ...passedProgress(wordbook.entries[0].lemma, 1),
+      status: "reviewLapsed",
+      masteryDots: 2,
+      reviewStrength: 1,
+    };
+    const session = createReviewSession({
+      wordbook,
+      progressRecords: [partiallyRescuedProgress],
+      now,
+      sessionId: "review-partial-final",
+      targetCount: 10,
+    });
+
+    expect(session.stage).toBe("finalRecall");
+    expect(session.current?.failedAttempts).toBe(1);
+    expect(session.current?.masteryDots).toBe(2);
+  });
+
+  it("can complete a rescued review target after Review relearn", () => {
     const wordbook = getDefaultWordbook();
     const entries = wordbook.entries.slice(0, 2);
     let state = createReviewSession({
@@ -915,7 +1005,20 @@ describe("review session engine", () => {
     state = applyStudyAction(state, { type: "nextCard" }, { now }).state;
 
     expect(state.current?.entry.lemma).toBe(failedLemma);
+    expect(state.stage).toBe("recognitionChoice");
 
+    state = applyStudyAction(
+      state,
+      { type: "chooseMeaning", isCorrect: true },
+      { now },
+    ).state;
+    expect(state.stage).toBe("detailReveal");
+    state = applyStudyAction(state, { type: "continueFromDetail" }, { now }).state;
+    expect(state.stage).toBe("guidedRecall");
+    state = applyStudyAction(state, { type: "markKnown" }, { now }).state;
+    expect(state.stage).toBe("guidedDetail");
+    state = applyStudyAction(state, { type: "continueFromDetail" }, { now }).state;
+    expect(state.stage).toBe("finalRecall");
     state = applyStudyAction(state, { type: "markKnown" }, { now }).state;
     const result = applyStudyAction(state, { type: "nextCard" }, { now });
 
@@ -926,7 +1029,7 @@ describe("review session engine", () => {
     expect(result.state.completedTargetLemmas).toContain(failedLemma);
   });
 
-  it("does not route review failures to Learn stages", () => {
+  it("routes review failures to a Review-owned relearn stage", () => {
     const wordbook = getDefaultWordbook();
     const session = createReviewSession({
       wordbook,
@@ -952,10 +1055,38 @@ describe("review session engine", () => {
       { now },
     ).state;
 
-    expect(fuzzyNext.stage).toBe("hiddenSelfRecall");
-    expect(forgottenNext.stage).toBe("hiddenSelfRecall");
-    expect(["recognitionChoice", "finalRecall"]).not.toContain(fuzzyNext.stage);
-    expect(["recognitionChoice", "finalRecall"]).not.toContain(forgottenNext.stage);
+    expect(fuzzyNext.mode).toBe("review");
+    expect(forgottenNext.mode).toBe("review");
+    expect(fuzzyNext.stage).toBe("recognitionChoice");
+    expect(forgottenNext.stage).toBe("recognitionChoice");
+  });
+
+  it("keeps Review relearn failures on the current Review light", () => {
+    const wordbook = getDefaultWordbook();
+    const entries = wordbook.entries.slice(0, 2);
+    let state = createReviewSession({
+      wordbook,
+      progressRecords: entries.map((entry) => passedProgress(entry.lemma, 2)),
+      now,
+      sessionId: "review-relearn-failure",
+      targetCount: 10,
+    });
+    const failedLemma = state.current?.entry.lemma;
+
+    state = applyStudyAction(state, { type: "markForgotten" }, { now }).state;
+    state = applyStudyAction(state, { type: "continueFromDetail" }, { now }).state;
+    state = applyStudyAction(state, { type: "markKnown" }, { now }).state;
+    state = applyStudyAction(state, { type: "nextCard" }, { now }).state;
+
+    expect(state.current?.entry.lemma).toBe(failedLemma);
+    expect(state.stage).toBe("recognitionChoice");
+
+    state = applyStudyAction(state, { type: "showAnswer" }, { now }).state;
+    expect(state.stage).toBe("answerReveal");
+    state = applyStudyAction(state, { type: "continueFromDetail" }, { now }).state;
+
+    expect(state.current?.entry.lemma).toBe(failedLemma);
+    expect(state.stage).toBe("recognitionChoice");
   });
 
   it("active forgotten review failures skip contrast and go directly to detail", () => {

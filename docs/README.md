@@ -9,7 +9,7 @@
 
 ## 当前有效设计
 - `docs/superpowers/specs/2026-05-30-wordbook-learn-review-experience-polish-v1.md`
-  - Wordbook Learn/Review 已落地的体验打磨设计：聚焦学习节奏、Learn 三灯失败不降级、三灯详情分层、Review 一灯快速验收且失败仍留在 Review、错因对比页，以及学习设置里的每组学习/复习词数 10/20/30 三档。本轮不做 UI 精修、完整 SRS、账号同步、全量词书或主线 merge。
+  - Wordbook Learn/Review 已落地的体验打磨设计：聚焦学习节奏、Learn 三灯失败不降级、三灯详情分层、Review 干净通过一灯快速验收、Review 失败后留在 Review 内走四选一 + 带提示回忆 + 无提示最终确认三灯补救链路、错因对比页，以及学习设置里的每组学习/复习词数 10/20/30 三档。本轮不做 UI 精修、完整 SRS、账号同步、全量词书或主线 merge。
 - `docs/superpowers/specs/2026-05-30-wordbook-learn-review-state-machine-design.md`
   - 当前词汇学习主线设计：借鉴不背单词的产品内核，但只抄 Learn / Review 两条队列背后的状态机；第一刀做 `cet6-foundation-v1` 词书、10 词 session、四选一新词识别、无提示复习判断、错误回流、3 点掌握进度和本地持久化，不复制商业词书内容、视觉资产或完整 SRS。
 - `docs/superpowers/specs/2026-05-30-vocabulary-learning-first-direction.md`
@@ -48,7 +48,7 @@
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。
 
 - `docs/superpowers/plans/2026-05-30-wordbook-learn-review-experience-polish-v1.md`
-  - Wordbook Learn/Review 体验打磨已完成：新增本地学习设置 10/20/30 词、冻结 session target count、Learn 三灯失败保留当前灯位、Review one-light verification 与 `reviewLapsed`、wrong-choice contrast、详情分层和 390px browser QA。实现保持 client-only，未改 `/api/chat`、FastAPI、Prisma、provider prompts 或 `enggo.collectedWords`。
+  - Wordbook Learn/Review 体验打磨已完成：新增本地学习设置 10/20/30 词、冻结 session target count、Learn 三灯失败保留当前灯位、Review one-light clean pass 与 `reviewLapsed`、Review 失败后三灯补救链路、wrong-choice contrast、详情分层和 390px browser QA。实现保持 client-only，未改 `/api/chat`、FastAPI、Prisma、provider prompts 或 `enggo.collectedWords`。
 - `docs/superpowers/plans/2026-05-30-wordbook-learn-review-v1.md`
   - Wordbook Learn/Review V1 初版已完成并进入体验打磨：新增 `cet6-foundation-v1` 静态词书、localStorage 进度、四选一干扰项、Learn/Review 状态机、Learn/Review session UI 和 Progress 词书摘要；后续补了 Learn 队列式间隔调度、三颗绿灯详情反馈对齐、Review 计数去重和若干文案修正。实现保持 client-only，未改 `/api/chat`、FastAPI、Prisma、provider prompts 或 `enggo.collectedWords`；当前仍不建议直接 merge 主线。
 - `docs/superpowers/plans/2026-05-29-conversational-context-v3-bounded-fallback.md`

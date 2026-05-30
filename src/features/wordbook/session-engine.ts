@@ -154,9 +154,31 @@ export function createLearnSession(input: CreateSessionInput): StudySessionState
 }
 
 export function createReviewSession(input: CreateSessionInput): StudySessionState {
-  const targets = selectReviewProgress(input).map((progress) =>
-    toTarget(progress, input.wordbook, "hiddenSelfRecall"),
-  );
+  const targets = selectReviewProgress(input).map((progress) => {
+    if (progress.status === "lapsed") {
+      return {
+        ...toTarget(progress, input.wordbook, "recognitionChoice"),
+        failedAttempts: 1,
+      };
+    }
+
+    if (progress.status === "reviewLapsed") {
+      const resumeStage =
+        progress.masteryDots >= 2
+          ? "finalRecall"
+          : progress.masteryDots >= 1
+            ? "guidedRecall"
+            : "recognitionChoice";
+
+      return {
+        ...toTarget(progress, input.wordbook, resumeStage),
+        failedAttempts: 1,
+        masteryDots: progress.masteryDots,
+      };
+    }
+
+    return toTarget(progress, input.wordbook, "hiddenSelfRecall");
+  });
 
   return createState(input, "review", targets);
 }
@@ -338,6 +360,52 @@ function failCurrentTarget(
         progress: progressUpdate,
       },
       stage: nextStage,
+    },
+    progressUpdates: [progressUpdate],
+  };
+}
+
+function failReviewTarget(
+  state: StudySessionState,
+  now: Date,
+  options: {
+    nextStage?: StudyCardStage;
+    mistake?: StudyMistake;
+    reviewPath?: StudySessionTarget["reviewPath"];
+  } = {},
+): StudyEngineResult {
+  if (!state.current) {
+    return { state, progressUpdates: [] };
+  }
+
+  const current = {
+    ...withoutLastMistake(state.current),
+    failedAttempts: state.current.failedAttempts + 1,
+    ...(options.reviewPath ? { reviewPath: options.reviewPath } : {}),
+    ...(options.mistake ? { lastMistake: options.mistake } : {}),
+  };
+  const progressUpdate = buildProgressUpdate(
+    state,
+    current,
+    {
+      status: "reviewLapsed",
+      masteryDots: current.masteryDots,
+      reviewStrength: getLapsedReviewStrength(current.progress.reviewStrength),
+      seenCount: current.progress.seenCount + 1,
+      wrongCount: current.progress.wrongCount + 1,
+      nextReviewAt: getNextReviewAt(now, 0),
+    },
+    now,
+  );
+
+  return {
+    state: {
+      ...state,
+      current: {
+        ...current,
+        progress: progressUpdate,
+      },
+      stage: options.nextStage ?? "answerReveal",
     },
     progressUpdates: [progressUpdate],
   };
@@ -610,16 +678,41 @@ export function applyStudyAction(
     }
 
     if (action.type === "markFuzzy" && state.stage === "hiddenSelfRecall") {
+      return failReviewTarget(state, now, {
+        nextStage: "fuzzyDetail",
+        reviewPath: "fuzzy",
+      });
+    }
+
+    if (action.type === "markForgotten" && state.stage === "hiddenSelfRecall") {
+      return failReviewTarget(state, now, {
+        nextStage: "forgotDetail",
+        reviewPath: "forgotten",
+      });
+    }
+
+    if (action.type === "chooseMeaning" && state.stage === "recognitionChoice") {
+      if (!action.isCorrect) {
+        return failReviewTarget(state, now, {
+          nextStage: "wrongChoiceContrast",
+          mistake: {
+            selectedMeaning: action.selectedMeaning ?? "",
+            correctMeaning:
+              action.correctMeaning ?? current.entry.meaningsZh[0]?.trim() ?? "",
+            selectedLemma: action.selectedLemma,
+          },
+        });
+      }
+
+      const cleanCurrent = withoutLastMistake(current);
       const progressUpdate = buildProgressUpdate(
         state,
-        current,
+        cleanCurrent,
         {
           status: "reviewLapsed",
-          masteryDots: 0,
-          reviewStrength: getLapsedReviewStrength(current.progress.reviewStrength),
+          masteryDots: 1,
           seenCount: current.progress.seenCount + 1,
-          wrongCount: current.progress.wrongCount + 1,
-          nextReviewAt: getNextReviewAt(now, 0),
+          correctCount: current.progress.correctCount + 1,
         },
         now,
       );
@@ -628,28 +721,63 @@ export function applyStudyAction(
         state: {
           ...state,
           current: {
-            ...current,
-            failedAttempts: current.failedAttempts + 1,
-            reviewPath: "fuzzy",
+            ...cleanCurrent,
+            masteryDots: 1,
             progress: progressUpdate,
           },
-          stage: "fuzzyDetail",
+          stage: "detailReveal",
         },
         progressUpdates: [progressUpdate],
       };
     }
 
-    if (action.type === "markForgotten" && state.stage === "hiddenSelfRecall") {
+    if (action.type === "showAnswer" && state.stage === "recognitionChoice") {
+      return failReviewTarget(state, now);
+    }
+
+    if (
+      action.type === "continueFromDetail" &&
+      state.stage === "wrongChoiceContrast"
+    ) {
+      return {
+        state: {
+          ...state,
+          current: withoutLastMistake(current),
+          stage: "answerReveal",
+        },
+        progressUpdates: [],
+      };
+    }
+
+    if (action.type === "continueFromDetail" && state.stage === "answerReveal") {
+      return requeueCurrentTarget(state, current, {
+        delay: getLearnFailureDelay(current.resumeStage),
+        resumeStage: current.resumeStage,
+        autoCompleteAfterFailures: false,
+      });
+    }
+
+    if (action.type === "continueFromDetail" && state.stage === "detailReveal") {
+      return requeueCurrentTarget(state, current, {
+        delay: 3,
+        resumeStage: "guidedRecall",
+        autoCompleteAfterFailures: false,
+      });
+    }
+
+    if (action.type === "markUnknown" && state.stage === "guidedRecall") {
+      return failReviewTarget(state, now);
+    }
+
+    if (action.type === "markKnown" && state.stage === "guidedRecall") {
       const progressUpdate = buildProgressUpdate(
         state,
         current,
         {
           status: "reviewLapsed",
-          masteryDots: 0,
-          reviewStrength: getLapsedReviewStrength(current.progress.reviewStrength),
+          masteryDots: 2,
           seenCount: current.progress.seenCount + 1,
-          wrongCount: current.progress.wrongCount + 1,
-          nextReviewAt: getNextReviewAt(now, 0),
+          correctCount: current.progress.correctCount + 1,
         },
         now,
       );
@@ -658,12 +786,50 @@ export function applyStudyAction(
         state: {
           ...state,
           current: {
-            ...current,
-            failedAttempts: current.failedAttempts + 1,
-            reviewPath: "forgotten",
+            ...withoutLastMistake(current),
+            masteryDots: 2,
             progress: progressUpdate,
           },
-          stage: "forgotDetail",
+          stage: "guidedDetail",
+        },
+        progressUpdates: [progressUpdate],
+      };
+    }
+
+    if (action.type === "continueFromDetail" && state.stage === "guidedDetail") {
+      return requeueCurrentTarget(state, current, {
+        delay: 4,
+        resumeStage: "finalRecall",
+        autoCompleteAfterFailures: false,
+      });
+    }
+
+    if (action.type === "markUnknown" && state.stage === "finalRecall") {
+      return failReviewTarget(state, now);
+    }
+
+    if (action.type === "markKnown" && state.stage === "finalRecall") {
+      const progressUpdate = buildProgressUpdate(
+        state,
+        current,
+        {
+          status: "reviewLapsed",
+          masteryDots: 3,
+          seenCount: current.progress.seenCount + 1,
+          correctCount: current.progress.correctCount + 1,
+        },
+        now,
+      );
+
+      return {
+        state: {
+          ...state,
+          current: {
+            ...withoutLastMistake(current),
+            masteryDots: 3,
+            progress: progressUpdate,
+          },
+          stage: "reviewDetail",
         },
         progressUpdates: [progressUpdate],
       };
@@ -684,7 +850,7 @@ export function applyStudyAction(
     if (action.type === "continueFromDetail" && state.stage === "fuzzyDetail") {
       return requeueCurrentTarget(state, current, {
         delay: 3,
-        resumeStage: "hiddenSelfRecall",
+        resumeStage: "recognitionChoice",
         autoCompleteAfterFailures: false,
       });
     }
@@ -692,7 +858,7 @@ export function applyStudyAction(
     if (action.type === "continueFromDetail" && state.stage === "forgotDetail") {
       return requeueCurrentTarget(state, current, {
         delay: 3,
-        resumeStage: "hiddenSelfRecall",
+        resumeStage: "recognitionChoice",
         autoCompleteAfterFailures: false,
       });
     }

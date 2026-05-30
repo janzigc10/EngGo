@@ -293,7 +293,7 @@ describe("StudySession", () => {
     });
   });
 
-  it("keeps forgotten Review words in Review after detail", async () => {
+  it("returns forgotten Review words to Review relearn choices after detail", async () => {
     const user = userEvent.setup();
     const wordbook = getDefaultWordbook();
     const entry = wordbook.entries[0];
@@ -317,13 +317,12 @@ describe("StudySession", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "继续" }));
-    expect(screen.getByRole("button", { name: "认识" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "模糊" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "忘记了" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: entry.meaningsZh[0] })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: entry.meaningsZh[0] })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "模糊" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "忘记了" })).not.toBeInTheDocument();
   });
 
-  it("keeps fuzzy Review words in Review after detail", async () => {
+  it("returns fuzzy Review words to Review relearn choices after detail", async () => {
     const user = userEvent.setup();
     const wordbook = getDefaultWordbook();
     const entry = wordbook.entries[0];
@@ -347,8 +346,8 @@ describe("StudySession", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "继续" }));
-    expect(screen.getByRole("button", { name: "认识" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: entry.meaningsZh[0] })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: entry.meaningsZh[0] })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "认识" })).not.toBeInTheDocument();
   });
 
   it("preflights blocked entries before a session starts", () => {

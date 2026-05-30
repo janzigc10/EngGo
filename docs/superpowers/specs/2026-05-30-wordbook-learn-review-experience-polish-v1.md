@@ -60,17 +60,22 @@ Learn 只负责新词或仍在学习中的词。一个目标词必须完成三�
 
 本轮不新增词库字段，只使用现有 `WordbookEntry` 字段：`meaningsZh`、`examples`、`collocations`。
 
-### 3. Review 是一灯快速验收
+### 3. Review 初始是一灯快速验收，失败后进入 Review 内补救
 
-Review 不是第二套 Learn。它只判断已学词还记不记得。
+Review 不是第二套 Learn。它的正常入口只判断已学词还记不记得；但如果用户在 Review 中点“不确定 / 不认识 / 忘记”，这个词不能只回到同一个自测判断，而要在 Review 板块内降回一个轻量补救链路。
 
 规则：
 
 - Review 从 hidden self recall 开始。
 - 用户只做一次判断：认识，或不确定 / 不认识 / 忘记。
 - 认识：展示 review detail，然后通过目标词并安排下一次复习。
-- 不确定 / 不认识 / 忘记：记录 lapse 信号，展示详情，然后在 Review 队列里短间隔回炉。
-- Review 失败不能进入 Learn stages。
+- 不确定 / 不认识 / 忘记：记录 lapse 信号，展示详情，然后在 Review 队列里短间隔回炉到四选一识别。
+- Review 失败后的补救链路仍属于 Review mode，不进入 `/learn` 入口，不被 Learn 队列消费。
+- 补救第一段：四选一识别，选对后展示详情，再短间隔进入带提示回忆。
+- 补救第二段：带轻提示 / 例句的回忆确认，认识后展示详情，再短间隔进入最终确认。
+- 补救第三段：无提示最终确认，认识后展示 review detail，再通过目标词。
+- 补救链路任一阶段失败：展示对应详情，然后仍在当前 Review 补救阶段短间隔回炉，不降到 Learn。
+- 如果用户在补救链路中途退出，保存的 `reviewLapsed` 下次进入 Review 时继续补救：0 灯未过则回四选一，1 灯已过则回带提示回忆，2 灯已过则回最终确认。
 - Review 失败词不能因为失败而出现在 `/learn`。
 - Review 回炉后如果补救通过，本轮算完成，但下次复习间隔要短于干净通过。
 
@@ -157,7 +162,7 @@ Learn 失败处理应保留当前 target 和当前 `resumeStage`，根据当前�
 | `guidedRecall` | 3 exposures | `guidedRecall` |
 | `finalRecall` | 3 exposures | `finalRecall` |
 
-Review 失败处理只允许回到 Review 队列。不能路由到 `recognitionChoice` 或 `finalRecall`。
+Review 失败处理只允许留在 Review 队列。失败详情之后应回到 Review-owned `recognitionChoice`；四选一通过后进入 Review-owned `guidedRecall`；带提示回忆通过后进入 Review-owned `finalRecall`；最终确认通过才完成本轮目标。实现上可以复用 `recognitionChoice` / `guidedRecall` / `finalRecall` stage 名称，但 `state.mode` 必须保持 `review`，并且失败词不能被 `/learn` 消费。
 
 ### State Types
 
@@ -227,8 +232,8 @@ completedTargetLemmas.length / totalTargets
 6. Learn 第三灯失败后仍停在第三灯，并短间隔回炉。
 7. Learn 多次失败不会自动完成或 block 目标词。
 8. Learn 第一、第二、第三灯成功后的详情内容深度不同。
-9. Review 认识路径只做一次自我判断，不进入 Learn stages。
-10. Review 不确定 / 不认识 / 忘记路径留在 Review，并短间隔回炉。
+9. Review 干净认识路径只做一次自我判断，展示详情后完成。
+10. Review 不确定 / 不认识 / 忘记路径留在 Review，并短间隔回炉到四选一识别，再经过带提示回忆和无提示最终确认后完成。
 11. Review 失败词不会因为失败而出现在 `/learn`。
 12. 四选一选错后先展示用户所选释义、正确释义和干扰词，再进入详情。
 13. 主动失败动作直接进入详情，不展示错因对比页。
@@ -242,7 +247,7 @@ completedTargetLemmas.length / totalTargets
 | Unit | session engine 使用 10/20/30 target count，不再写死 10。 |
 | Unit | Learn 三个灯位失败后都保持当前灯位并按规则回炉。 |
 | Unit | Learn 重复失败不会完成或 block 目标词。 |
-| Unit | Review 不确定 / 忘记路径在 Review 内回炉，不进入 Learn stages。 |
+| Unit | Review 不确定 / 忘记路径在 Review 内回炉到四选一识别，随后进入带提示回忆和无提示最终确认，三灯补救通过后完成。 |
 | Unit | Review 补救通过的下次复习间隔短于干净通过。 |
 | Unit | 选错动作能保存错因对比数据。 |
 | Component | 学习设置面板能保存学习/复习词数，dashboard 能读取。 |
@@ -250,7 +255,7 @@ completedTargetLemmas.length / totalTargets
 | Component | 选错后先出现错因对比页，再进入详情页。 |
 | Component | Learn 三个成功详情页内容深度不同。 |
 | Browser QA | 390px 宽度下 Learn 设置为 20 后显示 `0 / 20`，选错出现错因对比，无横向溢出。 |
-| Browser QA | Review 失败后仍留在 Review，且失败词隔其他卡后再回来。 |
+| Browser QA | Review 失败后仍留在 Review，且失败词隔其他卡后以四选一识别回来；识别通过后再做带提示回忆和无提示最终确认并完成。 |
 
 ## 非目标
 
