@@ -26,6 +26,7 @@ export type WordStudyStatus =
   | "passed"
   | "reviewing"
   | "lapsed"
+  | "reviewLapsed"
   | "blockedContent";
 
 export type MasteryDots = 0 | 1 | 2 | 3;
@@ -47,8 +48,16 @@ export type WordStudyProgress = {
 
 export type StudyMode = "learn" | "review";
 
+export type StudySessionGoal = 10 | 20 | 30;
+
+export type WordbookStudySettings = {
+  learnTargetCount: StudySessionGoal;
+  reviewTargetCount: StudySessionGoal;
+};
+
 export type StudyCardStage =
   | "recognitionChoice"
+  | "wrongChoiceContrast"
   | "detailReveal"
   | "guidedDetail"
   | "passDetail"
@@ -61,6 +70,12 @@ export type StudyCardStage =
   | "forgotDetail"
   | "complete";
 
+export type StudyMistake = {
+  selectedMeaning: string;
+  correctMeaning: string;
+  selectedLemma?: string;
+};
+
 export type StudySessionTarget = {
   entry: WordbookEntry;
   progress: WordStudyProgress;
@@ -68,6 +83,7 @@ export type StudySessionTarget = {
   failedAttempts: number;
   resumeStage: StudyCardStage;
   eligibleAfterExposure: number;
+  lastMistake?: StudyMistake;
   reviewPath?: "remembered" | "fuzzy" | "forgotten";
 };
 
@@ -84,7 +100,13 @@ export type StudySessionState = {
 };
 
 export type StudySessionAction =
-  | { type: "chooseMeaning"; isCorrect: boolean }
+  | {
+      type: "chooseMeaning";
+      isCorrect: boolean;
+      selectedMeaning?: string;
+      correctMeaning?: string;
+      selectedLemma?: string;
+    }
   | { type: "showAnswer" }
   | { type: "blockCurrent" }
   | { type: "continueFromDetail" }

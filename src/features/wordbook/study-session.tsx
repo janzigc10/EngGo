@@ -16,6 +16,7 @@ import {
 } from "@/features/wordbook/session-engine";
 import type {
   StudyMode,
+  StudySessionGoal,
   StudySessionAction,
   StudySessionState,
   Wordbook,
@@ -24,10 +25,11 @@ import type {
 
 type StudySessionProps = {
   mode: StudyMode;
+  targetCount: StudySessionGoal;
   onExit: () => void;
 };
 
-export function StudySession({ mode, onExit }: StudySessionProps) {
+export function StudySession({ mode, targetCount, onExit }: StudySessionProps) {
   const wordbook = getDefaultWordbook();
   const [state, setState] = useState<StudySessionState>(() => {
     const now = new Date();
@@ -37,6 +39,7 @@ export function StudySession({ mode, onExit }: StudySessionProps) {
       progressRecords,
       now,
       sessionId: `${mode}-${Date.now()}`,
+      targetCount,
     };
 
     return mode === "learn" ? createLearnSession(input) : createReviewSession(input);
@@ -229,6 +232,8 @@ function StageBody({
       );
     }
 
+    const correctOption = choice.options.find((option) => option.isCorrect);
+
     return (
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -238,7 +243,13 @@ function StageBody({
               type="button"
               className="min-h-14 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-medium leading-6 text-slate-800 transition hover:border-sky-200 hover:bg-sky-50"
               onClick={() =>
-                onAction({ type: "chooseMeaning", isCorrect: option.isCorrect })
+                onAction({
+                  type: "chooseMeaning",
+                  isCorrect: option.isCorrect,
+                  selectedMeaning: option.meaningZh,
+                  correctMeaning: correctOption?.meaningZh,
+                  ...(option.isCorrect ? {} : { selectedLemma: option.lemma }),
+                })
               }
             >
               {option.meaningZh}
@@ -247,6 +258,17 @@ function StageBody({
         </div>
         <button type="button" className={secondaryButton} onClick={() => onAction({ type: "showAnswer" })}>
           看答案
+        </button>
+      </div>
+    );
+  }
+
+  if (state.stage === "wrongChoiceContrast") {
+    return (
+      <div className="space-y-5">
+        <WrongChoiceContrast state={state} />
+        <button type="button" className={primaryButton} onClick={() => onAction({ type: "continueFromDetail" })}>
+          继续
         </button>
       </div>
     );
@@ -310,17 +332,60 @@ function StageBody({
   return null;
 }
 
-function DetailBlock({ state }: { state: StudySessionState }) {
+function WrongChoiceContrast({ state }: { state: StudySessionState }) {
+  const mistake = state.current?.lastMistake;
+
+  if (!mistake) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-4 rounded-2xl bg-amber-50 px-5 py-5 text-slate-700">
+      <p className="text-xs font-medium uppercase tracking-[0.18em] text-amber-700">
+        Choice Contrast
+      </p>
+      <div>
+        <p className="text-xs font-medium text-slate-500">You chose</p>
+        <p className="mt-1 text-base font-semibold text-slate-950">
+          {mistake.selectedMeaning}
+        </p>
+        {mistake.selectedLemma ? (
+          <p className="mt-1 text-sm text-slate-600">
+            Distractor word: {mistake.selectedLemma}
+          </p>
+        ) : null}
+      </div>
+      <div>
+        <p className="text-xs font-medium text-slate-500">Correct meaning</p>
+        <p className="mt-1 text-base font-semibold text-slate-950">
+          {mistake.correctMeaning}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function DetailBlock({ state }: { state: StudySessionState }) {
   const entry = state.current?.entry;
 
   if (!entry) {
     return null;
   }
 
-  const meaningLine = formatMeaningLine(entry.pos, entry.meaningsZh);
+  const depth = getDetailDepth(state);
+  const meanings =
+    depth === "complete" ? entry.meaningsZh : entry.meaningsZh.slice(0, 1);
+  const examples =
+    depth === "complete" ? entry.examples : entry.examples.slice(0, 1);
+  const collocations =
+    depth === "first" ? [] : entry.collocations;
+  const meaningLine = formatMeaningLine(entry.pos, meanings);
 
   return (
     <div className="space-y-4 rounded-2xl bg-slate-50 px-5 py-5 text-slate-700">
+      {state.stage === "passDetail" ? (
+        <p className="text-xs font-semibold text-emerald-700">本轮已通过</p>
+      ) : null}
       <div>
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
           Meaning
@@ -329,14 +394,30 @@ function DetailBlock({ state }: { state: StudySessionState }) {
           {meaningLine}
         </p>
       </div>
-      {entry.examples[0] ? (
-        <p className="text-sm leading-7">{entry.examples[0]}</p>
-      ) : null}
-      {entry.collocations[0] ? (
-        <p className="text-sm text-slate-500">{entry.collocations[0]}</p>
-      ) : null}
+      {examples.map((example) => (
+        <p key={example} className="text-sm leading-7">{example}</p>
+      ))}
+      {collocations.map((collocation) => (
+        <p key={collocation} className="text-sm text-slate-500">{collocation}</p>
+      ))}
     </div>
   );
+}
+
+function getDetailDepth(state: StudySessionState): "first" | "second" | "complete" {
+  if (state.mode === "review") {
+    return "complete";
+  }
+
+  if (state.stage === "passDetail" || state.current?.resumeStage === "finalRecall") {
+    return "complete";
+  }
+
+  if (state.stage === "guidedDetail" || state.current?.resumeStage === "guidedRecall") {
+    return "second";
+  }
+
+  return "first";
 }
 
 function formatMeaningLine(pos: string[], meaningsZh: string[]) {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,6 +12,7 @@ import {
   getNextReviewAt,
   saveWordProgress,
 } from "@/features/wordbook/wordbook-progress-store";
+import { wordbookStudySettingsStorageKey } from "@/features/wordbook/wordbook-study-settings-store";
 
 describe("WordbookDashboard", () => {
   beforeEach(() => {
@@ -36,7 +37,28 @@ describe("WordbookDashboard", () => {
 
     await user.click(screen.getByRole("button", { name: /开始 Learn/ }));
 
-    expect(onStartSession).toHaveBeenCalledWith("learn");
+    expect(onStartSession).toHaveBeenCalledWith("learn", 10);
+  });
+
+  it("persists Learn target count from dashboard settings", async () => {
+    const user = userEvent.setup();
+    const onStartSession = vi.fn();
+
+    render(<WordbookDashboard mode="learn" onStartSession={onStartSession} />);
+
+    await user.click(
+      within(screen.getByRole("group", { name: "Learn 每组" })).getByRole(
+        "button",
+        { name: "20" },
+      ),
+    );
+    await user.click(screen.getByRole("button", { name: /开始 Learn/ }));
+
+    expect(JSON.parse(window.localStorage.getItem(wordbookStudySettingsStorageKey) ?? "{}")).toMatchObject({
+      learnTargetCount: 20,
+      reviewTargetCount: 10,
+    });
+    expect(onStartSession).toHaveBeenCalledWith("learn", 20);
   });
 
   it("keeps Review quiet when there are no due words", () => {

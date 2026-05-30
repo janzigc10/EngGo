@@ -22,7 +22,10 @@ import {
   loadProgressRecords,
   subscribeWordbookProgressChanges,
 } from "@/features/wordbook/wordbook-progress-store";
-import type { StudyMode } from "@/features/wordbook/wordbook-types";
+import type {
+  StudyMode,
+  StudySessionGoal,
+} from "@/features/wordbook/wordbook-types";
 
 type CollectionSection = {
   code: (typeof examTargets)[number]["code"];
@@ -239,23 +242,51 @@ export function CollectionsPanel() {
 }
 
 export function LearnPanel() {
-  const [activeSessionMode, setActiveSessionMode] = useState<StudyMode | null>(null);
+  const [activeSession, setActiveSession] = useState<{
+    mode: StudyMode;
+    targetCount: StudySessionGoal;
+  } | null>(null);
 
-  if (activeSessionMode) {
-    return <StudySession mode={activeSessionMode} onExit={() => setActiveSessionMode(null)} />;
+  if (activeSession) {
+    return (
+      <StudySession
+        mode={activeSession.mode}
+        targetCount={activeSession.targetCount}
+        onExit={() => setActiveSession(null)}
+      />
+    );
   }
 
-  return <WordbookDashboard mode="learn" onStartSession={setActiveSessionMode} />;
+  return (
+    <WordbookDashboard
+      mode="learn"
+      onStartSession={(mode, targetCount) => setActiveSession({ mode, targetCount })}
+    />
+  );
 }
 
 export function ReviewPanel() {
-  const [activeSessionMode, setActiveSessionMode] = useState<StudyMode | null>(null);
+  const [activeSession, setActiveSession] = useState<{
+    mode: StudyMode;
+    targetCount: StudySessionGoal;
+  } | null>(null);
 
-  if (activeSessionMode) {
-    return <StudySession mode={activeSessionMode} onExit={() => setActiveSessionMode(null)} />;
+  if (activeSession) {
+    return (
+      <StudySession
+        mode={activeSession.mode}
+        targetCount={activeSession.targetCount}
+        onExit={() => setActiveSession(null)}
+      />
+    );
   }
 
-  return <WordbookDashboard mode="review" onStartSession={setActiveSessionMode} />;
+  return (
+    <WordbookDashboard
+      mode="review"
+      onStartSession={(mode, targetCount) => setActiveSession({ mode, targetCount })}
+    />
+  );
 }
 
 export function ProgressPanel() {

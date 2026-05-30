@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getDefaultWordbook } from "@/features/wordbook/wordbook-data";
 import {
+  DetailBlock,
   prepareProgressRecordsForSession,
   StudySession,
 } from "@/features/wordbook/study-session";
@@ -15,7 +16,15 @@ import {
   saveWordProgress,
   wordbookProgressStorageKey,
 } from "@/features/wordbook/wordbook-progress-store";
-import type { Wordbook, WordbookEntry } from "@/features/wordbook/wordbook-types";
+import {
+  saveWordbookStudySettings,
+} from "@/features/wordbook/wordbook-study-settings-store";
+import type {
+  StudyCardStage,
+  StudySessionState,
+  Wordbook,
+  WordbookEntry,
+} from "@/features/wordbook/wordbook-types";
 
 function storedRecords() {
   return JSON.parse(window.localStorage.getItem(wordbookProgressStorageKey) ?? "{}") as {
@@ -33,6 +42,42 @@ function savePassedEntry(entry: WordbookEntry, wordbook: Wordbook) {
   });
 }
 
+function makeDetailState(
+  entry: WordbookEntry,
+  stage: StudyCardStage,
+  resumeStage?: StudyCardStage,
+): StudySessionState {
+  const progress = createDefaultProgress(
+    entry,
+    "cet6-foundation-v1",
+    new Date("2026-05-30"),
+  );
+
+  return {
+    mode: "learn",
+    sessionId: `test-${stage}`,
+    wordbookId: "cet6-foundation-v1",
+    stage,
+    current: {
+      entry,
+      progress,
+      masteryDots: stage === "passDetail" ? 3 : stage === "guidedDetail" ? 2 : 1,
+      failedAttempts: 0,
+      resumeStage: resumeStage ??
+        stage === "passDetail"
+          ? "finalRecall"
+          : stage === "guidedDetail"
+            ? "guidedRecall"
+            : "recognitionChoice",
+      eligibleAfterExposure: 0,
+    },
+    pending: [],
+    completedTargetLemmas: [],
+    totalTargets: 1,
+    cardExposureCount: 1,
+  };
+}
+
 describe("StudySession", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -41,7 +86,7 @@ describe("StudySession", () => {
   it("opens a Learn recognition card with exactly four options", () => {
     const wordbook = getDefaultWordbook();
 
-    render(<StudySession mode="learn" onExit={vi.fn()} />);
+    render(<StudySession mode="learn" targetCount={10} onExit={vi.fn()} />);
 
     expect(screen.getByText(wordbook.entries[0].lemma)).toBeInTheDocument();
     const optionButtons = screen
@@ -53,13 +98,27 @@ describe("StudySession", () => {
     expect(optionButtons).toHaveLength(4);
   });
 
+  it("keeps the active session denominator frozen after settings change", () => {
+    render(<StudySession mode="learn" targetCount={20} onExit={vi.fn()} />);
+
+    expect(screen.getByText("0 / 20")).toBeInTheDocument();
+
+    saveWordbookStudySettings({
+      learnTargetCount: 10,
+      reviewTargetCount: 30,
+    });
+
+    expect(screen.getByText("0 / 20")).toBeInTheDocument();
+    expect(screen.queryByText("0 / 10")).not.toBeInTheDocument();
+  });
+
   it("moves away from a Learn word after the first mastery dot", async () => {
     const user = userEvent.setup();
     const wordbook = getDefaultWordbook();
     const entry = wordbook.entries[0];
     const nextEntry = wordbook.entries[1];
 
-    render(<StudySession mode="learn" onExit={vi.fn()} />);
+    render(<StudySession mode="learn" targetCount={10} onExit={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: entry.meaningsZh[0] }));
     expect(screen.getByText("Meaning")).toBeInTheDocument();
@@ -75,32 +134,106 @@ describe("StudySession", () => {
     });
   });
 
-  it("reveals the answer after a wrong Learn choice", async () => {
+  it("renders first Learn detail without collocations", () => {
+    const entry = getDefaultWordbook().entries.find((candidate) => candidate.lemma === "aboard");
+
+    expect(entry).toBeDefined();
+
+    render(<DetailBlock state={makeDetailState(entry!, "detailReveal")} />);
+
+    expect(screen.getByText("adv./prep. 在船上")).toBeInTheDocument();
+    expect(screen.queryByText(/在飞机上/)).not.toBeInTheDocument();
+    expect(screen.getByText("Passengers are already aboard the plane.")).toBeInTheDocument();
+    expect(screen.queryByText("go aboard")).not.toBeInTheDocument();
+    expect(screen.queryByText("aboard the ship")).not.toBeInTheDocument();
+  });
+
+  it("renders second Learn detail with collocations when available", () => {
+    const entry = getDefaultWordbook().entries.find((candidate) => candidate.lemma === "aboard");
+
+    expect(entry).toBeDefined();
+
+    render(<DetailBlock state={makeDetailState(entry!, "guidedDetail")} />);
+
+    expect(screen.getByText("adv./prep. 在船上")).toBeInTheDocument();
+    expect(screen.getByText("Passengers are already aboard the plane.")).toBeInTheDocument();
+    expect(screen.getByText("go aboard")).toBeInTheDocument();
+    expect(screen.getByText("aboard the ship")).toBeInTheDocument();
+    expect(screen.queryByText(/在飞机上/)).not.toBeInTheDocument();
+  });
+
+  it("renders third Learn detail with complete entry details and pass confirmation", () => {
+    const entry = getDefaultWordbook().entries.find((candidate) => candidate.lemma === "aboard");
+
+    expect(entry).toBeDefined();
+
+    render(<DetailBlock state={makeDetailState(entry!, "passDetail")} />);
+
+    expect(screen.getByText("本轮已通过")).toBeInTheDocument();
+    expect(screen.getByText("adv./prep. 在船上；在飞机上；上交通工具")).toBeInTheDocument();
+    expect(screen.getByText("Passengers are already aboard the plane.")).toBeInTheDocument();
+    expect(screen.getByText("go aboard")).toBeInTheDocument();
+    expect(screen.getByText("aboard the ship")).toBeInTheDocument();
+  });
+
+  it("does not render pass confirmation on third-light failure detail", () => {
+    const entry = getDefaultWordbook().entries.find((candidate) => candidate.lemma === "aboard");
+
+    expect(entry).toBeDefined();
+
+    render(<DetailBlock state={makeDetailState(entry!, "answerReveal", "finalRecall")} />);
+
+    expect(screen.queryByText("本轮已通过")).not.toBeInTheDocument();
+    expect(screen.getByText("adv./prep. 在船上；在飞机上；上交通工具")).toBeInTheDocument();
+    expect(screen.getByText("go aboard")).toBeInTheDocument();
+    expect(screen.getByText("aboard the ship")).toBeInTheDocument();
+  });
+
+  it("renders wrong-choice contrast before the answer detail", async () => {
     const user = userEvent.setup();
     const wordbook = getDefaultWordbook();
     const entry = wordbook.entries[0];
 
-    render(<StudySession mode="learn" onExit={vi.fn()} />);
+    render(<StudySession mode="learn" targetCount={10} onExit={vi.fn()} />);
 
-    const wrongButton = screen
-      .getAllByRole("button")
-      .find(
-        (button) =>
-          button.textContent &&
-          button.textContent !== entry.meaningsZh[0] &&
-          button.textContent !== "看答案" &&
-          button.textContent !== "退出",
-      );
+    const wrongEntry = wordbook.entries.find((candidate) => {
+      if (candidate.lemma === entry.lemma) {
+        return false;
+      }
 
-    expect(wrongButton).toBeDefined();
-    await user.click(wrongButton!);
+      return screen.queryByRole("button", { name: candidate.meaningsZh[0] });
+    });
 
-    expect(screen.getByText("Meaning")).toBeInTheDocument();
-    expect(screen.getByText("v. 放弃；抛弃")).toBeInTheDocument();
+    expect(wrongEntry).toBeDefined();
+    await user.click(screen.getByRole("button", { name: wrongEntry!.meaningsZh[0] }));
+
+    expect(screen.getByText("Choice Contrast")).toBeInTheDocument();
+    expect(screen.getByText(wrongEntry!.meaningsZh[0])).toBeInTheDocument();
+    expect(screen.getByText(entry.meaningsZh[0])).toBeInTheDocument();
+    expect(screen.getByText(/Distractor word:/)).toBeInTheDocument();
+    expect(screen.queryByText("Meaning")).not.toBeInTheDocument();
     expect(storedRecords().records?.[0]).toMatchObject({
       lemma: entry.lemma,
       status: "learning",
+      masteryDots: 0,
+      wrongCount: 1,
     });
+
+    await user.click(screen.getByRole("button", { name: "继续" }));
+
+    expect(screen.getByText("Meaning")).toBeInTheDocument();
+    expect(screen.getByText("v. 放弃")).toBeInTheDocument();
+  });
+
+  it("skips contrast for an active Learn answer reveal", async () => {
+    const user = userEvent.setup();
+
+    render(<StudySession mode="learn" targetCount={10} onExit={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "看答案" }));
+
+    expect(screen.queryByText("Choice Contrast")).not.toBeInTheDocument();
+    expect(screen.getByText("Meaning")).toBeInTheDocument();
   });
 
   it("keeps abbreviated part of speech inside the Chinese meaning line", async () => {
@@ -115,7 +248,7 @@ describe("StudySession", () => {
       .slice(0, entryIndex)
       .forEach((candidate) => savePassedEntry(candidate, wordbook));
 
-    render(<StudySession mode="learn" onExit={vi.fn()} />);
+    render(<StudySession mode="learn" targetCount={10} onExit={vi.fn()} />);
 
     expect(screen.getByText("able")).toBeInTheDocument();
     expect(screen.queryByText("adjective")).not.toBeInTheDocument();
@@ -123,7 +256,7 @@ describe("StudySession", () => {
     await user.click(screen.getByRole("button", { name: entry.meaningsZh[0] }));
 
     expect(screen.queryByText("adjective")).not.toBeInTheDocument();
-    expect(screen.getByText("adj. 能够的；有能力的")).toBeInTheDocument();
+    expect(screen.getByText("adj. 能够的")).toBeInTheDocument();
   });
 
   it("starts Review with hidden self recall and passes remembered words", async () => {
@@ -139,7 +272,7 @@ describe("StudySession", () => {
       nextReviewAt: getNextReviewAt(new Date("2026-05-29"), 1),
     });
 
-    render(<StudySession mode="review" onExit={vi.fn()} />);
+    render(<StudySession mode="review" targetCount={10} onExit={vi.fn()} />);
 
     const actions = screen.getAllByRole("button");
     expect(within(document.body).getByRole("button", { name: "认识" })).toBeInTheDocument();
@@ -160,7 +293,7 @@ describe("StudySession", () => {
     });
   });
 
-  it("routes forgotten Review words through detail and recognition", async () => {
+  it("keeps forgotten Review words in Review after detail", async () => {
     const user = userEvent.setup();
     const wordbook = getDefaultWordbook();
     const entry = wordbook.entries[0];
@@ -173,18 +306,49 @@ describe("StudySession", () => {
       nextReviewAt: getNextReviewAt(new Date("2026-05-29"), 1),
     });
 
-    render(<StudySession mode="review" onExit={vi.fn()} />);
+    render(<StudySession mode="review" targetCount={10} onExit={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: "忘记了" }));
     expect(screen.getByText("Meaning")).toBeInTheDocument();
     expect(storedRecords().records?.[0]).toMatchObject({
       lemma: entry.lemma,
-      status: "lapsed",
+      status: "reviewLapsed",
       reviewStrength: 1,
     });
 
     await user.click(screen.getByRole("button", { name: "继续" }));
-    expect(screen.getByRole("button", { name: entry.meaningsZh[0] })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "认识" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "模糊" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "忘记了" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: entry.meaningsZh[0] })).not.toBeInTheDocument();
+  });
+
+  it("keeps fuzzy Review words in Review after detail", async () => {
+    const user = userEvent.setup();
+    const wordbook = getDefaultWordbook();
+    const entry = wordbook.entries[0];
+
+    saveWordProgress({
+      ...createDefaultProgress(entry, wordbook.id, new Date("2026-05-29")),
+      status: "passed",
+      masteryDots: 3,
+      reviewStrength: 2,
+      nextReviewAt: getNextReviewAt(new Date("2026-05-29"), 1),
+    });
+
+    render(<StudySession mode="review" targetCount={10} onExit={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "模糊" }));
+    expect(screen.getByText("Meaning")).toBeInTheDocument();
+    expect(storedRecords().records?.[0]).toMatchObject({
+      lemma: entry.lemma,
+      status: "reviewLapsed",
+      reviewStrength: 1,
+    });
+
+    await user.click(screen.getByRole("button", { name: "继续" }));
+    expect(screen.getByRole("button", { name: "认识" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: entry.meaningsZh[0] })).not.toBeInTheDocument();
   });
 
   it("preflights blocked entries before a session starts", () => {

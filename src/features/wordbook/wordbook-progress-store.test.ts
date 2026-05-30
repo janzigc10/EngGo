@@ -79,7 +79,7 @@ describe("wordbook progress store", () => {
     ).toBe(0);
   });
 
-  it("counts lapsed words as due review and learnable", () => {
+  it("counts legacy lapsed words as due review but not learnable", () => {
     const wordbook = getDefaultWordbook();
     const entry = wordbook.entries[0];
 
@@ -92,7 +92,7 @@ describe("wordbook progress store", () => {
 
     const snapshot = buildWordbookProgressSnapshot(wordbook, new Date("2026-05-30"));
 
-    expect(snapshot.learnable).toBe(wordbook.entries.length);
+    expect(snapshot.learnable).toBe(wordbook.entries.length - 1);
     expect(snapshot.dueReview).toBe(1);
   });
 

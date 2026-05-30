@@ -54,6 +54,7 @@ function normalizeStatus(value: unknown): WordStudyProgress["status"] {
     value === "passed" ||
     value === "reviewing" ||
     value === "lapsed" ||
+    value === "reviewLapsed" ||
     value === "blockedContent"
   ) {
     return value;
@@ -256,14 +257,14 @@ export function buildWordbookProgressSnapshot(
 
       if (
         progress.status === "unseen" ||
-        progress.status === "learning" ||
-        progress.status === "lapsed"
+        progress.status === "learning"
       ) {
         snapshot.learnable += 1;
       }
 
       if (
         progress.status === "lapsed" ||
+        progress.status === "reviewLapsed" ||
         ((progress.status === "passed" || progress.status === "reviewing") && isDue)
       ) {
         snapshot.dueReview += 1;

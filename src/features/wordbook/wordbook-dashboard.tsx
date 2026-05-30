@@ -16,11 +16,21 @@ import {
   loadProgressRecords,
   subscribeWordbookProgressChanges,
 } from "@/features/wordbook/wordbook-progress-store";
-import type { StudyMode } from "@/features/wordbook/wordbook-types";
+import { WordbookStudySettingsPanel } from "@/features/wordbook/wordbook-study-settings-panel";
+import {
+  getServerWordbookStudySettingsSnapshot,
+  getWordbookStudySettingsSnapshot,
+  loadWordbookStudySettings,
+  subscribeWordbookStudySettings,
+} from "@/features/wordbook/wordbook-study-settings-store";
+import type {
+  StudyMode,
+  StudySessionGoal,
+} from "@/features/wordbook/wordbook-types";
 
 type WordbookDashboardProps = {
   mode: StudyMode;
-  onStartSession: (mode: StudyMode) => void;
+  onStartSession: (mode: StudyMode, targetCount: StudySessionGoal) => void;
 };
 
 function useProgressVersion() {
@@ -38,8 +48,14 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
     getServerExamTargetSnapshot,
   );
   useProgressVersion();
+  useSyncExternalStore(
+    subscribeWordbookStudySettings,
+    getWordbookStudySettingsSnapshot,
+    getServerWordbookStudySettingsSnapshot,
+  );
 
   const wordbook = getDefaultWordbook();
+  const settings = loadWordbookStudySettings();
   const snapshot = buildWordbookProgressSnapshot(
     wordbook,
     new Date(),
@@ -49,6 +65,9 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
     snapshot.total > 0 ? Math.round((snapshot.passed / snapshot.total) * 100) : 0;
   const isLearn = mode === "learn";
   const primaryCount = isLearn ? snapshot.learnable : snapshot.dueReview;
+  const targetCount = isLearn
+    ? settings.learnTargetCount
+    : settings.reviewTargetCount;
   const primaryLabel = isLearn ? "开始 Learn" : "开始 Review";
   const thirdMetric = isLearn
     ? { label: "可学习", value: snapshot.learnable }
@@ -110,7 +129,7 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
           <button
             type="button"
             disabled={primaryCount === 0}
-            onClick={() => onStartSession(mode)}
+            onClick={() => onStartSession(mode, targetCount)}
             className="inline-flex h-11 min-w-36 items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             {primaryLabel} ({primaryCount})
@@ -120,6 +139,8 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
           ) : null}
         </div>
       </section>
+
+      <WordbookStudySettingsPanel settings={settings} />
     </div>
   );
 }

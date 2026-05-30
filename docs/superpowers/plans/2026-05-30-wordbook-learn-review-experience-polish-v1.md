@@ -44,7 +44,7 @@
 - Modify: `docs/superpowers/plans/2026-05-30-wordbook-learn-review-experience-polish-v1.md`
 - Modify: `progress.md`
 
-- [ ] **Step 1: Re-read the source spec**
+- [x] **Step 1: Re-read the source spec**
 
 Read:
 
@@ -54,7 +54,7 @@ Get-Content -Raw -Encoding UTF8 docs\superpowers\specs\2026-05-30-wordbook-learn
 
 Expected: implementation scope is limited to the five agreed areas: settings, target count, Learn failure behavior, Review behavior, wrong-choice contrast, and tiered details.
 
-- [ ] **Step 2: Check worktree state**
+- [x] **Step 2: Check worktree state**
 
 Run:
 
@@ -64,7 +64,7 @@ git status --short --branch
 
 Expected: branch is `codex/wordbook-learn-review-v1`; identify any dirty files and do not revert unrelated changes.
 
-- [ ] **Step 3: Confirm current regression baseline**
+- [x] **Step 3: Confirm current regression baseline**
 
 Run focused baseline before changes:
 
@@ -74,7 +74,7 @@ corepack pnpm test src\features\wordbook\session-engine.test.ts src\features\wor
 
 Expected: tests pass before implementation edits.
 
-- [ ] **Step 4: Update progress handoff**
+- [x] **Step 4: Update progress handoff**
 
 Update `progress.md` to say this polish plan has started and Task 0 is complete. Remove stale next-step language that conflicts with this active plan.
 
@@ -85,7 +85,7 @@ Update `progress.md` to say this polish plan has started and Task 0 is complete.
 - Create: `src/features/wordbook/wordbook-study-settings-store.ts`
 - Create: `src/features/wordbook/wordbook-study-settings-store.test.ts`
 
-- [ ] **Step 1: Add settings types**
+- [x] **Step 1: Add settings types**
 
 Add:
 
@@ -98,7 +98,7 @@ export type WordbookStudySettings = {
 };
 ```
 
-- [ ] **Step 2: Write settings store tests**
+- [x] **Step 2: Write settings store tests**
 
 Cover:
 
@@ -108,7 +108,7 @@ Cover:
 - saving `20/30` persists and reloads
 - subscription/version changes trigger UI consumers if following existing progress-store pattern
 
-- [ ] **Step 3: Implement settings store**
+- [x] **Step 3: Implement settings store**
 
 Use localStorage key:
 
@@ -125,7 +125,7 @@ Expose:
 - `getWordbookStudySettingsSnapshot()`
 - `getServerWordbookStudySettingsSnapshot()`
 
-- [ ] **Step 4: Run settings tests**
+- [x] **Step 4: Run settings tests**
 
 Run:
 
@@ -135,7 +135,7 @@ corepack pnpm test src\features\wordbook\wordbook-study-settings-store.test.ts
 
 Expected: pass.
 
-- [ ] **Step 5: Update plan and progress**
+- [x] **Step 5: Update plan and progress**
 
 Mark Task 1 steps complete and update `progress.md`.
 
@@ -150,22 +150,22 @@ Mark Task 1 steps complete and update `progress.md`.
 - Modify: `src/features/wordbook/wordbook-dashboard.test.tsx`
 - Modify: `src/features/collections/study-panels.tsx` if required by the current component boundary.
 
-- [ ] **Step 1: Add `targetCount` to `CreateSessionInput`**
+- [x] **Step 1: Add `targetCount` to `CreateSessionInput`**
 
 `createLearnSession` and `createReviewSession` must select up to `targetCount`, not hard-coded 10.
 
-- [ ] **Step 2: Pass frozen target count into `StudySession`**
+- [x] **Step 2: Pass frozen target count into `StudySession`**
 
 `StudySession` props should include `targetCount`. Session creation reads it once and stores `totalTargets` in state.
 
-- [ ] **Step 3: Load settings in dashboard**
+- [x] **Step 3: Load settings in dashboard**
 
 Dashboard reads local settings and starts Learn/Review with:
 
 - `learnTargetCount` for Learn
 - `reviewTargetCount` for Review
 
-- [ ] **Step 4: Preserve progress semantics**
+- [x] **Step 4: Preserve progress semantics**
 
 Ensure UI still renders:
 
@@ -175,7 +175,7 @@ completedTargetLemmas.length / totalTargets
 
 Do not count card exposures or detail views.
 
-- [ ] **Step 5: Add tests**
+- [x] **Step 5: Add tests**
 
 Cover:
 
@@ -183,7 +183,7 @@ Cover:
 - Review can start with 30 targets when enough due words exist.
 - Changing stored settings after session creation does not change the active session denominator.
 
-- [ ] **Step 6: Run focused tests**
+- [x] **Step 6: Run focused tests**
 
 Run:
 
@@ -193,7 +193,7 @@ corepack pnpm test src\features\wordbook\session-engine.test.ts src\features\wor
 
 Expected: pass.
 
-- [ ] **Step 7: Update plan and progress**
+- [x] **Step 7: Update plan and progress**
 
 Mark Task 2 steps complete and update `progress.md`.
 
@@ -204,11 +204,11 @@ Mark Task 2 steps complete and update `progress.md`.
 - Modify: `src/features/wordbook/session-engine.test.ts`
 - Modify: `src/features/wordbook/study-session.test.tsx` if UI behavior expectations change.
 
-- [ ] **Step 1: Remove failure auto-complete behavior**
+- [x] **Step 1: Remove failure auto-complete behavior**
 
 `failCurrentTarget` must not finish the target simply because `failedAttempts >= 3`.
 
-- [ ] **Step 2: Keep current light on failure**
+- [x] **Step 2: Keep current light on failure**
 
 Failure behavior:
 
@@ -218,11 +218,11 @@ Failure behavior:
 | `guidedRecall` | 3 | `guidedRecall` |
 | `finalRecall` | 3 | `finalRecall` |
 
-- [ ] **Step 3: Preserve existing mastery dots**
+- [x] **Step 3: Preserve existing mastery dots**
 
 On failure, do not clear dots and do not reduce dots. Only increment failure/wrong counters as appropriate.
 
-- [ ] **Step 4: Add tests**
+- [x] **Step 4: Add tests**
 
 Cover:
 
@@ -231,7 +231,7 @@ Cover:
 - third-light failure returns later as third-light question
 - repeated failures keep the target active instead of completing/blocking it
 
-- [ ] **Step 5: Run focused tests**
+- [x] **Step 5: Run focused tests**
 
 Run:
 
@@ -241,7 +241,7 @@ corepack pnpm test src\features\wordbook\session-engine.test.ts src\features\wor
 
 Expected: pass.
 
-- [ ] **Step 6: Update plan and progress**
+- [x] **Step 6: Update plan and progress**
 
 Mark Task 3 steps complete and update `progress.md`.
 
@@ -256,11 +256,11 @@ Mark Task 3 steps complete and update `progress.md`.
 - Modify: `src/features/wordbook/study-session.test.tsx`
 - Modify: `src/features/wordbook/wordbook-dashboard.test.tsx` if due counts change.
 
-- [ ] **Step 1: Prevent Review failures from entering Learn**
+- [x] **Step 1: Prevent Review failures from entering Learn**
 
 Review failed words must not be selectable by `createLearnSession` just because they failed Review. If current `lapsed` semantics make this impossible, introduce a Review-owned state or change Learn selection to exclude Review-owned failures.
 
-- [ ] **Step 2: Simplify Review path**
+- [x] **Step 2: Simplify Review path**
 
 Review should use one user judgment:
 
@@ -269,7 +269,7 @@ Review should use one user judgment:
 
 Do not route Review failure to `recognitionChoice` or `finalRecall`.
 
-- [ ] **Step 3: Implement medium penalty**
+- [x] **Step 3: Implement medium penalty**
 
 Clean pass:
 
@@ -284,7 +284,7 @@ Failure then rescue pass:
 - rescue pass completes this session target
 - next interval shorter than a clean pass, typically strength 1 unless already lower
 
-- [ ] **Step 4: Add tests**
+- [x] **Step 4: Add tests**
 
 Cover:
 
@@ -294,7 +294,7 @@ Cover:
 - failed Review word does not enter Learn
 - rescue pass gets shorter next review interval than clean pass
 
-- [ ] **Step 5: Run focused tests**
+- [x] **Step 5: Run focused tests**
 
 Run:
 
@@ -304,7 +304,7 @@ corepack pnpm test src\features\wordbook\session-engine.test.ts src\features\wor
 
 Expected: pass.
 
-- [ ] **Step 6: Update plan and progress**
+- [x] **Step 6: Update plan and progress**
 
 Mark Task 4 steps complete and update `progress.md`.
 
@@ -319,7 +319,7 @@ Mark Task 4 steps complete and update `progress.md`.
 - Modify: `src/features/wordbook/study-session.tsx`
 - Modify: `src/features/wordbook/study-session.test.tsx`
 
-- [ ] **Step 1: Add mistake data model**
+- [x] **Step 1: Add mistake data model**
 
 Add a serializable state shape for:
 
@@ -327,19 +327,19 @@ Add a serializable state shape for:
 - correct meaning
 - selected distractor lemma when available
 
-- [ ] **Step 2: Add `wrongChoiceContrast` stage**
+- [x] **Step 2: Add `wrongChoiceContrast` stage**
 
 When `chooseMeaning` is incorrect, transition to contrast before detail.
 
-- [ ] **Step 3: Preserve active-failure direct detail**
+- [x] **Step 3: Preserve active-failure direct detail**
 
 `showAnswer`, `markUnknown`, and `markForgotten` should go directly to detail, not contrast.
 
-- [ ] **Step 4: Requeue after contrast and detail**
+- [x] **Step 4: Requeue after contrast and detail**
 
 After contrast, user continues to detail. After detail, the target requeues with the same light and correct delay from Task 3.
 
-- [ ] **Step 5: Add tests**
+- [x] **Step 5: Add tests**
 
 Cover:
 
@@ -348,7 +348,7 @@ Cover:
 - active failure skips contrast
 - wrong choice does not increase mastery dots
 
-- [ ] **Step 6: Run focused tests**
+- [x] **Step 6: Run focused tests**
 
 Run:
 
@@ -358,7 +358,7 @@ corepack pnpm test src\features\wordbook\distractors.test.ts src\features\wordbo
 
 Expected: pass.
 
-- [ ] **Step 7: Update plan and progress**
+- [x] **Step 7: Update plan and progress**
 
 Mark Task 5 steps complete and update `progress.md`.
 
@@ -369,7 +369,7 @@ Mark Task 5 steps complete and update `progress.md`.
 - Modify: `src/features/wordbook/study-session.test.tsx`
 - Modify: `src/features/wordbook/session-engine.ts` only if stage naming needs a small adjustment.
 
-- [ ] **Step 1: Define detail depth by stage**
+- [x] **Step 1: Define detail depth by stage**
 
 Render:
 
@@ -377,7 +377,7 @@ Render:
 - second-light detail: core meaning + one example + collocations
 - third-light detail: all available current details + pass confirmation
 
-- [ ] **Step 2: Keep data source unchanged**
+- [x] **Step 2: Keep data source unchanged**
 
 Use existing fields only:
 
@@ -387,7 +387,7 @@ Use existing fields only:
 
 Do not add generated content or model calls.
 
-- [ ] **Step 3: Add tests**
+- [x] **Step 3: Add tests**
 
 Cover:
 
@@ -395,7 +395,7 @@ Cover:
 - second detail shows collocations when available
 - third detail shows complete current entry details and pass confirmation
 
-- [ ] **Step 4: Run focused tests**
+- [x] **Step 4: Run focused tests**
 
 Run:
 
@@ -405,7 +405,7 @@ corepack pnpm test src\features\wordbook\study-session.test.tsx src\features\wor
 
 Expected: pass.
 
-- [ ] **Step 5: Update plan and progress**
+- [x] **Step 5: Update plan and progress**
 
 Mark Task 6 steps complete and update `progress.md`.
 
@@ -416,7 +416,7 @@ Mark Task 6 steps complete and update `progress.md`.
 - Modify: `progress.md`
 - Modify: `docs/README.md` if active/completed plan status changes.
 
-- [ ] **Step 1: Run focused test bundle**
+- [x] **Step 1: Run focused test bundle**
 
 Run:
 
@@ -426,7 +426,7 @@ corepack pnpm test src\features\wordbook\wordbook-data.test.ts src\features\word
 
 Expected: pass.
 
-- [ ] **Step 2: Run focused lint**
+- [x] **Step 2: Run focused lint**
 
 Run:
 
@@ -436,7 +436,7 @@ corepack pnpm lint -- src\features\wordbook src\features\collections\study-panel
 
 Expected: pass.
 
-- [ ] **Step 3: Run diff check**
+- [x] **Step 3: Run diff check**
 
 Run:
 
@@ -446,7 +446,7 @@ git diff --check
 
 Expected: no whitespace errors. Windows LF/CRLF warnings are acceptable.
 
-- [ ] **Step 4: Browser QA at 390px**
+- [x] **Step 4: Browser QA at 390px**
 
 Use `http://localhost:3000/learn`, not `127.0.0.1`.
 
@@ -459,7 +459,7 @@ Verify:
 - Review failure stays in Review and returns after other cards
 - no horizontal overflow at 390px
 
-- [ ] **Step 5: Update docs**
+- [x] **Step 5: Update docs**
 
 Update:
 
@@ -467,7 +467,7 @@ Update:
 - `progress.md` with exact test/browser results
 - `docs/README.md` if the plan is now completed or still active
 
-- [ ] **Step 6: Commit checkpoint**
+- [x] **Step 6: Commit checkpoint**
 
 Commit only this plan's files:
 
