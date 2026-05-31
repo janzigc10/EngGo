@@ -25,6 +25,8 @@ describe("WordbookDashboard", () => {
     render(<WordbookDashboard mode="learn" onStartSession={vi.fn()} />);
 
     expect(screen.getByText("CET-6 基础词书 V1")).toBeInTheDocument();
+    expect(screen.getByText("当前词书：CET-6 基础词书 V1")).toBeInTheDocument();
+    expect(screen.getByText(/目前只接入这一本静态词书/)).toBeInTheDocument();
     expect(screen.getAllByText(String(wordbook.entries.length)).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /开始 Learn/ })).toBeEnabled();
   });
@@ -37,7 +39,11 @@ describe("WordbookDashboard", () => {
 
     await user.click(screen.getByRole("button", { name: /开始 Learn/ }));
 
-    expect(onStartSession).toHaveBeenCalledWith("learn", 10);
+    expect(onStartSession).toHaveBeenCalledWith(
+      "learn",
+      10,
+      "cet6-foundation-v1",
+    );
   });
 
   it("persists Learn target count from dashboard settings", async () => {
@@ -58,16 +64,59 @@ describe("WordbookDashboard", () => {
       learnTargetCount: 20,
       reviewTargetCount: 10,
     });
-    expect(onStartSession).toHaveBeenCalledWith("learn", 20);
+    expect(onStartSession).toHaveBeenCalledWith(
+      "learn",
+      20,
+      "cet6-foundation-v1",
+    );
   });
 
   it("keeps Review quiet when there are no due words", () => {
     render(<WordbookDashboard mode="review" onStartSession={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: /开始 Review/ })).toBeDisabled();
-    expect(screen.getByText("现在没有到期复习词。")).toBeInTheDocument();
-    expect(screen.getByText("未到期")).toBeInTheDocument();
+    expect(screen.getByText("先完成 Learn，Review 会在词到期后出现。")).toBeInTheDocument();
+    expect(screen.getByText(/未到期/)).toBeInTheDocument();
     expect(screen.queryByText("可学习")).not.toBeInTheDocument();
+  });
+
+  it("explains when Learn is empty because review work remains", () => {
+    const wordbook = getDefaultWordbook();
+
+    wordbook.entries.forEach((entry) => {
+      saveWordProgress({
+        ...createDefaultProgress(entry, wordbook.id, new Date("2026-05-30")),
+        status: "passed",
+        masteryDots: 3,
+        reviewStrength: 1,
+        nextReviewAt: "2026-05-30T00:00:00.000Z",
+      });
+    });
+
+    render(<WordbookDashboard mode="learn" onStartSession={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: /开始 Learn/ })).toBeDisabled();
+    expect(
+      screen.getByText("现在没有新词可学，先去 Review 处理到期或补救词。"),
+    ).toBeInTheDocument();
+  });
+
+  it("explains review rescue counts on the dashboard", () => {
+    const wordbook = getDefaultWordbook();
+    const entry = wordbook.entries[0];
+
+    saveWordProgress({
+      ...createDefaultProgress(entry, wordbook.id, new Date("2026-05-30")),
+      status: "reviewLapsed",
+      masteryDots: 1,
+      reviewStrength: 1,
+      wrongCount: 1,
+    });
+
+    render(<WordbookDashboard mode="review" onStartSession={vi.fn()} />);
+
+    expect(screen.getByText(/补救中 1/)).toBeInTheDocument();
+    expect(screen.getByText(/Review 里失误后仍留在 Review 队列/)).toBeInTheDocument();
   });
 
   it("enables Review when a passed word is due", () => {

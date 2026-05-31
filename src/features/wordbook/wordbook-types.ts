@@ -83,6 +83,7 @@ export type StudySessionTarget = {
   failedAttempts: number;
   resumeStage: StudyCardStage;
   eligibleAfterExposure: number;
+  countsTowardGoal?: boolean;
   lastMistake?: StudyMistake;
   reviewPath?: "remembered" | "fuzzy" | "forgotten";
 };
@@ -94,6 +95,7 @@ export type StudySessionState = {
   stage: StudyCardStage;
   current: StudySessionTarget | null;
   pending: StudySessionTarget[];
+  reserve: StudySessionTarget[];
   completedTargetLemmas: string[];
   totalTargets: number;
   cardExposureCount: number;

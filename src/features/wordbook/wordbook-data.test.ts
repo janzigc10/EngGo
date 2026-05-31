@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   findWordbookEntry,
+  getWordbookById,
   getDefaultWordbook,
+  listWordbooks,
   listWordbookEntries,
+  normalizeWordbookId,
 } from "@/features/wordbook/wordbook-data";
 
 describe("wordbook data", () => {
@@ -42,5 +45,15 @@ describe("wordbook data", () => {
     );
     expect(findWordbookEntry("access")?.lemma).toBe("access");
     expect(findWordbookEntry("have access to")?.lemma).toBe("access");
+  });
+
+  it("exposes a registry-backed active wordbook boundary", () => {
+    const wordbooks = listWordbooks();
+
+    expect(wordbooks.map((wordbook) => wordbook.id)).toEqual([
+      "cet6-foundation-v1",
+    ]);
+    expect(getWordbookById("cet6-foundation-v1")).toBe(getDefaultWordbook());
+    expect(normalizeWordbookId("__missing__")).toBe("cet6-foundation-v1");
   });
 });

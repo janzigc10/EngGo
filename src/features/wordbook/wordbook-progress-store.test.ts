@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getDefaultWordbook } from "@/features/wordbook/wordbook-data";
 import {
+  buildWordbookProgressExplanations,
   buildWordbookProgressSnapshot,
   createDefaultProgress,
   getNextReviewAt,
@@ -94,6 +95,61 @@ describe("wordbook progress store", () => {
 
     expect(snapshot.learnable).toBe(wordbook.entries.length - 1);
     expect(snapshot.dueReview).toBe(1);
+    expect(snapshot.reviewRescue).toBe(1);
+  });
+
+  it("explains unseen, learning, due, rescue, scheduled, and blocked counts", () => {
+    const wordbook = getDefaultWordbook();
+    const [learning, due, rescue, scheduled, blocked] = wordbook.entries;
+
+    saveWordProgress({
+      ...createDefaultProgress(learning, wordbook.id, new Date("2026-05-30")),
+      status: "learning",
+      masteryDots: 1,
+    });
+    saveWordProgress({
+      ...createDefaultProgress(due, wordbook.id, new Date("2026-05-30")),
+      status: "passed",
+      masteryDots: 3,
+      reviewStrength: 1,
+      nextReviewAt: "2026-05-30T00:00:00.000Z",
+    });
+    saveWordProgress({
+      ...createDefaultProgress(rescue, wordbook.id, new Date("2026-05-30")),
+      status: "reviewLapsed",
+      masteryDots: 1,
+      reviewStrength: 1,
+    });
+    saveWordProgress({
+      ...createDefaultProgress(scheduled, wordbook.id, new Date("2026-05-30")),
+      status: "passed",
+      masteryDots: 3,
+      reviewStrength: 2,
+      nextReviewAt: "2026-06-02T00:00:00.000Z",
+    });
+    saveWordProgress({
+      ...createDefaultProgress(blocked, wordbook.id, new Date("2026-05-30")),
+      status: "blockedContent",
+    });
+
+    const snapshot = buildWordbookProgressSnapshot(wordbook, new Date("2026-05-30"));
+    const explanations = buildWordbookProgressExplanations(snapshot);
+
+    expect(snapshot.unseen).toBe(wordbook.entries.length - 5);
+    expect(snapshot.learning).toBe(1);
+    expect(snapshot.learnable).toBe(wordbook.entries.length - 4);
+    expect(snapshot.dueReview).toBe(2);
+    expect(snapshot.reviewRescue).toBe(1);
+    expect(snapshot.scheduledReview).toBe(1);
+    expect(snapshot.blocked).toBe(1);
+    expect(explanations.map((item) => item.label)).toEqual([
+      "未学习",
+      "学习中",
+      "待复习",
+      "补救中",
+      "未到期",
+      "内容不足",
+    ]);
   });
 
   it("notifies subscribers after writes", () => {

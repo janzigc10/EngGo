@@ -1,11 +1,18 @@
 import {
   createDefaultProgress,
-  getNextReviewAt,
   getProgressForEntry,
 } from "@/features/wordbook/wordbook-progress-store";
+import {
+  compareReviewProgressForQueue,
+  getDueReviewTime,
+  type ReviewSchedule,
+  scheduleLearnPass,
+  scheduleReviewCleanPass,
+  scheduleReviewRescueIncomplete,
+  scheduleReviewRescuePass,
+} from "@/features/wordbook/wordbook-review-scheduling";
 import type {
   MasteryDots,
-  ReviewStrength,
   StudyCardStage,
   StudyEngineResult,
   StudyMistake,
@@ -25,23 +32,9 @@ type CreateSessionInput = {
   targetCount: StudySessionGoal;
 };
 
+const reviewReserveTargetCount = 8;
+
 function clampDots(value: number): MasteryDots {
-  if (value >= 3) {
-    return 3;
-  }
-
-  if (value === 2) {
-    return 2;
-  }
-
-  if (value === 1) {
-    return 1;
-  }
-
-  return 0;
-}
-
-function clampReviewStrength(value: number): ReviewStrength {
   if (value >= 3) {
     return 3;
   }
@@ -65,6 +58,7 @@ function toTarget(
   progress: WordStudyProgress,
   wordbook: Wordbook,
   resumeStage: StudyCardStage,
+  options: { countsTowardGoal?: boolean } = {},
 ): StudySessionTarget {
   const entry = wordbook.entries.find((item) => item.lemma === progress.lemma);
 
@@ -79,6 +73,7 @@ function toTarget(
     failedAttempts: 0,
     resumeStage,
     eligibleAfterExposure: 0,
+    countsTowardGoal: options.countsTowardGoal,
   };
 }
 
@@ -86,6 +81,7 @@ function createState(
   input: CreateSessionInput,
   mode: "learn" | "review",
   targets: StudySessionTarget[],
+  reserveTargets: StudySessionTarget[] = [],
 ): StudySessionState {
   const [current, ...pending] = targets;
 
@@ -96,6 +92,7 @@ function createState(
     stage: current ? current.resumeStage : "complete",
     current: current ?? null,
     pending,
+    reserve: reserveTargets,
     completedTargetLemmas: [],
     totalTargets: targets.length,
     cardExposureCount: current ? 1 : 0,
@@ -113,7 +110,9 @@ function selectLearnProgress(input: CreateSessionInput) {
   const targetCount = normalizeStudySessionGoal(input.targetCount);
 
   return input.wordbook.entries
-    .map((entry) => getProgressForEntry(entry, input.progressRecords, input.now))
+    .map((entry) =>
+      getProgressForEntry(entry, input.progressRecords, input.now, input.wordbook.id),
+    )
     .filter(
       (progress) =>
         progress.status === "unseen" ||
@@ -122,26 +121,18 @@ function selectLearnProgress(input: CreateSessionInput) {
     .slice(0, targetCount);
 }
 
-function selectReviewProgress(input: CreateSessionInput) {
-  const targetCount = normalizeStudySessionGoal(input.targetCount);
+function selectReviewProgress(input: CreateSessionInput, limit?: number) {
+  const targetCount = limit ?? normalizeStudySessionGoal(input.targetCount);
 
   return input.wordbook.entries
-    .map((entry) => getProgressForEntry(entry, input.progressRecords, input.now))
-    .filter((progress) => {
-      if (progress.status === "lapsed" || progress.status === "reviewLapsed") {
-        return true;
-      }
-
-      if (progress.status !== "passed" && progress.status !== "reviewing") {
-        return false;
-      }
-
-      if (!progress.nextReviewAt) {
-        return false;
-      }
-
-      return new Date(progress.nextReviewAt).getTime() <= input.now.getTime();
-    })
+    .map((entry) =>
+      getProgressForEntry(entry, input.progressRecords, input.now, input.wordbook.id),
+    )
+    .filter((progress) => getDueReviewTime(progress, input.now) !== null)
+    .sort((left, right) =>
+      compareReviewProgressForQueue(left, right, input.now) ||
+      left.lemma.localeCompare(right.lemma),
+    )
     .slice(0, targetCount);
 }
 
@@ -153,34 +144,52 @@ export function createLearnSession(input: CreateSessionInput): StudySessionState
   return createState(input, "learn", targets);
 }
 
+function toReviewTarget(
+  progress: WordStudyProgress,
+  wordbook: Wordbook,
+  options: { countsTowardGoal?: boolean } = {},
+): StudySessionTarget {
+  if (progress.status === "lapsed") {
+    return {
+      ...toTarget(progress, wordbook, "recognitionChoice", options),
+      failedAttempts: 1,
+    };
+  }
+
+  if (progress.status === "reviewLapsed") {
+    const resumeStage =
+      progress.masteryDots >= 2
+        ? "finalRecall"
+        : progress.masteryDots >= 1
+          ? "guidedRecall"
+          : "recognitionChoice";
+
+    return {
+      ...toTarget(progress, wordbook, resumeStage, options),
+      failedAttempts: 1,
+      masteryDots: progress.masteryDots,
+    };
+  }
+
+  return toTarget(progress, wordbook, "hiddenSelfRecall", options);
+}
+
 export function createReviewSession(input: CreateSessionInput): StudySessionState {
-  const targets = selectReviewProgress(input).map((progress) => {
-    if (progress.status === "lapsed") {
-      return {
-        ...toTarget(progress, input.wordbook, "recognitionChoice"),
-        failedAttempts: 1,
-      };
-    }
+  const targetCount = normalizeStudySessionGoal(input.targetCount);
+  const selectedProgress = selectReviewProgress(
+    input,
+    targetCount + reviewReserveTargetCount,
+  );
+  const targets = selectedProgress
+    .slice(0, targetCount)
+    .map((progress) => toReviewTarget(progress, input.wordbook));
+  const reserveTargets = selectedProgress
+    .slice(targetCount)
+    .map((progress) =>
+      toReviewTarget(progress, input.wordbook, { countsTowardGoal: false }),
+    );
 
-    if (progress.status === "reviewLapsed") {
-      const resumeStage =
-        progress.masteryDots >= 2
-          ? "finalRecall"
-          : progress.masteryDots >= 1
-            ? "guidedRecall"
-            : "recognitionChoice";
-
-      return {
-        ...toTarget(progress, input.wordbook, resumeStage),
-        failedAttempts: 1,
-        masteryDots: progress.masteryDots,
-      };
-    }
-
-    return toTarget(progress, input.wordbook, "hiddenSelfRecall");
-  });
-
-  return createState(input, "review", targets);
+  return createState(input, "review", targets, reserveTargets);
 }
 
 function finishCurrentTarget(
@@ -191,10 +200,10 @@ function finishCurrentTarget(
     return { state, progressUpdates: [] };
   }
 
-  const completedTargetLemmas = [
-    ...state.completedTargetLemmas,
-    state.current.entry.lemma,
-  ];
+  const completedTargetLemmas =
+    state.current.countsTowardGoal === false
+      ? state.completedTargetLemmas
+      : [...state.completedTargetLemmas, state.current.entry.lemma];
 
   const nextState = advanceToNextTarget({
     ...state,
@@ -208,7 +217,7 @@ function finishCurrentTarget(
 }
 
 function advanceToNextTarget(state: StudySessionState): StudySessionState {
-  if (state.pending.length === 0) {
+  if (!state.pending.some((target) => target.countsTowardGoal !== false)) {
     return {
       ...state,
       current: null,
@@ -239,7 +248,16 @@ function requeueWithDelay(
   resumeStage: StudyCardStage,
   update?: WordStudyProgress,
 ): StudyEngineResult {
-  const nextPending = [...state.pending];
+  let nextPending = [...state.pending];
+  let nextReserve = state.reserve;
+
+  if (state.mode === "review" && nextPending.length < delay && nextReserve.length > 0) {
+    const pulledTargets = nextReserve.slice(0, delay - nextPending.length);
+
+    nextPending = [...nextPending, ...pulledTargets];
+    nextReserve = nextReserve.slice(pulledTargets.length);
+  }
+
   const insertionIndex = Math.min(delay, nextPending.length);
 
   nextPending.splice(insertionIndex, 0, {
@@ -251,6 +269,7 @@ function requeueWithDelay(
   const nextState = advanceToNextTarget({
     ...state,
     pending: nextPending,
+    reserve: nextReserve,
   });
 
   return {
@@ -384,16 +403,20 @@ function failReviewTarget(
     ...(options.reviewPath ? { reviewPath: options.reviewPath } : {}),
     ...(options.mistake ? { lastMistake: options.mistake } : {}),
   };
+  const schedule = scheduleReviewRescueIncomplete(
+    now,
+    current.progress.reviewStrength,
+  );
   const progressUpdate = buildProgressUpdate(
     state,
     current,
     {
       status: "reviewLapsed",
       masteryDots: current.masteryDots,
-      reviewStrength: getLapsedReviewStrength(current.progress.reviewStrength),
+      reviewStrength: schedule.reviewStrength,
       seenCount: current.progress.seenCount + 1,
       wrongCount: current.progress.wrongCount + 1,
-      nextReviewAt: getNextReviewAt(now, 0),
+      nextReviewAt: schedule.nextReviewAt,
     },
     now,
   );
@@ -446,16 +469,17 @@ function passLearnTarget(
   options: { countAnswer?: boolean } = {},
 ): StudyEngineResult {
   const shouldCountAnswer = options.countAnswer ?? true;
+  const schedule = scheduleLearnPass(now);
   const update = buildProgressUpdate(
     state,
     current,
     {
       status: "passed",
       masteryDots: 3,
-      reviewStrength: 1,
+      reviewStrength: schedule.reviewStrength,
       seenCount: current.progress.seenCount + (shouldCountAnswer ? 1 : 0),
       correctCount: current.progress.correctCount + (shouldCountAnswer ? 1 : 0),
-      nextReviewAt: getNextReviewAt(now, 1),
+      nextReviewAt: schedule.nextReviewAt,
     },
     now,
   );
@@ -467,7 +491,7 @@ function passReviewTarget(
   state: StudySessionState,
   current: StudySessionTarget,
   now: Date,
-  strength: ReviewStrength,
+  schedule: ReviewSchedule,
   options: { countAnswer?: boolean } = {},
 ): StudyEngineResult {
   const shouldCountAnswer = options.countAnswer ?? true;
@@ -477,25 +501,15 @@ function passReviewTarget(
     {
       status: "passed",
       masteryDots: 3,
-      reviewStrength: strength,
+      reviewStrength: schedule.reviewStrength,
       seenCount: current.progress.seenCount + (shouldCountAnswer ? 1 : 0),
       correctCount: current.progress.correctCount + (shouldCountAnswer ? 1 : 0),
-      nextReviewAt: getNextReviewAt(now, strength),
+      nextReviewAt: schedule.nextReviewAt,
     },
     now,
   );
 
   return finishCurrentTarget(state, update);
-}
-
-function getLapsedReviewStrength(reviewStrength: ReviewStrength): ReviewStrength {
-  const loweredStrength = clampReviewStrength(reviewStrength - 1);
-
-  return loweredStrength > 1 ? 1 : loweredStrength;
-}
-
-function getRescueReviewStrength(reviewStrength: ReviewStrength): ReviewStrength {
-  return reviewStrength > 1 ? 1 : reviewStrength;
 }
 
 export function applyStudyAction(
@@ -841,8 +855,8 @@ export function applyStudyAction(
         current,
         now,
         current.failedAttempts > 0
-          ? getRescueReviewStrength(current.progress.reviewStrength)
-          : clampReviewStrength(current.progress.reviewStrength + 1),
+          ? scheduleReviewRescuePass(now)
+          : scheduleReviewCleanPass(now, current.progress.reviewStrength),
         { countAnswer: false },
       );
     }

@@ -24,21 +24,21 @@
 - 不重写已通过手测的 Learn/Review 核心三灯流程，除非测试暴露明确 bug。
 
 ## Task 0 - Baseline And Scope Lock
-- [ ] 重读本计划、`progress.md`、`docs/README.md` 和两个 Wordbook 有效 spec。
-- [ ] 确认 git 分支和 worktree 状态干净，记录当前 HEAD。
-- [ ] 跑当前 Wordbook focused tests，确认 V1 基线未坏。
-- [ ] 更新 `progress.md`，记录进入 V2 hardening 的验证基线。
+- [x] 重读本计划、`progress.md`、`docs/README.md` 和两个 Wordbook 有效 spec。
+- [x] 确认 git 分支和 worktree 状态干净，记录当前 HEAD。
+- [x] 跑当前 Wordbook focused tests，确认 V1 基线未坏。
+- [x] 更新 `progress.md`，记录进入 V2 hardening 的验证基线。
 
 Acceptance:
 - 开工前能明确本轮只做四块硬化：词书选择、复习调度语义、数据解释、边界恢复。
 - 若基线测试失败，停止进入 Task 1，先记录问题。
 
 ## Task 1 - Wordbook Selection Surface
-- [ ] 引入轻量 active wordbook 概念：默认仍是 `cet6-foundation-v1`。
-- [ ] Dashboard 或学习入口展示当前词书，并提供可扩展的词书选择入口。
-- [ ] 如果当前只有一本词书，不伪造大量内容；只保留“未来可注册多本词书”的数据结构和 UI 边界。
-- [ ] 确保 Learn/Review/session/progress 都从 active wordbook 取数据，不再隐式写死单本词书。
-- [ ] 补测试覆盖 active wordbook 默认值、非法值回退、progress/session 使用当前词书。
+- [x] 引入轻量 active wordbook 概念：默认仍是 `cet6-foundation-v1`。
+- [x] Dashboard 或学习入口展示当前词书，并提供可扩展的词书选择入口。
+- [x] 如果当前只有一本词书，不伪造大量内容；只保留“未来可注册多本词书”的数据结构和 UI 边界。
+- [x] 确保 Learn/Review/session/progress 都从 active wordbook 取数据，不再隐式写死单本词书。
+- [x] 补测试覆盖 active wordbook 默认值、非法值回退、progress/session 使用当前词书。
 
 Acceptance:
 - 用户能看见当前正在学哪本词书。
@@ -46,14 +46,14 @@ Acceptance:
 - 单本词书场景不增加多余操作成本。
 
 ## Task 2 - Review Scheduling Semantics
-- [ ] 把 Review 时间策略从零散计算收敛成命名 policy/helper。
-- [ ] 明确区分：
+- [x] 把 Review 时间策略从零散计算收敛成命名 policy/helper。
+- [x] 明确区分：
   - 新学通过后的首次复习时间。
   - Review 干净通过后的下一次复习时间。
   - Review 失败补救通过后的下一次复习时间。
   - Review 补救未完成时继续留在 due/review 队列的规则。
-- [ ] 保持“中档、够用、可解释”的策略，不引入复杂 SRS 参数。
-- [ ] 补测试覆盖 due 排序、clean pass、rescue pass、失败中断恢复和当天无 due 状态。
+- [x] 保持“中档、够用、可解释”的策略，不引入复杂 SRS 参数。
+- [x] 补测试覆盖 due 排序、clean pass、rescue pass、失败中断恢复和当天无 due 状态。
 
 Acceptance:
 - Review 为什么今天出现、为什么下次出现，有明确代码入口可解释。
@@ -61,25 +61,25 @@ Acceptance:
 - 调度策略能通过测试而不是依赖手测记忆。
 
 ## Task 3 - Progress Explainability
-- [ ] 梳理 progress snapshot 的指标语义，避免 Dashboard 上只有“已学/总数”这种粗粒度信息。
-- [ ] 优先补齐以下状态的可见解释：
+- [x] 梳理 progress snapshot 的指标语义，避免 Dashboard 上只有“已学/总数”这种粗粒度信息。
+- [x] 优先补齐以下状态的可见解释：
   - 未学习。
   - 学习中。
   - 待复习。
   - Review 补救中。
   - 已掌握或已阶段性通过。
-- [ ] 保持 session 进度语义不变：`completedTargetLemmas.length / totalTargets`。
-- [ ] 补测试覆盖 `buildWordbookProgressSnapshot` 或等价汇总逻辑。
+- [x] 保持 session 进度语义不变：`completedTargetLemmas.length / totalTargets`。
+- [x] 补测试覆盖 `buildWordbookProgressSnapshot` 或等价汇总逻辑。
 
 Acceptance:
 - 用户能大致理解“我现在为什么还有 Review / 为什么 Learn 数没变 / 为什么有补救词”。
 - 不把曝光次数、详情页浏览或错误次数误算成完成词数。
 
 ## Task 4 - Recovery And Empty States
-- [ ] 覆盖 Learn 无可学词、Review 无到期词、词书已学完、只剩补救词等状态。
-- [ ] 检查刷新、退出、设置变更后的 session 恢复逻辑。
-- [ ] 确保 `reviewLapsed` / legacy `lapsed` / active session 三类状态有清晰恢复路径。
-- [ ] 补 UI 文案和测试，避免用户进入空白页或看不懂的“0 / 10”。
+- [x] 覆盖 Learn 无可学词、Review 无到期词、词书已学完、只剩补救词等状态。
+- [x] 检查刷新、退出、设置变更后的 session 恢复逻辑。
+- [x] 确保 `reviewLapsed` / legacy `lapsed` / active session 三类状态有清晰恢复路径。
+- [x] 补 UI 文案和测试，避免用户进入空白页或看不懂的“0 / 10”。
 
 Acceptance:
 - 用户在 `/learn` 或 `/review` 不会因为没有候选词卡住。
@@ -87,17 +87,17 @@ Acceptance:
 - 边界状态不破坏 V1 已验证流程。
 
 ## Task 5 - Focused QA And Handoff
-- [ ] 跑 Wordbook focused test bundle。
-- [ ] 跑 focused lint。
-- [ ] 跑 `git diff --check`。
-- [ ] 用浏览器在 390px 验证：
+- [x] 跑 Wordbook focused test bundle。
+- [x] 跑 focused lint。
+- [x] 跑 `git diff --check`。
+- [x] 用浏览器在 390px 验证：
   - `/learn` 正常三灯完成。
   - `/review` clean pass。
   - `/review` 失败后三灯补救。
   - 无 due / 无 learnable empty state。
   - 10/20/30 设置不破坏分母。
-- [ ] 更新 `progress.md` 和 `docs/README.md`。
-- [ ] 视当时结果决定是否提交为 V2 checkpoint；不自动 merge 主线。
+- [x] 更新 `progress.md` 和 `docs/README.md`。
+- [x] 视当时结果决定是否提交为 V2 checkpoint；不自动 merge 主线。
 
 Acceptance:
 - 代码、测试、浏览器手感和交接文档一致。

@@ -16,15 +16,25 @@ import {
 import { examTargets } from "@/features/exam-target/model";
 import { StudySession } from "@/features/wordbook/study-session";
 import { WordbookDashboard } from "@/features/wordbook/wordbook-dashboard";
-import { getDefaultWordbook } from "@/features/wordbook/wordbook-data";
 import {
+  loadActiveWordbook,
+  saveActiveWordbookId,
+} from "@/features/wordbook/wordbook-active-store";
+import {
+  defaultWordbookId,
+  listWordbookEntries,
+} from "@/features/wordbook/wordbook-data";
+import {
+  buildWordbookProgressExplanations,
   buildWordbookProgressSnapshot,
   loadProgressRecords,
+  saveWordProgress,
   subscribeWordbookProgressChanges,
 } from "@/features/wordbook/wordbook-progress-store";
 import type {
   StudyMode,
   StudySessionGoal,
+  WordbookId,
 } from "@/features/wordbook/wordbook-types";
 
 type CollectionSection = {
@@ -44,7 +54,7 @@ function loadCollectionSections(): CollectionSection[] {
 function loadProgressSnapshot() {
   const sections = loadCollectionSections();
   const total = sections.reduce((sum, section) => sum + section.words.length, 0);
-  const wordbook = getDefaultWordbook();
+  const wordbook = loadActiveWordbook();
   const wordbookProgress = buildWordbookProgressSnapshot(
     wordbook,
     new Date(),
@@ -85,14 +95,18 @@ function useProgressSnapshot() {
       JSON.stringify({
         total: 0,
         sections: [],
-        wordbook: getDefaultWordbook(),
-        wordbookProgress: {
-          total: 0,
-          passed: 0,
-          learnable: 0,
-          dueReview: 0,
-          blocked: 0,
-        },
+        wordbook: loadActiveWordbook(),
+      wordbookProgress: {
+        total: 0,
+        passed: 0,
+        learnable: 0,
+        unseen: 0,
+        learning: 0,
+        dueReview: 0,
+        reviewRescue: 0,
+        scheduledReview: 0,
+        blocked: 0,
+      },
       }),
   );
 
@@ -245,6 +259,7 @@ export function LearnPanel() {
   const [activeSession, setActiveSession] = useState<{
     mode: StudyMode;
     targetCount: StudySessionGoal;
+    wordbookId: WordbookId;
   } | null>(null);
 
   if (activeSession) {
@@ -252,6 +267,7 @@ export function LearnPanel() {
       <StudySession
         mode={activeSession.mode}
         targetCount={activeSession.targetCount}
+        wordbookId={activeSession.wordbookId}
         onExit={() => setActiveSession(null)}
       />
     );
@@ -260,7 +276,9 @@ export function LearnPanel() {
   return (
     <WordbookDashboard
       mode="learn"
-      onStartSession={(mode, targetCount) => setActiveSession({ mode, targetCount })}
+      onStartSession={(mode, targetCount, wordbookId) =>
+        setActiveSession({ mode, targetCount, wordbookId })
+      }
     />
   );
 }
@@ -269,24 +287,87 @@ export function ReviewPanel() {
   const [activeSession, setActiveSession] = useState<{
     mode: StudyMode;
     targetCount: StudySessionGoal;
+    wordbookId: WordbookId;
   } | null>(null);
+  const [seededReviewCount] = useState(seedDevDueReviewWordsFromQuery);
 
   if (activeSession) {
     return (
       <StudySession
         mode={activeSession.mode}
         targetCount={activeSession.targetCount}
+        wordbookId={activeSession.wordbookId}
         onExit={() => setActiveSession(null)}
       />
     );
   }
 
   return (
-    <WordbookDashboard
-      mode="review"
-      onStartSession={(mode, targetCount) => setActiveSession({ mode, targetCount })}
-    />
+    <div className="space-y-4">
+      {seededReviewCount !== null ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+          已为本地手测加入 {seededReviewCount} 个到期 Review 词。
+        </div>
+      ) : null}
+      <WordbookDashboard
+        mode="review"
+        onStartSession={(mode, targetCount, wordbookId) =>
+          setActiveSession({ mode, targetCount, wordbookId })
+        }
+      />
+    </div>
   );
+}
+
+function seedDevDueReviewWordsFromQuery() {
+  if (process.env.NODE_ENV === "production" || typeof window === "undefined") {
+    return null;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+
+  if (params.get("seedReview") !== "1") {
+    return null;
+  }
+
+  const count = seedDevDueReviewWords(40);
+
+  params.delete("seedReview");
+  window.history.replaceState(
+    null,
+    "",
+    `${window.location.pathname}${params.toString() ? `?${params}` : ""}`,
+  );
+
+  return count;
+}
+
+function seedDevDueReviewWords(count: number) {
+  const now = new Date();
+  const yesterday = new Date(now);
+
+  yesterday.setDate(yesterday.getDate() - 1);
+  saveActiveWordbookId(defaultWordbookId);
+
+  const entries = listWordbookEntries(defaultWordbookId).slice(0, count);
+
+  entries.forEach((entry, index) => {
+    saveWordProgress({
+      wordbookId: defaultWordbookId,
+      lemma: entry.lemma,
+      status: "passed",
+      masteryDots: 3,
+      reviewStrength: index % 2 === 0 ? 1 : 2,
+      seenCount: 3,
+      correctCount: 3,
+      wrongCount: 0,
+      lastSeenAt: yesterday.toISOString(),
+      nextReviewAt: yesterday.toISOString(),
+      updatedAt: now.toISOString(),
+    });
+  });
+
+  return entries.length;
 }
 
 export function ProgressPanel() {
@@ -296,6 +377,9 @@ export function ProgressPanel() {
     getServerExamTargetSnapshot,
   );
   const snapshot = useProgressSnapshot();
+  const progressExplanations = buildWordbookProgressExplanations(
+    snapshot.wordbookProgress,
+  );
 
   return (
     <div className="space-y-5">
@@ -333,11 +417,17 @@ export function ProgressPanel() {
             {snapshot.wordbookProgress.passed} / {snapshot.wordbookProgress.total}
           </p>
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="mt-4 grid gap-3 sm:grid-cols-5">
           <div className="rounded-2xl bg-slate-50 px-4 py-3">
-            <p className="text-xs text-slate-500">已学会</p>
+            <p className="text-xs text-slate-500">未学习</p>
             <p className="mt-1 text-2xl font-semibold text-slate-950">
-              {snapshot.wordbookProgress.passed}
+              {snapshot.wordbookProgress.unseen}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 px-4 py-3">
+            <p className="text-xs text-slate-500">学习中</p>
+            <p className="mt-1 text-2xl font-semibold text-slate-950">
+              {snapshot.wordbookProgress.learning}
             </p>
           </div>
           <div className="rounded-2xl bg-slate-50 px-4 py-3">
@@ -347,11 +437,27 @@ export function ProgressPanel() {
             </p>
           </div>
           <div className="rounded-2xl bg-slate-50 px-4 py-3">
-            <p className="text-xs text-slate-500">内容不足</p>
+            <p className="text-xs text-slate-500">补救中</p>
             <p className="mt-1 text-2xl font-semibold text-slate-950">
-              {snapshot.wordbookProgress.blocked}
+              {snapshot.wordbookProgress.reviewRescue}
             </p>
           </div>
+          <div className="rounded-2xl bg-slate-50 px-4 py-3">
+            <p className="text-xs text-slate-500">已阶段通过</p>
+            <p className="mt-1 text-2xl font-semibold text-slate-950">
+              {snapshot.wordbookProgress.passed}
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
+          {progressExplanations.map((item) => (
+            <p key={item.key} className="rounded-2xl bg-white px-4 py-3">
+              <span className="font-semibold text-slate-950">
+                {item.label} {item.value}
+              </span>
+              ：{item.description}
+            </p>
+          ))}
         </div>
       </div>
       <div className="space-y-3">

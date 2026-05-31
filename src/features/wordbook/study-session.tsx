@@ -3,7 +3,8 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 
 import { buildMeaningChoice } from "@/features/wordbook/distractors";
-import { getDefaultWordbook } from "@/features/wordbook/wordbook-data";
+import { loadActiveWordbookId } from "@/features/wordbook/wordbook-active-store";
+import { getWordbookById } from "@/features/wordbook/wordbook-data";
 import {
   loadProgressRecords,
   saveWordProgress,
@@ -20,17 +21,19 @@ import type {
   StudySessionAction,
   StudySessionState,
   Wordbook,
+  WordbookId,
   WordStudyProgress,
 } from "@/features/wordbook/wordbook-types";
 
 type StudySessionProps = {
   mode: StudyMode;
   targetCount: StudySessionGoal;
+  wordbookId?: WordbookId;
   onExit: () => void;
 };
 
-export function StudySession({ mode, targetCount, onExit }: StudySessionProps) {
-  const wordbook = getDefaultWordbook();
+export function StudySession({ mode, targetCount, wordbookId, onExit }: StudySessionProps) {
+  const wordbook = getWordbookById(wordbookId ?? loadActiveWordbookId());
   const [state, setState] = useState<StudySessionState>(() => {
     const now = new Date();
     const progressRecords = prepareProgressRecordsForSession(wordbook, now);
@@ -68,6 +71,31 @@ export function StudySession({ mode, targetCount, onExit }: StudySessionProps) {
     persistUpdates(result.progressUpdates);
     setState(result.state);
   }, [state]);
+
+  if ((state.stage === "complete" || !current) && state.totalTargets === 0) {
+    return (
+      <section className="space-y-5 rounded-[1.5rem] border border-slate-200 bg-white/90 p-6 shadow-sm">
+        <p className="text-sm font-medium uppercase tracking-[0.22em] text-slate-500">
+          {mode === "learn" ? "Learn" : "Review"}
+        </p>
+        <h2 className="font-serif text-3xl font-semibold tracking-tight text-slate-950">
+          {mode === "learn" ? "现在没有可学习词" : "现在没有到期复习词"}
+        </h2>
+        <p className="text-sm leading-6 text-slate-600">
+          {mode === "learn"
+            ? "这本词书当前没有可进入 Learn 的目标词；如果有待复习或补救词，请去 Review 处理。"
+            : "今天没有需要处理的 Review 目标词；补救词会继续留在 Review 队列，到期词会按调度时间回来。"}
+        </p>
+        <button
+          type="button"
+          onClick={onExit}
+          className="inline-flex h-11 items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-semibold text-white"
+        >
+          返回
+        </button>
+      </section>
+    );
+  }
 
   if (state.stage === "complete" || !current) {
     return (

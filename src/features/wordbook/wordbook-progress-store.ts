@@ -1,14 +1,16 @@
 import type {
   MasteryDots,
-  ReviewStrength,
   Wordbook,
   WordbookEntry,
   WordbookId,
   WordStudyProgress,
 } from "@/features/wordbook/wordbook-types";
+import { isKnownWordbookId } from "@/features/wordbook/wordbook-data";
+import { getDueReviewTime } from "@/features/wordbook/wordbook-review-scheduling";
+
+export { getNextReviewAt } from "@/features/wordbook/wordbook-review-scheduling";
 
 export const wordbookProgressStorageKey = "enggo.wordbookProgress.v1";
-export const activeWordbookStorageKey = "enggo.activeWordbook.v1";
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
 type ProgressListener = () => void;
@@ -17,8 +19,19 @@ export type WordbookProgressSnapshot = {
   total: number;
   passed: number;
   learnable: number;
+  unseen: number;
+  learning: number;
   dueReview: number;
+  reviewRescue: number;
+  scheduledReview: number;
   blocked: number;
+};
+
+export type WordbookProgressExplanation = {
+  key: "unseen" | "learning" | "dueReview" | "reviewRescue" | "scheduledReview" | "blocked";
+  label: string;
+  value: number;
+  description: string;
 };
 
 const listeners = new Set<ProgressListener>();
@@ -37,14 +50,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isWordbookId(value: unknown): value is WordbookId {
-  return value === "cet6-foundation-v1";
+  return isKnownWordbookId(value);
 }
 
 function normalizeDots(value: unknown): MasteryDots {
   return value === 1 || value === 2 || value === 3 ? value : 0;
 }
 
-function normalizeReviewStrength(value: unknown): ReviewStrength {
+function normalizeReviewStrength(value: unknown): WordStudyProgress["reviewStrength"] {
   return value === 1 || value === 2 || value === 3 ? value : 0;
 }
 
@@ -207,30 +220,16 @@ export function getProgressForEntry(
   entry: WordbookEntry,
   records: WordStudyProgress[] = loadProgressRecords(),
   now: Date = new Date(),
+  wordbookId: WordbookId = "cet6-foundation-v1",
 ): WordStudyProgress {
   const lemmaKey = getLemmaKey(entry.lemma);
   const existing = records.find(
     (record) =>
-      record.wordbookId === "cet6-foundation-v1" &&
+      record.wordbookId === wordbookId &&
       getLemmaKey(record.lemma) === lemmaKey,
   );
 
-  return existing ?? createDefaultProgress(entry, "cet6-foundation-v1", now);
-}
-
-export function getNextReviewAt(now: Date, reviewStrength: ReviewStrength): string {
-  const dayOffsets: Record<ReviewStrength, number> = {
-    0: 0,
-    1: 1,
-    2: 3,
-    3: 7,
-  };
-  const next = new Date(now);
-
-  next.setHours(0, 0, 0, 0);
-  next.setDate(next.getDate() + dayOffsets[reviewStrength]);
-
-  return next.toISOString();
+  return existing ?? createDefaultProgress(entry, wordbookId, now);
 }
 
 export function buildWordbookProgressSnapshot(
@@ -240,9 +239,8 @@ export function buildWordbookProgressSnapshot(
 ): WordbookProgressSnapshot {
   return wordbook.entries.reduce<WordbookProgressSnapshot>(
     (snapshot, entry) => {
-      const progress = getProgressForEntry(entry, records, now);
-      const dueAt = progress.nextReviewAt ? new Date(progress.nextReviewAt) : null;
-      const isDue = dueAt !== null && dueAt.getTime() <= now.getTime();
+      const progress = getProgressForEntry(entry, records, now, wordbook.id);
+      const isDue = getDueReviewTime(progress, now) !== null;
 
       snapshot.total += 1;
 
@@ -255,10 +253,13 @@ export function buildWordbookProgressSnapshot(
         snapshot.passed += 1;
       }
 
-      if (
-        progress.status === "unseen" ||
-        progress.status === "learning"
-      ) {
+      if (progress.status === "unseen") {
+        snapshot.unseen += 1;
+        snapshot.learnable += 1;
+      }
+
+      if (progress.status === "learning") {
+        snapshot.learning += 1;
         snapshot.learnable += 1;
       }
 
@@ -270,14 +271,72 @@ export function buildWordbookProgressSnapshot(
         snapshot.dueReview += 1;
       }
 
+      if (progress.status === "lapsed" || progress.status === "reviewLapsed") {
+        snapshot.reviewRescue += 1;
+      }
+
+      if (
+        (progress.status === "passed" || progress.status === "reviewing") &&
+        !isDue
+      ) {
+        snapshot.scheduledReview += 1;
+      }
+
       return snapshot;
     },
     {
       total: 0,
       passed: 0,
       learnable: 0,
+      unseen: 0,
+      learning: 0,
       dueReview: 0,
+      reviewRescue: 0,
+      scheduledReview: 0,
       blocked: 0,
     },
   );
+}
+
+export function buildWordbookProgressExplanations(
+  snapshot: WordbookProgressSnapshot,
+): WordbookProgressExplanation[] {
+  return [
+    {
+      key: "unseen",
+      label: "未学习",
+      value: snapshot.unseen,
+      description: "还没有进入 Learn session 的词。",
+    },
+    {
+      key: "learning",
+      label: "学习中",
+      value: snapshot.learning,
+      description: "已经开始 Learn，但还没有完成三灯确认。",
+    },
+    {
+      key: "dueReview",
+      label: "待复习",
+      value: snapshot.dueReview,
+      description: "今天需要 Review 的词，包含到期词和补救词。",
+    },
+    {
+      key: "reviewRescue",
+      label: "补救中",
+      value: snapshot.reviewRescue,
+      description: "Review 里失误后仍留在 Review 队列的词。",
+    },
+    {
+      key: "scheduledReview",
+      label: "未到期",
+      value: snapshot.scheduledReview,
+      description: "已经阶段性通过，下一次复习时间还没到。",
+    },
+    {
+      key: "blocked",
+      label: "内容不足",
+      value: snapshot.blocked,
+      description: "缺少足够选项或教学内容，暂时跳过的词。",
+    },
+  ];
 }

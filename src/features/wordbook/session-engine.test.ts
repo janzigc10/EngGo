@@ -29,6 +29,15 @@ function passedProgress(lemma: string, reviewStrength = 1): WordStudyProgress {
   };
 }
 
+function reviewLapsedProgress(lemma: string): WordStudyProgress {
+  return {
+    ...passedProgress(lemma, 1),
+    status: "reviewLapsed",
+    masteryDots: 0,
+    nextReviewAt: "2026-05-30T00:00:00.000Z",
+  };
+}
+
 function advanceLearnCardCorrectly(state: StudySessionState) {
   if (state.stage === "recognitionChoice") {
     const detail = applyStudyAction(
@@ -611,6 +620,30 @@ describe("review session engine", () => {
     expect(session.pending).toHaveLength(29);
   });
 
+  it("orders Review rescue words first, then older due words", () => {
+    const wordbook = getDefaultWordbook();
+    const laterDue = {
+      ...passedProgress(wordbook.entries[0].lemma, 1),
+      nextReviewAt: "2026-05-30T00:00:00.000Z",
+    };
+    const earlierDue = {
+      ...passedProgress(wordbook.entries[1].lemma, 1),
+      nextReviewAt: "2026-05-28T00:00:00.000Z",
+    };
+    const rescue = reviewLapsedProgress(wordbook.entries[2].lemma);
+    const session = createReviewSession({
+      wordbook,
+      progressRecords: [laterDue, earlierDue, rescue],
+      now,
+      sessionId: "review-due-order",
+      targetCount: 10,
+    });
+
+    expect(session.current?.entry.lemma).toBe(wordbook.entries[2].lemma);
+    expect(session.pending[0]?.entry.lemma).toBe(wordbook.entries[1].lemma);
+    expect(session.pending[1]?.entry.lemma).toBe(wordbook.entries[0].lemma);
+  });
+
   it.each([999, -1, Number.NaN])(
     "defaults invalid Review target count %s to 10",
     (targetCount) => {
@@ -765,6 +798,155 @@ describe("review session engine", () => {
     expect(state.stage).toBe("recognitionChoice");
     expect(state.current?.entry.lemma).toBe(failedLemma);
     expect(state.completedTargetLemmas).not.toContain(failedLemma);
+  });
+
+  it("pulls review reserve targets to avoid collapsing rescue lights near the end", () => {
+    const wordbook = getDefaultWordbook();
+    const entries = wordbook.entries.slice(0, 14);
+    let state = createReviewSession({
+      wordbook,
+      progressRecords: entries.map((entry) => passedProgress(entry.lemma, 2)),
+      now,
+      sessionId: "review-rescue-buffer",
+      targetCount: 10,
+    });
+    const failedLemma = state.current?.entry.lemma;
+
+    expect(state.totalTargets).toBe(10);
+    expect(state.reserve).toHaveLength(4);
+
+    state = applyStudyAction(state, { type: "markForgotten" }, { now }).state;
+    state = applyStudyAction(
+      state,
+      { type: "continueFromDetail" },
+      { now },
+    ).state;
+
+    for (let index = 0; index < 3; index += 1) {
+      const rememberedDetail = applyStudyAction(
+        state,
+        { type: "markKnown" },
+        { now },
+      ).state;
+      state = applyStudyAction(
+        rememberedDetail,
+        { type: "nextCard" },
+        { now },
+      ).state;
+    }
+
+    expect(state.current?.entry.lemma).toBe(failedLemma);
+    expect(state.stage).toBe("recognitionChoice");
+
+    const recognitionDetail = applyStudyAction(
+      state,
+      { type: "chooseMeaning", isCorrect: true },
+      { now },
+    ).state;
+    state = applyStudyAction(
+      recognitionDetail,
+      { type: "continueFromDetail" },
+      { now },
+    ).state;
+
+    for (let index = 0; index < 3; index += 1) {
+      const rememberedDetail = applyStudyAction(
+        state,
+        { type: "markKnown" },
+        { now },
+      ).state;
+      state = applyStudyAction(
+        rememberedDetail,
+        { type: "nextCard" },
+        { now },
+      ).state;
+    }
+
+    expect(state.current?.entry.lemma).toBe(failedLemma);
+    expect(state.stage).toBe("guidedRecall");
+
+    const guidedDetail = applyStudyAction(
+      state,
+      { type: "markKnown" },
+      { now },
+    ).state;
+    state = applyStudyAction(
+      guidedDetail,
+      { type: "continueFromDetail" },
+      { now },
+    ).state;
+
+    const lastPending = state.pending[state.pending.length - 1];
+
+    expect(state.current?.entry.lemma).not.toBe(failedLemma);
+    expect(lastPending?.entry.lemma).toBe(failedLemma);
+    expect(state.totalTargets).toBe(10);
+    expect(state.reserve).toHaveLength(3);
+    expect(state.pending.some((target) => target.countsTowardGoal === false)).toBe(
+      true,
+    );
+  });
+
+  it("does not count reserve review buffers toward the session goal", () => {
+    const wordbook = getDefaultWordbook();
+    const entries = wordbook.entries.slice(0, 11);
+    const session = createReviewSession({
+      wordbook,
+      progressRecords: entries.map((entry) => passedProgress(entry.lemma, 2)),
+      now,
+      sessionId: "review-buffer-not-goal",
+      targetCount: 10,
+    });
+    const bufferTarget = session.reserve[0]!;
+    const goalTarget = session.pending[0]!;
+    const state: StudySessionState = {
+      ...session,
+      stage: "hiddenSelfRecall",
+      current: bufferTarget,
+      pending: [goalTarget],
+      reserve: [],
+      completedTargetLemmas: [session.current!.entry.lemma],
+      totalTargets: 10,
+    };
+
+    const detail = applyStudyAction(state, { type: "markKnown" }, { now }).state;
+    const result = applyStudyAction(detail, { type: "nextCard" }, { now });
+
+    expect(result.state.completedTargetLemmas).toEqual([
+      session.current!.entry.lemma,
+    ]);
+    expect(result.state.totalTargets).toBe(10);
+    expect(result.state.current?.entry.lemma).toBe(goalTarget.entry.lemma);
+  });
+
+  it("ends Review when only reserve buffers remain after the last goal target", () => {
+    const wordbook = getDefaultWordbook();
+    const entries = wordbook.entries.slice(0, 11);
+    const session = createReviewSession({
+      wordbook,
+      progressRecords: entries.map((entry) => passedProgress(entry.lemma, 2)),
+      now,
+      sessionId: "review-buffer-tail-complete",
+      targetCount: 10,
+    });
+    const bufferTarget = session.reserve[0]!;
+    const state: StudySessionState = {
+      ...session,
+      stage: "hiddenSelfRecall",
+      pending: [bufferTarget],
+      reserve: [],
+      completedTargetLemmas: session.pending
+        .slice(0, 9)
+        .map((target) => target.entry.lemma),
+      totalTargets: 10,
+    };
+
+    const detail = applyStudyAction(state, { type: "markKnown" }, { now }).state;
+    const result = applyStudyAction(detail, { type: "nextCard" }, { now });
+
+    expect(result.state.stage).toBe("complete");
+    expect(result.state.current).toBeNull();
+    expect(result.state.totalTargets).toBe(10);
   });
 
   it("does not select failed review words for Learn", () => {

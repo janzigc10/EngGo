@@ -72,6 +72,7 @@ function makeDetailState(
       eligibleAfterExposure: 0,
     },
     pending: [],
+    reserve: [],
     completedTargetLemmas: [],
     totalTargets: 1,
     cardExposureCount: 1,
@@ -96,6 +97,34 @@ describe("StudySession", () => {
       );
 
     expect(optionButtons).toHaveLength(4);
+  });
+
+  it("renders a Learn empty state instead of a 0 target completion", () => {
+    const wordbook = getDefaultWordbook();
+
+    wordbook.entries.forEach((entry) => {
+      saveWordProgress({
+        ...createDefaultProgress(entry, wordbook.id, new Date("2026-05-30")),
+        status: "passed",
+        masteryDots: 3,
+        reviewStrength: 2,
+        nextReviewAt: "2026-06-02T00:00:00.000Z",
+      });
+    });
+
+    render(<StudySession mode="learn" targetCount={10} onExit={vi.fn()} />);
+
+    expect(screen.getByText("现在没有可学习词")).toBeInTheDocument();
+    expect(screen.queryByText("本轮完成")).not.toBeInTheDocument();
+    expect(screen.queryByText("0 / 10")).not.toBeInTheDocument();
+  });
+
+  it("renders a Review empty state when there are no due words", () => {
+    render(<StudySession mode="review" targetCount={10} onExit={vi.fn()} />);
+
+    expect(screen.getByText("现在没有到期复习词")).toBeInTheDocument();
+    expect(screen.queryByText("本轮完成")).not.toBeInTheDocument();
+    expect(screen.queryByText("0 / 10")).not.toBeInTheDocument();
   });
 
   it("keeps the active session denominator frozen after settings change", () => {

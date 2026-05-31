@@ -9,8 +9,16 @@ import {
   subscribeExamTarget,
 } from "@/features/exam-target/exam-target-store";
 import { getExamTargetLabel } from "@/features/exam-target/model";
-import { getDefaultWordbook } from "@/features/wordbook/wordbook-data";
 import {
+  getActiveWordbookSnapshot,
+  getServerActiveWordbookSnapshot,
+  loadActiveWordbook,
+  saveActiveWordbookId,
+  subscribeActiveWordbookChanges,
+} from "@/features/wordbook/wordbook-active-store";
+import { listWordbooks } from "@/features/wordbook/wordbook-data";
+import {
+  buildWordbookProgressExplanations,
   buildWordbookProgressSnapshot,
   getWordbookProgressVersion,
   loadProgressRecords,
@@ -26,11 +34,16 @@ import {
 import type {
   StudyMode,
   StudySessionGoal,
+  WordbookId,
 } from "@/features/wordbook/wordbook-types";
 
 type WordbookDashboardProps = {
   mode: StudyMode;
-  onStartSession: (mode: StudyMode, targetCount: StudySessionGoal) => void;
+  onStartSession: (
+    mode: StudyMode,
+    targetCount: StudySessionGoal,
+    wordbookId: WordbookId,
+  ) => void;
 };
 
 function useProgressVersion() {
@@ -53,14 +66,21 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
     getWordbookStudySettingsSnapshot,
     getServerWordbookStudySettingsSnapshot,
   );
+  useSyncExternalStore(
+    subscribeActiveWordbookChanges,
+    getActiveWordbookSnapshot,
+    getServerActiveWordbookSnapshot,
+  );
 
-  const wordbook = getDefaultWordbook();
+  const wordbooks = listWordbooks();
+  const wordbook = loadActiveWordbook();
   const settings = loadWordbookStudySettings();
   const snapshot = buildWordbookProgressSnapshot(
     wordbook,
     new Date(),
     loadProgressRecords(),
   );
+  const explanations = buildWordbookProgressExplanations(snapshot);
   const progressPercent =
     snapshot.total > 0 ? Math.round((snapshot.passed / snapshot.total) * 100) : 0;
   const isLearn = mode === "learn";
@@ -69,9 +89,10 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
     ? settings.learnTargetCount
     : settings.reviewTargetCount;
   const primaryLabel = isLearn ? "开始 Learn" : "开始 Review";
+  const emptyMessage = getDashboardEmptyMessage(mode, snapshot);
   const thirdMetric = isLearn
-    ? { label: "可学习", value: snapshot.learnable }
-    : { label: "未到期", value: Math.max(snapshot.passed - snapshot.dueReview, 0) };
+    ? { label: "学习中", value: snapshot.learning }
+    : { label: "补救中", value: snapshot.reviewRescue };
 
   return (
     <div className="space-y-5">
@@ -88,6 +109,9 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
             <p className="text-sm text-slate-500">{wordbook.sourceLabel}</p>
+            <p className="text-base font-semibold text-slate-950">
+              当前词书：{wordbook.label}
+            </p>
             <p className="text-base font-medium text-slate-950">
               当前考试目标：{getExamTargetLabel(activeExamTarget)}
             </p>
@@ -104,10 +128,35 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
             查看收藏
           </Link>
         </div>
+        <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          {wordbooks.length === 1 ? (
+            <p>
+              目前只接入这一本静态词书；后续新增词书时会在这里切换，Learn / Review
+              会继续沿用同一套状态机。
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2" role="group" aria-label="选择词书">
+              {wordbooks.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => saveActiveWordbookId(option.id)}
+                  className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
+                    option.id === wordbook.id
+                      ? "border-slate-950 bg-slate-950 text-white"
+                      : "border-slate-200 bg-white text-slate-700"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-4">
           <Metric label="总词数" value={snapshot.total} />
-          <Metric label="已学会" value={snapshot.passed} />
+          <Metric label={isLearn ? "未学习" : "已通过"} value={isLearn ? snapshot.unseen : snapshot.passed} />
           <Metric label={thirdMetric.label} value={thirdMetric.value} />
           <Metric label="待复习" value={snapshot.dueReview} />
         </div>
@@ -125,17 +174,36 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
           </div>
         </div>
 
+        <div className="mt-5 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+          {explanations
+            .filter((item) =>
+              isLearn
+                ? item.key === "unseen" || item.key === "learning" || item.key === "dueReview"
+                : item.key === "dueReview" || item.key === "reviewRescue" || item.key === "scheduledReview",
+            )
+            .map((item) => (
+              <p key={item.key} className="rounded-2xl bg-slate-50 px-4 py-3">
+                <span className="font-semibold text-slate-950">
+                  {item.label} {item.value}
+                </span>
+                ：{item.description}
+              </p>
+            ))}
+        </div>
+
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <button
             type="button"
             disabled={primaryCount === 0}
-            onClick={() => onStartSession(mode, targetCount)}
+            onClick={() => onStartSession(mode, targetCount, wordbook.id)}
             className="inline-flex h-11 min-w-36 items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             {primaryLabel} ({primaryCount})
           </button>
-          {!isLearn && snapshot.dueReview === 0 ? (
-            <span className="text-sm text-slate-500">现在没有到期复习词。</span>
+          {emptyMessage ? (
+            <span className="max-w-xl text-sm leading-6 text-slate-500">
+              {emptyMessage}
+            </span>
           ) : null}
         </div>
       </section>
@@ -143,6 +211,37 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
       <WordbookStudySettingsPanel settings={settings} />
     </div>
   );
+}
+
+function getDashboardEmptyMessage(
+  mode: StudyMode,
+  snapshot: ReturnType<typeof buildWordbookProgressSnapshot>,
+) {
+  if (mode === "learn") {
+    if (snapshot.learnable > 0) {
+      return null;
+    }
+
+    if (snapshot.dueReview > 0) {
+      return "现在没有新词可学，先去 Review 处理到期或补救词。";
+    }
+
+    if (snapshot.passed + snapshot.blocked >= snapshot.total) {
+      return "这本词书当前没有可学新词，也暂时没有到期复习。";
+    }
+
+    return "现在没有可学习词。";
+  }
+
+  if (snapshot.dueReview > 0) {
+    return null;
+  }
+
+  if (snapshot.passed === 0) {
+    return "先完成 Learn，Review 会在词到期后出现。";
+  }
+
+  return "现在没有到期复习词；未到期词会按调度时间回来。";
 }
 
 function Metric({ label, value }: { label: string; value: number }) {

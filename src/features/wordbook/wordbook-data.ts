@@ -83,18 +83,40 @@ const defaultWordbook: Wordbook = {
     .sort((left, right) => left.lemma.localeCompare(right.lemma)),
 };
 
+const wordbookRegistry: Wordbook[] = [defaultWordbook];
+
+export function isKnownWordbookId(value: unknown): value is WordbookId {
+  return typeof value === "string" && wordbookRegistry.some((wordbook) => wordbook.id === value);
+}
+
+export function normalizeWordbookId(value: unknown): WordbookId {
+  return isKnownWordbookId(value) ? value : defaultWordbookId;
+}
+
+export function listWordbooks(): Wordbook[] {
+  return wordbookRegistry;
+}
+
+export function getWordbookById(wordbookId: WordbookId = defaultWordbookId): Wordbook {
+  return wordbookRegistry.find((wordbook) => wordbook.id === wordbookId) ?? defaultWordbook;
+}
+
 export function getDefaultWordbook(): Wordbook {
-  return defaultWordbook;
+  return getWordbookById(defaultWordbookId);
 }
 
-export function listWordbookEntries(): WordbookEntry[] {
-  return defaultWordbook.entries;
+export function listWordbookEntries(wordbookId: WordbookId = defaultWordbookId): WordbookEntry[] {
+  return getWordbookById(wordbookId).entries;
 }
 
-export function findWordbookEntry(lemma: string): WordbookEntry | undefined {
+export function findWordbookEntry(
+  lemma: string,
+  wordbookId: WordbookId = defaultWordbookId,
+): WordbookEntry | undefined {
   const normalizedLemma = lemma.trim().toLowerCase();
+  const wordbook = getWordbookById(wordbookId);
 
-  return defaultWordbook.entries.find(
+  return wordbook.entries.find(
     (entry) =>
       entry.lemma.toLowerCase() === normalizedLemma ||
       entry.aliases.some((alias) => alias.toLowerCase() === normalizedLemma),
