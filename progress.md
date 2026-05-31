@@ -1,12 +1,13 @@
 # EngGo 滚动交接
 
-## 当前状态（2026-05-31 Review 可见词数修复已完成）
+## 当前状态（2026-05-31 Wordbook Learn/Review V2.1 手测通过）
 - 当前分支 / worktree：`codex/wordbook-learn-review-v1`，隔离 worktree `C:\tmp\enggo-worktrees\wordbook-learn-review-v1`。
 - 最新已提交 checkpoint：当前 HEAD，`fix: cap review session visible words`；上一 V2.1 checkpoint 为 `352dd05eb7f6aa0db01d57fcce05bd56ce64af78`。
 - 当前活跃计划：`docs/superpowers/plans/2026-05-31-wordbook-active-session-persistence-v2-1.md`。
 - V2.1 active session persistence 已完成：Learn / Review 正在进行的 session 会 client-local 保存、恢复、继续/重开和完成清理；仍不做账号、云同步、完整 SRS、后端存储、聊天主舞台改造或 UI 大精修。
 - 本轮修复用户手测发现的 Review 策略问题：旧 V2 reserve buffer 为了给失败词隔开间距，会把本轮目标外的 reserve 词拉入 `pending`，导致 UI 上一轮 10 词可能看到第 11 个不同词。
 - 当前产品决策：Review 的 `targetCount` 同时约束分母和本轮可见唯一词数；失败词可以重复出现，但不能引入目标外新词。Review 不再创建可见 reserve；旧 active session 里的 legacy non-goal buffer 会被清理或跳过。
+- 用户已手测确认 V2.1 当前状态可收口：就这样，不继续调 Learn / Review 状态机。
 - 本轮继续保持 client-only；只改 `src/features/wordbook`，不改 `/api/chat`、FastAPI、Prisma、provider prompts 或 `enggo.collectedWords`。
 
 ## 已完成基线
@@ -36,12 +37,13 @@
   - `corepack pnpm test src\features\wordbook src\features\collections\study-panels.test.tsx` -> 11 files / 95 tests passed。
   - `corepack pnpm lint -- src\features\wordbook src\features\collections\study-panels.tsx` -> passed。
   - `git diff --check` -> passed，仅 Windows LF/CRLF warning。
-- V2.1 当前已完成实现和验证，尚未 merge 主线。
+- V2.1 当前已完成实现、自动验证和用户手测确认，尚未 merge 主线。
 
 ## 下一步
-1. 用户可在当前 worktree 的 dev server 上继续手测 `/learn` 和 `/review`，重点看 Review 一轮唯一词数是否仍锁在设置值以内，以及 active session 是否符合预期。
-2. 若手测确认通过，下一步是决定是否把 `codex/wordbook-learn-review-v1` 合回主线；不要自动 merge。
-3. `/review?seedReview=1` helper 仍保留为 dev-only 手测辅助；它只在非 production 下生效。
+1. 不再继续调 Learn / Review 状态机；若后续发现问题，必须记录具体路径，不做泛化重写。
+2. 下一步是决定是否把 `codex/wordbook-learn-review-v1` 合回主线；不要自动 merge。
+3. merge 前重新跑 focused bundle、focused lint、`git diff --check`，并按需再做一轮浏览器冒烟。
+4. `/review?seedReview=1` helper 仍保留为 dev-only 手测辅助；它只在非 production 下生效。
 
 ## 边界与风险
 - 不要把当前分支和主工作区 `codex/chat-shell-bootstrap` 混用；本轮只在 `C:\tmp\enggo-worktrees\wordbook-learn-review-v1` 工作。
