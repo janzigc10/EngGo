@@ -32,8 +32,6 @@ type CreateSessionInput = {
   targetCount: StudySessionGoal;
 };
 
-const reviewReserveTargetCount = 8;
-
 function clampDots(value: number): MasteryDots {
   if (value >= 3) {
     return 3;
@@ -176,20 +174,11 @@ function toReviewTarget(
 
 export function createReviewSession(input: CreateSessionInput): StudySessionState {
   const targetCount = normalizeStudySessionGoal(input.targetCount);
-  const selectedProgress = selectReviewProgress(
-    input,
-    targetCount + reviewReserveTargetCount,
+  const targets = selectReviewProgress(input, targetCount).map((progress) =>
+    toReviewTarget(progress, input.wordbook),
   );
-  const targets = selectedProgress
-    .slice(0, targetCount)
-    .map((progress) => toReviewTarget(progress, input.wordbook));
-  const reserveTargets = selectedProgress
-    .slice(targetCount)
-    .map((progress) =>
-      toReviewTarget(progress, input.wordbook, { countsTowardGoal: false }),
-    );
 
-  return createState(input, "review", targets, reserveTargets);
+  return createState(input, "review", targets);
 }
 
 function finishCurrentTarget(
@@ -217,25 +206,36 @@ function finishCurrentTarget(
 }
 
 function advanceToNextTarget(state: StudySessionState): StudySessionState {
-  if (!state.pending.some((target) => target.countsTowardGoal !== false)) {
+  const firstGoalIndex = state.pending.findIndex(
+    (target) => target.countsTowardGoal !== false,
+  );
+
+  if (firstGoalIndex < 0) {
     return {
       ...state,
       current: null,
+      pending: [],
+      reserve: state.mode === "review" ? [] : state.reserve,
       stage: "complete",
     };
   }
 
   const eligibleIndex = state.pending.findIndex(
-    (target) => target.eligibleAfterExposure <= state.cardExposureCount,
+    (target) =>
+      target.countsTowardGoal !== false &&
+      target.eligibleAfterExposure <= state.cardExposureCount,
   );
-  const nextIndex = eligibleIndex >= 0 ? eligibleIndex : 0;
+  const nextIndex = eligibleIndex >= 0 ? eligibleIndex : firstGoalIndex;
   const next = state.pending[nextIndex];
-  const rest = state.pending.filter((_, index) => index !== nextIndex);
+  const rest = state.pending.filter(
+    (target, index) => index !== nextIndex && target.countsTowardGoal !== false,
+  );
 
   return {
     ...state,
     current: next,
     pending: rest,
+    reserve: state.mode === "review" ? [] : state.reserve,
     stage: next.resumeStage,
     cardExposureCount: state.cardExposureCount + 1,
   };
@@ -248,15 +248,9 @@ function requeueWithDelay(
   resumeStage: StudyCardStage,
   update?: WordStudyProgress,
 ): StudyEngineResult {
-  let nextPending = [...state.pending];
-  let nextReserve = state.reserve;
-
-  if (state.mode === "review" && nextPending.length < delay && nextReserve.length > 0) {
-    const pulledTargets = nextReserve.slice(0, delay - nextPending.length);
-
-    nextPending = [...nextPending, ...pulledTargets];
-    nextReserve = nextReserve.slice(pulledTargets.length);
-  }
+  const nextPending = state.pending.filter(
+    (target) => target.countsTowardGoal !== false,
+  );
 
   const insertionIndex = Math.min(delay, nextPending.length);
 
@@ -269,7 +263,7 @@ function requeueWithDelay(
   const nextState = advanceToNextTarget({
     ...state,
     pending: nextPending,
-    reserve: nextReserve,
+    reserve: state.mode === "review" ? [] : state.reserve,
   });
 
   return {

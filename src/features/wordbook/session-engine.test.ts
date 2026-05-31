@@ -70,6 +70,54 @@ function advanceLearnCardCorrectly(state: StudySessionState) {
   throw new Error(`Cannot advance Learn card from ${state.stage}`);
 }
 
+function advanceReviewCardCorrectly(state: StudySessionState) {
+  if (state.stage === "hiddenSelfRecall") {
+    const detail = applyStudyAction(state, { type: "markKnown" }, { now });
+
+    expect(detail.state.stage).toBe("reviewDetail");
+
+    return applyStudyAction(detail.state, { type: "nextCard" }, { now }).state;
+  }
+
+  if (state.stage === "recognitionChoice") {
+    const detail = applyStudyAction(
+      state,
+      { type: "chooseMeaning", isCorrect: true },
+      { now },
+    );
+
+    expect(detail.state.stage).toBe("detailReveal");
+
+    return applyStudyAction(
+      detail.state,
+      { type: "continueFromDetail" },
+      { now },
+    ).state;
+  }
+
+  if (state.stage === "guidedRecall") {
+    const detail = applyStudyAction(state, { type: "markKnown" }, { now });
+
+    expect(detail.state.stage).toBe("guidedDetail");
+
+    return applyStudyAction(
+      detail.state,
+      { type: "continueFromDetail" },
+      { now },
+    ).state;
+  }
+
+  if (state.stage === "finalRecall") {
+    const detail = applyStudyAction(state, { type: "markKnown" }, { now });
+
+    expect(detail.state.stage).toBe("reviewDetail");
+
+    return applyStudyAction(detail.state, { type: "nextCard" }, { now }).state;
+  }
+
+  throw new Error(`Cannot advance Review card from ${state.stage}`);
+}
+
 function advanceUntilLearnTarget(
   state: StudySessionState,
   lemma: string,
@@ -800,7 +848,46 @@ describe("review session engine", () => {
     expect(state.completedTargetLemmas).not.toContain(failedLemma);
   });
 
-  it("pulls review reserve targets to avoid collapsing rescue lights near the end", () => {
+  it("keeps a 10-word Review session inside its original 10 visible words", () => {
+    const wordbook = getDefaultWordbook();
+    const entries = wordbook.entries.slice(0, 14);
+    let state = createReviewSession({
+      wordbook,
+      progressRecords: entries.map((entry) => passedProgress(entry.lemma, 2)),
+      now,
+      sessionId: "review-visible-word-cap",
+      targetCount: 10,
+    });
+    const originalVisibleLemmas = new Set([
+      state.current!.entry.lemma,
+      ...state.pending.map((target) => target.entry.lemma),
+    ]);
+    const displayedLemmas = new Set<string>();
+
+    displayedLemmas.add(state.current!.entry.lemma);
+    state = applyStudyAction(state, { type: "markForgotten" }, { now }).state;
+    state = applyStudyAction(
+      state,
+      { type: "continueFromDetail" },
+      { now },
+    ).state;
+
+    for (let index = 0; index < 80 && state.stage !== "complete"; index += 1) {
+      if (state.current) {
+        displayedLemmas.add(state.current.entry.lemma);
+      }
+
+      state = advanceReviewCardCorrectly(state);
+    }
+
+    expect(state.stage).toBe("complete");
+    expect(
+      [...displayedLemmas].filter((lemma) => !originalVisibleLemmas.has(lemma)),
+    ).toEqual([]);
+    expect(displayedLemmas.size).toBeLessThanOrEqual(10);
+  });
+
+  it("keeps late Review rescue spacing inside the original target set", () => {
     const wordbook = getDefaultWordbook();
     const entries = wordbook.entries.slice(0, 14);
     let state = createReviewSession({
@@ -813,7 +900,7 @@ describe("review session engine", () => {
     const failedLemma = state.current?.entry.lemma;
 
     expect(state.totalTargets).toBe(10);
-    expect(state.reserve).toHaveLength(4);
+    expect(state.reserve).toHaveLength(0);
 
     state = applyStudyAction(state, { type: "markForgotten" }, { now }).state;
     state = applyStudyAction(
@@ -881,13 +968,13 @@ describe("review session engine", () => {
     expect(state.current?.entry.lemma).not.toBe(failedLemma);
     expect(lastPending?.entry.lemma).toBe(failedLemma);
     expect(state.totalTargets).toBe(10);
-    expect(state.reserve).toHaveLength(3);
+    expect(state.reserve).toHaveLength(0);
     expect(state.pending.some((target) => target.countsTowardGoal === false)).toBe(
-      true,
+      false,
     );
   });
 
-  it("does not count reserve review buffers toward the session goal", () => {
+  it("skips legacy non-goal Review buffers before the next goal target", () => {
     const wordbook = getDefaultWordbook();
     const entries = wordbook.entries.slice(0, 11);
     const session = createReviewSession({
@@ -897,15 +984,17 @@ describe("review session engine", () => {
       sessionId: "review-buffer-not-goal",
       targetCount: 10,
     });
-    const bufferTarget = session.reserve[0]!;
+    const bufferTarget = {
+      ...session.pending[1]!,
+      countsTowardGoal: false,
+    };
     const goalTarget = session.pending[0]!;
     const state: StudySessionState = {
       ...session,
       stage: "hiddenSelfRecall",
-      current: bufferTarget,
-      pending: [goalTarget],
-      reserve: [],
-      completedTargetLemmas: [session.current!.entry.lemma],
+      pending: [bufferTarget, goalTarget],
+      reserve: [bufferTarget],
+      completedTargetLemmas: [],
       totalTargets: 10,
     };
 
@@ -917,9 +1006,13 @@ describe("review session engine", () => {
     ]);
     expect(result.state.totalTargets).toBe(10);
     expect(result.state.current?.entry.lemma).toBe(goalTarget.entry.lemma);
+    expect(result.state.reserve).toHaveLength(0);
+    expect(
+      result.state.pending.some((target) => target.countsTowardGoal === false),
+    ).toBe(false);
   });
 
-  it("ends Review when only reserve buffers remain after the last goal target", () => {
+  it("ends Review when only legacy non-goal buffers remain after the last goal target", () => {
     const wordbook = getDefaultWordbook();
     const entries = wordbook.entries.slice(0, 11);
     const session = createReviewSession({
@@ -929,12 +1022,15 @@ describe("review session engine", () => {
       sessionId: "review-buffer-tail-complete",
       targetCount: 10,
     });
-    const bufferTarget = session.reserve[0]!;
+    const bufferTarget = {
+      ...session.pending[0]!,
+      countsTowardGoal: false,
+    };
     const state: StudySessionState = {
       ...session,
       stage: "hiddenSelfRecall",
       pending: [bufferTarget],
-      reserve: [],
+      reserve: [bufferTarget],
       completedTargetLemmas: session.pending
         .slice(0, 9)
         .map((target) => target.entry.lemma),
@@ -946,6 +1042,8 @@ describe("review session engine", () => {
 
     expect(result.state.stage).toBe("complete");
     expect(result.state.current).toBeNull();
+    expect(result.state.pending).toHaveLength(0);
+    expect(result.state.reserve).toHaveLength(0);
     expect(result.state.totalTargets).toBe(10);
   });
 

@@ -189,10 +189,23 @@ describe("wordbook active session store", () => {
     })?.targetCount).toBe(30);
   });
 
-  it("preserves review reserve targets without counting them as session goals", () => {
+  it("drops legacy review buffer targets while preserving the session goal", () => {
     const wordbook = getDefaultWordbook();
     const state = makeSessionState("review", 10);
     const reserveEntry = wordbook.entries[2];
+    const legacyBuffer = {
+      entry: reserveEntry,
+      progress: createDefaultProgress(
+        reserveEntry,
+        wordbook.id,
+        new Date("2026-05-31"),
+      ),
+      masteryDots: 0,
+      failedAttempts: 0,
+      resumeStage: "hiddenSelfRecall" as const,
+      eligibleAfterExposure: 0,
+      countsTowardGoal: false,
+    };
 
     saveActiveStudySession({
       mode: "review",
@@ -200,21 +213,8 @@ describe("wordbook active session store", () => {
       targetCount: 10,
       state: {
         ...state,
-        reserve: [
-          {
-            entry: reserveEntry,
-            progress: createDefaultProgress(
-              reserveEntry,
-              wordbook.id,
-              new Date("2026-05-31"),
-            ),
-            masteryDots: 0,
-            failedAttempts: 0,
-            resumeStage: "hiddenSelfRecall",
-            eligibleAfterExposure: 0,
-            countsTowardGoal: false,
-          },
-        ],
+        pending: [legacyBuffer, ...state.pending],
+        reserve: [legacyBuffer],
       },
     });
 
@@ -224,9 +224,12 @@ describe("wordbook active session store", () => {
     });
 
     expect(snapshot?.state.totalTargets).toBe(10);
-    expect(snapshot?.state.reserve[0]).toMatchObject({
-      entry: { lemma: reserveEntry.lemma },
-      countsTowardGoal: false,
-    });
+    expect(snapshot?.state.reserve).toEqual([]);
+    expect(snapshot?.state.pending).toHaveLength(state.pending.length);
+    expect(
+      snapshot?.state.pending.some(
+        (target) => target.countsTowardGoal === false,
+      ),
+    ).toBe(false);
   });
 });

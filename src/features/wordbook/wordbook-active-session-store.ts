@@ -186,6 +186,20 @@ function normalizeState(
     return null;
   }
 
+  if (query.mode === "review") {
+    if (current.countsTowardGoal === false) {
+      return null;
+    }
+
+    return {
+      ...(value as StudySessionState),
+      current,
+      pending: pending.filter((target) => target.countsTowardGoal !== false),
+      reserve: [],
+      completedTargetLemmas,
+    };
+  }
+
   return {
     ...(value as StudySessionState),
     current,

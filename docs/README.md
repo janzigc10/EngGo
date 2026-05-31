@@ -42,7 +42,7 @@
   - 初始技术设计。
 
 ## 当前活跃计划
-- 暂无新的活跃实现计划。Wordbook Learn/Review V2.1 已在 `codex/wordbook-learn-review-v1` worktree 完成实现和验证，下一步是用户手测或合并决策。
+- 暂无新的活跃实现计划。Wordbook Learn/Review V2.1 及 Review 可见词数修复已在 `codex/wordbook-learn-review-v1` worktree 完成实现和验证，下一步是用户手测或合并决策。
 
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。
@@ -50,7 +50,7 @@
 - `docs/superpowers/plans/2026-05-30-wordbook-learn-review-v2-product-hardening.md`
   - Wordbook Learn/Review V2 轻量产品硬化已完成并提交为 `31faa2af18b0a64386a4d1e93fcb702b5661feca`。已补齐 baseline 验证、active wordbook 入口、Review 调度语义 helper、学习数据解释、恢复/空状态和 focused QA。遗留产品缺口是 active session persistence 不完整，已转入 V2.1 计划。
 - `docs/superpowers/plans/2026-05-31-wordbook-active-session-persistence-v2-1.md`
-  - Wordbook Learn/Review V2.1 active session persistence 已完成：新增 client-local active session store，`StudySession` 可保存/恢复正在进行的 Learn/Review 轮次，Dashboard 提供继续、重新开始和放弃本轮入口；完成 session 会清理 active session，放弃本轮不回滚词级 progress。范围继续保持 client-only，未改账号、云同步、完整 SRS、后端存储、聊天主舞台或 `enggo.collectedWords`。
+  - Wordbook Learn/Review V2.1 active session persistence 已完成：新增 client-local active session store，`StudySession` 可保存/恢复正在进行的 Learn/Review 轮次，Dashboard 提供继续、重新开始和放弃本轮入口；完成 session 会清理 active session，放弃本轮不回滚词级 progress。后续已修复 Review reserve buffer 可见化问题：10 词 Review 可以重复失败词，但唯一可见词数不超过 10，旧 active session buffer 会被清理或跳过。范围继续保持 client-only，未改账号、云同步、完整 SRS、后端存储、聊天主舞台或 `enggo.collectedWords`。
 
 - `docs/superpowers/plans/2026-05-30-wordbook-learn-review-experience-polish-v1.md`
   - Wordbook Learn/Review 体验打磨已完成：新增本地学习设置 10/20/30 词、冻结 session target count、Learn 三灯失败保留当前灯位、Review one-light clean pass 与 `reviewLapsed`、Review 失败后三灯补救链路、wrong-choice contrast、详情分层和 390px browser QA。实现保持 client-only，未改 `/api/chat`、FastAPI、Prisma、provider prompts 或 `enggo.collectedWords`。

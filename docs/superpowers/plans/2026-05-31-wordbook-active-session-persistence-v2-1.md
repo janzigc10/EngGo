@@ -64,10 +64,18 @@ Acceptance:
 - [x] 覆盖完成 session 后 active session 被清理。
 - [x] 覆盖设置从 10 改 20 后，旧 session 分母仍冻结，新 session 使用新设置。
 - [x] 覆盖 Learn / Review 各自 session 不互相覆盖。
-- [x] 覆盖 Review reserve buffer 恢复后仍不计入本轮目标。
+- [x] 覆盖旧版 Review buffer 恢复/重排后不会进入可见卡片。
 
 Acceptance:
-- active session 恢复不会破坏 V2 的三灯、Review rescue、reserve buffer 和空状态逻辑。
+- active session 恢复不会破坏 V2 的三灯、Review rescue、旧 buffer 清理和空状态逻辑。
+
+## Follow-up Fix - Review Visible Word Cap
+- [x] 复现用户手测反馈：修复前 10 词 Review 在失败补救路径会显示目标外第 11 个词。
+- [x] 移除新 Review session 的可见 reserve 选词，不再用目标外词给失败词做间隔。
+- [x] `advanceToNextTarget` / `requeueWithDelay` 跳过 legacy non-goal buffer，避免旧 active session 继续显示目标外词。
+- [x] active session store 恢复 Review snapshot 时清理 legacy buffer；如果当前卡片本身是 legacy buffer，则丢弃该 snapshot。
+- [x] 补回归测试，断言 10 词 Review 可以重复失败词，但唯一可见词数不能超过 10。
+- [x] 复跑 focused tests、lint、`git diff --check` 和浏览器 Review 路径。
 
 ## Task 5 - Focused QA And Handoff
 - [x] 跑 focused unit/component tests：active session store、session engine、StudySession、WordbookDashboard、study panels。

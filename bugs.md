@@ -1,5 +1,22 @@
 # EngGo 已知问题与环境坑
 
+## 2026-05-31 Review reserve buffer 导致 10 词复习显示超过 10 个不同词（已修，需防回归）
+### 症状
+用户在 `/review` 手测时发现 Review 一轮看起来不止 10 个词。代码级红测确认：修复前 10 词 Review 在失败补救路径会额外显示目标外 `abundant`，虽然分母仍显示 `0 / 10` 到 `10 / 10`。
+
+### 根因判断
+V2 为了让失败词“隔几张再回来”，在 `createReviewSession()` 中额外选取了 `targetCount + 8` 个到期词，并把后 8 个标成 `countsTowardGoal: false` 的 reserve。`requeueWithDelay()` 在 pending 不足时会把 reserve 拉入 pending；这些词不计入分母，但会作为真实卡片展示，造成用户感知上的“一次不止 10 个词”。
+
+### 修复状态
+1. 新 Review session 不再创建可见 reserve；`targetCount` 同时约束分母和本轮唯一可见词数。
+2. `advanceToNextTarget()` / `requeueWithDelay()` 会跳过 legacy non-goal buffer，旧 active session 中已经存在的 buffer 不再进入可见卡片。
+3. active session store 恢复 Review snapshot 时会清理 legacy buffer；如果当前卡片本身是 legacy buffer，则丢弃该 snapshot。
+4. 回归测试覆盖：10 词 Review 允许失败词重复曝光，但唯一可见词数不能超过 10。
+
+### 后续防回归
+- 不要再用目标外词作为 Review 间隔 buffer；如果需要更好的补救间隔，必须在本轮目标词集合内部调度。
+- Review 指标区分两件事：卡片曝光次数可以超过 `targetCount`，但唯一可见 lemma 不能超过 `targetCount`。
+
 ## 2026-05-25 Windows `Start-Process` 环境变量里同时存在 `Path` / `PATH` 会导致 dev stack 假启动（环境坑）
 ### 症状
 在 PowerShell 里用 `Start-Process` 启动 `corepack pnpm dev:fastapi` 时，进程可能直接失败并报：
