@@ -1,8 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { buildMeaningChoice } from "@/features/wordbook/distractors";
+import {
+  clearActiveStudySession,
+  loadActiveStudySession,
+  saveActiveStudySession,
+} from "@/features/wordbook/wordbook-active-session-store";
 import { loadActiveWordbookId } from "@/features/wordbook/wordbook-active-store";
 import { getWordbookById } from "@/features/wordbook/wordbook-data";
 import {
@@ -34,19 +39,19 @@ type StudySessionProps = {
 
 export function StudySession({ mode, targetCount, wordbookId, onExit }: StudySessionProps) {
   const wordbook = getWordbookById(wordbookId ?? loadActiveWordbookId());
-  const [state, setState] = useState<StudySessionState>(() => {
-    const now = new Date();
-    const progressRecords = prepareProgressRecordsForSession(wordbook, now);
-    const input = {
-      wordbook,
-      progressRecords,
-      now,
-      sessionId: `${mode}-${Date.now()}`,
-      targetCount,
-    };
+  const [session, setSession] = useState(() =>
+    createInitialStudySession({ mode, targetCount, wordbook }),
+  );
+  const state = session.state;
 
-    return mode === "learn" ? createLearnSession(input) : createReviewSession(input);
-  });
+  useEffect(() => {
+    persistActiveSessionState({
+      mode,
+      wordbookId: wordbook.id,
+      targetCount: session.targetCount,
+      state,
+    });
+  }, [mode, session.targetCount, state, wordbook.id]);
 
   const current = state.current;
   const choice = useMemo(() => {
@@ -69,8 +74,17 @@ export function StudySession({ mode, targetCount, wordbookId, onExit }: StudySes
     const result = applyStudyAction(state, action);
 
     persistUpdates(result.progressUpdates);
-    setState(result.state);
-  }, [state]);
+    persistActiveSessionState({
+      mode,
+      wordbookId: wordbook.id,
+      targetCount: session.targetCount,
+      state: result.state,
+    });
+    setSession((currentSession) => ({
+      ...currentSession,
+      state: result.state,
+    }));
+  }, [mode, session.targetCount, state, wordbook.id]);
 
   if ((state.stage === "complete" || !current) && state.totalTargets === 0) {
     return (
@@ -200,6 +214,94 @@ export function prepareProgressRecordsForSession(
   }
 
   return wroteBlockedProgress ? loadProgressRecords() : progressRecords;
+}
+
+function createInitialStudySession({
+  mode,
+  targetCount,
+  wordbook,
+}: {
+  mode: StudyMode;
+  targetCount: StudySessionGoal;
+  wordbook: Wordbook;
+}): { state: StudySessionState; targetCount: StudySessionGoal } {
+  const activeSnapshot = loadActiveStudySession({
+    mode,
+    wordbookId: wordbook.id,
+  });
+
+  if (activeSnapshot) {
+    if (isStudySessionCompatible(activeSnapshot.state, wordbook, mode)) {
+      return {
+        state: activeSnapshot.state,
+        targetCount: activeSnapshot.targetCount,
+      };
+    }
+
+    clearActiveStudySession({ mode, wordbookId: wordbook.id });
+  }
+
+  const now = new Date();
+  const progressRecords = prepareProgressRecordsForSession(wordbook, now);
+  const input = {
+    wordbook,
+    progressRecords,
+    now,
+    sessionId: `${mode}-${Date.now()}`,
+    targetCount,
+  };
+
+  return {
+    state: mode === "learn" ? createLearnSession(input) : createReviewSession(input),
+    targetCount,
+  };
+}
+
+function persistActiveSessionState({
+  mode,
+  wordbookId,
+  targetCount,
+  state,
+}: {
+  mode: StudyMode;
+  wordbookId: WordbookId;
+  targetCount: StudySessionGoal;
+  state: StudySessionState;
+}) {
+  if (state.stage === "complete" || state.totalTargets <= 0 || !state.current) {
+    clearActiveStudySession({ mode, wordbookId });
+    return;
+  }
+
+  saveActiveStudySession({
+    mode,
+    wordbookId,
+    targetCount,
+    state,
+  });
+}
+
+function isStudySessionCompatible(
+  state: StudySessionState,
+  wordbook: Wordbook,
+  mode: StudyMode,
+) {
+  if (state.mode !== mode || state.wordbookId !== wordbook.id) {
+    return false;
+  }
+
+  const availableLemmas = new Set(
+    wordbook.entries.map((entry) => entry.lemma.toLowerCase()),
+  );
+  const targets = [
+    ...(state.current ? [state.current] : []),
+    ...state.pending,
+    ...state.reserve,
+  ];
+
+  return targets.every((target) =>
+    availableLemmas.has(target.entry.lemma.toLowerCase()),
+  );
 }
 
 function MasteryDots({ dots }: { dots: number }) {

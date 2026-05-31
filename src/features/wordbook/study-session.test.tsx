@@ -11,6 +11,10 @@ import {
   StudySession,
 } from "@/features/wordbook/study-session";
 import {
+  loadActiveStudySession,
+  saveActiveStudySession,
+} from "@/features/wordbook/wordbook-active-session-store";
+import {
   createDefaultProgress,
   getNextReviewAt,
   saveWordProgress,
@@ -139,6 +143,116 @@ describe("StudySession", () => {
 
     expect(screen.getByText("0 / 20")).toBeInTheDocument();
     expect(screen.queryByText("0 / 10")).not.toBeInTheDocument();
+  });
+
+  it("restores an in-progress Learn session after exit and remount", async () => {
+    const user = userEvent.setup();
+    const wordbook = getDefaultWordbook();
+    const entry = wordbook.entries[0];
+    const nextEntry = wordbook.entries[1];
+    const firstRender = render(
+      <StudySession mode="learn" targetCount={10} onExit={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: entry.meaningsZh[0] }));
+    await user.click(screen.getByRole("button", { name: "继续" }));
+
+    expect(screen.getByText(nextEntry.lemma)).toBeInTheDocument();
+    expect(loadActiveStudySession({
+      mode: "learn",
+      wordbookId: wordbook.id,
+    })?.state.current?.entry.lemma).toBe(nextEntry.lemma);
+
+    firstRender.unmount();
+    render(<StudySession mode="learn" targetCount={10} onExit={vi.fn()} />);
+
+    expect(screen.getByText(nextEntry.lemma)).toBeInTheDocument();
+    expect(screen.getByText("0 / 10")).toBeInTheDocument();
+  });
+
+  it("restores a forgotten Review session without rebuilding the rescue queue", async () => {
+    const user = userEvent.setup();
+    const wordbook = getDefaultWordbook();
+    const entry = wordbook.entries[0];
+
+    saveWordProgress({
+      ...createDefaultProgress(entry, wordbook.id, new Date("2026-05-29")),
+      status: "passed",
+      masteryDots: 3,
+      reviewStrength: 2,
+      nextReviewAt: getNextReviewAt(new Date("2026-05-29"), 1),
+    });
+
+    const firstRender = render(
+      <StudySession mode="review" targetCount={10} onExit={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "忘记了" }));
+
+    expect(screen.getByText("Meaning")).toBeInTheDocument();
+    expect(loadActiveStudySession({
+      mode: "review",
+      wordbookId: wordbook.id,
+    })?.state.stage).toBe("forgotDetail");
+
+    firstRender.unmount();
+    render(<StudySession mode="review" targetCount={10} onExit={vi.fn()} />);
+
+    expect(screen.getByText(entry.lemma)).toBeInTheDocument();
+    expect(screen.getByText("Meaning")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "继续" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "模糊" })).not.toBeInTheDocument();
+  });
+
+  it("clears the active session after completion", async () => {
+    const user = userEvent.setup();
+    const wordbook = getDefaultWordbook();
+    const entry = wordbook.entries[0];
+
+    saveWordProgress({
+      ...createDefaultProgress(entry, wordbook.id, new Date("2026-05-29")),
+      status: "passed",
+      masteryDots: 3,
+      reviewStrength: 1,
+      nextReviewAt: getNextReviewAt(new Date("2026-05-29"), 1),
+    });
+
+    render(<StudySession mode="review" targetCount={10} onExit={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "认识" }));
+    await user.click(screen.getByRole("button", { name: "下一词" }));
+
+    expect(screen.getByText("本轮完成")).toBeInTheDocument();
+    expect(loadActiveStudySession({
+      mode: "review",
+      wordbookId: wordbook.id,
+    })).toBeNull();
+  });
+
+  it("drops an incompatible saved session and creates a fresh one", () => {
+    const wordbook = getDefaultWordbook();
+    const state = makeDetailState(wordbook.entries[0], "detailReveal");
+
+    saveActiveStudySession({
+      mode: "learn",
+      wordbookId: wordbook.id,
+      targetCount: 10,
+      state: {
+        ...state,
+        current: state.current
+          ? {
+              ...state.current,
+              entry: { ...state.current.entry, lemma: "__missing__" },
+              progress: { ...state.current.progress, lemma: "__missing__" },
+            }
+          : null,
+      },
+    });
+
+    render(<StudySession mode="learn" targetCount={10} onExit={vi.fn()} />);
+
+    expect(screen.queryByText("__missing__")).not.toBeInTheDocument();
+    expect(screen.getByText(wordbook.entries[0].lemma)).toBeInTheDocument();
   });
 
   it("moves away from a Learn word after the first mastery dot", async () => {

@@ -10,6 +10,13 @@ import {
 } from "@/features/exam-target/exam-target-store";
 import { getExamTargetLabel } from "@/features/exam-target/model";
 import {
+  clearActiveStudySession,
+  getActiveStudySessionVersion,
+  getServerActiveStudySessionSnapshot,
+  loadActiveStudySession,
+  subscribeActiveStudySessionChanges,
+} from "@/features/wordbook/wordbook-active-session-store";
+import {
   getActiveWordbookSnapshot,
   getServerActiveWordbookSnapshot,
   loadActiveWordbook,
@@ -54,6 +61,14 @@ function useProgressVersion() {
   );
 }
 
+function useActiveSessionVersion() {
+  return useSyncExternalStore(
+    subscribeActiveStudySessionChanges,
+    getActiveStudySessionVersion,
+    getServerActiveStudySessionSnapshot,
+  );
+}
+
 export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardProps) {
   const activeExamTarget = useSyncExternalStore(
     subscribeExamTarget,
@@ -71,6 +86,7 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
     getActiveWordbookSnapshot,
     getServerActiveWordbookSnapshot,
   );
+  useActiveSessionVersion();
 
   const wordbooks = listWordbooks();
   const wordbook = loadActiveWordbook();
@@ -89,10 +105,20 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
     ? settings.learnTargetCount
     : settings.reviewTargetCount;
   const primaryLabel = isLearn ? "开始 Learn" : "开始 Review";
+  const restartLabel = isLearn ? "重新开始 Learn" : "重新开始 Review";
   const emptyMessage = getDashboardEmptyMessage(mode, snapshot);
+  const activeSession = loadActiveStudySession({ mode, wordbookId: wordbook.id });
+  const activeSessionLabel = activeSession
+    ? `${activeSession.state.completedTargetLemmas.length} / ${activeSession.state.totalTargets}`
+    : null;
   const thirdMetric = isLearn
     ? { label: "学习中", value: snapshot.learning }
     : { label: "补救中", value: snapshot.reviewRescue };
+
+  function startFreshSession() {
+    clearActiveStudySession({ mode, wordbookId: wordbook.id });
+    onStartSession(mode, targetCount, wordbook.id);
+  }
 
   return (
     <div className="space-y-5">
@@ -191,14 +217,61 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
             ))}
         </div>
 
+        {activeSession && activeSessionLabel ? (
+          <div className="mt-6 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">
+                  有一轮 {isLearn ? "Learn" : "Review"} 正在进行
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  继续 {isLearn ? "Learn" : "Review"} {activeSessionLabel}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    onStartSession(
+                      mode,
+                      activeSession.targetCount,
+                      activeSession.wordbookId,
+                    )
+                  }
+                  className="inline-flex h-10 items-center justify-center rounded-full bg-sky-900 px-4 text-sm font-semibold text-white transition hover:bg-sky-800"
+                >
+                  继续
+                </button>
+                <button
+                  type="button"
+                  onClick={startFreshSession}
+                  disabled={primaryCount === 0}
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-sky-200 bg-white px-4 text-sm font-semibold text-sky-900 transition hover:border-sky-300 hover:bg-sky-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+                >
+                  重新开始
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    clearActiveStudySession({ mode, wordbookId: wordbook.id })
+                  }
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                >
+                  放弃本轮
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <button
             type="button"
             disabled={primaryCount === 0}
-            onClick={() => onStartSession(mode, targetCount, wordbook.id)}
+            onClick={activeSession ? startFreshSession : () => onStartSession(mode, targetCount, wordbook.id)}
             className="inline-flex h-11 min-w-36 items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            {primaryLabel} ({primaryCount})
+            {activeSession ? restartLabel : primaryLabel} ({primaryCount})
           </button>
           {emptyMessage ? (
             <span className="max-w-xl text-sm leading-6 text-slate-500">

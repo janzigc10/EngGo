@@ -6,6 +6,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { examTargetStorageKey } from "@/features/exam-target/exam-target-store";
 import { getDefaultWordbook } from "@/features/wordbook/wordbook-data";
+import {
+  loadActiveStudySession,
+  saveActiveStudySession,
+} from "@/features/wordbook/wordbook-active-session-store";
 import { WordbookDashboard } from "@/features/wordbook/wordbook-dashboard";
 import {
   createDefaultProgress,
@@ -13,6 +17,52 @@ import {
   saveWordProgress,
 } from "@/features/wordbook/wordbook-progress-store";
 import { wordbookStudySettingsStorageKey } from "@/features/wordbook/wordbook-study-settings-store";
+import type {
+  StudyMode,
+  StudySessionGoal,
+  StudySessionState,
+} from "@/features/wordbook/wordbook-types";
+
+function makeActiveSessionState(
+  mode: StudyMode,
+  targetCount: StudySessionGoal,
+): StudySessionState {
+  const wordbook = getDefaultWordbook();
+  const [entry, nextEntry] = wordbook.entries;
+
+  return {
+    mode,
+    sessionId: `${mode}-dashboard-test`,
+    wordbookId: wordbook.id,
+    stage: mode === "learn" ? "recognitionChoice" : "hiddenSelfRecall",
+    current: {
+      entry,
+      progress: createDefaultProgress(entry, wordbook.id, new Date("2026-05-31")),
+      masteryDots: 0,
+      failedAttempts: 0,
+      resumeStage: mode === "learn" ? "recognitionChoice" : "hiddenSelfRecall",
+      eligibleAfterExposure: 0,
+    },
+    pending: [
+      {
+        entry: nextEntry,
+        progress: createDefaultProgress(
+          nextEntry,
+          wordbook.id,
+          new Date("2026-05-31"),
+        ),
+        masteryDots: 0,
+        failedAttempts: 0,
+        resumeStage: mode === "learn" ? "recognitionChoice" : "hiddenSelfRecall",
+        eligibleAfterExposure: 0,
+      },
+    ],
+    reserve: [],
+    completedTargetLemmas: ["abandon", "ability"],
+    totalTargets: targetCount,
+    cardExposureCount: 4,
+  };
+}
 
 describe("WordbookDashboard", () => {
   beforeEach(() => {
@@ -67,6 +117,89 @@ describe("WordbookDashboard", () => {
     expect(onStartSession).toHaveBeenCalledWith(
       "learn",
       20,
+      "cet6-foundation-v1",
+    );
+  });
+
+  it("shows a continue entry for an active Learn session", async () => {
+    const user = userEvent.setup();
+    const onStartSession = vi.fn();
+
+    saveActiveStudySession({
+      mode: "learn",
+      wordbookId: "cet6-foundation-v1",
+      targetCount: 20,
+      state: makeActiveSessionState("learn", 20),
+    });
+
+    render(<WordbookDashboard mode="learn" onStartSession={onStartSession} />);
+
+    expect(screen.getByText("有一轮 Learn 正在进行")).toBeInTheDocument();
+    expect(screen.getByText("继续 Learn 2 / 20")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "继续" }));
+
+    expect(onStartSession).toHaveBeenCalledWith(
+      "learn",
+      20,
+      "cet6-foundation-v1",
+    );
+  });
+
+  it("abandons only the active session without touching progress", async () => {
+    const user = userEvent.setup();
+    const wordbook = getDefaultWordbook();
+    const entry = wordbook.entries[0];
+
+    saveWordProgress({
+      ...createDefaultProgress(entry, wordbook.id, new Date("2026-05-31")),
+      status: "learning",
+      masteryDots: 1,
+      seenCount: 1,
+    });
+    saveActiveStudySession({
+      mode: "learn",
+      wordbookId: "cet6-foundation-v1",
+      targetCount: 10,
+      state: makeActiveSessionState("learn", 10),
+    });
+
+    render(<WordbookDashboard mode="learn" onStartSession={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "放弃本轮" }));
+
+    expect(loadActiveStudySession({
+      mode: "learn",
+      wordbookId: "cet6-foundation-v1",
+    })).toBeNull();
+    expect(screen.queryByText("有一轮 Learn 正在进行")).not.toBeInTheDocument();
+    expect(screen.getByText(/学习中 1/)).toBeInTheDocument();
+  });
+
+  it("keeps a continued session target count after settings change", async () => {
+    const user = userEvent.setup();
+    const onStartSession = vi.fn();
+
+    saveActiveStudySession({
+      mode: "learn",
+      wordbookId: "cet6-foundation-v1",
+      targetCount: 10,
+      state: makeActiveSessionState("learn", 10),
+    });
+
+    render(<WordbookDashboard mode="learn" onStartSession={onStartSession} />);
+
+    await user.click(
+      within(screen.getByRole("group", { name: "Learn 每组" })).getByRole(
+        "button",
+        { name: "30" },
+      ),
+    );
+    await user.click(screen.getByRole("button", { name: "继续" }));
+
+    expect(onStartSession).toHaveBeenCalledWith(
+      "learn",
+      10,
       "cet6-foundation-v1",
     );
   });

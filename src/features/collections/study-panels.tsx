@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import {
   listCollectedWords,
@@ -289,7 +289,10 @@ export function ReviewPanel() {
     targetCount: StudySessionGoal;
     wordbookId: WordbookId;
   } | null>(null);
-  const [seededReviewCount] = useState(seedDevDueReviewWordsFromQuery);
+
+  useEffect(() => {
+    seedDevDueReviewWordsFromQuery();
+  }, []);
 
   if (activeSession) {
     return (
@@ -303,19 +306,12 @@ export function ReviewPanel() {
   }
 
   return (
-    <div className="space-y-4">
-      {seededReviewCount !== null ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-          已为本地手测加入 {seededReviewCount} 个到期 Review 词。
-        </div>
-      ) : null}
-      <WordbookDashboard
-        mode="review"
-        onStartSession={(mode, targetCount, wordbookId) =>
-          setActiveSession({ mode, targetCount, wordbookId })
-        }
-      />
-    </div>
+    <WordbookDashboard
+      mode="review"
+      onStartSession={(mode, targetCount, wordbookId) =>
+        setActiveSession({ mode, targetCount, wordbookId })
+      }
+    />
   );
 }
 

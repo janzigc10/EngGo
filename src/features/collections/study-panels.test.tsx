@@ -1,10 +1,20 @@
 // @vitest-environment jsdom
 
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { CollectionsPanel } from "@/features/collections/study-panels";
+import {
+  CollectionsPanel,
+  LearnPanel,
+  ReviewPanel,
+} from "@/features/collections/study-panels";
+import { getDefaultWordbook } from "@/features/wordbook/wordbook-data";
+import {
+  createDefaultProgress,
+  getNextReviewAt,
+  saveWordProgress,
+} from "@/features/wordbook/wordbook-progress-store";
 
 describe("CollectionsPanel", () => {
   beforeEach(() => {
@@ -79,5 +89,60 @@ describe("CollectionsPanel", () => {
       cet6?: unknown[];
     };
     expect(stored.cet6).toEqual([]);
+  });
+
+  it("keeps a Learn session available after exiting to the dashboard", async () => {
+    const user = userEvent.setup();
+    const wordbook = getDefaultWordbook();
+
+    render(<LearnPanel />);
+
+    await user.click(screen.getByRole("button", { name: /开始 Learn/ }));
+    expect(screen.getByText(wordbook.entries[0].lemma)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "退出" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("有一轮 Learn 正在进行")).toBeInTheDocument();
+    });
+    expect(screen.getByText("继续 Learn 0 / 10")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "继续" }));
+
+    expect(screen.getByText(wordbook.entries[0].lemma)).toBeInTheDocument();
+    expect(screen.getByText("0 / 10")).toBeInTheDocument();
+  });
+
+  it("keeps a forgotten Review session at its saved detail stage after exit", async () => {
+    const user = userEvent.setup();
+    const wordbook = getDefaultWordbook();
+    const entry = wordbook.entries[0];
+
+    saveWordProgress({
+      ...createDefaultProgress(entry, wordbook.id, new Date("2026-05-29")),
+      status: "passed",
+      masteryDots: 3,
+      reviewStrength: 1,
+      nextReviewAt: getNextReviewAt(new Date("2026-05-29"), 1),
+    });
+
+    render(<ReviewPanel />);
+
+    await user.click(screen.getByRole("button", { name: /开始 Review/ }));
+    await user.click(screen.getByRole("button", { name: "忘记了" }));
+    expect(screen.getByText("Meaning")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "退出" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("有一轮 Review 正在进行")).toBeInTheDocument();
+    });
+    expect(screen.getByText("继续 Review 0 / 1")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "继续" }));
+
+    expect(screen.getByText(entry.lemma)).toBeInTheDocument();
+    expect(screen.getByText("Meaning")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "忘记了" })).not.toBeInTheDocument();
   });
 });
