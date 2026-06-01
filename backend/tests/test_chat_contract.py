@@ -321,7 +321,7 @@ def test_chat_resolves_collect_group_action_without_calling_lookup_services():
 
 
 def test_chat_scope_switch_reuses_source_query_with_new_exam_target():
-    ordinary_service = RecordingService(
+    direct_service = RecordingService(
         answer="postgrad compare answer",
         grounding={
             "activeExamTarget": "postgrad",
@@ -336,7 +336,11 @@ def test_chat_scope_switch_reuses_source_query_with_new_exam_target():
             "confusionBoundary": [],
         },
     )
-    client = create_client(ordinary_lookup_service=ordinary_service)
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=direct_service,
+        advanced_lookup_service=FailingIfCalled(),
+    )
 
     response = client.post(
         "/api/chat",
@@ -365,8 +369,8 @@ def test_chat_scope_switch_reuses_source_query_with_new_exam_target():
     payload = response.json()
 
     assert response.status_code == 200
-    assert ordinary_service.calls[0]["active_exam_target"] == "postgrad"
-    assert ordinary_service.calls[0]["query"] == "access assess excess 怎么区分"
+    assert direct_service.calls[0]["active_exam_target"] == "postgrad"
+    assert direct_service.calls[0]["query"] == "access assess excess 怎么区分"
     assert payload["resolvedFollowUp"]["kind"] == "resolved_query"
     assert payload["resolvedFollowUp"]["reason"] == "scope_switch"
     assert payload["resolvedFollowUp"]["activeExamTarget"] == "postgrad"
@@ -919,9 +923,9 @@ def test_chat_orchestrator_recovers_service_no_match_with_provider():
         grounding=NO_MATCH_GROUNDING,
     )
     client = create_client(
-        ordinary_lookup_service=no_match_service,
+        ordinary_lookup_service=FailingIfCalled(),
         direct_compare_service=FailingIfCalled(),
-        advanced_lookup_service=FailingIfCalled(),
+        advanced_lookup_service=no_match_service,
     )
     provider = RecordingProvider(answer="可以先按英语学习问题理解为：它在问怎么学。")
     client.app.state.provider = provider
@@ -1004,9 +1008,9 @@ def test_chat_orchestrator_redirects_unrelated_no_match_without_provider():
         grounding=NO_MATCH_GROUNDING,
     )
     client = create_client(
-        ordinary_lookup_service=no_match_service,
+        ordinary_lookup_service=FailingIfCalled(),
         direct_compare_service=FailingIfCalled(),
-        advanced_lookup_service=FailingIfCalled(),
+        advanced_lookup_service=no_match_service,
     )
     provider = RecordingProvider(answer="should not be called")
     client.app.state.provider = provider
@@ -1178,6 +1182,82 @@ def test_chat_keeps_ordinary_exact_lookup_before_broad_services(tmp_path):
     assert payload["answer"] == "access\n\nn./v. 进入权；使用权；访问"
     assert payload["grounding"]["answerStyle"] == "standard_lookup"
     assert payload["grounding"]["matchType"] == "exact"
+
+
+def test_chat_tool_router_sends_direct_compare_without_ordinary_preflight():
+    direct_service = RecordingService(
+        answer="direct compare answer",
+        grounding={
+            "activeExamTarget": "cet6",
+            "queryMode": "direct_compare",
+            "answerStyle": "confusion_untangle",
+            "resolution": "resolved",
+            "mainAnswer": [
+                {"entryId": "access", "lemma": "access", "meaningZh": "进入权"},
+                {"entryId": "assess", "lemma": "assess", "meaningZh": "评估"},
+            ],
+            "confusionBoundary": [],
+        },
+    )
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=direct_service,
+        advanced_lookup_service=FailingIfCalled(),
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "access assess 怎么区分",
+            "history": [],
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert direct_service.calls[0]["query"] == "access assess 怎么区分"
+    assert payload["answer"] == "direct compare answer"
+    assert payload["grounding"]["queryMode"] == "direct_compare"
+
+
+def test_chat_tool_router_sends_shape_query_without_ordinary_preflight():
+    advanced_service = RecordingService(
+        answer="shape neighbor answer",
+        grounding={
+            "activeExamTarget": "cet6",
+            "queryMode": "shape_neighbor_search",
+            "answerStyle": "broad_vocab_summary",
+            "resolution": "resolved",
+            "mainAnswer": [
+                {"entryId": "evaluate", "lemma": "evaluate", "meaningZh": "评估"},
+                {"entryId": "evacuate", "lemma": "evacuate", "meaningZh": "撤离"},
+            ],
+            "confusionBoundary": [],
+        },
+    )
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=advanced_service,
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "给我几个跟 evaluate 易混的单词",
+            "history": [],
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert advanced_service.calls[0]["query"] == "给我几个跟 evaluate 易混的单词"
+    assert payload["answer"] == "shape neighbor answer"
+    assert payload["grounding"]["queryMode"] == "shape_neighbor_search"
 
 
 def test_chat_routes_direct_compare_after_ordinary_lookup_rejects_mode(tmp_path):

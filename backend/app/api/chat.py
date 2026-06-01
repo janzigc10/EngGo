@@ -12,7 +12,11 @@ from backend.app.answering.chat_orchestrator import (
     handle_context_continuation,
     recover_no_match,
 )
-from backend.app.answering.ordinary_lookup import UnsupportedQueryMode
+from backend.app.answering.chat_tool_router import (
+    build_chat_tools,
+    execute_chat_tool_route,
+    plan_chat_tool_route,
+)
 from backend.app.answering.provider import ChatProviderError
 from backend.app.conversation.learning_context import (
     build_manual_conversation_context,
@@ -155,7 +159,7 @@ def bounded_plain_response(answer: str, request_id: str) -> JSONResponse:
     )
 
 
-def answer_with_services(
+def answer_with_tools(
     *,
     request: Request,
     payload: ChatRequest,
@@ -165,57 +169,68 @@ def answer_with_services(
     resolved_follow_up: dict,
 ) -> JSONResponse:
     history = [message.model_dump() for message in payload.history]
-    services = (
-        getattr(request.app.state, "ordinary_lookup_service", None),
-        getattr(request.app.state, "direct_compare_service", None),
-        getattr(request.app.state, "advanced_lookup_service", None),
+    route_plan = plan_chat_tool_route(
+        query=query,
+        active_exam_target=active_exam_target,
+    )
+    tools = build_chat_tools(
+        ordinary_lookup_service=getattr(
+            request.app.state,
+            "ordinary_lookup_service",
+            None,
+        ),
+        direct_compare_service=getattr(
+            request.app.state,
+            "direct_compare_service",
+            None,
+        ),
+        advanced_lookup_service=getattr(
+            request.app.state,
+            "advanced_lookup_service",
+            None,
+        ),
     )
 
-    for service in services:
-        if not service:
-            continue
-
-        try:
-            result = service.answer(
-                active_exam_target=active_exam_target,
-                query=query,
-                request_id=request_id,
-                history=history,
-            )
-        except UnsupportedQueryMode:
-            continue
-        except ChatProviderError as error:
-            return provider_error_response(error, request_id)
-
-        recovered_payload = recover_no_match(
-            query=query,
-            history=history,
+    try:
+        execution = execute_chat_tool_route(
+            route_plan=route_plan,
+            tools=tools,
             request_id=request_id,
-            active_exam_target=active_exam_target,
-            service_payload=result.payload,
-            context=payload.conversationContext,
-            provider=getattr(request.app.state, "provider", None),
-            resolved_follow_up=resolved_follow_up,
+            history=history,
         )
-        if recovered_payload:
-            return response_json(recovered_payload, 200)
+    except ChatProviderError as error:
+        return provider_error_response(error, request_id)
 
-        result.payload.conversationContext = build_conversation_context(
-            payload=result.payload,
-            active_exam_target=active_exam_target,
-            source_message_id=f"{request_id}:assistant",
+    if execution is None:
+        return bounded_plain_response(
+            unhandled_bounded_fallback_answer(query),
+            request_id,
         )
-        result.payload.resolvedFollowUp = (
-            resolved_follow_up
-            if resolved_follow_up.get("kind") != "not_follow_up"
-            else None
-        )
-        return response_json(result.payload, result.status_code)
 
-    return bounded_plain_response(
-        unhandled_bounded_fallback_answer(query),
-        request_id,
+    recovered_payload = recover_no_match(
+        query=query,
+        history=history,
+        request_id=request_id,
+        active_exam_target=active_exam_target,
+        service_payload=execution.payload,
+        context=payload.conversationContext,
+        provider=getattr(request.app.state, "provider", None),
+        resolved_follow_up=resolved_follow_up,
     )
+    if recovered_payload:
+        return response_json(recovered_payload, 200)
+
+    execution.payload.conversationContext = build_conversation_context(
+        payload=execution.payload,
+        active_exam_target=active_exam_target,
+        source_message_id=f"{request_id}:assistant",
+    )
+    execution.payload.resolvedFollowUp = (
+        resolved_follow_up
+        if resolved_follow_up.get("kind") != "not_follow_up"
+        else None
+    )
+    return response_json(execution.payload, execution.status_code)
 
 
 def candidate_from_payload(value: dict) -> LearningCandidateRef:
@@ -605,7 +620,7 @@ async def post_chat(request: Request, payload: ChatRequest) -> JSONResponse:
 
     query = resolved["query"] if resolved["kind"] == "resolved_query" else payload.query
     active_exam_target = resolved.get("activeExamTarget", payload.activeExamTarget)
-    return answer_with_services(
+    return answer_with_tools(
         request=request,
         payload=payload,
         request_id=request_id,

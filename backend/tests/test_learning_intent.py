@@ -180,3 +180,18 @@ def test_expression_recall_strips_collection_request_suffixes(
     assert plan.task == "meaning_core"
     assert meaning.value == expected_hint
     assert set(meaning.alternatives) >= expected_alternatives
+
+
+@pytest.mark.parametrize(
+    ("query", "expected_terms"),
+    [
+        ("restrain vs constrain", ["restrain", "constrain"]),
+        ("access versus assess", ["access", "assess"]),
+        ("access or assess", ["access", "assess"]),
+    ],
+)
+def test_compare_connectors_are_not_compare_candidates(query, expected_terms):
+    normalized = normalize_query(query)
+
+    assert normalized.query_mode == "direct_compare"
+    assert normalized.compare_terms == expected_terms

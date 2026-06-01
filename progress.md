@@ -1,10 +1,10 @@
 # EngGo 滚动交接
 
-## 当前状态（2026-06-01 Controlled Tool Router V1 进行中）
+## 当前状态（2026-06-01 Controlled Tool Router V1 已完成）
 - 当前分支 / worktree：`codex/controlled-tool-router-v1`，工作区 `C:\Users\Chen\Desktop\EngGo`。
 - 基线提交：`3899051 feat: add controlled chat orchestrator`。
 - 当前活跃计划：`docs/superpowers/plans/2026-06-01-controlled-tool-router-v1.md`。
-- 当前目标：把 `/api/chat` 的隐式 service loop 改成显式内部 tool route plan，继续保持上一版 no-match recovery 和自然多轮 continuation。
+- 当前目标已完成：把 `/api/chat` 的隐式 service loop 改成显式内部 tool route plan，继续保持上一版 no-match recovery 和自然多轮 continuation。
 - 本轮范围：
   - 新增 internal tool protocol / rule-first route planner。
   - 不引入 LangChain / LangGraph。
@@ -22,6 +22,24 @@
 1. 已从 `codex/controlled-chat-orchestrator-v1` 切出 `codex/controlled-tool-router-v1`。
 2. 新增 `docs/superpowers/specs/2026-06-01-controlled-tool-router-v1-design.md` 和 `docs/superpowers/plans/2026-06-01-controlled-tool-router-v1.md`。
 3. 更新 `docs/README.md` 与本文件，将 Controlled Tool Router V1 设为当前活跃计划。
+4. 新增 `backend/app/answering/chat_tool_router.py`，把 ordinary lookup、direct compare、advanced lookup 显式包装成内部 chat tools，并由 `normalize_query()` 生成 rule-first route plan。
+5. `/api/chat` 已从隐式 service tuple loop 改为执行 `ChatToolRoutePlan`；direct compare、meaning / shape / root、ordinary lookup 会优先进入对应工具，同时保留 UnsupportedQueryMode fallback、provider error mapping、no-match recovery 和 conversation context 构造。
+6. 已补 `backend/tests/test_chat_tool_router.py` 与 `/api/chat` contract 覆盖，确认 direct / advanced 不再依赖 ordinary preflight；当前 focused router tests：`41 passed`。
+7. 浏览器 E2E 发现并修复 `restrain vs constrain` 中 `vs` 被误当作 compare candidate 的问题；`normalize_query()` 现在会在 compare terms 中过滤 `vs / versus / or`。
+
+## 最新验证
+- Backend focused tests：
+  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_learning_context.py backend\tests\test_learning_intent.py backend\tests\test_ordinary_lookup_answer.py backend\tests\test_direct_compare_answer.py backend\tests\test_advanced_lookup.py backend\tests\test_chat_tool_router.py backend\tests\test_chat_contract.py` -> 197 passed。
+- Frontend / smoke unit：
+  - `corepack pnpm test src\components\chat\chat-workspace.test.tsx src\features\chat\conversation-context.test.ts scripts\lib\conversational-learning-context-smoke.test.ts` -> 3 files / 40 tests passed。
+- Lint / diff：
+  - `corepack pnpm lint -- src\features\chat src\components\chat scripts\lib\conversational-learning-context-smoke.ts scripts\run-conversational-learning-context-smoke.ts` -> passed。
+  - `git diff --check` -> passed，仅 Windows LF/CRLF warning。
+- Runtime / E2E：
+  - 已重启本地 dev stack，当前监听：Next `127.0.0.1:3000` PID `35652`，FastAPI `127.0.0.1:8000` PID `40052`。
+  - FastAPI health：`http://127.0.0.1:8000/health` -> `status=ok`。
+  - Next proxy smoke：`corepack pnpm eval:fastapi:conversation-context-smoke -- --base-url http://127.0.0.1:3000 --label next-proxy-controlled-tool-router-restarted` -> 13 total / 13 pass / 0 fail。
+  - in-app Browser：`access` 普通查词通过；`restrain vs constrain` 只展示 `restrain / constrain` 两个候选，不再把 `vs` 当候选；`how do I use these words` 接住上一轮两个候选；`how to learn English fast` 不 hard no-match、不暴露内部字段；console error 为空。
 
 ## 上一轮完成内容
 1. 新增 `docs/superpowers/specs/2026-06-01-controlled-chat-orchestrator-v1-design.md` 和 `docs/superpowers/plans/2026-06-01-controlled-chat-orchestrator-v1.md`。
@@ -42,7 +60,7 @@
 6. provider 失败或无 provider 时返回 deterministic dictionary lines，并保持 `answerKind="grounded"` 与 `mainAnswer` 供后续追问使用。
 7. GitHub README 维护：移除早期 `real-smoke` 作为主线的陈旧表述，补充 ECDICT-backed wordbook、学习闭环、当前数据说明和下一阶段路线。
 
-## 最新验证
+## 上一轮验证
 - Backend focused tests：
   - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_learning_context.py backend\tests\test_ordinary_lookup_answer.py backend\tests\test_direct_compare_answer.py backend\tests\test_advanced_lookup.py backend\tests\test_chat_contract.py` -> 151 passed。
 - Frontend / smoke unit：
@@ -56,8 +74,8 @@
   - in-app Browser：first-turn compare 可生成 `restrain / constrain` 追问上下文；英文自然续问 `how do I use these words` 接上旧候选且不 clarification；learning-adjacent no-match `how to learn English fast` 不 hard no-match、不暴露内部字段，并清掉旧“正在追问”提示；console error 为空。
 
 ## 下一步
-1. 如需进主线，review 后合并 `codex/controlled-chat-orchestrator-v1`。
-2. 下一轮可继续做更大的“模型路由/工具选择”优化：减少入口意图误判，让普通学习问题先进入受控回答，而不是继续扩大硬 if-else。
+1. 如需进主线，review 后合并 `codex/controlled-tool-router-v1`；该分支基于 `codex/controlled-chat-orchestrator-v1`。
+2. 下一轮可继续做更大的“模型辅助意图分类”：只在 router 灰区输入里调用 provider 分类，不要一开始就让每轮消息都多一次模型路由。
 3. 另一个可排期产品问题：direct compare provider 偶尔会追加“如果你愿意...”式 follow-up 文案，可单独收紧 prompt。
 
 ## 上一轮已完成基线

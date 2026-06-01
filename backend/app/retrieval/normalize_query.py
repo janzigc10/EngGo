@@ -10,6 +10,7 @@ from backend.app.retrieval.learning_intent import (
 QueryMode = str
 
 english_token_pattern = re.compile(r"[a-z]+(?:[-'][a-z]+)*", re.IGNORECASE)
+compare_connector_terms = {"vs", "versus", "or"}
 compare_cue_pattern = re.compile(
     r"(区别|差别|不同|怎么区分|怎么分|搞混|分不清|哪个|哪一个|还是|vs\.?|versus|\bor\b)",
     re.IGNORECASE,
@@ -205,6 +206,14 @@ def unique_terms(terms: list[str]) -> list[str]:
 
 def extract_english_terms(normalized_text: str) -> list[str]:
     return unique_terms([match.group(0).lower() for match in english_token_pattern.finditer(normalized_text)])
+
+
+def extract_compare_terms(english_terms: list[str]) -> list[str]:
+    return [
+        term
+        for term in english_terms
+        if term not in compare_connector_terms
+    ]
 
 
 def strip_meaning_request_prefix(value: str) -> str:
@@ -413,7 +422,7 @@ def normalize_query(query: str) -> NormalizedQuery:
         or contains_root_fragment_recall_pattern(normalized_text)
     )
     compare_terms = (
-        english_terms[:4]
+        extract_compare_terms(english_terms)[:4]
         if contains_compare_cue(normalized_text, english_terms)
         else []
     )
