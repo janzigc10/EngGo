@@ -1,10 +1,16 @@
 # EngGo 滚动交接
 
-## 当前状态（2026-06-01 GitHub README 已同步当前产品状态）
-- 当前分支 / worktree：`codex/ecdict-wordbook-expansion-v1`，工作区 `C:\Users\Chen\Desktop\EngGo`。
-- 最新提交：`915c6c9 feat: expand wordbook with ecdict grounding`。
-- 最新完成计划：`docs/superpowers/plans/2026-06-01-ecdict-grounded-direct-compare-v1.md`。
-- 当前产品决策已落地：
+## 当前状态（2026-06-01 Controlled Chat Orchestrator V1 已完成）
+- 当前分支 / worktree：`codex/controlled-chat-orchestrator-v1`，工作区 `C:\Users\Chen\Desktop\EngGo`。
+- 基线提交：`4ab7a90 docs: refresh github project overview`。
+- 当前活跃计划：`docs/superpowers/plans/2026-06-01-controlled-chat-orchestrator-v1.md`。
+- 当前目标：实现受控类 Agent 聊天链路 V1，从文档到代码、focused tests、smoke 和 in-app Browser 真实 E2E。
+- 本轮范围：
+  - 只接管 no-match recovery 和自然多轮 continuation。
+  - 不引入 LangChain / LangGraph。
+  - 不重写稳定 exact lookup / direct compare。
+  - 不改 Learn / Review / Progress 状态机。
+- 已落地基线：
   - direct compare 不再把人工 `quickDistinction`、confusion graph 或人工 pair/group 元数据当主能力。
   - 主路径是：解析用户明确提到的英文词 -> 优先查 ECDICT-backed candidates -> provider 组织短中文辨析。
   - provider 不可用或失败时，只退回干净的并列词典释义。
@@ -13,6 +19,16 @@
   - GitHub-facing `README.md` 已更新到当前产品状态：ECDICT 大词库、Learn / Review / Progress、FastAPI 主链路、ECDICT-grounded direct compare 和下一阶段类 Agent 化方向。
 
 ## 本轮完成内容
+1. 新增 `docs/superpowers/specs/2026-06-01-controlled-chat-orchestrator-v1-design.md` 和 `docs/superpowers/plans/2026-06-01-controlled-chat-orchestrator-v1.md`。
+2. 更新 `docs/README.md` 与本文件，将 Controlled Chat Orchestrator V1 设为当前活跃计划。
+3. 新增 `backend/app/answering/chat_orchestrator.py`，把聊天链路里可恢复的普通 no-match 和不可恢复的高级边界 no-match 分开处理。
+4. `/api/chat` 现在会在硬路由之前先接住自然上下文追问，例如 `这几个具体怎么用`；有候选上下文时给 provider 受控 grounding，无上下文时返回 clarification。
+5. 普通学习问法 no-match 可进入 provider-backed recovery；随机英文 blob、词根族边界等仍保持保守收口。
+6. no-match recovery 默认不复用旧候选；非上下文问题会返回 `clear_context` 元数据，前端据此清掉“正在追问”提示。
+7. 自然续问识别支持英文 `how do I use these words` 这类表达，适配浏览器逐键输入和真实用户英文追问。
+8. `scripts/lib/conversational-learning-context-smoke.ts` 已加入自然 group usage 与 learning-adjacent no-match recovery 用例。
+
+## 上一轮完成内容
 1. 新增 `docs/superpowers/specs/2026-06-01-ecdict-grounded-direct-compare-design.md` 和 `docs/superpowers/plans/2026-06-01-ecdict-grounded-direct-compare-v1.md`。
 2. `DirectCompareService` 已改为 resolved compare 有 provider 时调用 provider，并传入 ECDICT-backed `mainAnswer` grounding。
 3. direct compare exact terms 现在优先用 ECDICT candidates；如果 ECDICT 缺失，才退回可用 structured exact entry。
@@ -23,23 +39,21 @@
 
 ## 最新验证
 - Backend focused tests：
-  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_direct_compare_answer.py` -> 13 passed。
-  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_chat_contract.py -k "direct_compare or provider"` -> 8 passed / 18 deselected。
-  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_direct_compare_answer.py backend\tests\test_chat_contract.py backend\tests\test_learning_context.py` -> 84 passed。
-  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_advanced_lookup.py` -> 43 passed。
-- Frontend lint / diff:
-  - `corepack pnpm lint -- src\features\chat src\components\chat src\features\wordbook scripts\generate-ecdict-wordbook.ts` -> passed。
+  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_learning_context.py backend\tests\test_ordinary_lookup_answer.py backend\tests\test_direct_compare_answer.py backend\tests\test_advanced_lookup.py backend\tests\test_chat_contract.py` -> 151 passed。
+- Frontend / smoke unit：
+  - `corepack pnpm test src\components\chat\chat-workspace.test.tsx src\features\chat\conversation-context.test.ts scripts\lib\conversational-learning-context-smoke.test.ts` -> 3 files / 40 tests passed。
+- Lint / diff：
+  - `corepack pnpm lint -- src\features\chat src\components\chat scripts\lib\conversational-learning-context-smoke.ts scripts\run-conversational-learning-context-smoke.ts` -> passed。
   - `git diff --check` -> passed，仅 Windows LF/CRLF warning。
 - Runtime / E2E：
-  - FastAPI 正在运行：`http://127.0.0.1:8000/health` -> `status=ok`。
-  - Next 正在运行：`http://localhost:3000` -> 200 OK。
-  - Node API smoke：`restrain 和 constrain 的区别` 返回 `providerRequestId` 非空、`queryMode=direct_compare`、`comparisonView=null`、`mainAnswer.sourceKind=["external_dictionary_basic","external_dictionary_basic"]`。
-  - Playwright 浏览器 E2E：在首页输入 `restrain 和 constrain 的区别`，UI 渲染 provider 风格短辨析；无旧 fallback 文案；console errors 为空。
+  - FastAPI health：`http://127.0.0.1:8000/health` -> `status=ok`。
+  - Next proxy smoke：`corepack pnpm eval:fastapi:conversation-context-smoke -- --base-url http://127.0.0.1:3000 --label next-proxy-controlled-orchestrator` -> 13 total / 13 pass / 0 fail。
+  - in-app Browser：first-turn compare 可生成 `restrain / constrain` 追问上下文；英文自然续问 `how do I use these words` 接上旧候选且不 clarification；learning-adjacent no-match `how to learn English fast` 不 hard no-match、不暴露内部字段，并清掉旧“正在追问”提示；console error 为空。
 
 ## 下一步
-1. 将当前分支推送到 GitHub，后续可基于远端分支继续类 Agent 化回答链路设计。
-2. 下一阶段优先做窄范围的模型工具链路：减少硬路由 no-match、增强多轮续接，让模型先理解用户意图，再调用内部查词/辨析/语义检索/上下文能力。
-3. 模型链路稳定后，再打通聊天 -> 收藏 -> 背词 / 复习 -> Progress 的学习闭环。
+1. 如需进主线，review 后合并 `codex/controlled-chat-orchestrator-v1`。
+2. 下一轮可继续做更大的“模型路由/工具选择”优化：减少入口意图误判，让普通学习问题先进入受控回答，而不是继续扩大硬 if-else。
+3. 另一个可排期产品问题：direct compare provider 偶尔会追加“如果你愿意...”式 follow-up 文案，可单独收紧 prompt。
 
 ## 上一轮已完成基线
 1. 背单词词库已切到 generated ECDICT compact dataset：7890 entries；CET-6 7765；CET-4 6077；Gaokao 2978；不包含 postgrad scope。

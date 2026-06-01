@@ -52,6 +52,16 @@ ACCESS_ASSESS_EXCESS_GROUNDING = {
     },
 }
 
+NO_MATCH_GROUNDING = {
+    "activeExamTarget": "cet6",
+    "queryMode": "meaning_lookup",
+    "answerStyle": "standard_lookup",
+    "resolution": "no_match",
+    "noMatchReason": "out_of_kb",
+    "mainAnswer": [],
+    "confusionBoundary": [],
+}
+
 
 class FakeRepository:
     def __init__(self, candidates=None, groups=None):
@@ -780,6 +790,244 @@ def test_chat_returns_plain_learning_mood_answer_without_grounding():
     assert payload["answerKind"] == "plain"
     assert payload["providerRequestId"] is None
     assert "先不硬背" in payload["answer"]
+    assert "grounding" not in payload
+
+
+def test_chat_orchestrator_handles_natural_context_continuation_before_services():
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+    provider = RecordingProvider(answer="这几个的用法都围绕上一轮候选。")
+    client.app.state.provider = provider
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "这几个具体怎么用",
+            "history": [],
+            "conversationContext": {
+                "version": 1,
+                "activeExamTarget": "cet6",
+                "sourceMessageId": "turn_1:assistant",
+                "topicKind": "direct_compare",
+                "sourceQuery": "access assess excess 怎么区分",
+                "focus": None,
+                "candidates": [
+                    {"index": 1, "lemma": "access", "label": "access"},
+                    {"index": 2, "lemma": "assess", "label": "assess"},
+                    {"index": 3, "lemma": "excess", "label": "excess"},
+                ],
+                "availableActions": ["collect_one", "switch_scope", "study_guidance", "collect_group"],
+                "expiresAfterTurns": 2,
+            },
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answer"] == "这几个的用法都围绕上一轮候选。"
+    assert payload["answerKind"] == "plain"
+    assert payload["providerRequestId"] == "provider_study_1"
+    assert payload["resolvedFollowUp"]["action"] == "context_continuation"
+    assert [
+        item["lemma"]
+        for item in provider.calls[0]["grounding"]["targetRefs"]
+    ] == ["access", "assess", "excess"]
+    assert payload["conversationContext"]["topicKind"] == "direct_compare"
+
+
+def test_chat_orchestrator_handles_english_context_continuation():
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+    provider = RecordingProvider(answer="These words stay scoped to the prior candidates.")
+    client.app.state.provider = provider
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "how do I use these words",
+            "history": [],
+            "conversationContext": {
+                "activeExamTarget": "cet6",
+                "topicKind": "direct_compare",
+                "sourceMessageId": "prev:assistant",
+                "sourceQuery": "access assess excess 怎么区分",
+                "candidates": [
+                    {"index": 1, "lemma": "access", "label": "access"},
+                    {"index": 2, "lemma": "assess", "label": "assess"},
+                    {"index": 3, "lemma": "excess", "label": "excess"},
+                ],
+                "continuationCandidates": [
+                    {"index": 1, "lemma": "access", "label": "access"},
+                    {"index": 2, "lemma": "assess", "label": "assess"},
+                    {"index": 3, "lemma": "excess", "label": "excess"},
+                ],
+                "availableActions": ["collect_one", "switch_scope", "study_guidance", "collect_group"],
+                "expiresAfterTurns": 2,
+            },
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answer"] == "These words stay scoped to the prior candidates."
+    assert payload["answerKind"] == "plain"
+    assert payload["resolvedFollowUp"]["action"] == "context_continuation"
+    assert [
+        item["lemma"]
+        for item in provider.calls[0]["grounding"]["targetRefs"]
+    ] == ["access", "assess", "excess"]
+
+
+def test_chat_orchestrator_clarifies_context_continuation_without_context():
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "这几个具体怎么用",
+            "history": [],
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answerKind"] == "plain"
+    assert payload["providerRequestId"] is None
+    assert payload["resolvedFollowUp"]["kind"] == "clarification"
+    assert "grounding" not in payload
+
+
+def test_chat_orchestrator_recovers_service_no_match_with_provider():
+    no_match_service = RecordingService(
+        answer="当前词库暂未稳定定位到你说的词",
+        grounding=NO_MATCH_GROUNDING,
+    )
+    client = create_client(
+        ordinary_lookup_service=no_match_service,
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+    provider = RecordingProvider(answer="可以先按英语学习问题理解为：它在问怎么学。")
+    client.app.state.provider = provider
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "怎么学英语最快",
+            "history": [],
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answer"] == "可以先按英语学习问题理解为：它在问怎么学。"
+    assert payload["answerKind"] == "plain"
+    assert payload["providerRequestId"] == "provider_study_1"
+    assert provider.calls[0]["grounding"]["recoveryKind"] == "no_match_recovery"
+    assert provider.calls[0]["grounding"]["serviceGrounding"]["resolution"] == "no_match"
+    assert payload["resolvedFollowUp"]["action"] == "clear_context"
+    assert "grounding" not in payload
+
+
+def test_chat_orchestrator_no_match_recovery_does_not_reuse_stale_context():
+    no_match_service = RecordingService(
+        answer="当前词库暂未稳定定位到你说的词",
+        grounding=NO_MATCH_GROUNDING,
+    )
+    client = create_client(
+        ordinary_lookup_service=no_match_service,
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+    provider = RecordingProvider(answer="先按通用英语学习问题回答。")
+    client.app.state.provider = provider
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "how to learn English fast",
+            "history": [],
+            "conversationContext": {
+                "activeExamTarget": "cet6",
+                "topicKind": "direct_compare",
+                "sourceMessageId": "prev:assistant",
+                "sourceQuery": "access assess excess 怎么区分",
+                "candidates": [
+                    {"index": 1, "lemma": "access", "label": "access"},
+                    {"index": 2, "lemma": "assess", "label": "assess"},
+                    {"index": 3, "lemma": "excess", "label": "excess"},
+                ],
+                "continuationCandidates": [
+                    {"index": 1, "lemma": "access", "label": "access"},
+                    {"index": 2, "lemma": "assess", "label": "assess"},
+                    {"index": 3, "lemma": "excess", "label": "excess"},
+                ],
+                "availableActions": ["collect_one", "switch_scope", "study_guidance", "collect_group"],
+                "expiresAfterTurns": 2,
+            },
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answer"] == "先按通用英语学习问题回答。"
+    assert payload["answerKind"] == "plain"
+    assert provider.calls[0]["grounding"]["targetRefs"] == []
+    assert payload["resolvedFollowUp"]["action"] == "clear_context"
+    assert "conversationContext" not in payload
+    assert "grounding" not in payload
+
+
+def test_chat_orchestrator_redirects_unrelated_no_match_without_provider():
+    no_match_service = RecordingService(
+        answer="当前词库暂未稳定定位到你说的词",
+        grounding=NO_MATCH_GROUNDING,
+    )
+    client = create_client(
+        ordinary_lookup_service=no_match_service,
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+    provider = RecordingProvider(answer="should not be called")
+    client.app.state.provider = provider
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "今天天气怎么样",
+            "history": [],
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answerKind"] == "plain"
+    assert payload["providerRequestId"] is None
+    assert "主要帮你查词" in payload["answer"]
+    assert payload["resolvedFollowUp"]["action"] == "clear_context"
+    assert provider.calls == []
     assert "grounding" not in payload
 
 

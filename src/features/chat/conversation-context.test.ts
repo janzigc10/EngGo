@@ -115,6 +115,37 @@ describe("conversation context helpers", () => {
     ).toBeNull();
   });
 
+  it("clears older context after an assistant clear_context action", () => {
+    const context = createContext({ activeExamTarget: "cet6" });
+
+    expect(
+      latestConversationContext([
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "restrain / constrain context ready.",
+          conversationContext: context,
+        },
+        {
+          id: "user-1",
+          role: "user",
+          content: "how to learn English fast",
+        },
+        {
+          id: "assistant-2",
+          role: "assistant",
+          content: "Use a compact study loop.",
+          resolvedFollowUp: {
+            kind: "resolved_action",
+            action: "clear_context",
+            activeExamTarget: "cet6",
+            targetRefs: [],
+          },
+        },
+      ]),
+    ).toBeNull();
+  });
+
   it("collect_group writes all target lemmas to enggo.collectedWords", () => {
     const action: ResolvedFollowUp = {
       kind: "resolved_action",

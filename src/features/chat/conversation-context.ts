@@ -62,6 +62,13 @@ export function latestConversationContext(
       continue;
     }
 
+    if (
+      message.resolvedFollowUp?.kind === "resolved_action" &&
+      message.resolvedFollowUp.action === "clear_context"
+    ) {
+      return null;
+    }
+
     if (message.conversationContext) {
       if (
         laterUserTurns <= message.conversationContext.expiresAfterTurns &&

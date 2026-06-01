@@ -8,6 +8,10 @@ from backend.app.answering.no_match_policy import (
     is_random_like_single_english_token,
     is_suspicious_single_english_token,
 )
+from backend.app.answering.chat_orchestrator import (
+    handle_context_continuation,
+    recover_no_match,
+)
 from backend.app.answering.ordinary_lookup import UnsupportedQueryMode
 from backend.app.answering.provider import ChatProviderError
 from backend.app.conversation.learning_context import (
@@ -182,6 +186,19 @@ def answer_with_services(
             continue
         except ChatProviderError as error:
             return provider_error_response(error, request_id)
+
+        recovered_payload = recover_no_match(
+            query=query,
+            history=history,
+            request_id=request_id,
+            active_exam_target=active_exam_target,
+            service_payload=result.payload,
+            context=payload.conversationContext,
+            provider=getattr(request.app.state, "provider", None),
+            resolved_follow_up=resolved_follow_up,
+        )
+        if recovered_payload:
+            return response_json(recovered_payload, 200)
 
         result.payload.conversationContext = build_conversation_context(
             payload=result.payload,
@@ -548,6 +565,17 @@ async def post_chat(request: Request, payload: ChatRequest) -> JSONResponse:
     direct_answer = direct_bounded_chat_answer(payload.query)
     if direct_answer:
         return bounded_plain_response(direct_answer, request_id)
+
+    context_continuation = handle_context_continuation(
+        query=payload.query,
+        history=[message.model_dump() for message in payload.history],
+        request_id=request_id,
+        active_exam_target=payload.activeExamTarget,
+        context=payload.conversationContext,
+        provider=getattr(request.app.state, "provider", None),
+    )
+    if context_continuation:
+        return response_json(context_continuation, 200)
 
     resolved = resolve_follow_up(
         payload.query,

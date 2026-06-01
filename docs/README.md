@@ -8,6 +8,8 @@
 - `context.md`：长期项目地图和代码地图。
 
 ## 当前有效设计
+- `docs/superpowers/specs/2026-06-01-controlled-chat-orchestrator-v1-design.md`
+  - 当前类 Agent 化设计：不引入完整 LangChain / LangGraph，不做开放 agent；在现有查词、辨析、语义检索和上下文能力外加一层受控 orchestrator，优先解决 hard no-match 和自然多轮追问断片。稳定 exact lookup / direct compare 继续保留，no-match 和弱续接路径先进入 provider-backed recovery 或 bounded clarification。
 - `docs/superpowers/specs/2026-06-01-ecdict-grounded-direct-compare-design.md`
   - 当前 direct compare 设计：不再依赖人工 `quickDistinction`、confusion graph 或人工 pair/group 元数据作为主能力；用户问两个英文词区别时，优先解析用户明确提到的词，使用 ECDICT-backed candidates 作为 grounding，让 provider 组织短中文辨析；provider 不可用或失败时只退回干净的并列词典释义。已有人工组最多保留为历史数据，不再作为 direct compare 扩展策略。
 - `docs/superpowers/specs/2026-05-31-ecdict-backed-wordbook-expansion-design.md`
@@ -46,7 +48,8 @@
   - 初始技术设计。
 
 ## 当前活跃计划
-- 暂无新的活跃实现计划。最新完成计划是 `docs/superpowers/plans/2026-06-01-ecdict-grounded-direct-compare-v1.md`；下一步是用户手测后决定是否提交 / 合并当前分支。
+- `docs/superpowers/plans/2026-06-01-controlled-chat-orchestrator-v1.md`
+  - 当前最近完成计划：受控类 Agent 聊天链路 V1 已从文档到代码、focused tests、smoke 和 in-app Browser 真实 E2E 完成。第一刀只接管 no-match recovery 和自然多轮 continuation，不重写稳定 exact lookup / direct compare，也不触碰 Learn / Review 状态机。
 
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。

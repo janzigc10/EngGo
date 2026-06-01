@@ -18,7 +18,7 @@ const accessCompareCase: ConversationContextSmokeCase = {
       expectedStatus: 200,
       expectedAnswerKind: "grounded",
       expectedContextLemmas: ["access", "assess", "excess"],
-      expectedProviderRequest: "absent",
+      expectedProviderRequest: "allowed",
     },
     {
       query: "第二个是什么意思",
@@ -118,6 +118,23 @@ describe("conversational learning-context smoke", () => {
         ],
       }),
       expect.objectContaining({
+        name: "access compare then natural group usage",
+        turns: [
+          expect.objectContaining({
+            query: "access assess excess 怎么区分",
+          }),
+          expect.objectContaining({
+            query: "这几个具体怎么用",
+            expectedAnswerKind: "plain",
+            expectedGrounding: "absent",
+            expectedResolvedKind: "resolved_action",
+            expectedAction: "context_continuation",
+            expectedExactTargetLemmas: ["access", "assess", "excess"],
+            expectedProviderRequest: "allowed",
+          }),
+        ],
+      }),
+      expect.objectContaining({
         name: "evaluate lookalikes then ordinal usage",
         turns: [
           expect.objectContaining({
@@ -203,6 +220,17 @@ describe("conversational learning-context smoke", () => {
             expectedAnswerKind: "plain",
             expectedGrounding: "absent",
             expectedProviderRequest: "absent",
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        name: "learning adjacent no match recovers without grounding",
+        turns: [
+          expect.objectContaining({
+            query: "how to learn English fast",
+            expectedAnswerKind: "plain",
+            expectedGrounding: "absent",
+            expectedProviderRequest: "allowed",
           }),
         ],
       }),
