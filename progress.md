@@ -1,7 +1,8 @@
 # EngGo 滚动交接
 
-## 当前状态（2026-06-01 ECDICT-grounded Direct Compare V1 已完成验证）
+## 当前状态（2026-06-01 GitHub README 已同步当前产品状态）
 - 当前分支 / worktree：`codex/ecdict-wordbook-expansion-v1`，工作区 `C:\Users\Chen\Desktop\EngGo`。
+- 最新提交：`915c6c9 feat: expand wordbook with ecdict grounding`。
 - 最新完成计划：`docs/superpowers/plans/2026-06-01-ecdict-grounded-direct-compare-v1.md`。
 - 当前产品决策已落地：
   - direct compare 不再把人工 `quickDistinction`、confusion graph 或人工 pair/group 元数据当主能力。
@@ -9,6 +10,7 @@
   - provider 不可用或失败时，只退回干净的并列词典释义。
   - 不再追加“当前没有人工易混组；先按核心义区分”这种低价值 fallback。
   - 已有人工组最多作为历史兼容，不再批量维护或扩成系统化 graph。
+  - GitHub-facing `README.md` 已更新到当前产品状态：ECDICT 大词库、Learn / Review / Progress、FastAPI 主链路、ECDICT-grounded direct compare 和下一阶段类 Agent 化方向。
 
 ## 本轮完成内容
 1. 新增 `docs/superpowers/specs/2026-06-01-ecdict-grounded-direct-compare-design.md` 和 `docs/superpowers/plans/2026-06-01-ecdict-grounded-direct-compare-v1.md`。
@@ -17,6 +19,7 @@
 4. direct compare 不再查询/依赖人工 confusion group，也不再把未问到的 group member 加进 `confusionBoundary`。
 5. provider prompt 保持轻量：说明核心区别，可补常见语境或搭配直觉，不主动扩第三个词，不声称人工易混组。
 6. provider 失败或无 provider 时返回 deterministic dictionary lines，并保持 `answerKind="grounded"` 与 `mainAnswer` 供后续追问使用。
+7. GitHub README 维护：移除早期 `real-smoke` 作为主线的陈旧表述，补充 ECDICT-backed wordbook、学习闭环、当前数据说明和下一阶段路线。
 
 ## 最新验证
 - Backend focused tests：
@@ -34,9 +37,9 @@
   - Playwright 浏览器 E2E：在首页输入 `restrain 和 constrain 的区别`，UI 渲染 provider 风格短辨析；无旧 fallback 文案；console errors 为空。
 
 ## 下一步
-1. 用户手测 `http://localhost:3000` 首页聊天、`/learn`、`/review`、`/progress`。
-2. 若手测认可，再决定是否提交 / 合并当前分支。
-3. 后续如果要继续提升 direct compare，只应提升 ECDICT grounding 或 provider 输出质量，不要回到人工 graph / 批量 `quickDistinction` 路线。
+1. 将当前分支推送到 GitHub，后续可基于远端分支继续类 Agent 化回答链路设计。
+2. 下一阶段优先做窄范围的模型工具链路：减少硬路由 no-match、增强多轮续接，让模型先理解用户意图，再调用内部查词/辨析/语义检索/上下文能力。
+3. 模型链路稳定后，再打通聊天 -> 收藏 -> 背词 / 复习 -> Progress 的学习闭环。
 
 ## 上一轮已完成基线
 1. 背单词词库已切到 generated ECDICT compact dataset：7890 entries；CET-6 7765；CET-4 6077；Gaokao 2978；不包含 postgrad scope。
