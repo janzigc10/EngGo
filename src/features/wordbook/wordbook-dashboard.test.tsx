@@ -15,12 +15,14 @@ import {
   createDefaultProgress,
   getNextReviewAt,
   saveWordProgress,
+  wordbookProgressStorageKey,
 } from "@/features/wordbook/wordbook-progress-store";
 import { wordbookStudySettingsStorageKey } from "@/features/wordbook/wordbook-study-settings-store";
 import type {
   StudyMode,
   StudySessionGoal,
   StudySessionState,
+  WordStudyProgress,
 } from "@/features/wordbook/wordbook-types";
 
 function makeActiveSessionState(
@@ -64,6 +66,13 @@ function makeActiveSessionState(
   };
 }
 
+function saveProgressRecords(records: WordStudyProgress[]) {
+  window.localStorage.setItem(
+    wordbookProgressStorageKey,
+    JSON.stringify({ records }),
+  );
+}
+
 describe("WordbookDashboard", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -74,9 +83,9 @@ describe("WordbookDashboard", () => {
 
     render(<WordbookDashboard mode="learn" onStartSession={vi.fn()} />);
 
-    expect(screen.getByText("CET-6 基础词书 V1")).toBeInTheDocument();
-    expect(screen.getByText("当前词书：CET-6 基础词书 V1")).toBeInTheDocument();
-    expect(screen.getByText(/目前只接入这一本静态词书/)).toBeInTheDocument();
+    expect(screen.getByText("CET-6 ECDICT 基础词书 V1")).toBeInTheDocument();
+    expect(screen.getByText("当前词书：CET-6 ECDICT 基础词书 V1")).toBeInTheDocument();
+    expect(screen.getByText(/目前只接入这一本 ECDICT compact 词书/)).toBeInTheDocument();
     expect(screen.getAllByText(String(wordbook.entries.length)).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /开始 Learn/ })).toBeEnabled();
   });
@@ -216,15 +225,15 @@ describe("WordbookDashboard", () => {
   it("explains when Learn is empty because review work remains", () => {
     const wordbook = getDefaultWordbook();
 
-    wordbook.entries.forEach((entry) => {
-      saveWordProgress({
+    saveProgressRecords(
+      wordbook.entries.map((entry) => ({
         ...createDefaultProgress(entry, wordbook.id, new Date("2026-05-30")),
         status: "passed",
         masteryDots: 3,
         reviewStrength: 1,
         nextReviewAt: "2026-05-30T00:00:00.000Z",
-      });
-    });
+      })),
+    );
 
     render(<WordbookDashboard mode="learn" onStartSession={vi.fn()} />);
 
@@ -289,9 +298,9 @@ describe("WordbookDashboard", () => {
 
     render(<WordbookDashboard mode="learn" onStartSession={vi.fn()} />);
 
-    expect(screen.getByText("CET-6 基础词书 V1")).toBeInTheDocument();
+    expect(screen.getByText("CET-6 ECDICT 基础词书 V1")).toBeInTheDocument();
     expect(
-      screen.getByText("考研词书还没接入可机读来源，先用 CET-6 基础词书 V1。"),
+      screen.getByText("考研词书还没接入可机读来源，先用 CET-6 ECDICT 基础词书 V1。"),
     ).toBeInTheDocument();
   });
 });

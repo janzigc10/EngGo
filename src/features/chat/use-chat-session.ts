@@ -147,22 +147,46 @@ type UseChatSessionOptions = {
 };
 
 export function useChatSession(options: UseChatSessionOptions = {}) {
-  const fallbackExamTarget = options.initialExamTarget ?? defaultExamTarget;
+  const initialExamTarget = options.initialExamTarget;
+  const initialPrompt = options.initialPrompt;
+  const fallbackExamTarget = initialExamTarget ?? defaultExamTarget;
   const activeExamTarget = useSyncExternalStore(
     subscribeExamTarget,
     readStoredExamTarget,
     getServerExamTargetSnapshot,
   );
-  const [composerValue, setComposerValue] = useState(options.initialPrompt ?? "");
-  const [messages, setMessages] = useState<ChatMessage[]>(() => readStoredChatTranscript());
+  const [composerValue, setComposerValue] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (options.initialExamTarget) {
-      persistExamTarget(options.initialExamTarget);
+    const timeoutId = window.setTimeout(() => {
+      setMessages((currentMessages) => (
+        currentMessages.length > 0 ? currentMessages : readStoredChatTranscript()
+      ));
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  useEffect(() => {
+    if (!initialPrompt) {
+      return undefined;
     }
-  }, [options.initialExamTarget]);
+
+    const timeoutId = window.setTimeout(() => {
+      setComposerValue(initialPrompt);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [initialPrompt]);
+
+  useEffect(() => {
+    if (initialExamTarget) {
+      persistExamTarget(initialExamTarget);
+    }
+  }, [initialExamTarget]);
 
   function setActiveExamTarget(nextExamTarget: ExamTargetCode) {
     persistExamTarget(nextExamTarget);

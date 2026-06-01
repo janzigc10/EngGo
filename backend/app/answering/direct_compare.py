@@ -11,6 +11,7 @@ from backend.app.answering.ordinary_lookup import (
     dictionary_candidate,
     build_no_match_answer,
 )
+from backend.app.answering.provider import ChatProviderError
 from backend.app.retrieval.normalize_query import NormalizedQuery, normalize_query
 from backend.app.retrieval.dynamic_light_grounding import (
     build_light_grounding_candidates,
@@ -161,11 +162,28 @@ def build_direct_compare_answer(
             else f"{candidate.lemma} {meaning}".strip(),
         )
 
-    quick_distinction = comparison_view.get("quickDistinction") if comparison_view else None
-    if isinstance(quick_distinction, str) and quick_distinction.strip():
-        lines.extend(["", f"注意：{quick_distinction.strip()}"])
-
     return "\n".join(lines)
+
+
+def build_direct_compare_provider_prompt() -> str:
+    return "\n".join(
+        [
+            "你是 EngGo 的英语辨析助手。",
+            "用户在问几个英文词的区别；grounding.mainAnswer 是这些词的词典释义。",
+            "请用简短中文说明核心区别，可以补常见语境或搭配直觉。",
+            "不要主动扩展到用户没问的第三个词。",
+            "如果只是基于词典释义判断，不要说这是人工易混组。",
+        ],
+    )
+
+
+def direct_compare_provider_grounding(grounding: dict[str, object]) -> dict[str, object]:
+    return {
+        "activeExamTarget": grounding.get("activeExamTarget"),
+        "queryMode": grounding.get("queryMode"),
+        "answerStyle": grounding.get("answerStyle"),
+        "mainAnswer": grounding.get("mainAnswer"),
+    }
 
 
 def covered_exact_compare_terms(candidates, compare_terms: list[str]) -> set[str]:
@@ -191,6 +209,29 @@ class DirectCompareService:
         self.provider = provider
         self.source_lemma_base_dir = Path(source_lemma_base_dir) if source_lemma_base_dir else None
         self.ecdict_lookup = ecdict_lookup
+
+    def exact_compare_candidate(
+        self,
+        active_exam_target: str,
+        term: str,
+    ) -> RetrievalCandidate | None:
+        if self.ecdict_lookup:
+            profile = self.ecdict_lookup(term)
+            if profile:
+                return dictionary_candidate(
+                    profile,
+                    active_exam_target=active_exam_target,
+                )
+
+        try:
+            entry = self.repository.find_exact_entry(active_exam_target, term)
+        except StructuredLookupUnavailable:
+            return None
+
+        if entry and entry.in_scope:
+            return entry
+
+        return None
 
     def answer(
         self,
@@ -218,24 +259,13 @@ class DirectCompareService:
             )
 
         candidates = []
-        structured_lookup_unavailable = False
         for term in compare_terms:
-            entry = None
-            try:
-                entry = self.repository.find_exact_entry(active_exam_target, term)
-            except StructuredLookupUnavailable:
-                structured_lookup_unavailable = True
-            if entry and entry.in_scope:
-                candidates.append(entry)
-            elif self.ecdict_lookup:
-                profile = self.ecdict_lookup(term)
-                if profile:
-                    candidates.append(
-                        dictionary_candidate(
-                            profile,
-                            active_exam_target=active_exam_target,
-                        ),
-                    )
+            candidate = self.exact_compare_candidate(
+                active_exam_target,
+                term,
+            )
+            if candidate:
+                candidates.append(candidate)
         ranked_candidates = unique_candidates(candidates)
 
         if len(ranked_candidates) < 2:
@@ -258,24 +288,8 @@ class DirectCompareService:
                 candidates=ranked_candidates,
             )
 
-        entry_ids = [candidate.entry_id for candidate in ranked_candidates]
-        groups = []
-        if not structured_lookup_unavailable:
-            try:
-                groups = self.repository.find_confusion_groups_for_entry_ids(
-                    active_exam_target,
-                    entry_ids,
-                )
-            except StructuredLookupUnavailable:
-                groups = []
-        shared_group = pick_shared_group(active_exam_target, entry_ids, groups)
-
-        comparison_view = build_comparison_view(shared_group) if shared_group else None
-        confusion_boundary = (
-            build_boundary_candidates(shared_group, set(entry_ids))
-            if shared_group
-            else []
-        )
+        comparison_view = None
+        confusion_boundary: list[RetrievalCandidate] = []
         grounding = build_grounding(
             active_exam_target=active_exam_target,
             query=query,
@@ -291,15 +305,47 @@ class DirectCompareService:
         if normalized_query.intent_plan is not None:
             grounding["learningIntentPlan"] = normalized_query.intent_plan.to_json()
         grounding["answerStyle"] = "confusion_untangle"
+        fallback_answer = build_direct_compare_answer(
+            ranked_candidates,
+            confusion_boundary,
+            comparison_view,
+        )
+
+        if self.provider:
+            try:
+                provider_result = self.provider.generate_answer(
+                    query=query,
+                    history=history or [],
+                    request_id=request_id,
+                    system_prompt=build_direct_compare_provider_prompt(),
+                    grounding=direct_compare_provider_grounding(grounding),
+                )
+                return DirectCompareResult(
+                    status_code=200,
+                    payload=ChatSuccessResponse(
+                        answer=provider_result.answer,
+                        answerKind="grounded",
+                        grounding=grounding,
+                        requestId=request_id,
+                        providerRequestId=provider_result.provider_request_id,
+                    ),
+                )
+            except ChatProviderError as error:
+                return DirectCompareResult(
+                    status_code=200,
+                    payload=ChatSuccessResponse(
+                        answer=fallback_answer,
+                        answerKind="grounded",
+                        grounding=grounding,
+                        requestId=request_id,
+                        providerRequestId=error.provider_request_id,
+                    ),
+                )
 
         return DirectCompareResult(
             status_code=200,
             payload=ChatSuccessResponse(
-                answer=build_direct_compare_answer(
-                    ranked_candidates,
-                    confusion_boundary,
-                    comparison_view,
-                ),
+                answer=fallback_answer,
                 answerKind="grounded",
                 grounding=grounding,
                 requestId=request_id,

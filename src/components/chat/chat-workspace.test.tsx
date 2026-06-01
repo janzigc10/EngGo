@@ -2,6 +2,7 @@
 
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ChatWorkspace } from "@/components/chat/chat-workspace";
@@ -30,7 +31,7 @@ describe("ChatWorkspace", () => {
     vi.restoreAllMocks();
   });
 
-  it("prefills the composer from the draft query parameter", () => {
+  it("prefills the composer from the draft query parameter", async () => {
     window.history.pushState(
       {},
       "",
@@ -39,7 +40,7 @@ describe("ChatWorkspace", () => {
 
     render(<ChatWorkspace />);
 
-    expect(screen.getByDisplayValue("make up 怎么用")).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("make up 怎么用")).toBeInTheDocument();
   });
 
   it("syncs the active exam target from a collection follow-up link", async () => {
@@ -51,7 +52,7 @@ describe("ChatWorkspace", () => {
 
     render(<ChatWorkspace />);
 
-    expect(screen.getByDisplayValue("make up 怎么用")).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("make up 怎么用")).toBeInTheDocument();
 
     await waitFor(() => {
       expect(window.localStorage.getItem("enggo.activeExamTarget")).toBe("cet4");
@@ -721,13 +722,13 @@ describe("ChatWorkspace", () => {
     firstRender.unmount();
     render(<ChatWorkspace />);
 
-    expect(screen.getByText("commit meaning")).toBeInTheDocument();
+    expect(await screen.findByText("commit meaning")).toBeInTheDocument();
     expect(
       screen.getByText("commit usually means to promise, do, or spend resources."),
     ).toBeInTheDocument();
   });
 
-  it("restores old stored transcripts without conversation context fields", () => {
+  it("restores old stored transcripts without conversation context fields", async () => {
     window.sessionStorage.setItem(
       "enggo.chatTranscript",
       JSON.stringify([
@@ -746,8 +747,36 @@ describe("ChatWorkspace", () => {
 
     render(<ChatWorkspace />);
 
-    expect(screen.getByText("legacy question")).toBeInTheDocument();
+    expect(await screen.findByText("legacy question")).toBeInTheDocument();
     expect(screen.getByText("legacy answer")).toBeInTheDocument();
+  });
+
+  it("restores stored transcripts only after the client mounts", async () => {
+    window.sessionStorage.setItem(
+      "enggo.chatTranscript",
+      JSON.stringify([
+        {
+          id: "stored-user-1",
+          role: "user",
+          content: "stored question",
+        },
+        {
+          id: "stored-assistant-1",
+          role: "assistant",
+          content: "stored answer",
+        },
+      ]),
+    );
+
+    const serverHtml = renderToString(<ChatWorkspace />);
+
+    expect(serverHtml).not.toContain("stored question");
+    expect(serverHtml).not.toContain("stored answer");
+
+    render(<ChatWorkspace />);
+
+    expect(await screen.findByText("stored question")).toBeInTheDocument();
+    expect(screen.getByText("stored answer")).toBeInTheDocument();
   });
 
   it("summarizes broad resolved answers without duplicating the main-answer list", async () => {

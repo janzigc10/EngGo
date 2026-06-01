@@ -8,6 +8,10 @@
 - `context.md`：长期项目地图和代码地图。
 
 ## 当前有效设计
+- `docs/superpowers/specs/2026-06-01-ecdict-grounded-direct-compare-design.md`
+  - 当前 direct compare 设计：不再依赖人工 `quickDistinction`、confusion graph 或人工 pair/group 元数据作为主能力；用户问两个英文词区别时，优先解析用户明确提到的词，使用 ECDICT-backed candidates 作为 grounding，让 provider 组织短中文辨析；provider 不可用或失败时只退回干净的并列词典释义。已有人工组最多保留为历史数据，不再作为 direct compare 扩展策略。
+- `docs/superpowers/specs/2026-05-31-ecdict-backed-wordbook-expansion-design.md`
+  - 当前背词内容扩展设计：Wordbook Learn/Review 状态机不重做，默认词书继续使用 `cet6-foundation-v1` ID，但内容改为由 ECDICT + source lemma manifests 生成的 compact JSON；CET / 高考范围继续由可机读来源定义，postgrad 仍 source-blocked；系统化 confusion graph、收藏、NotebookLM 复刻和 UI 大精修均放缓。本轮只做 ECDICT-backed 词书、ECDICT-only direct compare 保守短辨析、首页 stale copy 和 hydration 健康修复。
 - `docs/superpowers/specs/2026-05-30-wordbook-learn-review-experience-polish-v1.md`
   - Wordbook Learn/Review 已落地的体验打磨设计：聚焦学习节奏、Learn 三灯失败不降级、三灯详情分层、Review 干净通过一灯快速验收、Review 失败后留在 Review 内走四选一 + 带提示回忆 + 无提示最终确认三灯补救链路、错因对比页，以及学习设置里的每组学习/复习词数 10/20/30 三档。本轮不做 UI 精修、完整 SRS、账号同步、全量词书或主线 merge。
 - `docs/superpowers/specs/2026-05-30-wordbook-learn-review-state-machine-design.md`
@@ -42,11 +46,15 @@
   - 初始技术设计。
 
 ## 当前活跃计划
-- 暂无新的活跃实现计划。Wordbook Learn/Review V2.1 及 Review 可见词数修复已在 `codex/wordbook-learn-review-v1` worktree 完成实现和验证，下一步是用户手测或合并决策。
+- 暂无新的活跃实现计划。最新完成计划是 `docs/superpowers/plans/2026-06-01-ecdict-grounded-direct-compare-v1.md`；下一步是用户手测后决定是否提交 / 合并当前分支。
 
 ## 已完成或历史计划
 这些 plan 大多已经执行完成。继续任务时不要从 Task 1 重开，除非用户明确要求复盘或重做。
 
+- `docs/superpowers/plans/2026-05-31-ecdict-backed-wordbook-expansion-v1.md`
+  - ECDICT-backed Wordbook Expansion V1 已完成验证：默认背词词书从 546 个 `real-smoke` 词条扩展到 generated ECDICT compact dataset，同时保持 `cet6-foundation-v1` ID 和现有 Learn/Review 状态机；补 ECDICT-only direct compare 保守短辨析；修首页 stale copy 和 chat transcript hydration mismatch。收藏、NotebookLM、完整 graph 和 UI 大精修均未纳入本轮。
+- `docs/superpowers/plans/2026-06-01-ecdict-grounded-direct-compare-v1.md`
+  - ECDICT-grounded Direct Compare V1 已完成验证：direct compare 不再依赖人工 `quickDistinction` 或 ECDICT-only "偏..." 伪辨析；resolved compare 优先用 ECDICT candidates 做 grounding，有 provider 时生成短中文辨析，provider 不可用或失败时退回并列释义；真实浏览器 E2E 已确认 `comparisonView=null`、`mainAnswer` 为 ECDICT candidates、`providerRequestId` 非空且 UI 无旧 fallback 文案。
 - `docs/superpowers/plans/2026-05-30-wordbook-learn-review-v2-product-hardening.md`
   - Wordbook Learn/Review V2 轻量产品硬化已完成并提交为 `31faa2af18b0a64386a4d1e93fcb702b5661feca`。已补齐 baseline 验证、active wordbook 入口、Review 调度语义 helper、学习数据解释、恢复/空状态和 focused QA。遗留产品缺口是 active session persistence 不完整，已转入 V2.1 计划。
 - `docs/superpowers/plans/2026-05-31-wordbook-active-session-persistence-v2-1.md`

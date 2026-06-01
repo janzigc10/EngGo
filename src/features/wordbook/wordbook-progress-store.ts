@@ -157,6 +157,23 @@ function getLemmaKey(lemma: string) {
   return lemma.trim().toLowerCase();
 }
 
+function buildProgressRecordMap(
+  records: WordStudyProgress[],
+  wordbookId: WordbookId,
+) {
+  const map = new Map<string, WordStudyProgress>();
+
+  for (const record of records) {
+    if (record.wordbookId !== wordbookId) {
+      continue;
+    }
+
+    map.set(getLemmaKey(record.lemma), record);
+  }
+
+  return map;
+}
+
 function notifyProgressListeners() {
   progressVersion += 1;
   listeners.forEach((listener) => listener());
@@ -237,9 +254,13 @@ export function buildWordbookProgressSnapshot(
   now: Date = new Date(),
   records: WordStudyProgress[] = loadProgressRecords(),
 ): WordbookProgressSnapshot {
+  const recordsByLemma = buildProgressRecordMap(records, wordbook.id);
+
   return wordbook.entries.reduce<WordbookProgressSnapshot>(
     (snapshot, entry) => {
-      const progress = getProgressForEntry(entry, records, now, wordbook.id);
+      const progress =
+        recordsByLemma.get(getLemmaKey(entry.lemma)) ??
+        createDefaultProgress(entry, wordbook.id, now);
       const isDue = getDueReviewTime(progress, now) !== null;
 
       snapshot.total += 1;

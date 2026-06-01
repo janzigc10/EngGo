@@ -1,4 +1,4 @@
-import rawEntries from "../../../data/exam-vocab/real-smoke/entries.json";
+import rawEntries from "../../../data/exam-vocab/ecdict-wordbook/entries.json";
 
 import type { ExamTargetCode } from "@/features/exam-target/model";
 import type { Wordbook, WordbookEntry, WordbookId } from "@/features/wordbook/wordbook-types";
@@ -75,8 +75,8 @@ function normalizeEntry(value: RawEntry): WordbookEntry | null {
 
 const defaultWordbook: Wordbook = {
   id: defaultWordbookId,
-  label: "CET-6 基础词书 V1",
-  sourceLabel: "基于 EngGo real-smoke source-backed entries",
+  label: "CET-6 ECDICT 基础词书 V1",
+  sourceLabel: "基于 ECDICT + source lemma manifests 的 compact entries",
   entries: (rawEntries as RawEntry[])
     .map((entry) => normalizeEntry(entry))
     .filter((entry): entry is WordbookEntry => entry !== null)

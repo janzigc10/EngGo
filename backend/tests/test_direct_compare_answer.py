@@ -1,5 +1,5 @@
 from backend.app.answering.direct_compare import DirectCompareService
-from backend.app.answering.provider import GenerateAnswerResult
+from backend.app.answering.provider import ChatProviderError, GenerateAnswerResult
 from backend.app.content.ecdict import EcdictBasicProfile
 from backend.app.retrieval.repository import StructuredLookupUnavailable
 from backend.app.retrieval.types import (
@@ -74,6 +74,15 @@ class FakeProvider:
         )
 
 
+class FailingProvider:
+    def generate_answer(self, **_kwargs):
+        raise ChatProviderError(
+            "provider failed",
+            status_code=502,
+            provider_request_id="provider_req_failed",
+        )
+
+
 def group(group_id, members, *, purposes=None):
     return ConfusionGroup(
         id=group_id,
@@ -109,19 +118,20 @@ def ecdict_profile(lemma: str, meanings: list[str]) -> EcdictBasicProfile:
     )
 
 
-def test_direct_compare_returns_comparison_grounding_without_provider():
+def test_direct_compare_returns_grounding_without_provider_or_manual_group_dependency():
     access = candidate("access")
     assess = candidate("assess")
     excess = candidate("excess")
+    repository = FakeRepository(
+        {
+            "access": access,
+            "assess": assess,
+            "excess": excess,
+        },
+        [group("access-assess-excess", [access, assess, excess])],
+    )
     service = DirectCompareService(
-        repository=FakeRepository(
-            {
-                "access": access,
-                "assess": assess,
-                "excess": excess,
-            },
-            [group("access-assess-excess", [access, assess, excess])],
-        ),
+        repository=repository,
     )
 
     result = service.answer(
@@ -146,14 +156,14 @@ def test_direct_compare_returns_comparison_grounding_without_provider():
         "excess",
     ]
     assert grounding["confusionBoundary"] == []
-    assert grounding["comparisonView"]["id"] == "access-assess-excess"
-    assert grounding["comparisonView"]["members"][0]["emphasisNote"] == "access note"
+    assert grounding["comparisonView"] is None
+    assert repository.group_entry_ids is None
     assert "access" in result.payload.answer
     assert "assess" in result.payload.answer
     assert "excess" in result.payload.answer
 
 
-def test_direct_compare_uses_deterministic_short_answer_when_provider_available():
+def test_direct_compare_uses_provider_when_available():
     access = candidate("access")
     assess = candidate("assess")
     provider = FakeProvider()
@@ -175,18 +185,20 @@ def test_direct_compare_uses_deterministic_short_answer_when_provider_available(
         history=[{"role": "user", "content": "previous"}],
     )
 
-    assert result.payload.providerRequestId is None
-    assert provider.calls == []
-    assert result.payload.answer == (
-        "access n. access meaning\n"
-        "assess n. assess meaning\n\n"
-        "注意：access is entry, assess is judge, excess is extra"
-    )
-    assert "**" not in result.payload.answer
-    assert "\n-" not in result.payload.answer
+    assert result.payload.providerRequestId == "provider_req_compare"
+    assert result.payload.answer == "provider compare answer"
+    assert len(provider.calls) == 1
+    call = provider.calls[0]
+    assert call["history"] == [{"role": "user", "content": "previous"}]
+    assert "词典释义" in call["system_prompt"]
+    assert "quickDistinction" not in str(call["grounding"])
+    assert [item["lemma"] for item in call["grounding"]["mainAnswer"]] == [
+        "access",
+        "assess",
+    ]
 
 
-def test_direct_compare_adds_unasked_group_members_to_boundary():
+def test_direct_compare_does_not_add_unasked_group_members_to_boundary():
     restrain = candidate("restrain")
     constrain = candidate("constrain")
     curb = candidate("curb")
@@ -218,9 +230,10 @@ def test_direct_compare_adds_unasked_group_members_to_boundary():
         "restrain",
         "constrain",
     ]
-    assert [item["lemma"] for item in grounding["confusionBoundary"]] == ["curb"]
-    assert grounding["comparisonView"]["id"] == "restrain-constrain-curb"
+    assert grounding["confusionBoundary"] == []
+    assert grounding["comparisonView"] is None
     assert grounding["answerStyle"] == "confusion_untangle"
+    assert "curb" not in result.payload.answer
 
 
 def test_direct_compare_keeps_exact_resolved_terms_without_shared_group():
@@ -251,6 +264,10 @@ def test_direct_compare_keeps_exact_resolved_terms_without_shared_group():
     assert grounding["confusionBoundary"] == []
     assert grounding["comparisonView"] is None
     assert grounding["answerStyle"] == "confusion_untangle"
+    assert result.payload.answer == (
+        "institute n. institute meaning\n"
+        "establish n. establish meaning"
+    )
 
 
 def test_direct_compare_no_match_when_less_than_two_terms_resolve():
@@ -390,7 +407,60 @@ def test_direct_compare_uses_ecdict_profiles_for_compact_chinese_and_query():
     ]
 
 
-def test_direct_compare_uses_ecdict_when_structured_repository_unavailable():
+def test_direct_compare_prefers_ecdict_profiles_over_structured_candidates():
+    profiles = {
+        "expire": ecdict_profile("expire", ["vi. 期满；断气"]),
+        "inspire": ecdict_profile("inspire", ["vt. 鼓舞；激发"]),
+    }
+    service = DirectCompareService(
+        repository=FakeRepository(
+            {
+                "expire": RetrievalCandidate(
+                    entry_id="structured-expire",
+                    lemma="expire",
+                    meanings_zh=["structured expire"],
+                    matched_alias=None,
+                    scope_codes=["cet6"],
+                    in_scope=True,
+                    reason="structured exact match",
+                    score=100,
+                    part_of_speech="vi.",
+                    source_kind="structured",
+                ),
+                "inspire": RetrievalCandidate(
+                    entry_id="structured-inspire",
+                    lemma="inspire",
+                    meanings_zh=["structured inspire"],
+                    matched_alias=None,
+                    scope_codes=["cet6"],
+                    in_scope=True,
+                    reason="structured exact match",
+                    score=100,
+                    part_of_speech="vt.",
+                    source_kind="structured",
+                ),
+            },
+        ),
+        ecdict_lookup=lambda query: profiles.get(query),
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="expire和inspire",
+        request_id="req_compare_prefers_ecdict",
+    )
+
+    grounding = result.payload.grounding
+
+    assert [
+        item["sourceKind"]
+        for item in grounding["mainAnswer"]
+    ] == ["external_dictionary_basic", "external_dictionary_basic"]
+    assert "structured expire" not in result.payload.answer
+    assert "期满；断气" in result.payload.answer
+
+
+def test_direct_compare_uses_provider_with_ecdict_when_structured_repository_unavailable():
     profiles = {
         "restrain": ecdict_profile("restrain", ["vt. limit or control"]),
         "constrain": ecdict_profile("constrain", ["vt. force or restrict"]),
@@ -416,8 +486,13 @@ def test_direct_compare_uses_ecdict_when_structured_repository_unavailable():
     grounding = result.payload.grounding
 
     assert result.status_code == 200
-    assert result.payload.providerRequestId is None
-    assert provider.calls == []
+    assert result.payload.providerRequestId == "provider_req_compare"
+    assert result.payload.answer == "provider compare answer"
+    assert len(provider.calls) == 1
+    assert [
+        item["lemma"]
+        for item in provider.calls[0]["grounding"]["mainAnswer"]
+    ] == ["restrain", "constrain"]
     assert [item["lemma"] for item in grounding["mainAnswer"]] == [
         "restrain",
         "constrain",
@@ -433,6 +508,32 @@ def test_direct_compare_uses_ecdict_when_structured_repository_unavailable():
     assert grounding["confusionBoundary"] == []
     assert grounding["comparisonView"] is None
     assert repository.group_entry_ids is None
+
+
+def test_direct_compare_falls_back_to_dictionary_lines_when_provider_fails():
+    profiles = {
+        "restrain": ecdict_profile("restrain", ["vt. limit or control"]),
+        "constrain": ecdict_profile("constrain", ["vt. force or restrict"]),
+    }
+    service = DirectCompareService(
+        repository=FakeRepository({}),
+        provider=FailingProvider(),
+        ecdict_lookup=lambda query: profiles.get(query),
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="restrain和constrain",
+        request_id="req_compare_provider_fallback",
+    )
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId == "provider_req_failed"
+    assert result.payload.answer.splitlines() == [
+        "restrain vt. limit or control",
+        "constrain vt. force or restrict",
+    ]
+    assert "当前没有人工易混组" not in result.payload.answer
 
 
 def test_direct_compare_dynamic_vocabulary_ignores_unavailable_structured_pool():

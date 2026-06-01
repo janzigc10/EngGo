@@ -983,7 +983,11 @@ def test_chat_routes_direct_compare_after_ordinary_lookup_rejects_mode(tmp_path)
         source_lemma_base_dir=tmp_path,
         ecdict_lookup=lambda _query: None,
     )
-    direct_compare_service = DirectCompareService(repository=repository)
+    provider = RecordingProvider(answer="provider direct compare answer")
+    direct_compare_service = DirectCompareService(
+        repository=repository,
+        provider=provider,
+    )
     client = create_client(
         ordinary_lookup_service=ordinary_service,
         direct_compare_service=direct_compare_service,
@@ -1003,10 +1007,15 @@ def test_chat_routes_direct_compare_after_ordinary_lookup_rejects_mode(tmp_path)
     assert response.status_code == 200
     assert response.headers["x-request-id"] == payload["requestId"]
     assert payload["answerKind"] == "grounded"
-    assert payload["providerRequestId"] is None
+    assert payload["answer"] == "provider direct compare answer"
+    assert payload["providerRequestId"] == "provider_study_1"
     assert payload["grounding"]["queryMode"] == "direct_compare"
     assert payload["grounding"]["answerStyle"] == "confusion_untangle"
-    assert payload["grounding"]["comparisonView"]["id"] == "access-assess-excess"
+    assert payload["grounding"]["comparisonView"] is None
+    assert [item["lemma"] for item in provider.calls[0]["grounding"]["mainAnswer"]] == [
+        "access",
+        "assess",
+    ]
 
 
 def test_chat_routes_advanced_lookup_after_prior_services_reject_mode():

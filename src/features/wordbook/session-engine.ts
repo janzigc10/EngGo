@@ -1,6 +1,5 @@
 import {
   createDefaultProgress,
-  getProgressForEntry,
 } from "@/features/wordbook/wordbook-progress-store";
 import {
   compareReviewProgressForQueue,
@@ -50,6 +49,24 @@ function clampDots(value: number): MasteryDots {
 
 function normalizeStudySessionGoal(value: unknown): StudySessionGoal {
   return value === 10 || value === 20 || value === 30 ? value : 10;
+}
+
+function getLemmaKey(lemma: string) {
+  return lemma.trim().toLowerCase();
+}
+
+function buildProgressRecordMap(input: CreateSessionInput) {
+  const map = new Map<string, WordStudyProgress>();
+
+  for (const record of input.progressRecords) {
+    if (record.wordbookId !== input.wordbook.id) {
+      continue;
+    }
+
+    map.set(getLemmaKey(record.lemma), record);
+  }
+
+  return map;
 }
 
 function toTarget(
@@ -106,10 +123,12 @@ function withoutLastMistake(target: StudySessionTarget): StudySessionTarget {
 
 function selectLearnProgress(input: CreateSessionInput) {
   const targetCount = normalizeStudySessionGoal(input.targetCount);
+  const recordsByLemma = buildProgressRecordMap(input);
 
   return input.wordbook.entries
     .map((entry) =>
-      getProgressForEntry(entry, input.progressRecords, input.now, input.wordbook.id),
+      recordsByLemma.get(getLemmaKey(entry.lemma)) ??
+      createDefaultProgress(entry, input.wordbook.id, input.now),
     )
     .filter(
       (progress) =>
@@ -121,10 +140,12 @@ function selectLearnProgress(input: CreateSessionInput) {
 
 function selectReviewProgress(input: CreateSessionInput, limit?: number) {
   const targetCount = limit ?? normalizeStudySessionGoal(input.targetCount);
+  const recordsByLemma = buildProgressRecordMap(input);
 
   return input.wordbook.entries
     .map((entry) =>
-      getProgressForEntry(entry, input.progressRecords, input.now, input.wordbook.id),
+      recordsByLemma.get(getLemmaKey(entry.lemma)) ??
+      createDefaultProgress(entry, input.wordbook.id, input.now),
     )
     .filter((progress) => getDueReviewTime(progress, input.now) !== null)
     .sort((left, right) =>

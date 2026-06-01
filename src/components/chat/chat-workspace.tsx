@@ -151,11 +151,11 @@ export function ChatWorkspace() {
           <div className="space-y-3 text-sm leading-7 text-slate-700">
             <p>主答案优先来自当前考试范围。</p>
             <p>易混词解释放在回答里，而不是单独堆一页结果。</p>
-            <p>后续的收藏、学习、复习，会放在二级入口慢慢长出来。</p>
+            <p>收藏、学习、复习已经在二级入口可用，聊天继续负责查词、辨析和召回。</p>
           </div>
         </div>
         <div className="rounded-[1.5rem] border border-white/80 bg-white/80 p-4 text-sm text-slate-600">
-          当前先把聊天主链路打通，等回答稳定后，再把收藏与学习入口接进来。
+          当前把聊天主链路作为 AI 辅助入口，背词闭环在 Learn / Review 里推进。
         </div>
       </aside>
     </section>

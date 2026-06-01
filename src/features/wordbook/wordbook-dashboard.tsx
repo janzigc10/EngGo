@@ -143,7 +143,7 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
             </p>
             {activeExamTarget === "postgrad" ? (
               <p className="max-w-2xl text-sm leading-6 text-amber-700">
-                考研词书还没接入可机读来源，先用 CET-6 基础词书 V1。
+                考研词书还没接入可机读来源，先用 CET-6 ECDICT 基础词书 V1。
               </p>
             ) : null}
           </div>
@@ -157,7 +157,7 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
         <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-600">
           {wordbooks.length === 1 ? (
             <p>
-              目前只接入这一本静态词书；后续新增词书时会在这里切换，Learn / Review
+              目前只接入这一本 ECDICT compact 词书；后续新增词书时会在这里切换，Learn / Review
               会继续沿用同一套状态机。
             </p>
           ) : (

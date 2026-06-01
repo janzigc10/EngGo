@@ -174,6 +174,8 @@ export function prepareProgressRecordsForSession(
   now: Date = new Date(),
 ) {
   const progressRecords = loadProgressRecords();
+  const primaryMeaningCounts = buildPrimaryMeaningCounts(wordbook.entries);
+  const uniquePrimaryMeaningCount = primaryMeaningCounts.size;
   let wroteBlockedProgress = false;
 
   for (const entry of wordbook.entries) {
@@ -187,13 +189,7 @@ export function prepareProgressRecordsForSession(
       continue;
     }
 
-    const choice = buildMeaningChoice({
-      entry,
-      allEntries: wordbook.entries,
-      seed: `preflight:${entry.lemma}`,
-    });
-
-    if (choice.kind !== "blocked") {
+    if (hasEnoughMeaningChoiceOptions(entry, primaryMeaningCounts, uniquePrimaryMeaningCount)) {
       continue;
     }
 
@@ -214,6 +210,40 @@ export function prepareProgressRecordsForSession(
   }
 
   return wroteBlockedProgress ? loadProgressRecords() : progressRecords;
+}
+
+function getPrimaryMeaning(entry: Wordbook["entries"][number]) {
+  return entry.meaningsZh[0]?.trim() ?? "";
+}
+
+function buildPrimaryMeaningCounts(entries: Wordbook["entries"]) {
+  const counts = new Map<string, number>();
+
+  for (const entry of entries) {
+    const meaning = getPrimaryMeaning(entry);
+
+    if (!meaning) {
+      continue;
+    }
+
+    counts.set(meaning, (counts.get(meaning) ?? 0) + 1);
+  }
+
+  return counts;
+}
+
+function hasEnoughMeaningChoiceOptions(
+  entry: Wordbook["entries"][number],
+  primaryMeaningCounts: Map<string, number>,
+  uniquePrimaryMeaningCount: number,
+) {
+  const correctMeaning = getPrimaryMeaning(entry);
+
+  if (!correctMeaning) {
+    return false;
+  }
+
+  return uniquePrimaryMeaningCount - (primaryMeaningCounts.has(correctMeaning) ? 1 : 0) >= 3;
 }
 
 function createInitialStudySession({
@@ -552,13 +582,22 @@ function getDetailDepth(state: StudySessionState): "first" | "second" | "complet
 
 function formatMeaningLine(pos: string[], meaningsZh: string[]) {
   const posLabel = formatPartOfSpeech(pos);
-  const meaningText = meaningsZh.join("；");
+  const meaningText = meaningsZh.map(stripMeaningPartOfSpeech).join("；");
 
   return posLabel ? `${posLabel} ${meaningText}` : meaningText;
 }
 
+function stripMeaningPartOfSpeech(meaning: string) {
+  return meaning
+    .trim()
+    .replace(/^(n|v|vt|vi|a|adj|ad|adv|prep|conj|pron|det|interj)\.\s*/i, "")
+    .trim();
+}
+
 function formatPartOfSpeech(pos: string[]) {
   const labels: Record<string, string> = {
+    "a.": "adj.",
+    "ad.": "adv.",
     adjective: "adj.",
     adverb: "adv.",
     conjunction: "conj.",

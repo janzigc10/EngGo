@@ -46,7 +46,7 @@ describe("wordbook progress summary", () => {
 
     expect(screen.getByText("总收藏词条")).toBeInTheDocument();
     expect(screen.getByText("词书进度")).toBeInTheDocument();
-    expect(screen.getByText("CET-6 基础词书 V1")).toBeInTheDocument();
+    expect(screen.getByText("CET-6 ECDICT 基础词书 V1")).toBeInTheDocument();
     expect(screen.getByText("未学习")).toBeInTheDocument();
     expect(screen.getByText("学习中")).toBeInTheDocument();
     expect(screen.getByText("待复习")).toBeInTheDocument();

@@ -17,7 +17,7 @@ describe("active wordbook store", () => {
 
   it("defaults to the registered CET-6 foundation wordbook", () => {
     expect(loadActiveWordbookId()).toBe("cet6-foundation-v1");
-    expect(loadActiveWordbook().label).toBe("CET-6 基础词书 V1");
+    expect(loadActiveWordbook().label).toBe("CET-6 ECDICT 基础词书 V1");
   });
 
   it("falls back when storage contains an unsupported wordbook id", () => {
