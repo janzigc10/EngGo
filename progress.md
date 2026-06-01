@@ -1,14 +1,14 @@
 # EngGo 滚动交接
 
-## 当前状态（2026-06-01 Controlled Chat Orchestrator V1 已完成）
-- 当前分支 / worktree：`codex/controlled-chat-orchestrator-v1`，工作区 `C:\Users\Chen\Desktop\EngGo`。
-- 基线提交：`4ab7a90 docs: refresh github project overview`。
-- 当前活跃计划：`docs/superpowers/plans/2026-06-01-controlled-chat-orchestrator-v1.md`。
-- 当前目标：实现受控类 Agent 聊天链路 V1，从文档到代码、focused tests、smoke 和 in-app Browser 真实 E2E。
+## 当前状态（2026-06-01 Controlled Tool Router V1 进行中）
+- 当前分支 / worktree：`codex/controlled-tool-router-v1`，工作区 `C:\Users\Chen\Desktop\EngGo`。
+- 基线提交：`3899051 feat: add controlled chat orchestrator`。
+- 当前活跃计划：`docs/superpowers/plans/2026-06-01-controlled-tool-router-v1.md`。
+- 当前目标：把 `/api/chat` 的隐式 service loop 改成显式内部 tool route plan，继续保持上一版 no-match recovery 和自然多轮 continuation。
 - 本轮范围：
-  - 只接管 no-match recovery 和自然多轮 continuation。
+  - 新增 internal tool protocol / rule-first route planner。
   - 不引入 LangChain / LangGraph。
-  - 不重写稳定 exact lookup / direct compare。
+  - 不让 provider 每轮先做 intent classification。
   - 不改 Learn / Review / Progress 状态机。
 - 已落地基线：
   - direct compare 不再把人工 `quickDistinction`、confusion graph 或人工 pair/group 元数据当主能力。
@@ -19,6 +19,11 @@
   - GitHub-facing `README.md` 已更新到当前产品状态：ECDICT 大词库、Learn / Review / Progress、FastAPI 主链路、ECDICT-grounded direct compare 和下一阶段类 Agent 化方向。
 
 ## 本轮完成内容
+1. 已从 `codex/controlled-chat-orchestrator-v1` 切出 `codex/controlled-tool-router-v1`。
+2. 新增 `docs/superpowers/specs/2026-06-01-controlled-tool-router-v1-design.md` 和 `docs/superpowers/plans/2026-06-01-controlled-tool-router-v1.md`。
+3. 更新 `docs/README.md` 与本文件，将 Controlled Tool Router V1 设为当前活跃计划。
+
+## 上一轮完成内容
 1. 新增 `docs/superpowers/specs/2026-06-01-controlled-chat-orchestrator-v1-design.md` 和 `docs/superpowers/plans/2026-06-01-controlled-chat-orchestrator-v1.md`。
 2. 更新 `docs/README.md` 与本文件，将 Controlled Chat Orchestrator V1 设为当前活跃计划。
 3. 新增 `backend/app/answering/chat_orchestrator.py`，把聊天链路里可恢复的普通 no-match 和不可恢复的高级边界 no-match 分开处理。
@@ -28,7 +33,7 @@
 7. 自然续问识别支持英文 `how do I use these words` 这类表达，适配浏览器逐键输入和真实用户英文追问。
 8. `scripts/lib/conversational-learning-context-smoke.ts` 已加入自然 group usage 与 learning-adjacent no-match recovery 用例。
 
-## 上一轮完成内容
+## 再上一轮完成内容
 1. 新增 `docs/superpowers/specs/2026-06-01-ecdict-grounded-direct-compare-design.md` 和 `docs/superpowers/plans/2026-06-01-ecdict-grounded-direct-compare-v1.md`。
 2. `DirectCompareService` 已改为 resolved compare 有 provider 时调用 provider，并传入 ECDICT-backed `mainAnswer` grounding。
 3. direct compare exact terms 现在优先用 ECDICT candidates；如果 ECDICT 缺失，才退回可用 structured exact entry。

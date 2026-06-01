@@ -8,6 +8,8 @@
 - `context.md`：长期项目地图和代码地图。
 
 ## 当前有效设计
+- `docs/superpowers/specs/2026-06-01-controlled-tool-router-v1-design.md`
+  - 当前正在推进的类 Agent 化第二步：不引入完整 LangChain / LangGraph，不做开放 agent；先把已有 ordinary lookup、direct compare、advanced lookup 抽成统一内部 tool 协议，用 rule-first route planner 显式决定工具顺序，并继续复用上一版的自然续问与 no-match recovery。V1 不对每轮都新增 provider intent-classification 调用，避免延迟和误判面过早扩大。
 - `docs/superpowers/specs/2026-06-01-controlled-chat-orchestrator-v1-design.md`
   - 当前类 Agent 化设计：不引入完整 LangChain / LangGraph，不做开放 agent；在现有查词、辨析、语义检索和上下文能力外加一层受控 orchestrator，优先解决 hard no-match 和自然多轮追问断片。稳定 exact lookup / direct compare 继续保留，no-match 和弱续接路径先进入 provider-backed recovery 或 bounded clarification。
 - `docs/superpowers/specs/2026-06-01-ecdict-grounded-direct-compare-design.md`
@@ -48,6 +50,10 @@
   - 初始技术设计。
 
 ## 当前活跃计划
+- `docs/superpowers/plans/2026-06-01-controlled-tool-router-v1.md`
+  - 当前活跃计划：受控工具路由层 V1。目标是把 `/api/chat` 里的隐式 service loop 改成显式内部 tool route plan，保持 existing services 和 orchestrator 行为，先提高入口结构可测性与后续模型分类扩展能力。
+
+## 最近完成计划
 - `docs/superpowers/plans/2026-06-01-controlled-chat-orchestrator-v1.md`
   - 当前最近完成计划：受控类 Agent 聊天链路 V1 已从文档到代码、focused tests、smoke 和 in-app Browser 真实 E2E 完成。第一刀只接管 no-match recovery 和自然多轮 continuation，不重写稳定 exact lookup / direct compare，也不触碰 Learn / Review 状态机。
 
