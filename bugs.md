@@ -1,5 +1,28 @@
 # EngGo 已知问题与环境坑
 
+## 2026-06-02 No-match / weak-answer audit 确认的产品侧残留
+### 症状
+真实 Next proxy `/api/chat` 探测确认，当前 hard no-match 已经不算最主要问题；更影响体验的是部分问法会“看起来回答了”，但实际没有真正理解意图。
+
+确认样例：
+- `zzqvwm 是什么意思` -> 合理 hard no-match；随机串不应让 provider 硬猜。
+- `zqx开头的单词`、`re开头xyz结尾的单词`、`xxxxx 这一族怎么记`、`xqz 的派生词` -> hard no-match；属于无候选词根/词形/词族边界。
+- `anti+dis 的词根有什么词` -> 当前误 resolved，召回 `antique / anew / attic...` 这类弱相关候选；这比 no-match 更危险。
+- `跟 abandon 意思差不多的词`、`responsible 的同义词` -> 不进入形近或词族是历史上刻意收紧的结果，但当前没有 semantic expression / synonym 工具承接，容易退成普通查词。
+- `遵循的英文是什么` 后追问 `还有更适合作文的吗` -> 当前是已知 deferred 场景，缺少 semantic style follow-up；`还有吗` 动作会优先抢走这类混合追问。
+- `more formal way to say follow` -> 英文整句先被拆成多个英文 token 当普通查词，再靠 no-match recovery 接住；说明英文表达/语域意图还没进入显式路由。
+
+### 根因判断
+1. broad grounding 当前主要靠候选数量阈值决定是否 answerable，缺少“候选质量 / 约束强度”闸门。弱片段或宽泛前缀只要凑够候选，就可能被标成 resolved。
+2. `同义 / 近义 / 意思差不多 / 写作表达` 被排除出 word family / shape neighbors 是正确方向，但对应的 semantic expression tool 尚未补上。
+3. 多轮 resolver 覆盖了 `哪个更正式/更自然/更适合...`，但没有覆盖 `还有更适合作文的吗` 这类 show-more + style-choice 混合问法。
+
+### 后续修复建议
+- 不要简单把 no-match recovery 放宽；先修 weak resolved，否则用户会得到更自信但更差的结果。
+- 给 broad grounding 增加质量阈值：没有强约束命中、只有弱前缀/片段相关的候选，应 no-match 或 clarification。
+- 独立设计 semantic expression / synonym 工具，承接同义、近义、写作表达、英文 `formal way to say X`，并明确是否允许 provider 在无结构化候选时给 bounded plain answer。
+- 补 semantic style follow-up resolver，优先处理 `还有更适合作文的吗`、`还有更正式的吗`、`有没有更口语的` 这类上一轮候选内语域追问。
+
 ## 2026-05-31 Review reserve buffer 导致 10 词复习显示超过 10 个不同词（已修，需防回归）
 ### 症状
 用户在 `/review` 手测时发现 Review 一轮看起来不止 10 个词。代码级红测确认：修复前 10 词 Review 在失败补救路径会额外显示目标外 `abundant`，虽然分母仍显示 `0 / 10` 到 `10 / 10`。
