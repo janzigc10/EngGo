@@ -80,6 +80,13 @@
    - `semantic_expression` 是否清楚标注为 provider-assisted advice；
    - root combo quality gate 是否既压住 `anti+dis`，又不误伤 `re+con`；
    - 23-case E2E matrix 是否足够支撑“相对上一版有真实增强”，以及是否要继续把 meaning lookup weak resolved 作为下一阶段独立任务。
+2. 下一轮建议优先做 `Meaning Lookup Weak-Resolved Quality Gate V1`，不是继续扩大 `semantic_expression`：
+   - 当前路由层已经证明有收益，下一块真实问题是系统“看起来 resolved 了”，但候选很弱，例如 `表达观点的英文是什么 -> hiss`、`遵循的英文是什么 -> disobedience / subdue / unwilling`。这比 no-match 更伤体验，因为用户会以为系统给了答案。
+   - 先做 weak-answer eval matrix：不只看 `queryMode/resolution`，还要看 top candidates 是否包含预期词、是否出现明显反义/偏离词、是否应该 no-match / clarification / provider-assisted expression、是否错误声称词库命中。
+   - 给 meaning lookup 加质量闸门：中文释义查英文不能只要“有点匹配”就 resolved。比如 `遵循` 应该倾向 `follow / obey / observe / comply / adhere`；如果只召回 `disobedience / subdue / unwilling`，应判 weak，不该 resolved。
+   - 区分两类中文问法：source-backed word lookup 例如 `限制的英文是什么`、`合作的英文是什么`；expression advice 例如 `表达观点的英文是什么`。后者可能更适合走受控 `semantic_expression / expression_lookup`，但必须明确“不声称词库命中”。
+   - 不要先上大 Agent。下一轮更适合继续固定算法：候选质量评分、拒答/降级规则、少量语义别名表、E2E 矩阵。Agent 可以辅助解释，但不应该负责决定“弱候选也算 resolved”。
+   - 验收标准：把 `表达观点`、`遵循` 这种 weak resolved 压下来，同时不误伤 `access 是什么意思`、`限制的英文是什么`、`合作的英文是什么` 这类正常路径。
 
 ## 上一轮完成内容
 1. 新增 `docs/superpowers/specs/2026-06-01-controlled-chat-orchestrator-v1-design.md` 和 `docs/superpowers/plans/2026-06-01-controlled-chat-orchestrator-v1.md`。
