@@ -1,61 +1,72 @@
 # EngGo 滚动交接
 
-## 当前状态（2026-06-02 No-match / weak-answer audit 进行中）
+## 当前状态（2026-06-03 Model-assisted Intent Routing V1 已完成待 review）
 - 当前分支 / worktree：`codex/controlled-tool-router-v1`，工作区 `C:\Users\Chen\Desktop\EngGo`。
-- 基线提交：`3899051 feat: add controlled chat orchestrator`。
-- 最近完成计划：`docs/superpowers/plans/2026-06-01-controlled-tool-router-v1.md`。
-- 当前目标：在 Controlled Tool Router V1 基础上定位真实运行态里还会 hard no-match 或“误 resolved 但弱回答”的场景，先定位根因，不先放宽闸门。
-- 当前实现基线已完成：把 `/api/chat` 的隐式 service loop 改成显式内部 tool route plan，继续保持上一版 no-match recovery 和自然多轮 continuation。
-- 本轮范围：
-  - 新增 internal tool protocol / rule-first route planner。
-  - 不引入 LangChain / LangGraph。
-  - 不让 provider 每轮先做 intent classification。
+- 当前活跃计划：`docs/superpowers/plans/2026-06-03-model-assisted-intent-routing-v1.md`。
+- 当前活跃设计：`docs/superpowers/specs/2026-06-03-model-assisted-intent-routing-v1-design.md`。
+- 当前验收报告：`docs/superpowers/reports/2026-06-03-model-assisted-intent-routing-v1-comparison.md`。
+- 本轮结果：已在 Controlled Tool Router V1 上完成“规则高置信直走 + 灰区 provider classifier + 参数来源校验 + grounding/observation 质量闸门”的混合意图路由 V1，并用 backend / frontend / live HTTP smoke / before-after matrix 验证。
+- 保留边界：
+  - 不做完整 ReAct Agent。
+  - 不让模型自由规划多步工具或自由扩词。
+  - 明确查词、明确 direct compare、明确词族/形近仍走确定性规则。
+  - LLM 只补灰区 intent / slots，输出内容仍必须基于工具 observation / grounding。
   - 不改 Learn / Review / Progress 状态机。
-- 已落地基线：
-  - direct compare 不再把人工 `quickDistinction`、confusion graph 或人工 pair/group 元数据当主能力。
-  - 主路径是：解析用户明确提到的英文词 -> 优先查 ECDICT-backed candidates -> provider 组织短中文辨析。
-  - provider 不可用或失败时，只退回干净的并列词典释义。
-  - 不再追加“当前没有人工易混组；先按核心义区分”这种低价值 fallback。
-  - 已有人工组最多作为历史兼容，不再批量维护或扩成系统化 graph。
-  - GitHub-facing `README.md` 已更新到当前产品状态：ECDICT 大词库、Learn / Review / Progress、FastAPI 主链路、ECDICT-grounded direct compare 和下一阶段类 Agent 化方向。
 
-## 本轮完成内容
-1. 已从 `codex/controlled-chat-orchestrator-v1` 切出 `codex/controlled-tool-router-v1`。
-2. 新增 `docs/superpowers/specs/2026-06-01-controlled-tool-router-v1-design.md` 和 `docs/superpowers/plans/2026-06-01-controlled-tool-router-v1.md`。
-3. 更新 `docs/README.md` 与本文件，将 Controlled Tool Router V1 设为当前活跃计划。
-4. 新增 `backend/app/answering/chat_tool_router.py`，把 ordinary lookup、direct compare、advanced lookup 显式包装成内部 chat tools，并由 `normalize_query()` 生成 rule-first route plan。
-5. `/api/chat` 已从隐式 service tuple loop 改为执行 `ChatToolRoutePlan`；direct compare、meaning / shape / root、ordinary lookup 会优先进入对应工具，同时保留 UnsupportedQueryMode fallback、provider error mapping、no-match recovery 和 conversation context 构造。
-6. 已补 `backend/tests/test_chat_tool_router.py` 与 `/api/chat` contract 覆盖，确认 direct / advanced 不再依赖 ordinary preflight；当前 focused router tests：`41 passed`。
-7. 浏览器 E2E 发现并修复 `restrain vs constrain` 中 `vs` 被误当作 compare candidate 的问题；`normalize_query()` 现在会在 compare terms 中过滤 `vs / versus / or`。
+## 本轮已完成
+1. 文档：
+   - 新增 `docs/superpowers/specs/2026-06-03-model-assisted-intent-routing-v1-design.md`。
+   - 新增并完成 `docs/superpowers/plans/2026-06-03-model-assisted-intent-routing-v1.md`。
+   - 新增 `docs/superpowers/reports/2026-06-03-model-assisted-intent-routing-v1-comparison.md`。
+   - 更新 `docs/README.md`、`progress.md`、`bugs.md`。
+2. 路由与 classifier：
+   - `ChatToolRoutePlan` 增加 `source`、`confidence`、`ambiguityReasons`、`classified_intent`。
+   - 新增 `backend/app/answering/intent_classifier.py`，灰区 provider classifier 只返回受限 JSON。
+   - classifier 只在 semantic expression 灰区调用；terms 必须来自用户原文或上一轮 candidates，模型扩词会被丢弃。
+3. semantic expression：
+   - `normalize_query` / `LearningIntentPlan` 新增 `semantic_expression`。
+   - 承接 `同义词 / 近义 / 意思差不多 / 写作表达 / formal way to say`。
+   - `AdvancedLookupService.answer_semantic_expression()` 只做 provider-assisted expression advice，不声称词库命中；provider 不可用时返回 bounded plain fallback。
+4. broad quality gate：
+   - root combo `a+b` 必须有候选直接命中有序片段，才允许 broad resolved。
+   - `anti+dis 的词根有什么词` 不再 resolved 到 `antique / anew / attic...` 弱候选。
+   - `re+con 的词根有什么词` 仍保留已有动态候选能力。
+5. semantic style follow-up：
+   - `还有更适合作文的吗 / 还有更正式的吗 / 有没有更口语的` 先走上一轮候选内 `context_choice`。
+   - 不再被普通 `show_more` 抢走；无上下文或候选不足仍 clarification。
 
-## 2026-06-02 no-match / weak-answer 定位结果
+## Before baseline：2026-06-02 no-match / weak-answer audit
 1. 真实 Next proxy `/api/chat` 探测确认：当前 hard `resolution=no_match` 主要集中在随机/不稳定英文串、完全无候选的词根/词族/词形条件、形近 seed 本身不稳定，以及无上下文追问转 clarification。
 2. 更大的产品风险不是 hard no-match，而是“误 resolved 但弱回答”：
    - `anti+dis 的词根有什么词` 会 resolved，但召回 `antique / anew / attic...` 一类弱相关候选。
    - `跟 abandon 意思差不多的词`、`responsible 的同义词` 被历史测试刻意排除出词族/形近后，没有新的近义/表达工具承接，容易退成普通查词。
    - `遵循的英文是什么` 后追问 `还有更适合作文的吗` 是已知 deferred 场景：当前 `还有吗` 动作优先，缺少 semantic style follow-up。
    - 英文整句 `more formal way to say follow` 会先被拆成多 token 普通查词，再靠 no-match recovery 接住；这说明英文表达/语域意图还没有进入显式工具路由。
-3. 当前定位到的结构性根因：
-   - broad grounding 只用候选数量阈值，缺少“候选质量 / 约束强度”阈值，导致弱片段命中也可能被标成 resolved。
-   - `同义 / 近义 / 意思差不多 / 写作表达` 方向被排除出 word family / shape neighbors，但尚未建成独立 semantic expression tool。
-   - 多轮 resolver 只覆盖 `哪个...正式/自然/适合...`，对 `还有更适合作文的吗` 这类 continuation + style choice 混合问法没有安全改写。
+3. 本轮将以这些样例作为 before/after comparison matrix 的核心行，证明增强不是只靠测试变绿。
 
 ## 最新验证
-- Backend focused tests：
-  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_learning_context.py backend\tests\test_learning_intent.py backend\tests\test_ordinary_lookup_answer.py backend\tests\test_direct_compare_answer.py backend\tests\test_advanced_lookup.py backend\tests\test_chat_tool_router.py backend\tests\test_chat_contract.py` -> 197 passed。
-- Frontend / smoke unit：
-  - `corepack pnpm test src\components\chat\chat-workspace.test.tsx src\features\chat\conversation-context.test.ts scripts\lib\conversational-learning-context-smoke.test.ts` -> 3 files / 40 tests passed。
+- Focused backend：
+  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_advanced_lookup.py backend\tests\test_chat_contract.py backend\tests\test_chat_tool_router.py backend\tests\test_learning_intent.py backend\tests\test_learning_context.py` -> 178 passed。
+- Full backend：
+  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q --basetemp tmp_pytest_full -p no:cacheprovider` -> 346 passed。
+  - 说明：默认用户临时目录和 `C:\tmp` 在当前 sandbox 下不可写，完整 pytest 使用 workspace 内 `tmp_pytest_full`，结束后已删除。
+- Frontend unit：
+  - `corepack pnpm test:unit` -> 42 files / 329 tests passed。
+  - 首次 sandbox 内读取 `node_modules` 的 vitest 文件 EPERM，提权后通过。
 - Lint / diff：
-  - `corepack pnpm lint -- src\features\chat src\components\chat scripts\lib\conversational-learning-context-smoke.ts scripts\run-conversational-learning-context-smoke.ts` -> passed。
-  - `git diff --check` -> passed，仅 Windows LF/CRLF warning。
-- Runtime / E2E：
-  - 已重启本地 dev stack，当前监听：Next `127.0.0.1:3000` PID `35652`，FastAPI `127.0.0.1:8000` PID `40052`。
-  - FastAPI health：`http://127.0.0.1:8000/health` -> `status=ok`。
-  - Next proxy smoke：`corepack pnpm eval:fastapi:conversation-context-smoke -- --base-url http://127.0.0.1:3000 --label next-proxy-controlled-tool-router-restarted` -> 13 total / 13 pass / 0 fail。
-  - in-app Browser：`access` 普通查词通过；`restrain vs constrain` 只展示 `restrain / constrain` 两个候选，不再把 `vs` 当候选；`how do I use these words` 接住上一轮两个候选；`how to learn English fast` 不 hard no-match、不暴露内部字段；console error 为空。
-- 2026-06-02 探测：
-  - 重新启动本地 dev stack 后确认 Next `127.0.0.1:3000` PID `50784`、FastAPI `127.0.0.1:8000` PID `48408`，FastAPI health 200。
-  - 真实 Next proxy probe 覆盖随机串、拼写疑似、词根/词形、形近、表达召回、作文/翻译、学习方法和多轮追问；确认上述 no-match / weak-answer 分类。
+  - `corepack pnpm lint -- src scripts` -> passed。
+  - `corepack pnpm lint` 全量会扫到历史 `.pytest-cache-codex` 目录并 EPERM；该目录是 2026-05-16 旧缓存，不属于本轮代码问题。
+  - `git diff --check` -> passed，仅 Windows LF -> CRLF warnings。
+- Live HTTP smoke：
+  - 临时 FastAPI 子进程 `127.0.0.1:8000`，`OPENAI_API_KEY=""`，脚本结束后已终止。
+  - 4 / 4 pass：`你好` plain；`more formal way to say follow` providerless semantic expression；`anti+dis 的词根有什么词` root no-match；`还有更适合作文的吗` 锁定 `follow / obey / comply` 走 `context_choice`。
+
+## 下一步
+1. review 时重点看：
+   - grey-zone classifier 是否足够窄；
+   - `semantic_expression` 是否清楚标注为 provider-assisted advice；
+   - root combo quality gate 是否既压住 `anti+dis`，又不误伤 `re+con`；
+   - `progress.md` / `bugs.md` / comparison report 是否足够支撑“相对上一版有真实增强”。
 
 ## 上一轮完成内容
 1. 新增 `docs/superpowers/specs/2026-06-01-controlled-chat-orchestrator-v1-design.md` 和 `docs/superpowers/plans/2026-06-01-controlled-chat-orchestrator-v1.md`。
@@ -88,12 +99,6 @@
   - FastAPI health：`http://127.0.0.1:8000/health` -> `status=ok`。
   - Next proxy smoke：`corepack pnpm eval:fastapi:conversation-context-smoke -- --base-url http://127.0.0.1:3000 --label next-proxy-controlled-orchestrator` -> 13 total / 13 pass / 0 fail。
   - in-app Browser：first-turn compare 可生成 `restrain / constrain` 追问上下文；英文自然续问 `how do I use these words` 接上旧候选且不 clarification；learning-adjacent no-match `how to learn English fast` 不 hard no-match、不暴露内部字段，并清掉旧“正在追问”提示；console error 为空。
-
-## 下一步
-1. 第一优先级：给 broad grounding 增加弱候选质量闸门，`anti+dis 的词根有什么词` 这类没有强约束命中的结果应 no-match 或 bounded clarification，而不是 resolved 弱列表。
-2. 第二优先级：补一个受控 semantic expression / synonym tool，承接 `意思差不多的词`、`同义词`、`写作里怎么表达...`、`more formal way to say...`，但仍不声称词库命中。
-3. 第三优先级：补 semantic style follow-up resolver，覆盖 `遵循的英文是什么 -> 还有更适合作文的吗`，复用上一轮 candidates 并交给 provider 做候选内语域选择。
-4. 如需进主线，review 后合并 `codex/controlled-tool-router-v1`；该分支基于 `codex/controlled-chat-orchestrator-v1`。
 
 ## 上一轮已完成基线
 1. 背单词词库已切到 generated ECDICT compact dataset：7890 entries；CET-6 7765；CET-4 6077；Gaokao 2978；不包含 postgrad scope。

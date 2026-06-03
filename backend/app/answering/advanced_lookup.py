@@ -20,6 +20,7 @@ from backend.app.answering.ordinary_lookup import (
     build_grounding,
     build_no_match_answer,
 )
+from backend.app.answering.provider import ChatProviderError
 from backend.app.content.ecdict import (
     EcdictBasicProfile,
     preferred_ecdict_tags_by_exam_target,
@@ -76,6 +77,126 @@ def build_simple_answer(candidates: list[RetrievalCandidate]) -> str:
                 for candidate in candidates
             ],
         ],
+    )
+
+
+semantic_expression_stopwords = {
+    "a",
+    "an",
+    "the",
+    "to",
+    "say",
+    "way",
+    "more",
+    "formal",
+    "spoken",
+    "writing",
+    "essay",
+    "another",
+    "common",
+}
+
+
+def semantic_expression_style(
+    query: str,
+    route_decision: dict[str, object] | None = None,
+) -> str | None:
+    style = route_decision.get("style") if route_decision else None
+    if isinstance(style, str) and style.strip():
+        return style.strip().lower()
+
+    lowered = query.lower()
+    if "作文" in query or "写作" in query or "essay" in lowered or "writing" in lowered:
+        return "essay"
+    if "正式" in query or "formal" in lowered:
+        return "formal"
+    if "口语" in query or "spoken" in lowered:
+        return "spoken"
+    if "常用" in query or "common" in lowered:
+        return "common"
+    return None
+
+
+def semantic_expression_terms(
+    normalized_query: NormalizedQuery,
+    route_decision: dict[str, object] | None = None,
+) -> list[str]:
+    route_terms = route_decision.get("terms") if route_decision else None
+    if isinstance(route_terms, list):
+        terms = [
+            value.strip().lower()
+            for value in route_terms
+            if isinstance(value, str) and value.strip()
+        ]
+        if terms:
+            return terms[:3]
+
+    filtered = [
+        term
+        for term in normalized_query.english_terms
+        if term not in semantic_expression_stopwords
+    ]
+    if filtered:
+        return filtered[-3:]
+    return []
+
+
+def build_semantic_expression_prompt() -> str:
+    return "\n".join(
+        [
+            "你是 EngGo 的受控英语表达建议助手。",
+            "这不是词库命中，不要声称已经命中当前考试词库或人工易混组。",
+            "只能围绕 grounding.terms 或 grounding.meaningHint 回答。",
+            "可以给 2-4 个常见表达或同义表达，并说明正式/作文/口语语境边界。",
+            "不要编造考试频率、不要扩成不相关词表、不要以 follow-up invitation 结尾。",
+        ],
+    )
+
+
+def semantic_expression_fallback_answer(
+    terms: list[str],
+    meaning_hint: str | None,
+    style: str | None,
+) -> str:
+    target = " / ".join(terms) if terms else (meaning_hint or "这个表达")
+    style_text = {
+        "formal": "更正式",
+        "essay": "更适合作文",
+        "spoken": "更口语",
+        "common": "更常用",
+        "exam": "更适合考试表达",
+    }.get(style or "", "语境")
+    return (
+        f"这是一个{style_text}的表达建议问题，目标是 {target}。"
+        "当前没有生成服务参与，我先不硬给同义表达；你可以改问一个确定词的基础意思或用法。"
+    )
+
+
+root_combo_pattern = re.compile(r"\b[a-z]{1,8}\+[a-z]{1,8}\b", re.IGNORECASE)
+
+
+def root_combo_fragments(normalized_query: NormalizedQuery) -> list[str]:
+    text = normalized_query.normalized_text
+    if normalized_query.query_mode != "root_family_summary" or "词根" not in text:
+        return []
+    return [match.group(0).lower() for match in root_combo_pattern.finditer(text)]
+
+
+def unsupported_root_combo_question(
+    normalized_query: NormalizedQuery,
+    candidates,
+) -> bool:
+    combos = root_combo_fragments(normalized_query)
+    if not combos:
+        return False
+
+    if root_fragment_query(normalized_query.normalized_text) is not None:
+        return False
+
+    return not any(
+        signal.type == "fragment" and signal.detail.lower() in combos
+        for candidate in candidates
+        for signal in candidate.signals
     )
 
 
@@ -959,8 +1080,22 @@ class AdvancedLookupService:
         query: str,
         request_id: str,
         history: list[dict[str, str]] | None = None,
+        route_decision: dict[str, object] | None = None,
     ) -> AdvancedLookupResult:
         normalized_query = normalize_query(query)
+
+        if normalized_query.query_mode == "semantic_expression" or (
+            route_decision
+            and route_decision.get("intent") == "semantic_expression"
+        ):
+            return self.answer_semantic_expression(
+                active_exam_target=active_exam_target,
+                query=query,
+                request_id=request_id,
+                history=history or [],
+                normalized_query=normalized_query,
+                route_decision=route_decision,
+            )
 
         seed_expression_result = self.answer_seed_expression_if_possible(
             active_exam_target=active_exam_target,
@@ -1010,6 +1145,69 @@ class AdvancedLookupService:
             )
 
         raise UnsupportedQueryMode(normalized_query.query_mode)
+
+    def answer_semantic_expression(
+        self,
+        *,
+        active_exam_target: str,
+        query: str,
+        request_id: str,
+        history: list[dict[str, str]],
+        normalized_query: NormalizedQuery,
+        route_decision: dict[str, object] | None = None,
+    ) -> AdvancedLookupResult:
+        terms = semantic_expression_terms(normalized_query, route_decision)
+        meaning_hint = None
+        if route_decision and isinstance(route_decision.get("meaningHint"), str):
+            meaning_hint = str(route_decision["meaningHint"]).strip() or None
+        meaning_hint = meaning_hint or normalized_query.meaning_hint or None
+        style = semantic_expression_style(query, route_decision)
+
+        grounding: dict[str, object] = {
+            "activeExamTarget": active_exam_target,
+            "query": query,
+            "queryMode": "semantic_expression",
+            "answerStyle": "semantic_expression",
+            "resolution": "resolved" if terms or meaning_hint else "no_match",
+            "terms": terms,
+            "meaningHint": meaning_hint,
+            "style": style,
+            "routeDecision": route_decision,
+            "rules": [
+                "This is provider-assisted semantic expression advice, not a wordbook hit.",
+                "Use only terms or meaningHint.",
+                "Do not claim exam frequency without evidence.",
+            ],
+            "mainAnswer": [],
+            "confusionBoundary": [],
+        }
+
+        fallback = semantic_expression_fallback_answer(terms, meaning_hint, style)
+
+        try:
+            payload = provider_or_fallback(
+                provider=self.provider if terms or meaning_hint else None,
+                answer=fallback,
+                answer_kind="plain",
+                grounding=grounding,
+                query=query,
+                history=history,
+                request_id=request_id,
+                system_prompt=build_semantic_expression_prompt(),
+            )
+        except ChatProviderError as error:
+            payload = ChatSuccessResponse(
+                answer=fallback,
+                answerKind="plain",
+                grounding=grounding,
+                requestId=request_id,
+                providerRequestId=error.provider_request_id,
+            )
+
+        return AdvancedLookupResult(
+            status_code=200,
+            payload=payload,
+        )
 
     def dynamic_vocabulary(self, active_exam_target: str) -> list[RetrievalCandidate]:
         try:
@@ -1654,6 +1852,9 @@ class AdvancedLookupService:
             groups=[],
             intent_plan=normalized_query.intent_plan,
         )
+
+        if unsupported_root_combo_question(normalized_query, candidates):
+            return None
 
         if (
             normalized_query.intent_plan is not None
