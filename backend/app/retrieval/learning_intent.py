@@ -10,6 +10,7 @@ LearningTask = Literal[
     "word_family",
     "form_filter",
     "semantic_filter",
+    "semantic_expression",
     "meaning_core",
     "unknown",
 ]
@@ -20,6 +21,7 @@ OutputStyle = Literal[
     "strict_inventory",
     "teacher_table",
     "meaning_boundary",
+    "semantic_expression",
     "conservative_no_match",
 ]
 
@@ -238,6 +240,16 @@ def build_learning_intent_plan(normalized_query) -> LearningIntentPlan:
             allowed_expansion_kinds=["derivative_family"],
             require_hard_filter=False,
             minimum_answerable_candidates=2,
+        )
+
+    if normalized_query.query_mode == "semantic_expression":
+        return LearningIntentPlan(
+            task="semantic_expression",
+            seed_terms=english_terms[:1],
+            output_style="semantic_expression",
+            allow_expansion=False,
+            require_hard_filter=False,
+            minimum_answerable_candidates=0,
         )
 
     if normalized_query.is_supported_ordinary_lookup:

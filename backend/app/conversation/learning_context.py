@@ -106,6 +106,11 @@ def resolve_follow_up(
             target_exam=scope_target,
         )
 
+    if _is_semantic_style_follow_up(text):
+        if _contains_explicit_seed(text):
+            return {"kind": "not_follow_up"}
+        return _resolve_context_choice(context, active_exam_target)
+
     if _is_show_more_request(text):
         if _contains_explicit_seed(text):
             return {"kind": "not_follow_up"}
@@ -382,6 +387,29 @@ def _is_show_more_request(query: str) -> bool:
     return _contains_any(
         normalized,
         ["还有吗", "还有没有", "还有么", "还有嘛", "再来几个", "再给几个", "再给我几个", "更多"],
+    )
+
+
+def _is_semantic_style_follow_up(query: str) -> bool:
+    if not _contains_any(
+        query,
+        ["还有", "有没有", "再给", "更"],
+    ):
+        return False
+
+    return _contains_any(
+        query,
+        [
+            "正式",
+            "自然",
+            "常用",
+            "作文",
+            "写作",
+            "口语",
+            "书面",
+            "表达",
+            "适合",
+        ],
     )
 
 

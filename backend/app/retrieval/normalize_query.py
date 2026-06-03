@@ -47,6 +47,17 @@ related_meaning_word_exclusion_pattern = re.compile(
     r"((?:意思|含义)相关(?:的)?(?:词|单词)|相关(?:的)?(?:意思|含义)(?:词|单词))",
     re.IGNORECASE,
 )
+semantic_expression_cue_pattern = re.compile(
+    (
+        r"(同义词?|近义词?|差不多.{0,4}意思|意思.{0,4}差不多|意思相近|含义相近|"
+        r"更正式|正式一点|更口语|口语一点|更自然|写作|作文|表达)"
+        r"|(\bmore formal\b|\bformal (?:way|expression|wording|alternative)\b|"
+        r"\bspoken (?:way|expression|wording|alternative)\b|"
+        r"\b(?:writing|essay) (?:word|words|phrase|phrases|expression|expressions|way|ways)\b|"
+        r"\banother way to say\b|\bway to say\b)"
+    ),
+    re.IGNORECASE,
+)
 shape_neighbor_cue_pattern = re.compile(
     r"(很像|比较像|相像|相似|类似|形近|长得像|看错|看成|易混词?|容易.*混|拼写.{0,4}(像|近|相似))",
     re.IGNORECASE,
@@ -370,6 +381,10 @@ def contains_family_recall_exclusion(normalized_text: str) -> bool:
     )
 
 
+def contains_semantic_expression_cue(normalized_text: str) -> bool:
+    return semantic_expression_cue_pattern.search(normalized_text) is not None
+
+
 def contains_related_word_exclusion(normalized_text: str) -> bool:
     return (
         (
@@ -438,6 +453,8 @@ def normalize_query(query: str) -> NormalizedQuery:
         query_mode = "root_family_summary"
     elif english_terms and is_root_query:
         query_mode = "root_family_summary"
+    elif english_terms and contains_semantic_expression_cue(normalized_text):
+        query_mode = "semantic_expression"
     elif has_lookalike_collection_recall:
         query_mode = "shape_neighbor_search"
     elif len(compare_terms) >= 2:

@@ -15,6 +15,7 @@ from backend.app.answering.chat_orchestrator import (
 from backend.app.answering.chat_tool_router import (
     build_chat_tools,
     execute_chat_tool_route,
+    maybe_classify_grey_zone_route,
     plan_chat_tool_route,
 )
 from backend.app.answering.provider import ChatProviderError
@@ -172,6 +173,13 @@ def answer_with_tools(
     route_plan = plan_chat_tool_route(
         query=query,
         active_exam_target=active_exam_target,
+    )
+    route_plan = maybe_classify_grey_zone_route(
+        route_plan=route_plan,
+        provider=getattr(request.app.state, "provider", None),
+        history=history,
+        request_id=request_id,
+        context=payload.conversationContext,
     )
     tools = build_chat_tools(
         ordinary_lookup_service=getattr(

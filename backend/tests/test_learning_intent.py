@@ -195,3 +195,29 @@ def test_compare_connectors_are_not_compare_candidates(query, expected_terms):
 
     assert normalized.query_mode == "direct_compare"
     assert normalized.compare_terms == expected_terms
+
+
+@pytest.mark.parametrize(
+    ("query", "expected_term"),
+    [
+        ("more formal way to say follow", "follow"),
+        ("more natural way to say get", "get"),
+        ("有没有和 keep 差不多意思的词", "keep"),
+        ("用作文更正式地表达 good", "good"),
+        ("跟 abandon 意思差不多的词", "abandon"),
+        ("responsible 的同义词", "responsible"),
+    ],
+)
+def test_semantic_expression_queries_do_not_fall_into_word_family_or_lookup(query, expected_term):
+    normalized = normalize_query(query)
+
+    assert normalized.query_mode == "semantic_expression"
+    assert normalized.intent_plan.task == "semantic_expression"
+    assert expected_term in normalized.english_terms
+
+
+def test_single_word_meaning_lookup_is_not_semantic_expression():
+    normalized = normalize_query("formal 是什么意思")
+
+    assert normalized.query_mode == "fuzzy_recall"
+    assert normalized.intent_plan.task != "semantic_expression"

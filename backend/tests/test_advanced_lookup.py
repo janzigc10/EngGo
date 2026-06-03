@@ -3,9 +3,11 @@ import json
 from backend.app.answering.advanced_lookup import (
     AdvancedLookupService,
     root_fragment_query,
+    semantic_expression_terms,
 )
-from backend.app.answering.provider import GenerateAnswerResult
+from backend.app.answering.provider import ChatProviderError, GenerateAnswerResult
 from backend.app.content.ecdict import EcdictBasicProfile
+from backend.app.retrieval.normalize_query import normalize_query
 from backend.app.retrieval.types import (
     ConfusionGroup,
     ConfusionGroupMember,
@@ -112,6 +114,19 @@ class FakeProvider:
         return GenerateAnswerResult(
             answer=self.answer,
             provider_request_id="provider_req_advanced",
+        )
+
+
+class FailingProvider:
+    def __init__(self):
+        self.calls = []
+
+    def generate_answer(self, **kwargs):
+        self.calls.append(kwargs)
+        raise ChatProviderError(
+            "provider unavailable",
+            status_code=503,
+            provider_request_id="provider_req_failed",
         )
 
 
@@ -1254,6 +1269,96 @@ def test_meaning_lookup_uses_ecdict_when_structured_repository_unavailable():
     assert grounding["resolution"] == "resolved"
     assert grounding["learningIntentPlan"]["task"] == "meaning_core"
     assert [item["lemma"] for item in grounding["mainAnswer"]][:1] == ["activity"]
+
+
+def test_semantic_expression_uses_provider_without_claiming_wordbook_hit():
+    provider = FakeProvider(answer="follow 的正式表达可以用 comply with 或 adhere to。")
+    service = AdvancedLookupService(
+        repository=FakeRepository(),
+        provider=provider,
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="more formal way to say follow",
+        request_id="req_semantic_expression",
+        route_decision={
+            "intent": "semantic_expression",
+            "confidence": 0.91,
+            "terms": ["follow"],
+            "style": "formal",
+        },
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.answerKind == "plain"
+    assert result.payload.answer == "follow 的正式表达可以用 comply with 或 adhere to。"
+    assert result.payload.providerRequestId == "provider_req_advanced"
+    assert grounding["queryMode"] == "semantic_expression"
+    assert grounding["answerStyle"] == "semantic_expression"
+    assert grounding["terms"] == ["follow"]
+    assert grounding["style"] == "formal"
+    assert grounding["mainAnswer"] == []
+    assert "not a wordbook hit" in "\n".join(grounding["rules"])
+
+
+def test_semantic_expression_provider_failure_returns_bounded_plain_fallback():
+    provider = FailingProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(),
+        provider=provider,
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="more formal way to say follow",
+        request_id="req_semantic_expression_fallback",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.answerKind == "plain"
+    assert result.payload.providerRequestId == "provider_req_failed"
+    assert "更正式" in result.payload.answer
+    assert grounding["queryMode"] == "semantic_expression"
+    assert grounding["resolution"] == "resolved"
+    assert grounding["terms"] == ["follow"]
+    assert provider.calls
+
+
+def test_semantic_expression_terms_ignore_style_cue_words():
+    normalized = normalize_query("more natural way to say get")
+
+    assert semantic_expression_terms(normalized) == ["get"]
+
+
+def test_unsupported_root_combo_no_longer_resolves_weak_candidates():
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            in_scope_entries=[
+                candidate("antique", ["古董"]),
+                candidate("anew", ["重新"]),
+                candidate("attic", ["阁楼"]),
+            ],
+        ),
+        provider=FakeProvider(),
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="anti+dis 的词根有什么词",
+        request_id="req_anti_dis_gate",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert grounding["queryMode"] == "root_family_summary"
+    assert grounding["resolution"] == "no_match"
+    assert grounding["mainAnswer"] == []
 
 
 def test_gaokao_meaning_lookup_rejects_non_current_ecdict_tags():

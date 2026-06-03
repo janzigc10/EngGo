@@ -1,7 +1,10 @@
 from fastapi.testclient import TestClient
 
 from backend.app.answering.direct_compare import DirectCompareService
-from backend.app.answering.advanced_lookup import AdvancedLookupResult
+from backend.app.answering.advanced_lookup import (
+    AdvancedLookupResult,
+    AdvancedLookupService,
+)
 from backend.app.answering.ordinary_lookup import OrdinaryLookupService
 from backend.app.answering.ordinary_lookup import UnsupportedQueryMode
 from backend.app.answering.provider import ChatProviderError, GenerateAnswerResult
@@ -142,6 +145,23 @@ class RecordingProvider:
         return GenerateAnswerResult(
             answer=self.answer,
             provider_request_id="provider_study_1",
+        )
+
+
+class SequenceProvider:
+    def __init__(self, answers):
+        self.answers = list(answers)
+        self.calls = []
+
+    def generate_answer(self, **kwargs):
+        self.calls.append(kwargs)
+        if not self.answers:
+            raise AssertionError("provider called more times than expected")
+
+        index = len(self.calls)
+        return GenerateAnswerResult(
+            answer=self.answers.pop(0),
+            provider_request_id=f"provider_seq_{index}",
         )
 
 
@@ -571,12 +591,72 @@ def test_chat_context_choice_uses_provider_with_locked_target_refs():
     ] == ["follow", "obey", "comply"]
 
 
+def test_chat_style_follow_up_prefers_context_choice_over_show_more():
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+    provider = RecordingProvider(answer="comply 更适合作文表达。")
+    client.app.state.provider = provider
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "还有更适合作文的吗",
+            "history": [],
+            "conversationContext": {
+                "version": 1,
+                "activeExamTarget": "cet6",
+                "sourceMessageId": "turn_1:assistant",
+                "topicKind": "meaning_lookup",
+                "sourceQuery": "遵循的英文是什么",
+                "focus": None,
+                "candidates": [
+                    {"index": 1, "lemma": "follow", "label": "follow"},
+                    {"index": 2, "lemma": "obey", "label": "obey"},
+                    {"index": 3, "lemma": "comply", "label": "comply"},
+                ],
+                "continuationCandidates": [
+                    {"index": 1, "lemma": "observe", "label": "observe"},
+                    {"index": 2, "lemma": "adhere", "label": "adhere"},
+                ],
+                "availableActions": [
+                    "collect_one",
+                    "switch_scope",
+                    "study_guidance",
+                    "collect_group",
+                    "context_choice",
+                    "show_more",
+                ],
+                "expiresAfterTurns": 2,
+            },
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answer"] == "comply 更适合作文表达。"
+    assert payload["resolvedFollowUp"]["action"] == "context_choice"
+    assert [
+        item["lemma"]
+        for item in payload["resolvedFollowUp"]["targetRefs"]
+    ] == ["follow", "obey", "comply"]
+    assert [
+        item["lemma"]
+        for item in provider.calls[0]["grounding"]["targetRefs"]
+    ] == ["follow", "obey", "comply"]
+
+
 def test_chat_context_choice_without_provider_returns_safe_plain_answer():
     client = create_client(
         ordinary_lookup_service=FailingIfCalled(),
         direct_compare_service=FailingIfCalled(),
         advanced_lookup_service=FailingIfCalled(),
     )
+    client.app.state.provider = None
 
     response = client.post(
         "/api/chat",
@@ -635,6 +715,110 @@ def test_chat_context_choice_without_context_clarifies_without_provider():
     assert payload["providerRequestId"] is None
     assert payload["resolvedFollowUp"]["kind"] == "clarification"
     assert "grounding" not in payload
+
+
+def test_chat_semantic_expression_uses_grey_zone_classifier_then_advanced_provider():
+    provider = SequenceProvider(
+        [
+            (
+                '{"intent":"semantic_expression","confidence":0.88,'
+                '"terms":["follow","adhere"],"meaningHint":null,'
+                '"style":"formal","reason":"formal expression request"}'
+            ),
+            "follow 更正式的表达可以考虑 comply with；作文里比 follow 更书面。",
+        ],
+    )
+    advanced_service = AdvancedLookupService(
+        repository=FakeRepository(),
+        provider=provider,
+    )
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=advanced_service,
+    )
+    client.app.state.provider = provider
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "more formal way to say follow",
+            "history": [],
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["answer"] == "follow 更正式的表达可以考虑 comply with；作文里比 follow 更书面。"
+    assert payload["answerKind"] == "plain"
+    assert payload["providerRequestId"] == "provider_seq_2"
+    assert payload["grounding"]["queryMode"] == "semantic_expression"
+    assert payload["grounding"]["answerStyle"] == "semantic_expression"
+    assert payload["grounding"]["style"] == "formal"
+    assert payload["grounding"]["terms"] == ["follow"]
+    assert payload["grounding"]["mainAnswer"] == []
+    assert payload["grounding"]["routeDecision"]["source"] == "llm"
+    assert payload["grounding"]["routeDecision"]["terms"] == ["follow"]
+    assert len(provider.calls) == 2
+    assert "受控意图分类器" in provider.calls[0]["system_prompt"]
+    assert provider.calls[0]["grounding"]["rulePlan"]["confidence"] < 0.85
+    assert "表达建议" in provider.calls[1]["system_prompt"]
+
+
+def test_chat_explicit_seed_style_request_routes_to_semantic_expression_with_context():
+    advanced_service = RecordingService(
+        answer="semantic expression answer",
+        answer_kind="plain",
+        grounding={
+            "activeExamTarget": "cet6",
+            "queryMode": "semantic_expression",
+            "answerStyle": "semantic_expression",
+            "resolution": "resolved",
+            "terms": ["good"],
+            "style": "essay",
+            "mainAnswer": [],
+        },
+    )
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=advanced_service,
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "用作文更正式地表达 good",
+            "history": [],
+            "conversationContext": {
+                "version": 1,
+                "activeExamTarget": "cet6",
+                "sourceMessageId": "turn_1:assistant",
+                "topicKind": "meaning_lookup",
+                "sourceQuery": "遵循的英文是什么",
+                "focus": None,
+                "candidates": [
+                    {"index": 1, "lemma": "follow", "label": "follow"},
+                    {"index": 2, "lemma": "obey", "label": "obey"},
+                    {"index": 3, "lemma": "comply", "label": "comply"},
+                ],
+                "availableActions": ["collect_one", "switch_scope", "study_guidance", "collect_group", "context_choice"],
+                "expiresAfterTurns": 2,
+            },
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert advanced_service.calls[0]["query"] == "用作文更正式地表达 good"
+    assert "resolvedFollowUp" not in payload
+    assert payload["answerKind"] == "plain"
+    assert payload["grounding"]["queryMode"] == "semantic_expression"
+    assert payload["grounding"]["terms"] == ["good"]
 
 
 def test_chat_keeps_normal_query_with_context_on_original_route():

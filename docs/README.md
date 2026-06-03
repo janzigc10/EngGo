@@ -8,6 +8,8 @@
 - `context.md`：长期项目地图和代码地图。
 
 ## 当前有效设计
+- `docs/superpowers/specs/2026-06-03-model-assisted-intent-routing-v1-design.md`
+  - 当前活跃设计：不做完整 ReAct Agent；在 Controlled Tool Router V1 上新增规则置信度、灰区 provider classifier、参数来源校验、semantic expression 分支和 grounding / observation 质量闸门。目标是让明确查词/辨析继续走确定性规则，让 `more formal way to say...`、`同义词/近义词`、`还有更适合作文的吗` 这类灰区由模型辅助识别，但最终仍由代码验收参数和工具证据。
 - `docs/superpowers/specs/2026-06-01-controlled-tool-router-v1-design.md`
   - 当前已完成的类 Agent 化第二步：不引入完整 LangChain / LangGraph，不做开放 agent；先把已有 ordinary lookup、direct compare、advanced lookup 抽成统一内部 tool 协议，用 rule-first route planner 显式决定工具顺序，并继续复用上一版的自然续问与 no-match recovery。V1 不对每轮都新增 provider intent-classification 调用，避免延迟和误判面过早扩大。
 - `docs/superpowers/specs/2026-06-01-controlled-chat-orchestrator-v1-design.md`
@@ -50,7 +52,12 @@
   - 初始技术设计。
 
 ## 当前活跃计划
-- 暂无新的活跃实现计划。最近完成的是 Controlled Tool Router V1。
+- `docs/superpowers/plans/2026-06-03-model-assisted-intent-routing-v1.md`
+  - 当前活跃实现计划：规则高置信路径直接执行；规则灰区才调用 provider 产出受限 intent / slots；代码校验 terms、style、context provenance；semantic expression / style follow-up 用受控工具承接；broad grounding 增加弱候选质量闸门，并输出 before/after comparison matrix 证明真实增强。
+
+## 当前验收报告
+- `docs/superpowers/reports/2026-06-03-model-assisted-intent-routing-v1-comparison.md`
+  - Model-assisted Intent Routing V1 的 before/after matrix 与验证记录：覆盖 23 条 stable / regression probe / expected improvement E2E，包括 `formal 是什么意思` 防误伤、`more formal way to say follow`、`同义词/差不多意思`、`anti+dis` / `pre+sub` weak resolved、`还有更适合作文的吗` style follow-up，以及稳定路径防回归。
 
 ## 最近完成计划
 - `docs/superpowers/plans/2026-06-01-controlled-tool-router-v1.md`
