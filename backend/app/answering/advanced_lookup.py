@@ -94,6 +94,15 @@ semantic_expression_stopwords = {
     "essay",
     "another",
     "common",
+    "natural",
+    "express",
+    "expression",
+    "expressions",
+    "word",
+    "words",
+    "wording",
+    "alternative",
+    "alternatives",
 }
 
 

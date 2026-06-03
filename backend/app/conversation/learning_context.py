@@ -107,6 +107,8 @@ def resolve_follow_up(
         )
 
     if _is_semantic_style_follow_up(text):
+        if _contains_explicit_seed(text):
+            return {"kind": "not_follow_up"}
         return _resolve_context_choice(context, active_exam_target)
 
     if _is_show_more_request(text):

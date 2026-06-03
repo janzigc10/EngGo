@@ -5,7 +5,7 @@
 - 当前活跃计划：`docs/superpowers/plans/2026-06-03-model-assisted-intent-routing-v1.md`。
 - 当前活跃设计：`docs/superpowers/specs/2026-06-03-model-assisted-intent-routing-v1-design.md`。
 - 当前验收报告：`docs/superpowers/reports/2026-06-03-model-assisted-intent-routing-v1-comparison.md`。
-- 本轮结果：已在 Controlled Tool Router V1 上完成“规则高置信直走 + 灰区 provider classifier + 参数来源校验 + grounding/observation 质量闸门”的混合意图路由 V1，并用 backend / frontend / live HTTP smoke / before-after matrix 验证。
+- 本轮结果：已在 Controlled Tool Router V1 上完成“规则高置信直走 + 灰区 provider classifier + 参数来源校验 + grounding/observation 质量闸门”的混合意图路由 V1，并用 backend / frontend / live HTTP smoke / 23-case before-after matrix 验证。
 - 保留边界：
   - 不做完整 ReAct Agent。
   - 不让模型自由规划多步工具或自由扩词。
@@ -27,6 +27,7 @@
    - `normalize_query` / `LearningIntentPlan` 新增 `semantic_expression`。
    - 承接 `同义词 / 近义 / 意思差不多 / 写作表达 / formal way to say`。
    - `AdvancedLookupService.answer_semantic_expression()` 只做 provider-assisted expression advice，不声称词库命中；provider 不可用时返回 bounded plain fallback。
+   - 23-case E2E 加宽后补了 3 个边界修复：裸 `formal` 保持普通查词；`差不多意思` 词序进入 `semantic_expression`；显式英文 seed 的首轮写作/正式表达请求不再被 follow-up resolver 抢走。
 4. broad quality gate：
    - root combo `a+b` 必须有候选直接命中有序片段，才允许 broad resolved。
    - `anti+dis 的词根有什么词` 不再 resolved 到 `antique / anew / attic...` 弱候选。
@@ -34,6 +35,9 @@
 5. semantic style follow-up：
    - `还有更适合作文的吗 / 还有更正式的吗 / 有没有更口语的` 先走上一轮候选内 `context_choice`。
    - 不再被普通 `show_more` 抢走；无上下文或候选不足仍 clarification。
+6. 可复跑 E2E：
+   - 新增 `scripts/run-model-routing-e2e-compare.py`。
+   - 默认 baseline 为 `52b7834`，分别启动 baseline/current FastAPI，统一本地 ECDICT 和 providerless 环境，检查 23 条路由/grounding/action 期望。
 
 ## Before baseline：2026-06-02 no-match / weak-answer audit
 1. 真实 Next proxy `/api/chat` 探测确认：当前 hard `resolution=no_match` 主要集中在随机/不稳定英文串、完全无候选的词根/词族/词形条件、形近 seed 本身不稳定，以及无上下文追问转 clarification。
@@ -45,11 +49,13 @@
 3. 本轮将以这些样例作为 before/after comparison matrix 的核心行，证明增强不是只靠测试变绿。
 
 ## 最新验证
+- Focused backend after 23-case fixes：
+  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend/tests/test_learning_intent.py backend/tests/test_learning_context.py backend/tests/test_chat_tool_router.py backend/tests/test_advanced_lookup.py::test_semantic_expression_uses_provider_without_claiming_wordbook_hit backend/tests/test_advanced_lookup.py::test_semantic_expression_provider_failure_returns_bounded_plain_fallback backend/tests/test_advanced_lookup.py::test_semantic_expression_terms_ignore_style_cue_words backend/tests/test_chat_contract.py::test_chat_semantic_expression_uses_grey_zone_classifier_then_advanced_provider backend/tests/test_chat_contract.py::test_chat_explicit_seed_style_request_routes_to_semantic_expression_with_context` -> 106 passed。
 - Focused backend：
   - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_advanced_lookup.py backend\tests\test_chat_contract.py backend\tests\test_chat_tool_router.py backend\tests\test_learning_intent.py backend\tests\test_learning_context.py` -> 178 passed。
 - Full backend：
-  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q --basetemp tmp_pytest_full -p no:cacheprovider` -> 346 passed。
-  - 说明：默认用户临时目录和 `C:\tmp` 在当前 sandbox 下不可写，完整 pytest 使用 workspace 内 `tmp_pytest_full`，结束后已删除。
+  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q --basetemp tmp_pytest_model_routing -p no:cacheprovider` -> 353 passed。
+  - 说明：默认用户临时目录和 `C:\tmp` 在当前 sandbox 下不可写，完整 pytest 使用 workspace 内 `tmp_pytest_model_routing`，结束后已删除。
 - Frontend unit：
   - `corepack pnpm test:unit` -> 42 files / 329 tests passed。
   - 首次 sandbox 内读取 `node_modules` 的 vitest 文件 EPERM，提权后通过。
@@ -61,16 +67,19 @@
   - 临时 FastAPI 子进程 `127.0.0.1:8000`，`OPENAI_API_KEY=""`，脚本结束后已终止。
   - 4 / 4 pass：`你好` plain；`more formal way to say follow` providerless semantic expression；`anti+dis 的词根有什么词` root no-match；`还有更适合作文的吗` 锁定 `follow / obey / comply` 走 `context_choice`。
 - Live before/after E2E：
-  - baseline commit `52b7834` vs current commit `947b0f8`，同一批输入、同一本地 ECDICT CSV、`OPENAI_API_KEY=""`。
-  - 8 total / 8 current expectation pass / 0 fail；5 个 expected-improvement case，3 个 stable no-regression case。
-  - 关键差距：旧版 `anti+dis` resolved 到 `antique / anew / attic...`，新版 no-match；旧版 `还有更适合作文的吗` 跑成新 meaning lookup 并召回 `collaborate / cooperation...`，新版锁定上一轮 `follow / obey / comply` 做 `context_choice`；旧版同义/表达问法只查词本身， 新版进入 `semantic_expression`。
+  - `C:\Users\Chen\anaconda3\python.exe scripts\run-model-routing-e2e-compare.py`。
+  - baseline commit `52b7834` vs current working tree，同一批输入、同一本地 ECDICT CSV、`OPENAI_API_KEY=""`。
+  - 23 total / 23 current expectation pass / 0 fail / 13 changed。
+  - 分类：stable no-regression 7 / 7 pass / 0 changed；regression probe 4 / 4 pass；expected improvement 12 / 12 pass / 12 changed。
+  - 关键差距：旧版 `anti+dis` 和 `pre+sub` weak resolved，新版 no-match；旧版 style follow-up 跑偏或 clear_context，新版锁定上一轮 `follow / obey / comply`；旧版同义/表达问法只查 seed 或 clear_context，新版进入 `semantic_expression`。
+  - 宽测第一轮曾抓出 3 个边界缺陷并已修复：`formal 是什么意思` 误进 semantic expression；`差不多意思` 词序漏识别；`用作文更正式地表达 good` 被误当无上下文追问。
 
 ## 下一步
 1. review 时重点看：
    - grey-zone classifier 是否足够窄；
    - `semantic_expression` 是否清楚标注为 provider-assisted advice；
    - root combo quality gate 是否既压住 `anti+dis`，又不误伤 `re+con`；
-   - `progress.md` / `bugs.md` / comparison report 是否足够支撑“相对上一版有真实增强”。
+   - 23-case E2E matrix 是否足够支撑“相对上一版有真实增强”，以及是否要继续把 meaning lookup weak resolved 作为下一阶段独立任务。
 
 ## 上一轮完成内容
 1. 新增 `docs/superpowers/specs/2026-06-01-controlled-chat-orchestrator-v1-design.md` 和 `docs/superpowers/plans/2026-06-01-controlled-chat-orchestrator-v1.md`。

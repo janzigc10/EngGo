@@ -374,6 +374,16 @@ def test_resolver_clarifies_context_choice_without_context():
     assert result["options"] == []
 
 
+def test_resolver_does_not_capture_explicit_seed_style_request_as_follow_up():
+    result = resolve_follow_up(
+        "用作文更正式地表达 good",
+        _context(["follow", "obey", "comply"], topic_kind="meaning_lookup"),
+        "cet6",
+    )
+
+    assert result == {"kind": "not_follow_up"}
+
+
 def test_resolver_clarifies_context_choice_with_single_candidate():
     result = resolve_follow_up("哪个更常用", _context(["follow"]), "cet6")
 

@@ -767,6 +767,60 @@ def test_chat_semantic_expression_uses_grey_zone_classifier_then_advanced_provid
     assert "表达建议" in provider.calls[1]["system_prompt"]
 
 
+def test_chat_explicit_seed_style_request_routes_to_semantic_expression_with_context():
+    advanced_service = RecordingService(
+        answer="semantic expression answer",
+        answer_kind="plain",
+        grounding={
+            "activeExamTarget": "cet6",
+            "queryMode": "semantic_expression",
+            "answerStyle": "semantic_expression",
+            "resolution": "resolved",
+            "terms": ["good"],
+            "style": "essay",
+            "mainAnswer": [],
+        },
+    )
+    client = create_client(
+        ordinary_lookup_service=FailingIfCalled(),
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=advanced_service,
+    )
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "用作文更正式地表达 good",
+            "history": [],
+            "conversationContext": {
+                "version": 1,
+                "activeExamTarget": "cet6",
+                "sourceMessageId": "turn_1:assistant",
+                "topicKind": "meaning_lookup",
+                "sourceQuery": "遵循的英文是什么",
+                "focus": None,
+                "candidates": [
+                    {"index": 1, "lemma": "follow", "label": "follow"},
+                    {"index": 2, "lemma": "obey", "label": "obey"},
+                    {"index": 3, "lemma": "comply", "label": "comply"},
+                ],
+                "availableActions": ["collect_one", "switch_scope", "study_guidance", "collect_group", "context_choice"],
+                "expiresAfterTurns": 2,
+            },
+        },
+    )
+
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert advanced_service.calls[0]["query"] == "用作文更正式地表达 good"
+    assert "resolvedFollowUp" not in payload
+    assert payload["answerKind"] == "plain"
+    assert payload["grounding"]["queryMode"] == "semantic_expression"
+    assert payload["grounding"]["terms"] == ["good"]
+
+
 def test_chat_keeps_normal_query_with_context_on_original_route():
     ordinary_service = RecordingService(
         answer="make up\n\nphr. 组成；编造",

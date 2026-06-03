@@ -3,9 +3,11 @@ import json
 from backend.app.answering.advanced_lookup import (
     AdvancedLookupService,
     root_fragment_query,
+    semantic_expression_terms,
 )
 from backend.app.answering.provider import ChatProviderError, GenerateAnswerResult
 from backend.app.content.ecdict import EcdictBasicProfile
+from backend.app.retrieval.normalize_query import normalize_query
 from backend.app.retrieval.types import (
     ConfusionGroup,
     ConfusionGroupMember,
@@ -1325,6 +1327,12 @@ def test_semantic_expression_provider_failure_returns_bounded_plain_fallback():
     assert grounding["resolution"] == "resolved"
     assert grounding["terms"] == ["follow"]
     assert provider.calls
+
+
+def test_semantic_expression_terms_ignore_style_cue_words():
+    normalized = normalize_query("more natural way to say get")
+
+    assert semantic_expression_terms(normalized) == ["get"]
 
 
 def test_unsupported_root_combo_no_longer_resolves_weak_candidates():

@@ -57,7 +57,7 @@
 
 ## 当前验收报告
 - `docs/superpowers/reports/2026-06-03-model-assisted-intent-routing-v1-comparison.md`
-  - Model-assisted Intent Routing V1 的 before/after matrix 与验证记录：覆盖 `more formal way to say follow`、`同义词/意思差不多`、`anti+dis` weak resolved、`还有更适合作文的吗` style follow-up，以及稳定路径防回归。
+  - Model-assisted Intent Routing V1 的 before/after matrix 与验证记录：覆盖 23 条 stable / regression probe / expected improvement E2E，包括 `formal 是什么意思` 防误伤、`more formal way to say follow`、`同义词/差不多意思`、`anti+dis` / `pre+sub` weak resolved、`还有更适合作文的吗` style follow-up，以及稳定路径防回归。
 
 ## 最近完成计划
 - `docs/superpowers/plans/2026-06-01-controlled-tool-router-v1.md`

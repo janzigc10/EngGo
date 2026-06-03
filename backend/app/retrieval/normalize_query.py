@@ -49,10 +49,12 @@ related_meaning_word_exclusion_pattern = re.compile(
 )
 semantic_expression_cue_pattern = re.compile(
     (
-        r"(同义词?|近义词?|意思差不多|意思相近|含义相近|"
+        r"(同义词?|近义词?|差不多.{0,4}意思|意思.{0,4}差不多|意思相近|含义相近|"
         r"更正式|正式一点|更口语|口语一点|更自然|写作|作文|表达)"
-        r"|(\bformal\b|\bmore formal\b|\bspoken\b|\bwriting\b|"
-        r"\bessay\b|\banother way to say\b|\bway to say\b)"
+        r"|(\bmore formal\b|\bformal (?:way|expression|wording|alternative)\b|"
+        r"\bspoken (?:way|expression|wording|alternative)\b|"
+        r"\b(?:writing|essay) (?:word|words|phrase|phrases|expression|expressions|way|ways)\b|"
+        r"\banother way to say\b|\bway to say\b)"
     ),
     re.IGNORECASE,
 )

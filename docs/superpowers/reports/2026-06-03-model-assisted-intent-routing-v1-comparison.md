@@ -35,20 +35,34 @@ V1 相比 Controlled Tool Router V1 的核心增强不是“把所有意图交�
 
 ## Live Before / After E2E
 
-2026-06-03 补跑了一轮真正的 before/after E2E：同一批输入分别启动 baseline commit `52b7834` 和 current commit `947b0f8` 的 FastAPI 子进程，统一使用本地 ECDICT CSV，且 `OPENAI_API_KEY=""`，避免真实 provider 把路由差异糊掉。
+2026-06-03 先补跑 23 条 before/after E2E：同一批输入分别启动 baseline commit `52b7834` 和 current working tree 的 FastAPI 子进程，统一使用本地 ECDICT CSV，且 `OPENAI_API_KEY=""`，避免真实 provider 把路由差异糊掉。
 
-Summary: 8 total / 8 current expectation pass / 0 fail；其中 5 个 expected-improvement case，3 个 stable no-regression case。
+第一轮宽测没有直接通过，抓出 3 个真实边界问题：
 
-| Case | Baseline `52b7834` | Current `947b0f8` | Meaning |
-| --- | --- | --- | --- |
-| `access 是什么意思` | 200 grounded, `mainAnswer=["access"]` | 200 grounded, `mainAnswer=["access"]` | 稳定查词不回退。 |
-| `access assess 怎么区分` | 200 grounded, `queryMode=direct_compare`, `mainAnswer=["access","assess"]` | 同 baseline | direct compare 稳定。 |
-| `more formal way to say follow` | 200 plain, `clear_context`，没有 grounding 和 term | 200 plain, `queryMode=semantic_expression`, `terms=["follow"]` | 英文表达意图从“接不准”变成显式受控分支。 |
-| `跟 abandon 意思差不多的词` | 200 grounded, `queryMode=fuzzy_recall`, 只查 `abandon` 本身 | 200 plain, `queryMode=semantic_expression`, `terms=["abandon"]` | 同义/近义问法不再伪装成普通查词。 |
-| `responsible 的同义词` | 200 grounded, `queryMode=fuzzy_recall`, 只查 `responsible` 本身 | 200 plain, `queryMode=semantic_expression`, `terms=["responsible"]` | 同义问法进入表达工具，不再弱 resolved。 |
-| `anti+dis 的词根有什么词` | 200 grounded, `resolution=resolved`, `mainAnswer=["antique","anew","attic",...]` | 200 grounded, `resolution=no_match`, `mainAnswer=[]` | 弱 root combo 被 quality gate 压住。 |
-| `re+con 的词根有什么词` | 200 grounded, `resolution=resolved`, includes `reconcile / reconciliation` | 同 baseline | 没误伤已有可用 root combo。 |
-| `还有更适合作文的吗` with previous candidates `follow / obey / comply` | 200 grounded, 新开 `meaning_lookup`，跑到 `collaborate / cooperation...` | 200 plain, `resolved_action=context_choice`, locks `follow / obey / comply` | style follow-up 真正复用上一轮候选，不跑偏。 |
+- `formal 是什么意思` 被当前实现误路由到 `semantic_expression`，原因是英文 cue 把裸 `formal` 当成语域意图。
+- `有没有和 keep 差不多意思的词` 漏进 `semantic_expression`，原因是只覆盖了“意思差不多”，没覆盖“差不多意思”词序。
+- `用作文更正式地表达 good` 被 follow-up resolver 当成无上下文风格追问，原因是 style follow-up 没先排除显式英文 seed。
+
+修复后固化为 `scripts/run-model-routing-e2e-compare.py`，最终结果：
+
+- 23 total / 23 current expectation pass / 0 fail / 13 changed。
+- stable no-regression：7 total / 7 pass / 0 changed。
+- regression probe：4 total / 4 pass / 1 changed。
+- expected improvement：12 total / 12 pass / 12 changed。
+
+| Category | Coverage | Result |
+| --- | --- | --- |
+| Stable no-regression | `access 是什么意思`、`access assess 怎么区分`、`还有吗` continuation、随机串 no-match、`re+con` root、`re开头cile结尾`、`哪个更自然` context choice | 全部保持 baseline 行为，不经新 classifier 误伤。 |
+| Regression probes | `formal 是什么意思`、`表达观点的英文是什么`、`遵循的英文是什么`、`more natural way to say get` | `formal` 保持普通查词；中译英表达仍是原 meaning lookup 路径；`natural` 不再被当目标词，`terms=["get"]`。 |
+| Semantic expression improvements | `more formal way to say follow`、`another way to say help`、`active 的近义词`、`responsible 的同义词`、`有没有和 keep 差不多意思的词`、`用作文更正式地表达 good` | baseline 要么 clear_context，要么只查 seed 本身；current 全部进入 `semantic_expression`，terms 来自用户原文。 |
+| Weak root gate | `anti+dis 的词根有什么词`、`pre+sub 的词根有什么词` | baseline weak resolved 到 `antique/anew/attic...`、`preach/preacher/precaution...`；current 均 root no-match。 |
+| Style follow-up | `还有更适合作文的吗`、`有没有更正式的`、`还有更口语的吗`、无上下文 `还有更正式的吗` | 有上下文锁定 `follow / obey / comply` 做 `context_choice`；无上下文 clarification。 |
+
+Command:
+
+```powershell
+& 'C:\Users\Chen\anaconda3\python.exe' scripts\run-model-routing-e2e-compare.py
+```
 
 ## Remaining Boundaries
 
