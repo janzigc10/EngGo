@@ -33,6 +33,23 @@ V1 相比 Controlled Tool Router V1 的核心增强不是“把所有意图交�
   - `anti+dis` root no-match,
   - style follow-up candidate-locked `context_choice`.
 
+## Live Before / After E2E
+
+2026-06-03 补跑了一轮真正的 before/after E2E：同一批输入分别启动 baseline commit `52b7834` 和 current commit `947b0f8` 的 FastAPI 子进程，统一使用本地 ECDICT CSV，且 `OPENAI_API_KEY=""`，避免真实 provider 把路由差异糊掉。
+
+Summary: 8 total / 8 current expectation pass / 0 fail；其中 5 个 expected-improvement case，3 个 stable no-regression case。
+
+| Case | Baseline `52b7834` | Current `947b0f8` | Meaning |
+| --- | --- | --- | --- |
+| `access 是什么意思` | 200 grounded, `mainAnswer=["access"]` | 200 grounded, `mainAnswer=["access"]` | 稳定查词不回退。 |
+| `access assess 怎么区分` | 200 grounded, `queryMode=direct_compare`, `mainAnswer=["access","assess"]` | 同 baseline | direct compare 稳定。 |
+| `more formal way to say follow` | 200 plain, `clear_context`，没有 grounding 和 term | 200 plain, `queryMode=semantic_expression`, `terms=["follow"]` | 英文表达意图从“接不准”变成显式受控分支。 |
+| `跟 abandon 意思差不多的词` | 200 grounded, `queryMode=fuzzy_recall`, 只查 `abandon` 本身 | 200 plain, `queryMode=semantic_expression`, `terms=["abandon"]` | 同义/近义问法不再伪装成普通查词。 |
+| `responsible 的同义词` | 200 grounded, `queryMode=fuzzy_recall`, 只查 `responsible` 本身 | 200 plain, `queryMode=semantic_expression`, `terms=["responsible"]` | 同义问法进入表达工具，不再弱 resolved。 |
+| `anti+dis 的词根有什么词` | 200 grounded, `resolution=resolved`, `mainAnswer=["antique","anew","attic",...]` | 200 grounded, `resolution=no_match`, `mainAnswer=[]` | 弱 root combo 被 quality gate 压住。 |
+| `re+con 的词根有什么词` | 200 grounded, `resolution=resolved`, includes `reconcile / reconciliation` | 同 baseline | 没误伤已有可用 root combo。 |
+| `还有更适合作文的吗` with previous candidates `follow / obey / comply` | 200 grounded, 新开 `meaning_lookup`，跑到 `collaborate / cooperation...` | 200 plain, `resolved_action=context_choice`, locks `follow / obey / comply` | style follow-up 真正复用上一轮候选，不跑偏。 |
+
 ## Remaining Boundaries
 
 - This is still not a full ReAct Agent. It does not let the model plan arbitrary tools or multi-step actions.

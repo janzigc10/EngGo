@@ -60,6 +60,10 @@
 - Live HTTP smoke：
   - 临时 FastAPI 子进程 `127.0.0.1:8000`，`OPENAI_API_KEY=""`，脚本结束后已终止。
   - 4 / 4 pass：`你好` plain；`more formal way to say follow` providerless semantic expression；`anti+dis 的词根有什么词` root no-match；`还有更适合作文的吗` 锁定 `follow / obey / comply` 走 `context_choice`。
+- Live before/after E2E：
+  - baseline commit `52b7834` vs current commit `947b0f8`，同一批输入、同一本地 ECDICT CSV、`OPENAI_API_KEY=""`。
+  - 8 total / 8 current expectation pass / 0 fail；5 个 expected-improvement case，3 个 stable no-regression case。
+  - 关键差距：旧版 `anti+dis` resolved 到 `antique / anew / attic...`，新版 no-match；旧版 `还有更适合作文的吗` 跑成新 meaning lookup 并召回 `collaborate / cooperation...`，新版锁定上一轮 `follow / obey / comply` 做 `context_choice`；旧版同义/表达问法只查词本身， 新版进入 `semantic_expression`。
 
 ## 下一步
 1. review 时重点看：
