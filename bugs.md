@@ -1,6 +1,6 @@
 # EngGo 已知问题与环境坑
 
-## 2026-06-02 No-match / weak-answer audit 残留（2026-06-03 已修主要弱回答，需防回归）
+## 2026-06-02 No-match / weak-answer audit 残留（2026-06-04 已修主要 weak resolved，需防回归）
 ### 症状
 真实 Next proxy `/api/chat` 探测确认，当前 hard no-match 已经不算最主要问题；更影响体验的是部分问法会“看起来回答了”，但实际没有真正理解意图。
 
@@ -11,6 +11,13 @@
 - `跟 abandon 意思差不多的词`、`responsible 的同义词` -> 2026-06-03 已修路由承接：进入 `semantic_expression`，不再误塞入词族/形近；输出仍是 provider-assisted 表达建议，不声称词库命中。
 - `遵循的英文是什么` 后追问 `还有更适合作文的吗` -> 2026-06-03 已修：semantic style follow-up 先于 `show_more` 解析，锁定上一轮 candidates 走 `context_choice`。
 - `more formal way to say follow` -> 2026-06-03 已修：进入 `semantic_expression` 灰区路径；有 provider 时 classifier 只产出受限 intent / slots，代码校验 terms provenance；provider 不可用时 bounded plain fallback。
+- `表达观点的英文是什么` -> 2026-06-04 已修：不再 resolved 到 `hiss`，真实 E2E 当前为 `express / state / voice / represent`。
+- `遵循的英文是什么` -> 2026-06-04 已修：不再 resolved 到 `disobedience / subdue / unwilling`，真实 E2E 当前为 `follow / observe / comply / obey / abide`。
+- `限制的英文是什么` -> 2026-06-04 顺手修复：不再优先返回 `bridle`，真实 E2E 当前为 `restrict / limit / constrain`。
+- `遵守规则用英文怎么说` -> 2026-06-05 已修：不再 clear_context，也不被泛 `遵从 / 遵守` seed expression 组截走；真实 E2E 当前为 `follow / observe / comply / obey / abide`，并禁止 `defer` 进入主答案。
+- `负责的英文是什么`、`承担责任的英文是什么` -> 2026-06-05 已修：不再 resolved 到 `provost` 或 `respond`，真实 E2E 当前为 `responsible / liable`。
+- `表达想法的英文是什么`、`提出观点的英文是什么` -> 2026-06-05 已修：进入 expression-verb preferred path，分别返回 `express / state / voice` 和 `state / express / voice`，不再退成 `thought / notion` 这类名词候选。
+- `anti+xyz 的词根有什么词`、`re+con+sub 的词根有什么词` -> 2026-06-05 已纳入 E2E：保持 bounded root no-match，不再从 loose broad path 硬凑候选。
 
 ### 根因判断
 1. broad grounding 当前主要靠候选数量阈值决定是否 answerable，缺少“候选质量 / 约束强度”闸门。弱片段或宽泛前缀只要凑够候选，就可能被标成 resolved。
@@ -23,12 +30,31 @@
 3. 新增 `semantic_expression` 分支，承接同义、近义、意思差不多、写作表达和英文 `formal way to say X`；provider 只负责表达，不声称词库命中。
 4. broad root combo 增加候选质量门：`a+b` 必须有直接有序片段命中才可 broad resolved，否则回 root no-match。
 5. follow-up resolver 新增 semantic style 优先级，`还有更适合作文的吗` 不再被 `show_more` 抢走。
+6. meaning lookup 新增质量门：
+   - `meaning_core` 在 broad grounding 前先区分 strong / weak candidates。
+   - preferred lemma 和正向原 hint 命中可进入 grounded main answer；否定、使役、alias-only 弱命中不再冒充主答案。
+   - ECDICT meaning candidate 在 meaning lookup 合并时优先于普通 source lemma candidate，避免同 lemma 的 source 版本丢失 semantic hints。
+   - 无 strong 候选但有受控表达选项时，返回 `meaning_expression_advice` plain answer，并把弱候选只放进 `weakCandidateLemmas` metadata。
+7. seed expression provider 失败时会退回 grounded fallback，不再在 providerless 环境把已有 grounding 变成 503。
+8. phrase hint 会绕过泛 seed expression 组，避免 `遵守规则` 被 `遵从 / 遵守` 组带出 `defer`。
+9. 2026-06-05 review blocker 已修：`meaning_expression_advice` 不再用 `resolution=resolved`，而是 `answerKind=plain`、`resolution=no_match`、`noMatchReason=low_confidence`，并补齐前端展示所需 grounding 字段；前端专门显示“表达建议”，不再误显示“已命中 0 个当前范围词”。
+10. 2026-06-05 review blocker 已修：phrase hint 截取增加否定上下文保护，`不承担责任的英文是什么` 不再被截成 `承担责任`，避免正向 preferred lemma 抢走否定表达。
+
+### 2026-06-05 扩展覆盖新增残留
+- `活动的英文是什么`：CET-6 providerless 真实装配当前仍返回 `action`，没有优先 `activity`。直接原因是 `activity` 在 source lemma 里属于 Gaokao/CET-4，当前 CET-6 source lemma 与 ECDICT preferred profile 都不继承低级别基础词。是否修需要单独定“CET-6 是否继承 CET-4/高考基础词”的范围策略。
+- `anti 前缀有哪些词`：仍可能包含 `antique / anticipate` 这类词形以 `anti` 开头但不是稳定 `anti-` 反义前缀语义的候选。
+- `sub开头表示下面的词`、`re开头表示再次的词`：会给出 source-backed 但偏生僻的候选，属于 root/prefix semantic quality gate 下一轮问题。
+- `xyz开头的单词`：会命中 ECDICT 的 `xyz` 条目。需要后续决定裸 prefix / pseudo-token 查询是否应把这种词典条目降级为 no-match 或 clarification。
 
 ### 后续防回归
 - 不要把灰区 classifier 扩成完整 ReAct Agent；V1 仍是 rule-first + validated slots。
 - 不要接受 provider 返回的候选外 terms；所有 tool 参数必须有 provenance。
 - 不要让 semantic expression 声称“已命中当前词库”或“考试高频”，它是 bounded expression advice。
 - broad grounding 不能只靠候选数量 resolved；必须保留 root combo / 弱候选质量门。
+- meaning lookup 不能重新让 source lemma 同 lemma 候选覆盖 ECDICT meaning candidate；否则 `restrict` 这类正确词会失去 semantic hints，被 `bridle/lid/law` 这类边缘候选抢走。
+- 不要重新把 `遵循 / 遵守` alias 扩回 `服从`；否则 `submit/subdue` 容易回流到 `遵循` 主答案。
+- `meaning_expression_advice` 是表达建议，不是词库命中；不要让后端 grounding 或前端 support panel 把它显示成 resolved hit，也不要给它收藏工具。
+- phrase hint 只能保护正向短语；遇到 `不 / 不要 / 不能 / 没有 / 未能 / 别 / 勿` 等否定上下文时必须保留原始 meaning hint。
 
 ## 2026-05-31 Review reserve buffer 导致 10 词复习显示超过 10 个不同词（已修，需防回归）
 ### 症状
@@ -104,7 +130,7 @@ structured DB 虽已被产品方向降级为 optional overlay，但 `create_app(
 
 ### 修复状态
 1. `ENGGO_USE_STRUCTURED_RUNTIME` 现在显式控制 structured overlay；默认注入 `NullStructuredLookupRepository`，不会连接 DB。
-2. meaning lookup 已合并 `ecdict_meaning_vocabulary()`，可以从 ECDICT 中文释义召回中译英候选；`活动` 会优先命中 `activity`。
+2. meaning lookup 已合并 `ecdict_meaning_vocabulary()`，可以从 ECDICT 中文释义召回中译英候选；但 `活动` 在 CET-6 providerless 真实装配下是否应跨范围优先 `activity` 仍见 2026-06-05 扩展覆盖残留。
 3. `answer_meaning()` 只捕获 `StructuredLookupUnavailable` 并降级为空 structured 候选，不吞普通 SQL/schema bug。
 4. no-DB smoke 已新增 `遵循的英文是什么`、`活动的英文是什么`。
 

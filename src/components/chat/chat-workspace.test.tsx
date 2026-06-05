@@ -836,6 +836,49 @@ describe("ChatWorkspace", () => {
     expect(screen.getByRole("button", { name: "展开收藏工具" })).toBeInTheDocument();
   });
 
+  it("renders meaning expression advice as non-hit guidance", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer: "表达观点可以先用 express an opinion 或 state your view。",
+        answerKind: "plain",
+        requestId: "req_meaning_expression_advice",
+        providerRequestId: null,
+        grounding: {
+          activeExamTarget: "postgrad",
+          activeExamTargetLabel: "考研",
+          query: "表达观点的英文是什么",
+          queryMode: "meaning_lookup",
+          answerStyle: "meaning_expression_advice",
+          resolution: "no_match",
+          noMatchReason: "low_confidence",
+          mainAnswer: [],
+          confusionBoundary: [],
+          scopeReminder: "这次是表达建议，不标记为词库命中。",
+          followUpPrompt: "你可以继续问这些表达哪个更正式或更适合作文。",
+          comparisonView: null,
+          rootFamilyView: null,
+          expressionOptions: ["express an opinion", "state your view"],
+          weakCandidateLemmas: ["hiss"],
+        },
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "表达观点的英文是什么");
+    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+
+    expect(await screen.findByText("表达建议")).toBeInTheDocument();
+    expect(screen.getByText("这次是表达建议，不标记为词库命中。")).toBeInTheDocument();
+    expect(screen.queryByText("已命中 0 个当前范围词")).not.toBeInTheDocument();
+    expect(screen.queryByText("暂未稳定命中")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /收藏/i })).not.toBeInTheDocument();
+  });
+
   it("explains source-lemma lookup as source-list material instead of structured content", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockResolvedValue({

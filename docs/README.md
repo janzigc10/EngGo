@@ -52,12 +52,16 @@
   - 初始技术设计。
 
 ## 当前活跃计划
+- `docs/superpowers/plans/2026-06-04-meaning-lookup-weak-resolved-quality-gate-v1.md`
+  - 当前已完成待 review 的实现计划：给 `meaning_lookup` 增加弱候选质量闸门，防止 `表达观点`、`遵循`、`限制` 这类中译英 / 表达召回问题在只有偏离候选时仍被标成 source-backed `resolved`。本轮没有扩大 hard `no_match`，而是优先让 strong preferred candidates 进入 grounded resolved；只有 weak expression-like 且无强候选时才降级为 provider-assisted / bounded plain advice。
 - `docs/superpowers/plans/2026-06-03-model-assisted-intent-routing-v1.md`
-  - 当前活跃实现计划：规则高置信路径直接执行；规则灰区才调用 provider 产出受限 intent / slots；代码校验 terms、style、context provenance；semantic expression / style follow-up 用受控工具承接；broad grounding 增加弱候选质量闸门，并输出 before/after comparison matrix 证明真实增强。
+  - 最近完成计划：规则高置信路径直接执行；规则灰区才调用 provider 产出受限 intent / slots；代码校验 terms、style、context provenance；semantic expression / style follow-up 用受控工具承接；broad grounding 增加弱候选质量闸门，并输出 before/after comparison matrix 证明真实增强。
 
 ## 当前验收报告
+- `docs/superpowers/reports/2026-06-04-meaning-lookup-quality-gate-v1-comparison.md`
+  - Meaning Lookup Quality Gate V1 的 before/after matrix 摘要：36 total / 36 pass / 0 fail / 23 changed。关键差异包括 `表达观点的英文是什么` 从 `hiss` 变成 `express / state / voice / represent`，`遵循的英文是什么` 从 `disobedience / subdue / unwilling` 变成 `follow / observe / comply / obey / abide`，`限制的英文是什么` 从 `bridle` 变成 `restrict / limit / constrain`，`遵守规则用英文怎么说` 从 clear_context 变成 `follow / observe / comply / obey / abide`，`负责 / 承担责任` 从 `provost` 变成 `responsible / liable`。
 - `docs/superpowers/reports/2026-06-03-model-assisted-intent-routing-v1-comparison.md`
-  - Model-assisted Intent Routing V1 的 before/after matrix 与验证记录：覆盖 23 条 stable / regression probe / expected improvement E2E，包括 `formal 是什么意思` 防误伤、`more formal way to say follow`、`同义词/差不多意思`、`anti+dis` / `pre+sub` weak resolved、`还有更适合作文的吗` style follow-up，以及稳定路径防回归。
+  - 最近完成报告：Model-assisted Intent Routing V1 的 before/after matrix 与验证记录，覆盖 23 条 stable / regression probe / expected improvement E2E，包括 `formal 是什么意思` 防误伤、`more formal way to say follow`、`同义词/差不多意思`、`anti+dis` / `pre+sub` weak resolved、`还有更适合作文的吗` style follow-up，以及稳定路径防回归。
 
 ## 最近完成计划
 - `docs/superpowers/plans/2026-06-01-controlled-tool-router-v1.md`

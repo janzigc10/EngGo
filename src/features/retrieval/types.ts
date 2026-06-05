@@ -22,6 +22,7 @@ export type AnswerStyle =
   | "confusion_untangle"
   | "root_family_summary"
   | "expression_recall"
+  | "meaning_expression_advice"
   | "broad_vocab_summary";
 
 export type RootFamilyPriority =

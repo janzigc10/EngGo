@@ -19,6 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BASELINE_REF = "52b7834"
 DEFAULT_ECDICT_PATH = REPO_ROOT / "output" / "external-dictionaries" / "ecdict.csv"
 TEMP_ROOT = REPO_ROOT / "tmp_model_routing_e2e_compare"
+REQUEST_TIMEOUT_SECONDS = 20
 
 
 def follow_context() -> dict[str, Any]:
@@ -86,7 +87,10 @@ class Case:
     expected_query_mode: str | None = None
     expected_resolution: str | None = None
     expected_terms: list[str] | None = None
+    expected_answer_kind: str | None = None
+    expected_answer_style: str | None = None
     expected_main_contains: list[str] = field(default_factory=list)
+    forbid_main_contains: list[str] = field(default_factory=list)
     expected_action: str | None = None
     expected_target_lemmas: list[str] | None = None
     forbid_query_mode: str | None = None
@@ -148,6 +152,15 @@ CASES = [
         expected_target_lemmas=["follow", "obey", "comply"],
     ),
     Case(
+        case_id="stable_meaning_limit_cn",
+        category="stable",
+        query="限制的英文是什么",
+        expected_query_mode="meaning_lookup",
+        expected_resolution="resolved",
+        expected_answer_kind="grounded",
+        expected_main_contains=["restrict"],
+    ),
+    Case(
         case_id="boundary_formal_word_lookup",
         category="regression_probe",
         query="formal 是什么意思",
@@ -157,17 +170,100 @@ CASES = [
     ),
     Case(
         case_id="meaning_expression_cn",
-        category="regression_probe",
+        category="expected_improvement",
         query="表达观点的英文是什么",
         expected_query_mode="meaning_lookup",
         expected_resolution="resolved",
+        forbid_main_contains=["hiss"],
     ),
     Case(
         case_id="meaning_obey_cn",
-        category="regression_probe",
+        category="expected_improvement",
         query="遵循的英文是什么",
         expected_query_mode="meaning_lookup",
         expected_resolution="resolved",
+        forbid_main_contains=["disobedience", "subdue", "unwilling"],
+    ),
+    Case(
+        case_id="meaning_rule_phrase_cn",
+        category="expected_improvement",
+        query="遵守规则用英文怎么说",
+        expected_query_mode="meaning_lookup",
+        expected_resolution="resolved",
+        expected_answer_kind="grounded",
+        expected_main_contains=["follow"],
+        forbid_main_contains=["defer"],
+    ),
+    Case(
+        case_id="meaning_responsible_cn",
+        category="expected_improvement",
+        query="负责的英文是什么",
+        expected_query_mode="meaning_lookup",
+        expected_resolution="resolved",
+        expected_answer_kind="grounded",
+        expected_main_contains=["responsible"],
+        forbid_main_contains=["respond"],
+    ),
+    Case(
+        case_id="meaning_take_responsibility_cn",
+        category="expected_improvement",
+        query="承担责任的英文是什么",
+        expected_query_mode="meaning_lookup",
+        expected_resolution="resolved",
+        expected_answer_kind="grounded",
+        expected_main_contains=["responsible"],
+        forbid_main_contains=["respond"],
+    ),
+    Case(
+        case_id="meaning_express_idea_cn",
+        category="expected_improvement",
+        query="表达想法的英文是什么",
+        expected_query_mode="meaning_lookup",
+        expected_resolution="resolved",
+        expected_answer_kind="grounded",
+        expected_main_contains=["express"],
+        forbid_main_contains=["thought", "notion"],
+    ),
+    Case(
+        case_id="meaning_state_view_cn",
+        category="expected_improvement",
+        query="提出观点的英文是什么",
+        expected_query_mode="meaning_lookup",
+        expected_resolution="resolved",
+        expected_answer_kind="grounded",
+        expected_main_contains=["state"],
+        forbid_main_contains=["thought", "notion"],
+    ),
+    Case(
+        case_id="stable_direct_compare_restrain_constrain",
+        category="stable",
+        query="restrain 和 constrain 的区别",
+        expected_query_mode="direct_compare",
+        expected_resolution="resolved",
+        expected_main_contains=["restrain", "constrain"],
+    ),
+    Case(
+        case_id="stable_direct_compare_desert_dessert",
+        category="stable",
+        query="desert dessert 怎么区分",
+        expected_query_mode="direct_compare",
+        expected_resolution="resolved",
+        expected_main_contains=["desert", "dessert"],
+    ),
+    Case(
+        case_id="stable_shape_contest",
+        category="stable",
+        query="和 contest 像的单词",
+        expected_query_mode="shape_neighbor_search",
+        expected_resolution="resolved",
+        expected_main_contains=["contest", "congest"],
+    ),
+    Case(
+        case_id="stable_phrase_according_to",
+        category="stable",
+        query="according to 是什么意思",
+        expected_resolution="resolved",
+        expected_main_contains=["accordingto"],
     ),
     Case(
         case_id="semantic_natural_en",
@@ -229,6 +325,27 @@ CASES = [
         case_id="root_pre_sub_gate",
         category="expected_improvement",
         query="pre+sub 的词根有什么词",
+        expected_query_mode="root_family_summary",
+        expected_resolution="no_match",
+    ),
+    Case(
+        case_id="root_anti_xyz_gate",
+        category="expected_improvement",
+        query="anti+xyz 的词根有什么词",
+        expected_query_mode="root_family_summary",
+        expected_resolution="no_match",
+    ),
+    Case(
+        case_id="root_re_con_sub_gate",
+        category="expected_improvement",
+        query="re+con+sub 的词根有什么词",
+        expected_query_mode="root_family_summary",
+        expected_resolution="no_match",
+    ),
+    Case(
+        case_id="root_random_derivative_gate",
+        category="expected_improvement",
+        query="xqz 的派生词",
         expected_query_mode="root_family_summary",
         expected_resolution="no_match",
     ),
@@ -302,7 +419,7 @@ def request_json(url: str, payload: dict[str, Any] | None = None) -> dict[str, A
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         headers["Content-Type"] = "application/json"
     request = urllib.request.Request(url, data=data, headers=headers, method="POST" if payload else "GET")
-    with urllib.request.urlopen(request, timeout=10) as response:
+    with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -423,11 +540,18 @@ def check_case(case: Case, obs: dict[str, Any]) -> list[str]:
         errors.append(f"queryMode must not be {case.forbid_query_mode}")
     if case.expected_resolution and obs["resolution"] != case.expected_resolution:
         errors.append(f"resolution expected {case.expected_resolution}, got {obs['resolution']}")
+    if case.expected_answer_kind and obs["answerKind"] != case.expected_answer_kind:
+        errors.append(f"answerKind expected {case.expected_answer_kind}, got {obs['answerKind']}")
+    if case.expected_answer_style and obs["answerStyle"] != case.expected_answer_style:
+        errors.append(f"answerStyle expected {case.expected_answer_style}, got {obs['answerStyle']}")
     if case.expected_terms is not None and obs["terms"] != case.expected_terms:
         errors.append(f"terms expected {case.expected_terms}, got {obs['terms']}")
     missing = [lemma for lemma in case.expected_main_contains if lemma not in obs["mainLemmas"]]
     if missing:
         errors.append(f"mainLemmas missing {missing}, got {obs['mainLemmas']}")
+    forbidden = [lemma for lemma in case.forbid_main_contains if lemma in obs["mainLemmas"]]
+    if forbidden:
+        errors.append(f"mainLemmas must not include {forbidden}, got {obs['mainLemmas']}")
     if case.expected_action and obs["action"] != case.expected_action:
         errors.append(f"action expected {case.expected_action}, got {obs['action']}")
     if case.expected_target_lemmas is not None and obs["targetLemmas"] != case.expected_target_lemmas:

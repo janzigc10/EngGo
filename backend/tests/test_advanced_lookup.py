@@ -1510,6 +1510,75 @@ def test_meaning_lookup_uses_seed_expression_group_when_structured_repository_un
     assert provider.calls[0]["history"] == [{"role": "user", "content": "previous message"}]
 
 
+def test_seed_expression_provider_failure_returns_grounded_fallback(tmp_path):
+    write_seed_expression_fixture(tmp_path)
+    provider = FailingProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        provider=provider,
+        source_lemma_base_dir=tmp_path,
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="\u9075\u4ece\u600e\u4e48\u8bf4",
+        request_id="req_seed_expression_providerless",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.answerKind == "grounded"
+    assert result.payload.providerRequestId == "provider_req_failed"
+    assert grounding["queryMode"] == "meaning_lookup"
+    assert grounding["answerStyle"] == "expression_recall"
+    assert grounding["resolution"] == "resolved"
+    assert grounding["mainAnswer"][0]["lemma"] == "comply"
+    assert provider.calls
+
+
+def test_phrase_hint_bypasses_seed_expression_group_for_rule_phrase(tmp_path):
+    write_seed_expression_fixture(tmp_path)
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("comply", ["v. \u9075\u5b88\uff1b\u670d\u4ece"], tag="cet6"),
+            ecdict_profile("conform", ["v. \u9075\u4ece\uff1b\u7b26\u5408"], tag="cet6"),
+            ecdict_profile("defer", ["v. \u542c\u4ece\uff1b\u987a\u4ece"], tag="cet6"),
+            ecdict_profile("follow", ["v. \u9075\u5faa\uff1b\u9075\u5b88"], tag="cet6"),
+            ecdict_profile("observe", ["v. \u9075\u5b88\uff1b\u89c2\u5bdf"], tag="cet6"),
+            ecdict_profile("obey", ["v. \u9075\u5b88\uff1b\u670d\u4ece"], tag="cet6"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        provider=provider,
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="\u9075\u5b88\u89c4\u5219\u7528\u82f1\u6587\u600e\u4e48\u8bf4",
+        request_id="req_rule_phrase_bypasses_seed_group",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert grounding["queryMode"] == "meaning_lookup"
+    assert grounding["answerStyle"] == "broad_vocab_summary"
+    assert main_lemmas[:2] == ["follow", "observe"]
+    assert "defer" not in main_lemmas
+    assert provider.calls == []
+
+
 def test_postgrad_obey_meaning_lookup_prefers_exam_expression_verb():
     ecdict_lookup = SearchableEcdictLookup(
         [
@@ -1622,6 +1691,337 @@ def test_chinese_expression_recall_uses_cleaned_ecdict_meaning_hint():
         assert grounding["learningIntentPlan"]["task"] == "meaning_core"
         assert expected_lemmas.intersection(main_lemmas), query
 
+    assert provider.calls == []
+
+
+def test_meaning_lookup_weak_reverse_candidates_become_plain_expression_advice():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("disobedience", ["n. 不服从；不遵守"], tag="ky"),
+            ecdict_profile("subdue", ["vt. 征服；抑制；使遵从"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider(answer="可以说 follow、observe 或 comply with。")
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="遵循的英文是什么",
+        request_id="req_follow_weak_meaning_gate",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.answerKind == "plain"
+    assert result.payload.answer == "可以说 follow、observe 或 comply with。"
+    assert result.payload.providerRequestId == "provider_req_advanced"
+    assert grounding["queryMode"] == "meaning_lookup"
+    assert grounding["answerStyle"] == "meaning_expression_advice"
+    assert grounding["resolution"] == "no_match"
+    assert grounding["noMatchReason"] == "low_confidence"
+    assert grounding["mainAnswer"] == []
+    assert grounding["followUpPrompt"]
+    assert grounding["weakCandidateLemmas"] == ["disobedience", "subdue"]
+    assert "not a wordbook hit" in "\n".join(grounding["rules"])
+    assert provider.calls
+
+
+def test_meaning_lookup_weak_expression_candidate_uses_bounded_advice_without_provider():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("hiss", ["v. 发出嘘声；表示不满"], tag="ky"),
+        ],
+    )
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="表达观点的英文是什么",
+        request_id="req_express_opinion_weak_meaning_gate",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.answerKind == "plain"
+    assert result.payload.providerRequestId is None
+    assert "express an opinion" in result.payload.answer
+    assert "hiss" not in result.payload.answer
+    assert grounding["queryMode"] == "meaning_lookup"
+    assert grounding["answerStyle"] == "meaning_expression_advice"
+    assert grounding["resolution"] == "no_match"
+    assert grounding["noMatchReason"] == "low_confidence"
+    assert grounding["mainAnswer"] == []
+    assert grounding["followUpPrompt"]
+    assert grounding["weakCandidateLemmas"] == ["hiss"]
+
+
+def test_meaning_lookup_quality_gate_keeps_direct_cooperation_hit_grounded():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("cooperate", ["v. 合作；协作；配合"], tag="ky"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="合作的英文是什么",
+        request_id="req_cooperate_quality_gate",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert result.payload.answerKind == "grounded"
+    assert result.payload.providerRequestId is None
+    assert provider.calls == []
+    assert grounding["queryMode"] == "meaning_lookup"
+    assert grounding["resolution"] == "resolved"
+    assert [item["lemma"] for item in grounding["mainAnswer"]] == ["cooperate"]
+
+
+def test_meaning_lookup_preferred_lemma_survives_ecdict_search_window():
+    decoys = [
+        ecdict_profile(f"bridle{index}", ["n. 约束"], tag="cet6")
+        for index in (
+            "aa",
+            "ab",
+            "ac",
+            "ad",
+            "ae",
+            "af",
+            "ag",
+            "ah",
+            "ai",
+            "aj",
+            "ak",
+            "al",
+            "am",
+            "an",
+            "ao",
+            "ap",
+            "aq",
+            "ar",
+            "as",
+            "at",
+            "au",
+            "av",
+            "aw",
+            "ax",
+            "ay",
+            "az",
+            "ba",
+            "bb",
+            "bc",
+            "bd",
+            "be",
+            "bf",
+            "bg",
+            "bh",
+            "bi",
+            "bj",
+            "bk",
+            "bl",
+            "bm",
+            "bn",
+            "bo",
+            "bp",
+            "bq",
+            "br",
+            "bs",
+            "bt",
+            "bu",
+            "bv",
+            "bw",
+            "bx",
+            "by",
+            "bz",
+            "ca",
+            "cb",
+            "cc",
+            "cd",
+            "ce",
+            "cf",
+            "cg",
+            "ch",
+            "ci",
+            "cj",
+            "ck",
+            "cl",
+            "cm",
+            "cn",
+            "co",
+            "cp",
+            "cq",
+            "cr",
+            "cs",
+            "ct",
+            "cu",
+            "cv",
+            "cw",
+            "cx",
+            "cy",
+            "cz",
+            "da",
+            "db",
+            "dc",
+            "dd",
+            "de",
+            "df",
+            "dg",
+            "dh",
+            "di",
+            "dj",
+            "dk",
+            "dl",
+            "dm",
+            "dn",
+            "do",
+            "dp",
+            "dq",
+            "dr",
+            "ds",
+            "dt",
+        )
+    ]
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            *decoys,
+            ecdict_profile("restrict", ["vt. 限制；限定；约束"], tag="cet6"),
+        ],
+    )
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="限制的英文是什么",
+        request_id="req_restrict_preferred_window",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert grounding["queryMode"] == "meaning_lookup"
+    assert grounding["resolution"] == "resolved"
+    assert [item["lemma"] for item in grounding["mainAnswer"]][:1] == ["restrict"]
+
+
+def test_meaning_lookup_phrase_hints_prefer_expression_targets():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("tick", ["vi. 活动；滴答响"], tag="cet6"),
+            ecdict_profile("activity", ["n. 活动；行动；活跃"], tag="cet6"),
+            ecdict_profile("event", ["n. 事件；活动"], tag="cet6"),
+            ecdict_profile("action", ["n. 行动；活动"], tag="cet6"),
+            ecdict_profile("respond", ["v. 回答；响应；承担责任"], tag="cet6"),
+            ecdict_profile("responsible", ["adj. 有责任的；负责的"], tag="cet6"),
+            ecdict_profile("liable", ["adj. 有义务的；应负责的"], tag="cet6"),
+            ecdict_profile("thought", ["n. 想法；思想"], tag="cet6"),
+            ecdict_profile("notion", ["n. 想法；观念"], tag="cet6"),
+            ecdict_profile("express", ["v. 表达；表示；陈述"], tag="cet6"),
+            ecdict_profile("state", ["v. 陈述；说明"], tag="cet6"),
+            ecdict_profile("voice", ["v. 表达；吐露"], tag="cet6"),
+            ecdict_profile("follow", ["v. 遵循；遵守；跟随"], tag="cet6"),
+            ecdict_profile("observe", ["v. 遵守；观察"], tag="cet6"),
+            ecdict_profile("comply", ["v. 遵守；服从"], tag="cet6"),
+            ecdict_profile("obey", ["v. 遵守；服从"], tag="cet6"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    cases = [
+        ("活动的英文是什么", "activity", {"tick"}),
+        ("负责的英文是什么", "responsible", {"respond"}),
+        ("承担责任的英文是什么", "responsible", {"respond"}),
+        ("表达想法的英文是什么", "express", {"thought", "notion"}),
+        ("提出观点的英文是什么", "state", {"thought", "notion"}),
+        ("遵守规则用英文怎么说", "follow", set()),
+    ]
+
+    for query, expected_first, forbidden in cases:
+        result = service.answer(
+            active_exam_target="cet6",
+            query=query,
+            request_id=f"req_{query}",
+        )
+
+        grounding = result.payload.grounding
+        main_lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+
+        assert result.status_code == 200
+        assert result.payload.providerRequestId is None
+        assert grounding["queryMode"] == "meaning_lookup"
+        assert grounding["resolution"] == "resolved"
+        assert main_lemmas[0] == expected_first, query
+        assert not forbidden.intersection(main_lemmas), query
+
+    assert provider.calls == []
+
+
+def test_meaning_lookup_phrase_hints_do_not_strip_negative_context():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("responsible", ["adj. 有责任的；负责的；承担责任的"], tag="cet6"),
+            ecdict_profile("liable", ["adj. 有义务的；应负责的"], tag="cet6"),
+            ecdict_profile("irresponsible", ["adj. 不负责任的；不承担责任的"], tag="cet6"),
+        ],
+    )
+    provider = FakeProvider()
+    service = AdvancedLookupService(
+        repository=FakeRepository(
+            meaning_error=StructuredLookupUnavailable("database unavailable"),
+        ),
+        provider=provider,
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="cet6",
+        query="不承担责任的英文是什么",
+        request_id="req_negative_responsibility_phrase",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = [item["lemma"] for item in grounding["mainAnswer"]]
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert grounding["queryMode"] == "meaning_lookup"
+    assert grounding["resolution"] == "resolved"
+    assert main_lemmas[0] == "irresponsible"
+    assert "responsible" not in main_lemmas
     assert provider.calls == []
 
 

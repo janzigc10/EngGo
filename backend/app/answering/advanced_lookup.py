@@ -19,6 +19,7 @@ from backend.app.answering.ordinary_lookup import (
     UnsupportedQueryMode,
     build_grounding,
     build_no_match_answer,
+    exam_target_labels,
 )
 from backend.app.answering.provider import ChatProviderError
 from backend.app.content.ecdict import (
@@ -29,6 +30,7 @@ from backend.app.content.ecdict import (
 from backend.app.retrieval.normalize_query import NormalizedQuery, normalize_query
 from backend.app.retrieval.repository import StructuredLookupUnavailable
 from backend.app.retrieval.dynamic_light_grounding import (
+    LightGroundingCandidate,
     build_light_grounding_candidates,
     clean_ecdict_broad_meanings,
     infer_ecdict_part_of_speech,
@@ -179,6 +181,171 @@ def semantic_expression_fallback_answer(
         f"这是一个{style_text}的表达建议问题，目标是 {target}。"
         "当前没有生成服务参与，我先不硬给同义表达；你可以改问一个确定词的基础意思或用法。"
     )
+
+
+def build_meaning_expression_advice_prompt() -> str:
+    return "\n".join(
+        [
+            "你是 EngGo 的受控中译英表达建议助手。",
+            "grounding 中的 weakCandidateLemmas 只是被降级的弱候选，不要当作答案。",
+            "这不是词库命中，不要声称已经命中当前考试词库、ECDICT 标签或人工易混组。",
+            "只能围绕 grounding.meaningHint 和 grounding.expressionOptions 给 2-4 个自然表达。",
+            "可以简短说明常用、正式、作文语境边界；不要编造考试频率。",
+        ],
+    )
+
+
+def meaning_expression_options(meaning_hint: str) -> list[str]:
+    options: list[str] = []
+    seen: set[str] = set()
+    for hint in meaning_lookup_hints(meaning_hint):
+        for option in meaning_lookup_expression_options.get(hint, ()):
+            if option in seen:
+                continue
+            seen.add(option)
+            options.append(option)
+
+    return options[:5]
+
+
+def meaning_expression_advice_fallback_answer(
+    *,
+    meaning_hint: str,
+    options: list[str],
+) -> str:
+    if not options:
+        return (
+            f"{meaning_hint} 更像一个表达建议问题。当前候选证据不够强，"
+            "我不把弱候选当作词库命中。"
+        )
+
+    return (
+        f"{meaning_hint} 可以先用：{', '.join(options[:4])}。"
+        "这些是表达建议，不代表当前词库已经稳定命中。"
+    )
+
+
+def meaning_lookup_requires_opinion_context(clean_hint: str) -> bool:
+    return "观点" in clean_hint and any(
+        cue in clean_hint
+        for cue in ("表达", "表示", "陈述")
+    )
+
+
+def meaning_segment_has_weak_context(segment: str, hint: str) -> bool:
+    if not hint or hint not in segment:
+        return False
+
+    weak_prefixes = (
+        *meaning_lookup_negative_prefixes,
+        *meaning_lookup_causative_prefixes,
+    )
+    return any(f"{prefix}{hint}" in segment for prefix in weak_prefixes)
+
+
+def meaning_segment_has_positive_hint(segment: str, hint: str) -> bool:
+    return hint in segment and not meaning_segment_has_weak_context(segment, hint)
+
+
+def meaning_candidate_has_positive_hint(
+    candidate: LightGroundingCandidate,
+    clean_hint: str,
+    *,
+    direct_only: bool = False,
+) -> bool:
+    if not clean_hint:
+        return False
+
+    opinion_expression = meaning_lookup_requires_opinion_context(clean_hint)
+    segments: list[str] = []
+    for meaning in candidate.meanings_zh:
+        segments.extend(
+            item.strip()
+            for item in meaning_segment_separator.split(meaning)
+            if item.strip()
+        )
+
+    for segment in segments:
+        if opinion_expression:
+            if any(
+                meaning_segment_has_positive_hint(segment, phrase)
+                for phrase in ("表达观点", "表示观点", "陈述观点")
+            ):
+                return True
+            continue
+
+        hints = (clean_hint,) if direct_only else meaning_lookup_hints(clean_hint)
+        for hint in hints:
+            if meaning_segment_has_positive_hint(segment, hint):
+                return True
+
+    return False
+
+
+def meaning_candidate_quality(
+    candidate: LightGroundingCandidate,
+    clean_hint: str,
+) -> str:
+    has_preferred_lemmas = any(
+        meaning_lookup_preferred_lemmas.get(hint)
+        for hint in meaning_lookup_hints(clean_hint)
+    )
+    if preferred_meaning_lemma_rank(candidate.lemma, clean_hint) is not None:
+        return "strong"
+    if meaning_candidate_has_positive_hint(
+        candidate,
+        clean_hint,
+        direct_only=has_preferred_lemmas,
+    ):
+        return "strong"
+    return "weak"
+
+
+def meaning_candidate_sort_key(
+    candidate: LightGroundingCandidate,
+    clean_hint: str,
+):
+    preferred_rank = preferred_meaning_lemma_rank(candidate.lemma, clean_hint)
+    positive_hint = meaning_candidate_has_positive_hint(candidate, clean_hint)
+    part_of_speech = candidate.part_of_speech or ""
+    verb_like = any(part in part_of_speech for part in ("v.", "vt.", "vi."))
+
+    return (
+        0 if preferred_rank is not None else 1,
+        preferred_rank if preferred_rank is not None else 999,
+        0 if positive_hint else 1,
+        0 if verb_like else 1,
+        -candidate.score,
+        len(candidate.lemma),
+        candidate.lemma,
+    )
+
+
+def partition_meaning_candidates_by_quality(
+    candidates: list[LightGroundingCandidate],
+    *,
+    clean_hint: str,
+) -> tuple[list[LightGroundingCandidate], list[LightGroundingCandidate]]:
+    strong: list[LightGroundingCandidate] = []
+    weak: list[LightGroundingCandidate] = []
+
+    for candidate in candidates:
+        if meaning_candidate_quality(candidate, clean_hint) == "strong":
+            strong.append(candidate)
+        else:
+            weak.append(candidate)
+
+    sorted_strong = sorted(
+        strong,
+        key=lambda candidate: meaning_candidate_sort_key(candidate, clean_hint),
+    )
+    preferred_strong = [
+        candidate
+        for candidate in sorted_strong
+        if preferred_meaning_lemma_rank(candidate.lemma, clean_hint) is not None
+    ]
+
+    return preferred_strong or sorted_strong, weak
 
 
 root_combo_pattern = re.compile(r"\b[a-z]{1,8}\+[a-z]{1,8}\b", re.IGNORECASE)
@@ -751,26 +918,108 @@ ecdict_definition_semantic_keywords = {
     "制约": ("restrict", "restrain", "prevent from leaving", "deprive of freedom"),
 }
 meaning_lookup_aliases = {
-    "遵守": ("遵守", "遵循", "遵从", "服从"),
-    "遵循": ("遵循", "遵守", "遵从", "服从"),
+    "遵守": ("遵守", "遵循", "遵从"),
+    "遵循": ("遵循", "遵守", "遵从"),
     "遵从": ("遵从", "遵守", "遵循", "服从"),
+    "遵守规则": ("遵守规则", "遵守", "遵循", "遵从"),
     "限制": ("限制", "约束", "制约"),
     "约束": ("约束", "限制", "制约"),
+    "制约": ("制约", "限制", "约束"),
+    "合作": ("合作", "协作", "配合"),
+    "协作": ("协作", "合作", "配合"),
+    "配合": ("配合", "合作", "协作"),
     "承担责任": ("承担责任", "负责", "有责任"),
     "负责": ("负责", "有责任", "承担责任"),
+    "活动": ("活动", "行动", "事件"),
     "表达观点": ("表达观点", "表达", "表示", "陈述", "观点"),
+    "表达想法": ("表达想法", "表达观点", "表达", "陈述", "想法", "观点"),
+    "提出观点": ("提出观点", "表达观点", "陈述观点", "表达", "陈述", "观点"),
     "观点": ("观点", "看法", "意见"),
 }
 meaning_lookup_preferred_lemmas = {
     "遵从": ("comply", "conform", "defer", "obey", "abide", "follow"),
-    "遵守": ("comply", "obey", "abide", "conform", "follow", "observe"),
-    "遵循": ("follow", "comply", "obey", "abide", "conform"),
+    "遵守": ("comply", "obey", "observe", "abide", "conform", "follow", "adhere"),
+    "遵循": ("follow", "observe", "comply", "obey", "adhere", "abide", "conform"),
+    "遵守规则": ("follow", "observe", "comply", "obey", "abide"),
     "服从": ("obey", "comply", "submit", "defer", "conform"),
+    "限制": ("restrict", "limit", "constrain", "restrain", "curb"),
+    "约束": ("constrain", "restrain", "restrict", "limit", "curb"),
+    "制约": ("constrain", "restrict", "limit", "restrain"),
+    "合作": ("cooperate", "collaborate", "cooperation", "collaboration"),
+    "协作": ("collaborate", "cooperate", "collaboration", "cooperation"),
+    "配合": ("cooperate", "collaborate"),
+    "承担责任": ("responsible", "liable", "accountable", "answerable"),
+    "负责": ("responsible", "liable", "accountable", "answerable"),
+    "活动": ("activity", "event", "action"),
     "表达观点": ("express", "state", "voice", "articulate"),
+    "表达想法": ("express", "state", "voice", "articulate"),
+    "提出观点": ("state", "express", "voice", "articulate"),
     "表达": ("express", "state", "voice", "articulate"),
     "表示": ("express", "state", "represent", "indicate"),
     "陈述": ("state", "express", "articulate"),
 }
+meaning_lookup_expression_options = {
+    "遵从": ("comply with", "conform to", "follow", "obey"),
+    "遵守": ("comply with", "observe", "obey", "abide by"),
+    "遵循": ("follow", "observe", "comply with", "adhere to", "abide by"),
+    "遵守规则": ("follow the rules", "observe the rules", "comply with the rules"),
+    "服从": ("obey", "comply with", "submit to"),
+    "限制": ("restrict", "limit", "constrain", "restrain"),
+    "约束": ("constrain", "restrain", "restrict"),
+    "制约": ("constrain", "restrict", "limit"),
+    "合作": ("cooperate", "collaborate", "work together"),
+    "协作": ("collaborate", "cooperate", "work together"),
+    "配合": ("cooperate", "work with"),
+    "承担责任": ("take responsibility", "be responsible for", "be accountable for"),
+    "负责": ("be responsible for", "take charge of", "be accountable for"),
+    "活动": ("activity", "event", "action"),
+    "表达观点": (
+        "express an opinion",
+        "state your view",
+        "voice an opinion",
+        "articulate your point of view",
+    ),
+    "表达想法": (
+        "express an idea",
+        "express your thoughts",
+        "state your view",
+        "put your ideas into words",
+    ),
+    "提出观点": (
+        "state your view",
+        "express an opinion",
+        "put forward a point of view",
+        "voice an opinion",
+    ),
+    "表达": ("express", "state", "put something into words"),
+    "表示": ("express", "state", "indicate"),
+    "陈述": ("state", "express", "articulate"),
+}
+meaning_lookup_phrase_hints = (
+    "遵守规则",
+    "表达想法",
+    "提出观点",
+    "表达观点",
+    "承担责任",
+)
+meaning_lookup_negative_prefixes = ("不", "未", "无", "非", "反", "违", "抗", "拒")
+meaning_lookup_negative_context_prefixes = (
+    "不要",
+    "不能",
+    "无法",
+    "没有",
+    "未能",
+    "不再",
+    "不",
+    "未",
+    "无",
+    "非",
+    "别",
+    "勿",
+    "拒绝",
+)
+meaning_lookup_causative_prefixes = ("使", "令", "让", "迫使")
+meaning_lookup_opinion_context = ("观点", "看法", "意见")
 seed_expression_query_suffixes = (
     "怎么说",
     "用英语怎么说",
@@ -859,6 +1108,28 @@ def meaning_lookup_hints(hint: str) -> tuple[str, ...]:
         result.append(value)
 
     return tuple(result)
+
+
+def meaning_lookup_effective_hint(normalized_query: NormalizedQuery) -> str:
+    text = normalized_query.normalized_text
+    for phrase in meaning_lookup_phrase_hints:
+        if meaning_lookup_has_positive_phrase_hint(text, phrase):
+            return phrase
+    return normalized_query.meaning_hint or text
+
+
+def meaning_lookup_has_positive_phrase_hint(text: str, phrase: str) -> bool:
+    start = text.find(phrase)
+    while start >= 0:
+        prefix_text = text[:start]
+        if not any(
+            prefix_text.endswith(prefix)
+            for prefix in meaning_lookup_negative_context_prefixes
+        ):
+            return True
+        start = text.find(phrase, start + len(phrase))
+
+    return False
 
 
 def preferred_meaning_lemma_rank(lemma: str, hint: str) -> int | None:
@@ -1218,6 +1489,88 @@ class AdvancedLookupService:
             payload=payload,
         )
 
+    def answer_meaning_expression_advice(
+        self,
+        *,
+        active_exam_target: str,
+        query: str,
+        request_id: str,
+        history: list[dict[str, str]],
+        normalized_query: NormalizedQuery,
+        clean_hint: str,
+        weak_candidates: list[LightGroundingCandidate],
+    ) -> AdvancedLookupResult | None:
+        options = meaning_expression_options(clean_hint)
+        if not options:
+            return None
+
+        grounding: dict[str, object] = {
+            "activeExamTarget": active_exam_target,
+            "activeExamTargetLabel": exam_target_labels[active_exam_target],
+            "query": query,
+            "queryMode": "meaning_lookup",
+            "answerStyle": "meaning_expression_advice",
+            "resolution": "no_match",
+            "noMatchReason": "low_confidence",
+            "matchType": None,
+            "meaningHint": clean_hint,
+            "expressionOptions": options,
+            "rules": [
+                "This is provider-assisted expression advice, not a wordbook hit.",
+                "weakCandidateLemmas were rejected as source-backed answers.",
+                "Do not claim exam frequency or ECDICT hit without grounding.",
+            ],
+            "mainAnswer": [],
+            "confusionBoundary": [],
+            "candidates": [],
+            "scopeReminder": "这次是表达建议，不标记为词库命中。",
+            "followUpPrompt": "你可以继续问这些表达哪个更正式、更常用，或更适合作文。",
+            "comparisonView": None,
+            "rootFamilyView": None,
+            "weakCandidateLemmas": [
+                candidate.lemma
+                for candidate in weak_candidates[:6]
+            ],
+            "weakCandidates": [
+                candidate.to_json()
+                for candidate in weak_candidates[:6]
+            ],
+            "learningIntentPlan": (
+                normalized_query.intent_plan.to_json()
+                if normalized_query.intent_plan is not None
+                else None
+            ),
+        }
+        fallback = meaning_expression_advice_fallback_answer(
+            meaning_hint=clean_hint,
+            options=options,
+        )
+
+        try:
+            payload = provider_or_fallback(
+                provider=self.provider,
+                answer=fallback,
+                answer_kind="plain",
+                grounding=grounding,
+                query=query,
+                history=history,
+                request_id=request_id,
+                system_prompt=build_meaning_expression_advice_prompt(),
+            )
+        except ChatProviderError as error:
+            payload = ChatSuccessResponse(
+                answer=fallback,
+                answerKind="plain",
+                grounding=grounding,
+                requestId=request_id,
+                providerRequestId=error.provider_request_id,
+            )
+
+        return AdvancedLookupResult(
+            status_code=200,
+            payload=payload,
+        )
+
     def dynamic_vocabulary(self, active_exam_target: str) -> list[RetrievalCandidate]:
         try:
             structured = (
@@ -1315,6 +1668,8 @@ class AdvancedLookupService:
             return None
         if not any(query.strip().endswith(suffix) for suffix in seed_expression_query_suffixes):
             return None
+        if meaning_lookup_effective_hint(normalized_query) in meaning_lookup_phrase_hints:
+            return None
 
         candidates, groups = self.seed_expression_candidates(
             active_exam_target=active_exam_target,
@@ -1346,9 +1701,8 @@ class AdvancedLookupService:
         )
         answer = build_direct_compare_answer(main_answer, confusion_boundary, comparison_view)
 
-        return AdvancedLookupResult(
-            status_code=200,
-            payload=provider_or_fallback(
+        try:
+            payload = provider_or_fallback(
                 provider=self.provider,
                 answer=answer,
                 answer_kind="grounded",
@@ -1357,7 +1711,19 @@ class AdvancedLookupService:
                 history=history,
                 request_id=request_id,
                 system_prompt="你是 EngGo 的中文表达召回助手。请严格根据 grounding 回答。",
-            ),
+            )
+        except ChatProviderError as error:
+            payload = ChatSuccessResponse(
+                answer=answer,
+                answerKind="grounded",
+                grounding=grounding,
+                requestId=request_id,
+                providerRequestId=error.provider_request_id,
+            )
+
+        return AdvancedLookupResult(
+            status_code=200,
+            payload=payload,
         )
 
     def ecdict_fragment_vocabulary(
@@ -1607,6 +1973,25 @@ class AdvancedLookupService:
             limit=search_limit,
             preferred_tags=preferred_tags,
         )
+        preferred_profiles: list[EcdictBasicProfile] = []
+        for lookup_hint in meaning_lookup_hints(clean_hint):
+            for lemma in meaning_lookup_preferred_lemmas.get(lookup_hint, ()):
+                profile = self.ecdict_lookup(lemma)
+                if profile is None:
+                    continue
+                if not scope_codes_for_profile(
+                    profile,
+                    active_exam_target=active_exam_target,
+                ):
+                    continue
+                if not matches_profile(profile):
+                    continue
+                preferred_profiles.append(profile)
+        profiles_by_lemma = {
+            profile.canonical.lower(): profile
+            for profile in [*preferred_profiles, *profiles]
+        }
+        profiles = list(profiles_by_lemma.values())
 
         candidates: list[RetrievalCandidate] = []
         for profile in sorted(
@@ -1789,13 +2174,14 @@ class AdvancedLookupService:
             normalized_query.intent_plan is not None
             and normalized_query.intent_plan.task == "meaning_core"
         ):
+            meaning_hint = meaning_lookup_effective_hint(normalized_query)
+            meaning_vocabulary = self.ecdict_meaning_vocabulary(
+                active_exam_target=active_exam_target,
+                meaning_hint=meaning_hint,
+            )
             vocabulary = merge_dynamic_vocabulary(
+                meaning_vocabulary,
                 vocabulary,
-                self.ecdict_meaning_vocabulary(
-                    active_exam_target=active_exam_target,
-                    meaning_hint=normalized_query.meaning_hint
-                    or normalized_query.normalized_text,
-                ),
             )
         if (
             normalized_query.intent_plan is not None
@@ -1864,6 +2250,33 @@ class AdvancedLookupService:
 
         if unsupported_root_combo_question(normalized_query, candidates):
             return None
+
+        if (
+            normalized_query.intent_plan is not None
+            and normalized_query.intent_plan.task == "meaning_core"
+        ):
+            clean_hint = clean_meaning_lookup_hint(
+                meaning_lookup_effective_hint(normalized_query),
+            )
+            strong_candidates, weak_candidates = partition_meaning_candidates_by_quality(
+                candidates,
+                clean_hint=clean_hint,
+            )
+            if strong_candidates:
+                candidates = strong_candidates
+            else:
+                advice_result = self.answer_meaning_expression_advice(
+                    active_exam_target=active_exam_target,
+                    query=query,
+                    request_id=request_id,
+                    history=history,
+                    normalized_query=normalized_query,
+                    clean_hint=clean_hint,
+                    weak_candidates=weak_candidates,
+                )
+                if advice_result:
+                    return advice_result
+                return None
 
         if (
             normalized_query.intent_plan is not None

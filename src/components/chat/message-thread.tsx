@@ -73,6 +73,10 @@ function isCompactDictionaryLookup(grounding: NonNullable<ChatMessage["grounding
   );
 }
 
+function isMeaningExpressionAdvice(grounding: NonNullable<ChatMessage["grounding"]>) {
+  return grounding.answerStyle === "meaning_expression_advice";
+}
+
 function shouldShowFollowUp(grounding: NonNullable<ChatMessage["grounding"]>) {
   if (grounding.resolution === "no_match") {
     return true;
@@ -125,7 +129,16 @@ export function MessageThread({
           <AnswerContent content={message.content} />
           {message.role === "assistant" && message.grounding ? (
             <div className="mt-4 space-y-3">
-              {message.grounding.resolution === "no_match" ? (
+              {isMeaningExpressionAdvice(message.grounding) ? (
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    表达建议
+                  </p>
+                  <p className="mt-1 text-sm text-slate-700">
+                    {message.grounding.scopeReminder}
+                  </p>
+                </div>
+              ) : message.grounding.resolution === "no_match" ? (
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                     暂未稳定命中
