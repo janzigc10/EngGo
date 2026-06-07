@@ -26,6 +26,7 @@ from backend.app.content.ecdict import (
     EcdictBasicProfile,
     preferred_ecdict_tags_by_exam_target,
     scope_codes_for_profile,
+    scope_codes_in_exam_target,
 )
 from backend.app.retrieval.normalize_query import NormalizedQuery, normalize_query
 from backend.app.retrieval.repository import StructuredLookupUnavailable
@@ -407,7 +408,7 @@ def seed_candidate(entry: dict[str, object]) -> RetrievalCandidate | None:
         meanings_zh=meanings,
         matched_alias=None,
         scope_codes=scope_codes,
-        in_scope=True,
+        in_scope=bool(scope_codes),
         reason="curated seed expression candidate",
         score=100,
         part_of_speech=seed_part_of_speech(entry),
@@ -1607,7 +1608,7 @@ class AdvancedLookupService:
         scoped_candidates = [
             candidate
             for candidate in candidates
-            if active_exam_target in candidate.scope_codes
+            if scope_codes_in_exam_target(candidate.scope_codes, active_exam_target)
         ]
         scoped_candidate_by_id = {
             candidate.entry_id: candidate

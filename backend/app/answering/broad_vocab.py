@@ -1,6 +1,7 @@
 import re
 
 from backend.app.answering.ordinary_lookup import exam_target_labels
+from backend.app.content.ecdict import scope_codes_in_exam_target
 from backend.app.retrieval.dynamic_light_grounding import LightGroundingCandidate
 from backend.app.retrieval.types import normalize_part_of_speech_label
 
@@ -851,11 +852,11 @@ def build_broad_vocab_grounding(
         for candidate in support_candidates
     )
     external_exam_tagged = external_only and all(
-        active_exam_target in candidate.scope_codes
+        scope_codes_in_exam_target(candidate.scope_codes, active_exam_target)
         for candidate in support_candidates
     )
     support_label = (
-        f"基于 ECDICT {exam_target_labels[active_exam_target]}标签候选总结"
+        f"基于 ECDICT {exam_target_labels[active_exam_target]}词书候选总结"
         if external_exam_tagged
         else "基于外部基础词典候选总结"
         if external_only

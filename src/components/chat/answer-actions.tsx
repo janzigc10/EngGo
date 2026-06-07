@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { addCollectedWord, listCollectedWords, subscribeCollectionChanges } from "@/features/collections/collection-store";
-import type { AnswerGrounding } from "@/features/answering/build-grounding";
+import type { AnswerGrounding } from "@/features/chat/types";
 
 type AnswerActionsProps = {
   grounding: AnswerGrounding;

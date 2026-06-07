@@ -1,16 +1,16 @@
-import type { ExamScopeCode } from "@/features/content/import-types";
+import type { ExamTargetCode } from "@/features/exam-target/model";
 import type {
   AnswerStyle,
   ConfusionClusterLabel,
   ConfusionClusterPurpose,
   QueryMode,
   RetrievalResolution,
-} from "@/features/retrieval/types";
+} from "@/features/chat/types";
 
 export type ProviderSmokeCase = {
   name: string;
   query: string;
-  activeExamTarget: ExamScopeCode;
+  activeExamTarget: ExamTargetCode;
   expectedQueryMode: QueryMode;
   expectedResolution: RetrievalResolution;
   expectedAnswerStyle: AnswerStyle;

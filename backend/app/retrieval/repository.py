@@ -5,6 +5,10 @@ from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 import psycopg
 from psycopg.rows import dict_row
 
+from backend.app.content.ecdict import (
+    scope_codes_for_exam_target,
+    scope_codes_in_exam_target,
+)
 from backend.app.retrieval.types import (
     ConfusionGroup,
     ConfusionGroupMember,
@@ -110,7 +114,11 @@ def candidate_from_row(row, *, reason: str, score: int) -> RetrievalCandidate:
 
 
 def rank_candidate(active_exam_target: str, row) -> RetrievalCandidate:
-    in_scope = bool(row.get("in_scope"))
+    scope_codes = list(row.get("scope_codes") or [])
+    in_scope = bool(row.get("in_scope")) or scope_codes_in_exam_target(
+        scope_codes,
+        active_exam_target,
+    )
     meaning_match = bool(row.get("meaning_match"))
     exact_lemma = bool(row.get("exact_lemma"))
     exact_alias = bool(row.get("exact_alias"))
@@ -276,7 +284,7 @@ class StructuredLookupRepository:
                                 FILTER (WHERE ves."scopeCode" IS NOT NULL),
                             '{}'
                         ) AS scope_codes,
-                        BOOL_OR(ves."scopeCode"::text = %(active_scope)s) AS in_scope
+                        BOOL_OR(ves."scopeCode"::text = ANY(%(active_scopes)s)) AS in_scope
                     FROM matched_entry
                     LEFT JOIN vocabulary_meaning vm
                         ON vm."entryId" = matched_entry.entry_id
@@ -292,7 +300,7 @@ class StructuredLookupRepository:
                     """,
                     {
                         "lookup": normalized_lookup,
-                        "active_scope": active_exam_target,
+                        "active_scopes": scope_codes_for_exam_target(active_exam_target),
                     },
                 )
                 row = cursor.fetchone()
@@ -356,7 +364,7 @@ class StructuredLookupRepository:
                                 FILTER (WHERE ves."scopeCode" IS NOT NULL),
                             '{}'
                         ) AS scope_codes,
-                        BOOL_OR(ves."scopeCode"::text = %(active_scope)s) AS in_scope
+                        BOOL_OR(ves."scopeCode"::text = ANY(%(active_scopes)s)) AS in_scope
                     FROM confusion_group cg
                     INNER JOIN confusion_group_member cgm
                         ON cgm."confusionGroupId" = cg.id
@@ -394,7 +402,7 @@ class StructuredLookupRepository:
                     """,
                     {
                         "entry_ids": entry_ids,
-                        "active_scope": active_exam_target,
+                        "active_scopes": scope_codes_for_exam_target(active_exam_target),
                     },
                 )
                 rows = cursor.fetchall()
@@ -535,7 +543,7 @@ class StructuredLookupRepository:
                                 FILTER (WHERE ves."scopeCode" IS NOT NULL),
                             '{}'
                         ) AS scope_codes,
-                        BOOL_OR(ves."scopeCode"::text = %(active_scope)s) AS in_scope
+                        BOOL_OR(ves."scopeCode"::text = ANY(%(active_scopes)s)) AS in_scope
                     FROM candidate
                     LEFT JOIN vocabulary_meaning vm
                         ON vm."entryId" = candidate.entry_id
@@ -552,7 +560,7 @@ class StructuredLookupRepository:
                     ORDER BY
                         candidate.exact_lemma DESC,
                         candidate.exact_alias DESC,
-                        BOOL_OR(ves."scopeCode"::text = %(active_scope)s) DESC,
+                        BOOL_OR(ves."scopeCode"::text = ANY(%(active_scopes)s)) DESC,
                         candidate.text_score DESC,
                         candidate.lemma ASC
                     LIMIT %(limit)s
@@ -560,7 +568,7 @@ class StructuredLookupRepository:
                     {
                         "needle": normalized_needle,
                         "like_pattern": f"%{normalized_needle}%",
-                        "active_scope": active_exam_target,
+                        "active_scopes": scope_codes_for_exam_target(active_exam_target),
                         "limit": limit,
                     },
                 )
@@ -625,7 +633,7 @@ class StructuredLookupRepository:
                                 FILTER (WHERE ves."scopeCode" IS NOT NULL),
                             '{}'
                         ) AS scope_codes,
-                        BOOL_OR(ves."scopeCode"::text = %(active_scope)s) AS in_scope
+                        BOOL_OR(ves."scopeCode"::text = ANY(%(active_scopes)s)) AS in_scope
                     FROM matched_entry
                     INNER JOIN vocabulary_entry ve
                         ON ve.id = matched_entry.entry_id
@@ -643,7 +651,7 @@ class StructuredLookupRepository:
                         "keyword": keyword,
                         "prefix_pattern": f"{keyword}%",
                         "like_pattern": f"%{keyword}%",
-                        "active_scope": active_exam_target,
+                        "active_scopes": scope_codes_for_exam_target(active_exam_target),
                         "limit": limit,
                     },
                 )
@@ -683,7 +691,7 @@ class StructuredLookupRepository:
                         FROM vocabulary_entry ve
                         INNER JOIN vocabulary_entry_scope ves
                             ON ves."entryId" = ve.id
-                            AND ves."scopeCode"::text = %(active_scope)s
+                            AND ves."scopeCode"::text = ANY(%(active_scopes)s)
                         WHERE
                             LOWER(ve.lemma) = LOWER(%(needle)s)
                             OR GREATEST(
@@ -735,7 +743,7 @@ class StructuredLookupRepository:
                     """,
                     {
                         "needle": normalized_needle,
-                        "active_scope": active_exam_target,
+                        "active_scopes": scope_codes_for_exam_target(active_exam_target),
                         "limit": limit,
                     },
                 )
@@ -779,7 +787,7 @@ class StructuredLookupRepository:
                                 FILTER (WHERE ves."scopeCode" IS NOT NULL),
                             '{}'
                         ) AS scope_codes,
-                        BOOL_OR(ves."scopeCode"::text = %(active_scope)s) AS in_scope
+                        BOOL_OR(ves."scopeCode"::text = ANY(%(active_scopes)s)) AS in_scope
                     FROM vocabulary_entry ve
                     LEFT JOIN vocabulary_meaning vm
                         ON vm."entryId" = ve.id
@@ -791,7 +799,7 @@ class StructuredLookupRepository:
                     """,
                     {
                         "lemmas": normalized_lemmas,
-                        "active_scope": active_exam_target,
+                        "active_scopes": scope_codes_for_exam_target(active_exam_target),
                     },
                 )
                 rows = cursor.fetchall()
@@ -831,7 +839,7 @@ class StructuredLookupRepository:
                     FROM vocabulary_entry ve
                     INNER JOIN vocabulary_entry_scope ves
                         ON ves."entryId" = ve.id
-                        AND ves."scopeCode"::text = %(active_scope)s
+                        AND ves."scopeCode"::text = ANY(%(active_scopes)s)
                     LEFT JOIN vocabulary_meaning vm
                         ON vm."entryId" = ve.id
                     LEFT JOIN vocabulary_entry_scope ves_all
@@ -840,7 +848,7 @@ class StructuredLookupRepository:
                     ORDER BY ve.lemma ASC
                     """,
                     {
-                        "active_scope": active_exam_target,
+                        "active_scopes": scope_codes_for_exam_target(active_exam_target),
                     },
                 )
                 rows = cursor.fetchall()

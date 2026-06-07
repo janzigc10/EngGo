@@ -41,7 +41,7 @@
 10. 2026-06-05 review blocker 已修：phrase hint 截取增加否定上下文保护，`不承担责任的英文是什么` 不再被截成 `承担责任`，避免正向 preferred lemma 抢走否定表达。
 
 ### 2026-06-05 扩展覆盖新增残留
-- `活动的英文是什么`：CET-6 providerless 真实装配当前仍返回 `action`，没有优先 `activity`。直接原因是 `activity` 在 source lemma 里属于 Gaokao/CET-4，当前 CET-6 source lemma 与 ECDICT preferred profile 都不继承低级别基础词。是否修需要单独定“CET-6 是否继承 CET-4/高考基础词”的范围策略。
+- `活动的英文是什么`：2026-06-05 已修。当前策略是 ECDICT tag-derived scope closure：CET-6 继承 Gaokao + CET-4，Postgrad 继承所有低级别基础词；E2E 当前为 `activity / event / action`，且 `activity` main first。后续不要再把词书 membership 写成“直接 tag 必须等于当前 scope”。
 - `anti 前缀有哪些词`：仍可能包含 `antique / anticipate` 这类词形以 `anti` 开头但不是稳定 `anti-` 反义前缀语义的候选。
 - `sub开头表示下面的词`、`re开头表示再次的词`：会给出 source-backed 但偏生僻的候选，属于 root/prefix semantic quality gate 下一轮问题。
 - `xyz开头的单词`：会命中 ECDICT 的 `xyz` 条目。需要后续决定裸 prefix / pseudo-token 查询是否应把这种词典条目降级为 no-match 或 clarification。
@@ -52,6 +52,7 @@
 - 不要让 semantic expression 声称“已命中当前词库”或“考试高频”，它是 bounded expression advice。
 - broad grounding 不能只靠候选数量 resolved；必须保留 root combo / 弱候选质量门。
 - meaning lookup 不能重新让 source lemma 同 lemma 候选覆盖 ECDICT meaning candidate；否则 `restrict` 这类正确词会失去 semantic hints，被 `bridle/lid/law` 这类边缘候选抢走。
+- scope closure 不要退回直接 scope 等值判断；`scopeCodes` 是 direct ECDICT tag 来源，当前词书 membership 应由 closure helper 判断。
 - 不要重新把 `遵循 / 遵守` alias 扩回 `服从`；否则 `submit/subdue` 容易回流到 `遵循` 主答案。
 - `meaning_expression_advice` 是表达建议，不是词库命中；不要让后端 grounding 或前端 support panel 把它显示成 resolved hit，也不要给它收藏工具。
 - phrase hint 只能保护正向短语；遇到 `不 / 不要 / 不能 / 没有 / 未能 / 别 / 勿` 等否定上下文时必须保留原始 meaning hint。
@@ -250,15 +251,15 @@ FastAPI 通过 `psycopg` 复用现有 Prisma Postgres 时，长 smoke 中确认�
 ### Provider timeout 不能冒泡成 FastAPI 500
 真实 provider smoke 中确认过 `httpx.ReadTimeout` 会在 Python provider 层出现。当前处理：`OpenAiChatProvider` 将 timeout 映射为 `ChatProviderError(status_code=504)`，其他 `httpx.HTTPError` 映射为 502，由 `/api/chat` 统一返回 `chat_generation_failed` error contract。
 
-### Next 默认 FastAPI smoke 启动方式
-Next `/api/chat` 已默认代理 `http://127.0.0.1:8000/api/chat`，因此 smoke 前必须先启动 FastAPI。只有需要改后端地址时，才临时设置 `.env.local` / 环境变量：
+### Frontend direct FastAPI 启动方式
+2026-06-07 后，Next `/api/chat` proxy 已退役；浏览器聊天请求通过 `NEXT_PUBLIC_ENGGO_FASTAPI_URL` 直接调用 FastAPI。smoke 前必须先启动 FastAPI。只有需要改浏览器直连地址时，才设置：
 ```text
-ENGGO_BACKEND_URL=http://127.0.0.1:8000
+NEXT_PUBLIC_ENGGO_FASTAPI_URL=http://127.0.0.1:8000
 ```
 
 优先入口：
-- `corepack pnpm dev:fastapi`：先启动 FastAPI，再启动 Next。
-- `corepack pnpm eval:default-fastapi-smoke`：验证默认 Next `/api/chat` 已穿到 FastAPI。
+- `corepack pnpm dev:fastapi`：先启动 FastAPI，再启动 Next，并把 FastAPI 地址注入到浏览器端。
+- `corepack pnpm eval:default-fastapi-smoke`：验证默认 FastAPI direct `/api/chat`。
 
 Node 在 Windows 上不能直接 `spawn()` `corepack.cmd`。当前 `dev:fastapi` 与默认 smoke 聚合器都通过 `cmd.exe /d /s /c corepack ...` 包装 Corepack；不要退回 `shell: true`，否则 Node 24 会给出弃用/安全警告。
 
@@ -285,7 +286,7 @@ $env:TEMP = 'C:\tmp\enggo-pytest-tmp'
 - `corepack pnpm db:seed:real-smoke`
 
 ### Next build tracing warning
-`corepack pnpm run build` 已通过。默认 FastAPI 切流后，Next `/api/chat` 不再 import legacy TypeScript retrieval/service，之前经 `/api/chat` 触发的 `source-lemma-sources.ts` import trace 风险应被收窄；如后续 build 仍出现 Turbopack/NFT tracing warning，再按实际 import trace 处理。
+`corepack pnpm run build` 已通过。默认 FastAPI 切流后，Next `/api/chat` 不再 import legacy TypeScript retrieval/service。2026-06-07 已删除 legacy TypeScript retrieval / answering 运行时和 source-lemma TS helper；如后续 build 仍出现 Turbopack/NFT tracing warning，再按实际 import trace 处理。
 
 ## 环境恢复路径
 
@@ -348,16 +349,14 @@ FastAPI Stage 2 复用现有 `.env` 和 Prisma Postgres 时确认过两个兼容
 - Prisma 的 `DATABASE_URL` 可能带 `schema`、`connection_limit`、`pool_timeout`、`max_idle_connection_lifetime` 等 query 参数，`psycopg` 不接受；Python repository 连接前要剥离 Prisma-only 参数，只保留 libpq 支持的参数。
 - 本机 Prisma Postgres 当前只监听 `127.0.0.1:51214`，而 `.env` 使用 `localhost`；Python 侧连接前规范到 `127.0.0.1`，避免 IPv6/localhost 解析导致连接卡住。
 
-### FastAPI proxy smoke 与 Next dev 环境变量
-历史上在 Codex PowerShell `Start-Job` 里临时设置 `$env:ENGGO_BACKEND_URL` 后启动 `corepack pnpm dev`，Next 16 dev route worker 可能仍读不到该进程环境变量。当前 Next `/api/chat` 已默认走 FastAPI，所以不再依赖该变量切流；只有覆盖地址时才需要它。
-
-如果需要覆盖地址，可靠验证方式是临时创建被 `.gitignore` 忽略的 `.env.local`：
+### Frontend direct FastAPI 与 Next dev 环境变量
+历史上 Next proxy 依赖 `ENGGO_BACKEND_URL`，现在该路径已退役。前端直连只读 `NEXT_PUBLIC_ENGGO_FASTAPI_URL`；如果需要覆盖地址，可靠方式是临时创建被 `.gitignore` 忽略的 `.env.local`：
 
 ```text
-ENGGO_BACKEND_URL=http://127.0.0.1:8000
+NEXT_PUBLIC_ENGGO_FASTAPI_URL=http://127.0.0.1:8000
 ```
 
-启动 Next 后日志应显示 `Environments: .env.local, .env`；跑完 proxy smoke 后删除 `.env.local`。确认方法：FastAPI migrated smoke 里 `re+con 的词根有什么词` 必须按 FastAPI 当前行为返回预期结果；如果结果像旧 TypeScript route，先检查 Next 进程和地址覆盖。
+启动 Next 后日志应显示 `Environments: .env.local, .env`；跑完浏览器验证后删除 `.env.local`。后端产品 smoke 默认直接打 FastAPI，不再通过 Next proxy 判断业务链路。
 
 ### Provider 限流与超时
 - MiniMax 临时 key 历史上出现 `429 usage limit exceeded (2056)`，不要把 429 误判成 retrieval 回归。
@@ -366,6 +365,7 @@ ENGGO_BACKEND_URL=http://127.0.0.1:8000
 - 真实 provider smoke 尽量小批量串行跑。
 
 ## 当前产品侧残留
+- `eval:product-smoke` / `scripts/run-black-box-product-http-smoke.ts` 当前矩阵含旧期望，不再作为默认 FastAPI direct gate。2026-06-07 frontend direct FastAPI 验证时，失败集中在旧 structured exact、旧 comparisonView/root prototype、旧 typo/fuzzy 期望；默认 smoke 已改为 `eval:fastapi:conversation-context-smoke`。如后续要恢复 product smoke，先按 scope closure + legacy TS backend cleanup 后的真实产品行为重写矩阵。
 - 普通查词 exact lookup 现有 21 条 provider smoke 已通过；后续新增词库或改 prompt 时仍需小批防回归，重点防止：
   - exact 命中自动带出裸 `confusion_group`
   - 回答出现 `CET` / 当前范围尾巴
@@ -392,11 +392,10 @@ ENGGO_BACKEND_URL=http://127.0.0.1:8000
 - `corepack pnpm exec tsc --noEmit` 仍是已知工程债，主要集中在：
   - 测试 fixture 的 `activeExamTarget` / `examScopes` 被推宽为 `string`
   - `src/features/chat/use-chat-session.ts` 的 API 成功/错误响应联合类型需要收窄
-  - `pg` ESM 入口声明缺失
-  - `retrieve-candidates.ts` 的 `row` 隐式 any 是 `pg` 声明缺失的连带症状
+  - Prisma / `pg` 相关声明只服务历史 structured overlay / seed path；不再服务旧 TS retrieval。
 
 ## 已处理但要防回归
-- `retrieveCandidates -> buildGrounding -> chatService` 的 no-match 闭环已落地，库外 meaning / fuzzy / compare 不再硬猜。
+- legacy TypeScript `retrieveCandidates -> buildGrounding -> chatService` 已于 2026-06-07 退役；库外 meaning / fuzzy / compare 防硬猜现在以 FastAPI 后端测试和 HTTP smoke 为准。
 - 多词 compare、group compare、`哪个` 句式 compare 已支持。
 - no-match UI 已避免空白主答案卡片。
 - assistant answer 已改用 `AnswerContent` 渲染，不再把 Markdown 表格和 `###` 原样展示给用户。

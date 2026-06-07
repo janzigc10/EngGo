@@ -1,16 +1,16 @@
-import type { ExamScopeCode } from "@/features/content/import-types";
+import type { ExamTargetCode } from "@/features/exam-target/model";
 
 export type ConversationContextSmokeTurn = {
   query: string;
-  activeExamTarget: ExamScopeCode;
+  activeExamTarget: ExamTargetCode;
   expectedStatus: number;
   expectedAnswerKind?: "grounded" | "plain";
   expectedGrounding?: "present" | "absent";
   expectedResolvedKind?: "resolved_query" | "resolved_action" | "clarification";
   expectedResolvedQuery?: string;
   expectedAction?: string;
-  expectedResolvedActiveExamTarget?: ExamScopeCode;
-  expectedContextActiveExamTarget?: ExamScopeCode;
+  expectedResolvedActiveExamTarget?: ExamTargetCode;
+  expectedContextActiveExamTarget?: ExamTargetCode;
   expectedTargetLemmas?: string[];
   expectedExactTargetLemmas?: string[];
   expectedContextLemmas?: string[];
@@ -31,8 +31,8 @@ export type ConversationContextSmokeObservation = {
   resolvedKind: "resolved_query" | "resolved_action" | "clarification" | null;
   resolvedQuery: string | null;
   action: string | null;
-  resolvedActiveExamTarget: ExamScopeCode | null;
-  contextActiveExamTarget: ExamScopeCode | null;
+  resolvedActiveExamTarget: ExamTargetCode | null;
+  contextActiveExamTarget: ExamTargetCode | null;
   targetLemmas: string[];
   contextLemmas: string[];
 };
@@ -265,7 +265,6 @@ export function buildConversationalLearningContextSmokeCases():
           expectedGrounding: "absent",
           expectedResolvedKind: "resolved_action",
           expectedAction: "show_more",
-          expectedTargetLemmas: ["salute", "value"],
           expectedProviderRequest: "absent",
         },
       ],

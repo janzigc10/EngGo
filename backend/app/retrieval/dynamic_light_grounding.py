@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from backend.app.content.ecdict import EcdictBasicProfile
+from backend.app.content.ecdict import scope_codes_in_exam_target
 from backend.app.content.source_lemmas import load_source_lemma_memberships
 from backend.app.retrieval.learning_intent import IntentConstraint, LearningIntentPlan
 from backend.app.retrieval.types import ConfusionGroup, RetrievalCandidate
@@ -296,7 +297,10 @@ def ngram_overlap(left: str, right: str) -> float:
 
 
 def active_scope_match(candidate: RetrievalCandidate, active_exam_target: str) -> bool:
-    return candidate.in_scope or active_exam_target in candidate.scope_codes
+    return candidate.in_scope or scope_codes_in_exam_target(
+        candidate.scope_codes,
+        active_exam_target,
+    )
 
 
 def add_signal(
@@ -876,7 +880,7 @@ def source_lemma_vocabulary(
     source_lemma_base_dir: Path | str | None,
     ecdict_lookup: Callable[[str], EcdictBasicProfile | None] | None = None,
 ) -> list[RetrievalCandidate]:
-    if not source_lemma_base_dir or active_exam_target == "postgrad":
+    if not source_lemma_base_dir:
         return []
 
     memberships_by_lemma: dict[str, set[str]] = {}
@@ -886,7 +890,7 @@ def source_lemma_vocabulary(
     result: list[RetrievalCandidate] = []
 
     for lemma, scope_codes in memberships_by_lemma.items():
-        if active_exam_target not in scope_codes:
+        if not scope_codes_in_exam_target(list(scope_codes), active_exam_target):
             continue
 
         profile = ecdict_lookup(lemma) if ecdict_lookup else None
@@ -902,7 +906,7 @@ def source_lemma_vocabulary(
                 meanings_zh=meanings,
                 matched_alias=None,
                 scope_codes=sorted(scope_codes),
-                in_scope=active_exam_target in scope_codes,
+                in_scope=scope_codes_in_exam_target(list(scope_codes), active_exam_target),
                 reason=reason,
                 score=18,
                 part_of_speech=infer_ecdict_part_of_speech(profile),

@@ -8,6 +8,10 @@
 - `context.md`：长期项目地图和代码地图。
 
 ## 当前有效设计
+- `docs/superpowers/specs/2026-06-07-frontend-direct-fastapi-v1-design.md`
+  - 当前活跃架构收口设计：Next.js 保留为 React 前端壳，浏览器聊天请求通过 `NEXT_PUBLIC_ENGGO_FASTAPI_URL` 直连 FastAPI `/api/chat`；Next `/api/chat` proxy 退役，默认验证路径改为 FastAPI direct。
+- `docs/superpowers/specs/2026-06-05-ecdict-tag-scope-closure-design.md`
+  - 当前活跃设计：直接使用 ECDICT exam tags 作为词书事实源，前端词书和聊天检索统一走 scope closure。`gaokao` 只含高考基础词，`cet4` 继承高考，`cet6` 继承高考 + CET-4，`postgrad` 继承高考 + CET-4 + CET-6 + 考研；词条数据保留直接 tag 来源，不把继承结果写回原始 `examScopes`。本轮不解决 `anti` / `sub` / `re` 的语义纯度，那是后续 root / prefix semantic quality gate。
 - `docs/superpowers/specs/2026-06-03-model-assisted-intent-routing-v1-design.md`
   - 当前活跃设计：不做完整 ReAct Agent；在 Controlled Tool Router V1 上新增规则置信度、灰区 provider classifier、参数来源校验、semantic expression 分支和 grounding / observation 质量闸门。目标是让明确查词/辨析继续走确定性规则，让 `more formal way to say...`、`同义词/近义词`、`还有更适合作文的吗` 这类灰区由模型辅助识别，但最终仍由代码验收参数和工具证据。
 - `docs/superpowers/specs/2026-06-01-controlled-tool-router-v1-design.md`
@@ -17,7 +21,7 @@
 - `docs/superpowers/specs/2026-06-01-ecdict-grounded-direct-compare-design.md`
   - 当前 direct compare 设计：不再依赖人工 `quickDistinction`、confusion graph 或人工 pair/group 元数据作为主能力；用户问两个英文词区别时，优先解析用户明确提到的词，使用 ECDICT-backed candidates 作为 grounding，让 provider 组织短中文辨析；provider 不可用或失败时只退回干净的并列词典释义。已有人工组最多保留为历史数据，不再作为 direct compare 扩展策略。
 - `docs/superpowers/specs/2026-05-31-ecdict-backed-wordbook-expansion-design.md`
-  - 当前背词内容扩展设计：Wordbook Learn/Review 状态机不重做，默认词书继续使用 `cet6-foundation-v1` ID，但内容改为由 ECDICT + source lemma manifests 生成的 compact JSON；CET / 高考范围继续由可机读来源定义，postgrad 仍 source-blocked；系统化 confusion graph、收藏、NotebookLM 复刻和 UI 大精修均放缓。本轮只做 ECDICT-backed 词书、ECDICT-only direct compare 保守短辨析、首页 stale copy 和 hydration 健康修复。
+  - 历史背词内容扩展设计：Wordbook Learn/Review 状态机不重做，默认词书继续使用 `cet6-foundation-v1` ID；后续已由 `2026-06-05-ecdict-tag-scope-closure-design.md` 修正为直接使用 ECDICT exam tags 生成 compact JSON，不再以 source lemma manifests 作为当前词书事实源。
 - `docs/superpowers/specs/2026-05-30-wordbook-learn-review-experience-polish-v1.md`
   - Wordbook Learn/Review 已落地的体验打磨设计：聚焦学习节奏、Learn 三灯失败不降级、三灯详情分层、Review 干净通过一灯快速验收、Review 失败后留在 Review 内走四选一 + 带提示回忆 + 无提示最终确认三灯补救链路、错因对比页，以及学习设置里的每组学习/复习词数 10/20/30 三档。本轮不做 UI 精修、完整 SRS、账号同步、全量词书或主线 merge。
 - `docs/superpowers/specs/2026-05-30-wordbook-learn-review-state-machine-design.md`
@@ -33,7 +37,7 @@
 - `docs/superpowers/specs/2026-05-16-collection-organizer-design.md`
   - 收藏页基础设计：把聊天收藏沉淀为可整理的本地生词本，保留结构化元数据、删除和回到聊天追问入口；它仍是学习资产来源之一，但不再是下一阶段核心背词流程的第一刀。
 - `docs/superpowers/specs/2026-05-10-fastapi-backend-split-design.md`
-  - Python FastAPI 后端拆分设计：Next 前端保留，`/api/chat` 当前默认代理 FastAPI；`ENGGO_BACKEND_URL` 仅用于覆盖默认后端地址。
+  - Python FastAPI 后端拆分设计：Next 前端保留；2026-06-07 后 Next `/api/chat` proxy 已退役，浏览器默认直连 FastAPI。
 - `docs/superpowers/specs/2026-05-09-ecdict-basic-lookup-design.md`
   - ECDICT 外部基础释义源、词/连字符词/短语边界，以及普通查词的 source priority。
 - `docs/superpowers/specs/2026-05-01-answer-policy-v1.md`
@@ -52,6 +56,12 @@
   - 初始技术设计。
 
 ## 当前活跃计划
+- `docs/superpowers/plans/2026-06-07-frontend-direct-fastapi-v1.md`
+  - 当前架构收口计划：让浏览器聊天请求直接调用 FastAPI，删除 Next `/api/chat` proxy，补 CORS、direct smoke 和文档交接；不迁移 Vite React，不后端化 Learn / Review / Progress。
+- `docs/superpowers/plans/2026-06-07-legacy-ts-backend-cleanup-v1.md`
+  - 当前清理计划：FastAPI 迁移后退役 legacy TypeScript retrieval / answering 后端实现，保留 Next 前端壳、FastAPI HTTP smoke、provider smoke 和 ECDICT wordbook 生成工具；Prisma schema / seed 历史路径暂不在本轮删除。
+- `docs/superpowers/plans/2026-06-05-ecdict-tag-scope-closure-v1.md`
+  - 当前执行计划：把 ECDICT tag-derived scope closure 作为 Learn / Review / Progress / Chat 的统一词书 membership，修复 CET-6 不继承高考 / CET-4 基础词导致的 `activity` 漏召回，并补 backend / frontend / E2E 防回归覆盖。2026-06-07 已追加清理 legacy TypeScript retrieval / answering 后端实现；后续验收不再依赖 Prisma-backed TS retrieval integration。
 - `docs/superpowers/plans/2026-06-04-meaning-lookup-weak-resolved-quality-gate-v1.md`
   - 当前已完成待 review 的实现计划：给 `meaning_lookup` 增加弱候选质量闸门，防止 `表达观点`、`遵循`、`限制` 这类中译英 / 表达召回问题在只有偏离候选时仍被标成 source-backed `resolved`。本轮没有扩大 hard `no_match`，而是优先让 strong preferred candidates 进入 grounded resolved；只有 weak expression-like 且无强候选时才降级为 provider-assisted / bounded plain advice。
 - `docs/superpowers/plans/2026-06-03-model-assisted-intent-routing-v1.md`
@@ -118,7 +128,7 @@
 - `docs/superpowers/plans/2026-05-10-fastapi-backend-split-stage-2.md`
   - FastAPI 后端拆分 Stage 2：普通 exact lookup / source lemma / ECDICT basic / ordinary no-match 最小切片，已完成；compare/root/fragment/provider 仍留在后续阶段。
 - `docs/superpowers/plans/2026-05-10-fastapi-full-chat-backend-migration.md`
-  - FastAPI 全量 `/api/chat` 迁移，已完成；Next `/api/chat` 已默认代理 FastAPI，默认地址为 `http://127.0.0.1:8000`。
+  - FastAPI 全量 `/api/chat` 迁移，已完成；后续 Frontend Direct FastAPI V1 已把浏览器请求从 Next proxy 收口到 FastAPI direct。
 - `docs/superpowers/plans/2026-05-11-fastapi-dev-workflow-hardening.md`
   - FastAPI-first 开发启动、默认 smoke 和 legacy TypeScript 后端边界固化，已完成。
 - `docs/superpowers/plans/2026-05-11-source-aware-chat-support-panel.md`

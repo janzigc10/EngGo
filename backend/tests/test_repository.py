@@ -68,7 +68,10 @@ def test_exact_lookup_queries_lemma_and_alias_tables():
     assert "vocabulary_alias" in cursor.sql
     assert "vocabulary_meaning" in cursor.sql
     assert "vocabulary_entry_scope" in cursor.sql
-    assert cursor.params == {"lookup": "access", "active_scope": "cet6"}
+    assert cursor.params == {
+        "lookup": "access",
+        "active_scopes": ["gaokao", "cet4", "cet6"],
+    }
 
 
 def test_to_psycopg_conninfo_removes_prisma_only_query_params():
@@ -269,7 +272,7 @@ def test_confusion_group_lookup_maps_members_and_metadata():
     assert "confusion_group_member" in cursor.sql
     assert cursor.params == {
         "entry_ids": ["access", "assess"],
-        "active_scope": "cet6",
+        "active_scopes": ["gaokao", "cet4", "cet6"],
     }
     assert len(groups) == 1
     assert groups[0].id == "access-assess-excess"

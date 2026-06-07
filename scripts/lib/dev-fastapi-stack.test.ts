@@ -16,6 +16,7 @@ describe("dev FastAPI stack helpers", () => {
     });
 
     expect(config.backendUrl).toBe("http://127.0.0.1:8000");
+    expect(config.frontendFastApiUrl).toBe("http://127.0.0.1:8000");
     expect(buildFastApiCommand(config)).toEqual({
       command: "C:\\Users\\Chen\\anaconda3\\python.exe",
       args: [
@@ -47,7 +48,7 @@ describe("dev FastAPI stack helpers", () => {
     expect(buildFastApiCommand(config).command).toBe("/opt/python/bin/python");
   });
 
-  test("builds the Next command without forcing ENGGO_BACKEND_URL", () => {
+  test("passes the FastAPI URL to the browser-side Next app", () => {
     const config = createDevStackConfig({
       platform: "win32",
       env: {},
@@ -56,21 +57,24 @@ describe("dev FastAPI stack helpers", () => {
     expect(buildNextCommand(config)).toEqual({
       command: "corepack",
       args: ["pnpm", "dev", "--hostname", "127.0.0.1", "--port", "3000"],
-      env: {},
+      env: {
+        NEXT_PUBLIC_ENGGO_FASTAPI_URL: "http://127.0.0.1:8000",
+      },
     });
   });
 
-  test("passes ENGGO_BACKEND_URL only when the backend URL is customized", () => {
+  test("uses NEXT_PUBLIC_ENGGO_FASTAPI_URL when the frontend API URL is customized", () => {
     const config = createDevStackConfig({
       platform: "win32",
       env: {
-        ENGGO_BACKEND_URL: "http://127.0.0.1:8010",
+        NEXT_PUBLIC_ENGGO_FASTAPI_URL: "http://127.0.0.1:8010",
       },
     });
 
-    expect(config.backendUrl).toBe("http://127.0.0.1:8010");
+    expect(config.backendUrl).toBe("http://127.0.0.1:8000");
+    expect(config.frontendFastApiUrl).toBe("http://127.0.0.1:8010");
     expect(buildNextCommand(config).env).toEqual({
-      ENGGO_BACKEND_URL: "http://127.0.0.1:8010",
+      NEXT_PUBLIC_ENGGO_FASTAPI_URL: "http://127.0.0.1:8010",
     });
   });
 

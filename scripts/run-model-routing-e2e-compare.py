@@ -89,6 +89,7 @@ class Case:
     expected_terms: list[str] | None = None
     expected_answer_kind: str | None = None
     expected_answer_style: str | None = None
+    expected_main_first: str | None = None
     expected_main_contains: list[str] = field(default_factory=list)
     forbid_main_contains: list[str] = field(default_factory=list)
     expected_action: str | None = None
@@ -193,6 +194,16 @@ CASES = [
         expected_answer_kind="grounded",
         expected_main_contains=["follow"],
         forbid_main_contains=["defer"],
+    ),
+    Case(
+        case_id="meaning_activity_scope_closure_cn",
+        category="expected_improvement",
+        query="活动的英文是什么",
+        expected_query_mode="meaning_lookup",
+        expected_resolution="resolved",
+        expected_answer_kind="grounded",
+        expected_main_first="activity",
+        expected_main_contains=["activity"],
     ),
     Case(
         case_id="meaning_responsible_cn",
@@ -546,6 +557,12 @@ def check_case(case: Case, obs: dict[str, Any]) -> list[str]:
         errors.append(f"answerStyle expected {case.expected_answer_style}, got {obs['answerStyle']}")
     if case.expected_terms is not None and obs["terms"] != case.expected_terms:
         errors.append(f"terms expected {case.expected_terms}, got {obs['terms']}")
+    if case.expected_main_first and (
+        not obs["mainLemmas"] or obs["mainLemmas"][0] != case.expected_main_first
+    ):
+        errors.append(
+            f"mainLemmas first expected {case.expected_main_first}, got {obs['mainLemmas']}"
+        )
     missing = [lemma for lemma in case.expected_main_contains if lemma not in obs["mainLemmas"]]
     if missing:
         errors.append(f"mainLemmas missing {missing}, got {obs['mainLemmas']}")

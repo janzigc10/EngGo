@@ -3,7 +3,11 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Callable
 
-from backend.app.content.ecdict import EcdictBasicProfile, scope_codes_for_profile
+from backend.app.content.ecdict import (
+    EcdictBasicProfile,
+    scope_codes_for_profile,
+    scope_codes_in_exam_target,
+)
 from backend.app.content.source_lemmas import find_source_lemma_memberships_for_lookup
 from backend.app.answering.no_match_policy import maybe_plain_no_match_response
 from backend.app.retrieval.learning_intent import build_learning_intent_plan
@@ -258,15 +262,15 @@ def source_lemma_candidate(
     lookup: str,
     source_lemma_base_dir: Path,
 ) -> RetrievalCandidate | None:
-    if active_exam_target == "postgrad":
-        return None
-
     memberships = find_source_lemma_memberships_for_lookup(
         lookup,
         base_dir=source_lemma_base_dir,
     )
 
-    if not any(membership.scope_code == active_exam_target for membership in memberships):
+    if not scope_codes_in_exam_target(
+        [membership.scope_code for membership in memberships],
+        active_exam_target,
+    ):
         return None
 
     lemma = memberships[0].lemma if memberships else lookup.strip().lower()
@@ -307,7 +311,7 @@ def dictionary_candidate(
         meanings_zh=profile.meanings,
         matched_alias=profile.lookup_key if profile.match_kind == "joined_phrase_alias" else None,
         scope_codes=scope_codes,
-        in_scope=True,
+        in_scope=bool(scope_codes),
         reason=(
             "external dictionary tagged exact match"
             if scope_codes

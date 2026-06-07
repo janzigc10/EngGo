@@ -475,7 +475,7 @@ def test_shape_neighbor_can_use_ecdict_tagged_candidates_when_structured_seed_is
     assert provider.calls == []
     assert grounding["queryMode"] == "shape_neighbor_search"
     assert grounding["broadQueryMode"] == "broad_vocab"
-    assert grounding["supportLabel"] == "基于 ECDICT 考研标签候选总结"
+    assert grounding["supportLabel"] == "基于 ECDICT 考研词书候选总结"
     assert [
         item["lemma"]
         for item in grounding["mainAnswer"][:2]
@@ -519,7 +519,7 @@ def test_shape_neighbor_short_ecdict_seed_can_reach_near_terms_after_broad_noise
     assert result.payload.providerRequestId is None
     assert provider.calls == []
     assert grounding["queryMode"] == "shape_neighbor_search"
-    assert grounding["supportLabel"] == "基于 ECDICT 考研标签候选总结"
+    assert grounding["supportLabel"] == "基于 ECDICT 考研词书候选总结"
     assert answer_lemmas[:2] == ["sow", "row"]
     assert "aaa" not in answer_lemmas
 
@@ -786,8 +786,9 @@ def test_postgrad_fragment_query_uses_external_dictionary_candidates():
     assert ecdict_lookup.searches
     assert grounding["queryMode"] == "root_family_summary"
     assert grounding["broadQueryMode"] == "broad_vocab"
-    assert grounding["supportLabel"] == "基于 ECDICT 考研标签候选总结"
+    assert grounding["supportLabel"] == "基于 ECDICT 考研词书候选总结"
     assert [item["lemma"] for item in grounding["mainAnswer"]] == [
+        "spire",
         "aspire",
         "expire",
         "inspire",
@@ -796,11 +797,11 @@ def test_postgrad_fragment_query_uses_external_dictionary_candidates():
         item["sourceKind"]
         for item in grounding["mainAnswer"]
     } == {"external_dictionary_basic"}
-    assert "spire" not in [item["lemma"] for item in grounding["lightCandidates"]]
+    assert "spire" in [item["lemma"] for item in grounding["lightCandidates"]]
     assert [
         item["scopeCodes"]
         for item in grounding["mainAnswer"]
-    ] == [["postgrad"], ["postgrad"], ["postgrad"]]
+    ] == [["cet4"], ["postgrad"], ["cet6", "postgrad"], ["cet6", "postgrad"]]
     assert "plain" not in result.payload.answer
 
 
@@ -841,7 +842,7 @@ def test_postgrad_prefix_query_with_meaning_hint_filters_external_candidates():
     assert provider.calls == []
     assert grounding["queryMode"] == "root_family_summary"
     assert grounding["broadQueryMode"] == "broad_vocab"
-    assert grounding["supportLabel"] == "基于 ECDICT 考研标签候选总结"
+    assert grounding["supportLabel"] == "基于 ECDICT 考研词书候选总结"
     assert main_lemmas == ["cooperate", "cooperative"]
     assert "coach" not in main_lemmas
     assert "coal" not in main_lemmas
@@ -1935,7 +1936,7 @@ def test_meaning_lookup_phrase_hints_prefer_expression_targets():
     ecdict_lookup = SearchableEcdictLookup(
         [
             ecdict_profile("tick", ["vi. 活动；滴答响"], tag="cet6"),
-            ecdict_profile("activity", ["n. 活动；行动；活跃"], tag="cet6"),
+            ecdict_profile("activity", ["n. 活动；行动；活跃"], tag="gk cet4"),
             ecdict_profile("event", ["n. 事件；活动"], tag="cet6"),
             ecdict_profile("action", ["n. 行动；活动"], tag="cet6"),
             ecdict_profile("respond", ["v. 回答；响应；承担责任"], tag="cet6"),

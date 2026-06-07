@@ -6,7 +6,13 @@ import {
   applyResolvedFollowUpAction,
   latestConversationContext,
 } from "@/features/chat/conversation-context";
-import type { ChatApiSuccessResponse, ChatHistoryMessage, ChatMessage } from "@/features/chat/types";
+import { postChatRequest } from "@/features/chat/chat-api-client";
+import type {
+  ChatApiErrorResponse,
+  ChatApiSuccessResponse,
+  ChatHistoryMessage,
+  ChatMessage,
+} from "@/features/chat/types";
 import {
   getServerExamTargetSnapshot,
   persistExamTarget,
@@ -17,6 +23,8 @@ import {
   defaultExamTarget,
   type ExamTargetCode,
 } from "@/features/exam-target/model";
+import { getWordbookIdForExamTarget } from "@/features/wordbook/wordbook-data";
+import { saveActiveWordbookId } from "@/features/wordbook/wordbook-active-store";
 
 const defaultExamplePrompts = [
   "遵从怎么说",
@@ -34,12 +42,6 @@ const sensitiveErrorPatterns = [
   /traceback/i,
   /stack trace/i,
 ];
-
-type ChatApiErrorResponse = {
-  error?: {
-    message?: string;
-  };
-};
 
 function createMessageId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -185,11 +187,13 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
   useEffect(() => {
     if (initialExamTarget) {
       persistExamTarget(initialExamTarget);
+      saveActiveWordbookId(getWordbookIdForExamTarget(initialExamTarget));
     }
   }, [initialExamTarget]);
 
   function setActiveExamTarget(nextExamTarget: ExamTargetCode) {
     persistExamTarget(nextExamTarget);
+    saveActiveWordbookId(getWordbookIdForExamTarget(nextExamTarget));
   }
 
   function chooseExamplePrompt(prompt: string) {
@@ -216,6 +220,7 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
     );
     const requestBody = {
       activeExamTarget: requestExamTarget,
+      activeWordbookId: getWordbookIdForExamTarget(requestExamTarget),
       query: prompt,
       history: toHistory(messages),
       ...(conversationContext ? { conversationContext } : {}),
@@ -228,13 +233,7 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      });
+      const response = await postChatRequest(requestBody);
 
       const payload = (await response.json()) as
         | ChatApiSuccessResponse
@@ -250,6 +249,9 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
         && payload.resolvedFollowUp.activeExamTarget !== requestExamTarget
       ) {
         persistExamTarget(payload.resolvedFollowUp.activeExamTarget);
+        saveActiveWordbookId(
+          getWordbookIdForExamTarget(payload.resolvedFollowUp.activeExamTarget),
+        );
       }
 
       if (payload.resolvedFollowUp?.kind === "resolved_action") {

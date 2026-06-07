@@ -18,9 +18,9 @@ RAG / 词库是证据系统，不是回答许可系统。命中范围时要明�
 ## 当前稳定能力
 - 聊天式 MVP 主舞台已落地，首页是聊天工作台。
 - 用户可选择并持久化当前考试目标。
-- 数据库使用 Prisma + PostgreSQL，词库数据来自 `data/exam-vocab/`。
-- `seed` 数据覆盖高考、四级、六级、考研；`real-smoke` 当前只覆盖高考、四级、六级。
-- `real-smoke` 当前约 546 entries / 34 confusion groups，已进入 500-1000 词基础 RAG MVP 区间。
+- 默认词库来自 ECDICT CSV 和生成后的 compact JSON；Prisma + PostgreSQL 只保留为旧 structured overlay / 历史回归资产。
+- `data/exam-vocab/ecdict-wordbook/` 当前约 7,348 entries，前端词书按 ECDICT tag-derived scope closure 组织。
+- `seed` / `real-smoke` 是历史开发与回归数据，不再是 Learn / Review / Progress / Chat 的默认词书事实源。
 - 检索主线包括：
   - exact 普通查词
   - 中文核心义召回
@@ -34,7 +34,7 @@ RAG / 词库是证据系统，不是回答许可系统。命中范围时要明�
   - `root_family_summary`
   - non-grounded `plain`
 - UI 已支持受控 Markdown 子集渲染、表格渲染、命中状态摘要和收藏工具折叠。
-- `/api/chat` 后端已迁移到 Python FastAPI；Next.js 仍负责前端页面与薄代理，不再默认执行 TypeScript chat service。
+- `/api/chat` 后端已迁移到 Python FastAPI；Next.js 只负责前端页面，浏览器通过 `chat-api-client` 直接请求 FastAPI。
 
 ## 当前边界
 - 不把 `re+con` 这类语义/词根理论问题硬塞进词形过滤 parser；如果要支持，先定义产品边界。
@@ -45,16 +45,14 @@ RAG / 词库是证据系统，不是回答许可系统。命中范围时要明�
 - embedding 只能作为语义召回补充，不作为形近词、考试范围和基础释义的主干。
 
 ## 代码地图
-- `src/app/api/chat/route.ts`：Next 前端侧聊天代理，默认转发到 FastAPI `http://127.0.0.1:8000/api/chat`。
+- `src/features/chat/chat-api-client.ts`：浏览器侧 FastAPI chat client，默认请求 `http://127.0.0.1:8000/api/chat`，可由 `NEXT_PUBLIC_ENGGO_FASTAPI_URL` 覆盖。
 - `backend/app/`：Python FastAPI 聊天后端，包含 query normalize、候选召回、grounding、answer policy 和 provider 调用。
-- `src/features/retrieval/`：legacy TypeScript 检索实现，保留作测试、对照和回滚参考。
-- `src/features/answering/`：legacy TypeScript 回答实现，保留作测试、对照和回滚参考。
-- `src/features/chat/`：聊天类型、前端 session hook。
+- `src/features/chat/`：聊天响应契约、前端 session hook 和短期会话上下文处理。
 - `src/components/chat/`：聊天工作台、输入框、消息线程、答案渲染、收藏动作。
 - `data/exam-vocab/seed/`：开发基础词库。
 - `data/exam-vocab/real-smoke/`：source-backed 真实词库 smoke 数据。
 - `prisma/`：schema、migration、seed 入口。
-- `scripts/`：内容校验、deterministic eval、provider smoke runner，以及 FastAPI-first dev/smoke 入口。
+- `scripts/`：FastAPI-first dev/smoke 入口、HTTP 产品 smoke、provider smoke runner 和 ECDICT wordbook 生成。
 - `tests/e2e/`：Playwright e2e。
 
 ## 文档地图

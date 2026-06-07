@@ -7,9 +7,12 @@ import {
   parseEcdictCsv,
   type EcdictRow,
 } from "../src/features/content/ecdict-csv";
-import { loadSourceLemmaMemberships } from "../src/features/content/source-lemma-sources";
+import {
+  examScopeOrder,
+  scopeCodesFromEcdictTags,
+} from "../src/features/exam-target/scope-closure";
 
-type ExamScope = "gaokao" | "cet4" | "cet6";
+type ExamScope = (typeof examScopeOrder)[number];
 
 type GeneratedWordbookEntry = {
   id: string;
@@ -34,8 +37,6 @@ const defaultOptions: GenerateOptions = {
   maxMeanings: 3,
 };
 
-const scopeOrder: ExamScope[] = ["gaokao", "cet4", "cet6"];
-const scopeRank = new Map(scopeOrder.map((scope, index) => [scope, index]));
 const translationPosPattern =
   /(?:^|[；;，,、\s])((?:n|v|vt|vi|a|adj|adv|prep|conj|pron|det|interj)\.)\s*/gi;
 
@@ -100,12 +101,6 @@ function isLookupFriendlyLemma(lemma: string) {
   return /^[a-z]{3,}$/.test(lemma);
 }
 
-function uniqueSortedScopes(scopes: Iterable<ExamScope>) {
-  return [...new Set(scopes)].sort(
-    (left, right) => (scopeRank.get(left) ?? 99) - (scopeRank.get(right) ?? 99),
-  );
-}
-
 function normalizeTextList(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
@@ -126,50 +121,6 @@ function extractPos(row: EcdictRow, meanings: string[]) {
   }
 
   return normalizeTextList(extracted);
-}
-
-function buildDictionaryByLemma(rows: EcdictRow[]) {
-  const dictionary = new Map<string, EcdictRow>();
-
-  for (const row of rows) {
-    const lemma = normalizeLemma(row.word);
-
-    if (!lemma || dictionary.has(lemma)) {
-      continue;
-    }
-
-    dictionary.set(lemma, row);
-  }
-
-  return dictionary;
-}
-
-async function buildSourceScopesByLemma() {
-  const memberships = await loadSourceLemmaMemberships();
-  const scopesByLemma = new Map<string, Set<ExamScope>>();
-
-  for (const membership of memberships) {
-    if (
-      membership.scopeCode !== "gaokao"
-      && membership.scopeCode !== "cet4"
-      && membership.scopeCode !== "cet6"
-    ) {
-      continue;
-    }
-
-    const lemma = normalizeLemma(membership.lemma);
-
-    if (!isLookupFriendlyLemma(lemma)) {
-      continue;
-    }
-
-    const current = scopesByLemma.get(lemma) ?? new Set<ExamScope>();
-
-    current.add(membership.scopeCode);
-    scopesByLemma.set(lemma, current);
-  }
-
-  return scopesByLemma;
 }
 
 function createEntry({
@@ -203,29 +154,37 @@ function createEntry({
 }
 
 export async function generateEcdictWordbook(options: GenerateOptions) {
-  const [dictionaryRaw, scopesByLemma] = await Promise.all([
-    readFile(options.dictionaryPath, "utf8"),
-    buildSourceScopesByLemma(),
-  ]);
-  const dictionaryByLemma = buildDictionaryByLemma(parseEcdictCsv(dictionaryRaw));
+  const dictionaryRaw = await readFile(options.dictionaryPath, "utf8");
+  const rows = parseEcdictCsv(dictionaryRaw);
   const entries: GeneratedWordbookEntry[] = [];
-  let missing = 0;
   let skippedNoMeaning = 0;
+  let skippedNoScope = 0;
+  let skippedUnfriendlyLemma = 0;
+  const seenLemmas = new Set<string>();
 
-  for (const [lemma, scopeSet] of [...scopesByLemma.entries()].sort(([left], [right]) =>
-    left.localeCompare(right),
-  )) {
-    const row = dictionaryByLemma.get(lemma);
+  for (const row of rows) {
+    const lemma = normalizeLemma(row.word);
+    if (!lemma || seenLemmas.has(lemma)) {
+      continue;
+    }
 
-    if (!row) {
-      missing += 1;
+    seenLemmas.add(lemma);
+
+    if (!isLookupFriendlyLemma(lemma)) {
+      skippedUnfriendlyLemma += 1;
+      continue;
+    }
+
+    const scopes = scopeCodesFromEcdictTags(row.tag);
+    if (scopes.length === 0) {
+      skippedNoScope += 1;
       continue;
     }
 
     const entry = createEntry({
       lemma,
       row,
-      scopes: uniqueSortedScopes(scopeSet),
+      scopes,
       maxMeanings: options.maxMeanings,
     });
 
@@ -243,12 +202,12 @@ export async function generateEcdictWordbook(options: GenerateOptions) {
   return {
     outputPath: options.outputPath,
     entries: entries.length,
-    sourceCandidates: scopesByLemma.size,
-    dictionaryRows: dictionaryByLemma.size,
-    missing,
+    dictionaryRows: rows.length,
+    skippedNoScope,
+    skippedUnfriendlyLemma,
     skippedNoMeaning,
     byScope: Object.fromEntries(
-      scopeOrder.map((scope) => [
+      examScopeOrder.map((scope) => [
         scope,
         entries.filter((entry) => entry.examScopes.includes(scope)).length,
       ]),

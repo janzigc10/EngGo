@@ -1,93 +1,100 @@
 # EngGo 滚动交接
 
-## 当前状态（2026-06-05 Meaning Lookup Weak-Resolved Quality Gate V1 已完成待 review）
+## 当前状态（2026-06-07 Scope Closure + Legacy Cleanup + Frontend Direct FastAPI 已验证）
 - 当前分支 / worktree：`codex/meaning-lookup-quality-gate-v1`，工作区 `C:\Users\Chen\Desktop\EngGo`。
-- 当前活跃计划：`docs/superpowers/plans/2026-06-04-meaning-lookup-weak-resolved-quality-gate-v1.md`。
-- 当前参考设计：`docs/superpowers/specs/2026-06-03-model-assisted-intent-routing-v1-design.md`。
-- 当前验收报告：`docs/superpowers/reports/2026-06-04-meaning-lookup-quality-gate-v1-comparison.md`。
-- 上一轮已合并：Model-assisted Intent Routing V1 已合入并推送到 `origin/codex/chat-shell-bootstrap`，merge commit `1570ae3`。
-- 本轮结果：已完成 `meaning_lookup` 候选质量闸门、preferred lemma 候选注入 / 排序、weak expression advice fallback、seed expression providerless fallback、短语 hint 绕过泛 seed 组、review blocker 修复、focused tests 和 36-case before/after E2E。
+- 当前活跃计划：`docs/superpowers/plans/2026-06-05-ecdict-tag-scope-closure-v1.md`。
+- 当前清理计划：`docs/superpowers/plans/2026-06-07-legacy-ts-backend-cleanup-v1.md`。
+- 当前前后端分离计划：`docs/superpowers/plans/2026-06-07-frontend-direct-fastapi-v1.md`。
+- 当前参考设计：`docs/superpowers/specs/2026-06-05-ecdict-tag-scope-closure-design.md`。
+- 当前前后端分离设计：`docs/superpowers/specs/2026-06-07-frontend-direct-fastapi-v1-design.md`。
+- 上一轮验收报告：`docs/superpowers/reports/2026-06-04-meaning-lookup-quality-gate-v1-comparison.md`。
+- Scope closure 结果：已完成 ECDICT tag-derived 词书事实源、scope closure helper、四本前端 wordbook registry、聊天 active wordbook 同步、FastAPI 后端 closure 接入、重新生成 compact wordbook JSON，以及 37-case providerless before/after E2E。
+- Legacy cleanup 结果：已删除旧 TypeScript `retrieval` / `answering` 运行时、旧 direct eval runners、source-lemma TS helper 和 Prisma-backed TS retrieval integration gate。
+- Frontend direct FastAPI 结果：Next.js 只保留 React 前端壳；浏览器聊天请求通过 `src/features/chat/chat-api-client.ts` 直连 FastAPI `/api/chat`；Next `/api/chat` route / proxy tests / `src/lib/env.ts` 已删除。
 - 保留边界：
   - 顶层工具仍是 `ordinary_lookup`、`direct_compare`、`advanced_lookup` 三个。
   - 不做完整 ReAct Agent。
   - 不让 provider 自由扩词或决定工具参数。
-  - 不扩大 `semantic_expression`；本轮只修 `meaning_lookup` 候选质量。
-  - 不改 Learn / Review / Progress 状态机。
+  - 不做完整词根溯源或 morpheme analyzer。
+  - 不改 Learn / Review / Progress 状态机，只统一它们读取的词书 membership。
+  - 不修 `anti` / `sub` / `re` 前缀语义纯度；那是下一轮 root / prefix semantic quality gate。
+  - 本轮不删除 Prisma schema / migrations / seed 历史路径；是否完全退役 structured overlay 需要单独决策。
+  - 本轮不迁移 Vite React，不把 Learn / Review / Progress 后端化。
 
 ## 本轮已完成
-1. 文档：
-   - 新增 `docs/superpowers/plans/2026-06-04-meaning-lookup-weak-resolved-quality-gate-v1.md`。
-   - 新增 `docs/superpowers/reports/2026-06-04-meaning-lookup-quality-gate-v1-comparison.md`。
-   - 更新 `docs/README.md`、`progress.md`、`bugs.md`。
-2. `meaning_lookup` quality gate：
-   - `meaning_core` broad path 在 `build_broad_vocab_grounding()` 前先做候选质量分级。
-   - preferred lemma 和正向原 hint 命中为 strong；否定 / 使役 / alias-only 弱命中不再直接进入 grounded main answer。
-   - 如果有 preferred strong 候选，只保留 preferred strong，避免 `bridle / lid / law` 这类边缘释义混进 `限制` 主答案。
-3. ECDICT meaning candidate 合并：
-   - `meaning_lookup` 合并动态词表时改为 ECDICT meaning candidate 优先，避免 source lemma 同 lemma 候选覆盖掉带 `semantic_match_hints` 的 ECDICT 候选。
-   - 给 `限制 / 约束 / 制约`、`合作 / 协作 / 配合`、`遵循 / 遵守`、`表达观点` 等补最小 preferred/advice 映射。
-   - 收窄 `遵循 / 遵守` alias，不再借 `服从` 分支把 `submit/subdue` 带入。
-4. Weak expression fallback：
-   - 当没有 strong 候选但存在受控表达选项时，返回 `answerKind=plain`、`answerStyle=meaning_expression_advice`、`mainAnswer=[]`。
-   - metadata 记录 `weakCandidateLemmas`，并明确 `not a wordbook hit`，避免伪装成 source-backed grounded hit。
-5. E2E matrix：
-   - `scripts/run-model-routing-e2e-compare.py` 扩到 36 cases，新增 `forbid_main_contains`、`expected_answer_kind`、`expected_answer_style` 检查，请求超时提高到 20s 以适配 Windows 双 FastAPI comparison。
-   - 新增 `限制的英文是什么` 强命中保护；`表达观点` / `遵循` 改为 expected improvement，并禁止旧弱候选回流。
-   - 2026-06-05 扩展覆盖补进：`遵守规则用英文怎么说`、`负责的英文是什么`、`承担责任的英文是什么`、`表达想法的英文是什么`、`提出观点的英文是什么`、`restrain 和 constrain 的区别`、`desert dessert 怎么区分`、`和 contest 像的单词`、`according to 是什么意思`、`anti+xyz` / `re+con+sub` / `xqz` root boundary。
-6. 扩展探测后补修：
-   - `seed_expression` provider 失败时改为 grounded fallback，不再在 providerless 环境把已有 grounding 变成 503。
-   - `遵守规则`、`表达想法`、`提出观点` 等 phrase hint 不再被泛 seed expression 组提前截走，优先进入 meaning quality gate。
-7. Review blocker 修复：
-   - `meaning_expression_advice` 现在明确走 `answerKind=plain`、`resolution=no_match`、`noMatchReason=low_confidence`，并补齐前端需要的 `scopeReminder` / `followUpPrompt` 等 grounding 字段；前端专门显示“表达建议”，不再渲染成“已命中 0 个当前范围词”。
-   - phrase hint 截取增加否定上下文保护；`不承担责任的英文是什么` 不会被截成 `承担责任`，防止正向 preferred lemma 抢走否定表达。
-
-## Before baseline：2026-06-02 no-match / weak-answer audit
-1. 真实 Next proxy `/api/chat` 探测确认：当前 hard `resolution=no_match` 主要集中在随机/不稳定英文串、完全无候选的词根/词族/词形条件、形近 seed 本身不稳定，以及无上下文追问转 clarification。
-2. 更大的产品风险不是 hard no-match，而是“误 resolved 但弱回答”：
-   - `anti+dis 的词根有什么词` 会 resolved，但召回 `antique / anew / attic...` 一类弱相关候选。
-   - `跟 abandon 意思差不多的词`、`responsible 的同义词` 被历史测试刻意排除出词族/形近后，没有新的近义/表达工具承接，容易退成普通查词。
-   - `遵循的英文是什么` 后追问 `还有更适合作文的吗` 是已知 deferred 场景：当前 `还有吗` 动作优先，缺少 semantic style follow-up。
-   - 英文整句 `more formal way to say follow` 会先被拆成多 token 普通查词，再靠 no-match recovery 接住；这说明英文表达/语域意图还没有进入显式工具路由。
-3. 本轮将以这些样例作为 before/after comparison matrix 的核心行，证明增强不是只靠测试变绿。
+1. 文档与计划：
+   - 新增 `docs/superpowers/specs/2026-06-05-ecdict-tag-scope-closure-design.md`。
+   - 新增 `docs/superpowers/plans/2026-06-05-ecdict-tag-scope-closure-v1.md`。
+   - 更新 `docs/README.md`、`data/exam-vocab/ecdict-wordbook/README.md`。
+2. ECDICT tag-derived wordbook：
+   - `scripts/generate-ecdict-wordbook.ts` 不再读 source lemma manifests，改为直接读取 ECDICT exam tags。
+   - `entries.json` 存 direct `examScopes`，不把 closure 结果写回数据。
+   - 本地生成结果：7348 entries；direct scopes：Gaokao 3678 / CET-4 3832 / CET-6 5390 / Postgrad 4794。
+3. App-level scope closure：
+   - 新增前端 `src/features/exam-target/scope-closure.ts`，定义 `gaokao -> gaokao`、`cet4 -> gaokao+cet4`、`cet6 -> gaokao+cet4+cet6`、`postgrad -> all`。
+   - `wordbook-data.ts` 从同一份 `entries.json` 生成四本词书；closure 规模：Gaokao 3678 / CET-4 5299 / CET-6 7046 / Postgrad 7348。
+   - 保留 `cet6-foundation-v1` 默认 ID，避免破坏本地学习进度。
+4. Learn / Review / Progress / Chat 对齐：
+   - Learn / Review / Progress 继续用现有状态机，但当前词书来自 ECDICT tag closure registry。
+   - Chat 切换考试目标会同步 active wordbook；词书页手动切换词书也会同步考试目标。
+   - `/api/chat` 请求体新增 `activeWordbookId` 观测字段，后端仍以校验过的 `activeExamTarget` + closure 判断 membership。
+5. 后端 scope closure：
+   - `backend/app/content/ecdict.py` 的 preferred ECDICT tags 改为 closure tags，profile 仍保留 direct scope codes。
+   - `ordinary_lookup`、`advanced_lookup`、`broad_vocab`、`dynamic_light_grounding`、`repository` 使用 closure 判断 in-scope。
+6. E2E matrix：
+   - `scripts/run-model-routing-e2e-compare.py` 增加 `expected_main_first`。
+   - 新增 `meaning_activity_scope_closure_cn`：`活动的英文是什么` 在 CET-6 下必须 main first 为 `activity`。
+7. Legacy TypeScript backend cleanup：
+   - 前端消费的 `AnswerGrounding` / route enum 类型迁入 `src/features/chat/types.ts`。
+   - 删除 `src/features/retrieval/` 与 `src/features/answering/`。
+   - 删除旧 direct runners：`run-answer-style-eval`、`run-shape-neighbor-eval`、`run-real-vocab-lookalike-smoke`、`run-grounding-strategy-probe`、`run-source-only-lookup-sample`、`run-ecdict-source-only-audit` 等。
+   - `package.json` 去掉 `test:integration` 对旧 Prisma-backed retrieval test 的依赖。
+8. Frontend direct FastAPI：
+   - 新增 `src/features/chat/chat-api-client.ts`，默认 `NEXT_PUBLIC_ENGGO_FASTAPI_URL=http://127.0.0.1:8000`，浏览器直接 POST FastAPI `/api/chat`。
+   - `useChatSession` 改为调用 `postChatRequest()`；请求体 contract 不变，仍带 `activeExamTarget`、`activeWordbookId`、`history`、`conversationContext`。
+   - FastAPI 新增本地 Next origin CORS，默认 `http://127.0.0.1:3000,http://localhost:3000`，可用 `ENGGO_CORS_ALLOW_ORIGINS` 覆盖。
+   - 删除 Next `/api/chat` route、proxy tests、`src/lib/env.ts` 和 package 中的 proxy smoke scripts。
+   - `corepack pnpm dev:fastapi` 会向 Next 注入 `NEXT_PUBLIC_ENGGO_FASTAPI_URL`；默认 smoke 改为 FastAPI direct conversation-context gate。
 
 ## 最新验证
-- Focused backend：
-  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_advanced_lookup.py --basetemp tmp_pytest_meaning_gate -p no:cacheprovider` -> 51 passed。
-  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_advanced_lookup.py backend\tests\test_chat_contract.py backend\tests\test_chat_tool_router.py backend\tests\test_learning_intent.py backend\tests\test_learning_context.py --basetemp tmp_pytest_meaning_gate -p no:cacheprovider` -> 189 passed。
-- Full backend：
-  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q --basetemp tmp_pytest_meaning_gate_full -p no:cacheprovider` -> 357 passed。
-  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests --basetemp tmp_pytest_backend -p no:cacheprovider` -> 360 passed。
-  - workspace 内 pytest temp 已清理。
-- Diff：
-   - `git diff --check` -> passed，仅 Windows LF -> CRLF warnings。
+- 生成：
+  - `corepack pnpm exec tsx scripts\generate-ecdict-wordbook.ts` -> 7348 entries。
+- Backend：
+  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_ecdict.py backend\tests\test_ordinary_lookup_answer.py backend\tests\test_direct_compare_answer.py backend\tests\test_advanced_lookup.py backend\tests\test_chat_contract.py backend\tests\test_chat_tool_router.py backend\tests\test_learning_intent.py backend\tests\test_learning_context.py --basetemp tmp_pytest_scope_closure_backend -p no:cacheprovider` -> 229 passed。
+  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q --basetemp tmp_pytest_scope_closure_full -p no:cacheprovider` -> 361 passed。
+- Frontend focused：
+  - `corepack pnpm test src\features\exam-target\scope-closure.test.ts src\features\wordbook\wordbook-data.test.ts src\components\chat\chat-workspace.test.tsx` -> 3 files / 33 tests passed。
+  - `corepack pnpm test src\features\wordbook\wordbook-data.test.ts src\features\wordbook\wordbook-active-store.test.ts src\features\wordbook\wordbook-progress-store.test.ts src\features\wordbook\study-session.test.tsx src\features\wordbook\session-engine.test.ts src\features\collections\study-panels.test.tsx` -> 6 files / 79 tests passed。
+  - `corepack pnpm test src\features\exam-target\scope-closure.test.ts src\components\chat\chat-workspace.test.tsx src\features\chat\conversation-context.test.ts scripts\lib\conversational-learning-context-smoke.test.ts` -> 4 files / 43 tests passed。
+- Legacy cleanup frontend / scripts：
+  - `corepack pnpm test src\features\wordbook\wordbook-dashboard.test.tsx` -> 1 file / 12 tests passed。
+  - `corepack pnpm test src\components\chat\answer-actions.test.tsx src\components\chat\chat-workspace.test.tsx scripts\lib\black-box-product-smoke.test.ts scripts\lib\fastapi-migrated-slice-smoke.test.ts scripts\lib\answer-style-provider-smoke.test.ts scripts\lib\conversational-learning-context-smoke.test.ts` -> route test 删除后，相关 frontend/script tests 继续通过。
+- Frontend direct FastAPI：
+  - `corepack pnpm test src\features\chat\chat-api-client.test.ts src\components\chat\chat-workspace.test.tsx scripts\lib\dev-fastapi-stack.test.ts scripts\run-default-fastapi-smoke.test.ts scripts\lib\fastapi-migrated-slice-smoke.test.ts scripts\lib\conversational-learning-context-smoke.test.ts` -> 6 files / 60 tests passed。
+  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_config.py backend\tests\test_cors.py -p no:cacheprovider --basetemp tmp_pytest_frontend_direct` -> 5 passed。
+  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q --basetemp tmp_pytest_frontend_direct_full -p no:cacheprovider` -> 363 passed。
+  - `corepack pnpm test:unit` -> sandbox 里仍因 Windows 权限报 `EPERM ...\vitest.mjs`；提权后同一命令通过，31 files / 244 tests passed。
+  - 临时 FastAPI `127.0.0.1:8000` + `corepack pnpm eval:default-fastapi-smoke` -> FastAPI direct conversation-context smoke 13 total / 13 pass / 0 fail。
+- Lint / stale references / diff：
+  - `corepack pnpm lint` -> passed。
+  - `rg` 扫描旧 `features/answering` / `features/retrieval`、`retrieveCandidates`、`createChatService`、`source-lemma-sources` 等 -> source / scripts / package 已无旧运行时引用，仅剩文档里的已删除/已退役记录。
+  - `rg` 扫描 `src/app/api/chat`、`ENGGO_BACKEND_URL`、proxy package scripts、Next proxy 当前入口 -> source / scripts / package 已无活跃 proxy 引用；剩余为历史 bug/doc 说明。
+  - `git diff --check` -> passed，仅 Windows LF -> CRLF warnings。
 - Live before/after E2E：
-   - `C:\Users\Chen\anaconda3\python.exe scripts\run-model-routing-e2e-compare.py`。
+  - `C:\Users\Chen\anaconda3\python.exe scripts\run-model-routing-e2e-compare.py`。
   - baseline commit `52b7834` vs current working tree，同一批输入、同一本地 ECDICT CSV、`OPENAI_API_KEY=""`。
-  - 36 total / 36 pass / 0 fail / 23 changed。
-  - 分类：stable 12 / 12 pass / 1 changed；regression probe 2 / 2 pass / 1 changed；expected improvement 22 / 22 pass / 21 changed。
-   - 关键差距：`表达观点的英文是什么` 从 `hiss` 变成 `express / state / voice / represent`；`遵循的英文是什么` 从 `disobedience / subdue / unwilling` 变成 `follow / observe / comply / obey / abide`；`限制的英文是什么` 从 `bridle` 变成 `restrict / limit / constrain`；`遵守规则用英文怎么说` 从 clear_context 变成 `follow / observe / comply / obey / abide`；`负责 / 承担责任` 从 `provost` 变成 `responsible / liable`。
-   - no-match 没有无控制扩大：随机串仍 no-match，`access 是什么意思` / `formal 是什么意思` / direct compare / shape neighbor / fixed phrase 稳定路径不变；`anti+dis`、`pre+sub`、`anti+xyz`、`re+con+sub` 这种无稳定词族组合会 bounded no-match。
-- Review blocker follow-up：
-  - 红测先确认失败：weak advice 曾是 `plain + resolved + mainAnswer=[]`；`不承担责任的英文是什么` 曾被 phrase hint 截成 `承担责任`；前端曾显示普通“暂未稳定命中”而非表达建议。
-  - 修复后：`C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_advanced_lookup.py::test_meaning_lookup_weak_expression_candidate_uses_bounded_advice_without_provider backend\tests\test_advanced_lookup.py::test_meaning_lookup_weak_reverse_candidates_become_plain_expression_advice backend\tests\test_advanced_lookup.py::test_meaning_lookup_phrase_hints_do_not_strip_negative_context --basetemp tmp_pytest_meaning_gate_blockers -p no:cacheprovider` -> 3 passed。
-  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_advanced_lookup.py --basetemp tmp_pytest_meaning_gate_blockers_full -p no:cacheprovider` -> 55 passed。
-  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_advanced_lookup.py backend\tests\test_chat_contract.py backend\tests\test_chat_tool_router.py backend\tests\test_learning_intent.py backend\tests\test_learning_context.py --basetemp tmp_pytest_meaning_gate_blockers_contract -p no:cacheprovider` -> 193 passed。
-  - `corepack pnpm test src\components\chat\chat-workspace.test.tsx src\features\chat\conversation-context.test.ts scripts\lib\conversational-learning-context-smoke.test.ts` -> 3 files / 41 tests passed。
-  - `corepack pnpm lint -- src\components\chat\message-thread.tsx src\features\retrieval\types.ts` -> passed。
-  - 复跑 `scripts\run-model-routing-e2e-compare.py` -> 36 total / 36 pass / 0 fail / 23 changed；`git diff --check` -> passed，仅 Windows LF -> CRLF warnings。
-
-## 扩展探测残留
-1. `活动的英文是什么` 在 CET-6 providerless 真实装配下仍返回 `action`，没有优先 `activity`；直接原因是 `activity` 源范围是 Gaokao/CET-4，当前 CET-6 source lemma 与 ECDICT preferred profile 都不继承低级别基础词。是否修要单独定“CET-6 是否包含 CET-4/高考基础词”的范围策略。
-2. `anti 前缀有哪些词`、`sub开头表示下面的词`、`re开头表示再次的词` 这类单前缀语义列表仍可能给出生僻或语义不纯候选；这是 root/prefix semantic quality gate 下一轮问题，不属于本轮 meaning lookup。
-3. `xyz开头的单词` 会命中 ECDICT 的 `xyz` 条目；这属于 prefix/bare token 边界策略，已记录到 `bugs.md`。
-
+  - 37 total / 37 pass / 0 fail / 24 changed。
+  - 分类：stable 12 / 12 pass / 1 changed；regression probe 2 / 2 pass / 1 changed；expected improvement 23 / 23 pass / 22 changed。
+  - 新增关键差距：`活动的英文是什么` 从 `dormant / kinetic` 变成 `activity / event / action`，且 main first 为 `activity`。
 ## 下一步
-1. review 重点：
-   - preferred lemma 表是否足够窄，尤其 `遵循 / 遵守` 不应重新通过 `服从` 引入 `submit/subdue`。
-   - `meaning_expression_advice` 是否只在无 strong 候选时出现，且继续保持 plain / non-hit 展示。
-   - `meaning_lookup` 合并方向改为 ECDICT meaning candidate 优先后，是否影响其它 source lemma 场景。
-2. 如 review 通过，可合并回 `codex/chat-shell-bootstrap` 并推送。
-3. 后续不建议继续扩大 `semantic_expression`；下一块如果继续做，应抽样更多中文中译英问法，扩 weak-answer E2E matrix，而不是上大 Agent。
+1. 下一轮优先做 `Affix Semantic Gate V1`：
+   - 目标：把“词形匹配”和“词缀语义匹配”分开，避免 `anti` / `sub` / `re` / `trans` 等查询只按 startsWith / contains 硬召回。
+   - 覆盖范围：prefix、suffix、root / fragment、pseudo-token boundary。
+   - 关键样例：`anti 开头表示反对的词` 不能把 `antique` 当 anti- 反义词缀；`sub 开头表示下面的词`、`re 开头表示再次的词`、`trans 开头表示跨越/转移的词` 要先定义可验证语义 gate；`xyz开头的单词` 要单独处理 pseudo-token / dictionary-entry 边界。
+   - 产品原则：仍以“考生易混词 / 备考召回”为核心，不做完整词源学或 morpheme analyzer；先定义小而可验证的 gate，不测一个补一个。
+2. 不要继续拆 Next：Next 现在只作为 React 前端壳，聊天请求已直连 FastAPI；Vite React 迁移不是下一步。
+3. Scope closure 已过关，不要把 Affix Semantic Gate 混回 closure；`scopeCodes` 仍表示 direct ECDICT tag，词书 membership 由 closure helper 判断。
+4. `eval:product-smoke` 当前矩阵含旧 structured exact / comparisonView / root prototype 期望，不再作为默认 gate；如要恢复，先按当前 scope closure + FastAPI direct 行为重写矩阵。
 
 ## 上一轮完成内容
 1. 新增 `docs/superpowers/specs/2026-06-01-controlled-chat-orchestrator-v1-design.md` 和 `docs/superpowers/plans/2026-06-01-controlled-chat-orchestrator-v1.md`。
@@ -118,7 +125,7 @@
   - `git diff --check` -> passed，仅 Windows LF/CRLF warning。
 - Runtime / E2E：
   - FastAPI health：`http://127.0.0.1:8000/health` -> `status=ok`。
-  - Next proxy smoke：`corepack pnpm eval:fastapi:conversation-context-smoke -- --base-url http://127.0.0.1:3000 --label next-proxy-controlled-orchestrator` -> 13 total / 13 pass / 0 fail。
+  - 当时的 3000 代理 smoke（现已由 FastAPI direct smoke 取代）：`corepack pnpm eval:fastapi:conversation-context-smoke -- --base-url http://127.0.0.1:3000 --label next-proxy-controlled-orchestrator` -> 13 total / 13 pass / 0 fail。
   - in-app Browser：first-turn compare 可生成 `restrain / constrain` 追问上下文；英文自然续问 `how do I use these words` 接上旧候选且不 clarification；learning-adjacent no-match `how to learn English fast` 不 hard no-match、不暴露内部字段，并清掉旧“正在追问”提示；console error 为空。
 
 ## 上一轮已完成基线

@@ -1,9 +1,9 @@
-import type { ExamScopeCode } from "@/features/content/import-types";
+import type { ExamTargetCode } from "@/features/exam-target/model";
 import type {
   AnswerStyle,
   QueryMode,
   RetrievalResolution,
-} from "@/features/retrieval/types";
+} from "@/features/chat/types";
 
 export type BlackBoxProductSmokeCategory =
   | "standard_lookup"
@@ -19,7 +19,7 @@ export type BlackBoxProductSmokeCase = {
   category: BlackBoxProductSmokeCategory;
   source: "existing" | "batch3" | "condition-parser" | "source-lemma";
   query: string;
-  activeExamTarget: ExamScopeCode;
+  activeExamTarget: ExamTargetCode;
   expectedQueryMode: QueryMode;
   expectedResolution: RetrievalResolution;
   expectedAnswerStyle: AnswerStyle;

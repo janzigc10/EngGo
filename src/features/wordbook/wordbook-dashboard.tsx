@@ -5,6 +5,7 @@ import { useSyncExternalStore } from "react";
 
 import {
   getServerExamTargetSnapshot,
+  persistExamTarget,
   readStoredExamTarget,
   subscribeExamTarget,
 } from "@/features/exam-target/exam-target-store";
@@ -141,11 +142,6 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
             <p className="text-base font-medium text-slate-950">
               当前考试目标：{getExamTargetLabel(activeExamTarget)}
             </p>
-            {activeExamTarget === "postgrad" ? (
-              <p className="max-w-2xl text-sm leading-6 text-amber-700">
-                考研词书还没接入可机读来源，先用 CET-6 ECDICT 基础词书 V1。
-              </p>
-            ) : null}
           </div>
           <Link
             href="/collections"
@@ -166,7 +162,10 @@ export function WordbookDashboard({ mode, onStartSession }: WordbookDashboardPro
                 <button
                   key={option.id}
                   type="button"
-                  onClick={() => saveActiveWordbookId(option.id)}
+                  onClick={() => {
+                    saveActiveWordbookId(option.id);
+                    persistExamTarget(option.examTarget);
+                  }}
                   className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
                     option.id === wordbook.id
                       ? "border-slate-950 bg-slate-950 text-white"

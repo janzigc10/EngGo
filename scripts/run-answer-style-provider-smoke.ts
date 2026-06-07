@@ -81,7 +81,7 @@ type RunAnswerStyleProviderSmokeOptions = {
 };
 
 const DEFAULT_BASE_URL =
-  process.env.ENGGO_CHAT_BASE_URL ?? "http://127.0.0.1:3000";
+  process.env.ENGGO_CHAT_BASE_URL ?? "http://127.0.0.1:8000";
 const MAX_429_RETRIES = 2;
 const DEFAULT_REQUEST_TIMEOUT_MS = 45_000;
 const REQUEST_TIMEOUT_ENV = "ENGGO_PROVIDER_SMOKE_TIMEOUT_MS";

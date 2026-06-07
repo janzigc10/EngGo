@@ -8,16 +8,15 @@ import {
 } from "./run-default-fastapi-smoke";
 
 describe("default FastAPI smoke command", () => {
-  test("runs the Next proxy smoke commands that prove the default route hits FastAPI", () => {
+  test("runs the direct FastAPI smoke commands", () => {
     expect(buildDefaultFastApiSmokeCommands()).toEqual([
-      ["corepack", "pnpm", "eval:fastapi:migrated-smoke:proxy"],
-      ["corepack", "pnpm", "eval:product-smoke:http:proxy"],
+      ["corepack", "pnpm", "eval:fastapi:conversation-context-smoke"],
     ]);
   });
 
-  test("prints the default FastAPI route being verified", () => {
+  test("prints the direct FastAPI route being verified", () => {
     expect(formatDefaultFastApiSmokeBanner()).toContain(
-      "Next /api/chat -> FastAPI http://127.0.0.1:8000",
+      "FastAPI direct http://127.0.0.1:8000/api/chat",
     );
   });
 
@@ -33,7 +32,7 @@ describe("default FastAPI smoke command", () => {
   test("wraps Windows command shims on the real execution path", () => {
     expect(
       resolveSmokeCommandForSpawn(
-        ["corepack", "pnpm", "eval:product-smoke:http:proxy"],
+        ["corepack", "pnpm", "eval:product-smoke:http"],
         "win32",
       ),
     ).toEqual({
@@ -44,7 +43,7 @@ describe("default FastAPI smoke command", () => {
         "/c",
         "corepack",
         "pnpm",
-        "eval:product-smoke:http:proxy",
+        "eval:product-smoke:http",
       ],
     });
   });

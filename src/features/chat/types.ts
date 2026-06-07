@@ -1,9 +1,133 @@
-import type { AnswerGrounding } from "@/features/answering/build-grounding";
 import type { ExamTargetCode } from "@/features/exam-target/model";
+
+export type QueryMode =
+  | "meaning_lookup"
+  | "fuzzy_recall"
+  | "shape_neighbor_search"
+  | "root_family_summary"
+  | "direct_compare"
+  | "direct_lookup";
+
+export type AnswerStyle =
+  | "standard_lookup"
+  | "confusion_untangle"
+  | "root_family_summary"
+  | "expression_recall"
+  | "meaning_expression_advice"
+  | "broad_vocab_summary";
+
+export type RetrievalResolution = "resolved" | "no_match";
+
+export type NoMatchReason = "low_confidence" | "out_of_kb";
+
+export type RetrievalMatchType =
+  | "exact"
+  | "fuzzy"
+  | "source_lemma_exact"
+  | "external_dictionary_exact";
+
+export type ConfusionClusterLabel =
+  | "shape_like"
+  | "root_family"
+  | "prefix_family"
+  | "meaning_near"
+  | "collocation_boundary"
+  | "exam_high_value";
+
+export type ConfusionClusterPurpose =
+  | "confusion_untangle"
+  | "memory_map"
+  | "expression_recall";
+
+export type RootFamilyPriority =
+  | "must_memorize"
+  | "recognize"
+  | "low_priority";
+
+export type ChatGroundingCandidate = {
+  entryId: string;
+  lemma: string;
+  partOfSpeech?: string;
+  meaningsZh: string[];
+  matchedAlias: string | null;
+  scopeCodes: ExamTargetCode[];
+  inScope: boolean;
+  reason: string;
+  score: number;
+  sourceKind?: "structured" | "source_lemma" | "external_dictionary_basic";
+  reviewStatus?: "unreviewed";
+};
+
+export type ComparisonView = {
+  id: string;
+  whyConfusing: string;
+  commonMisusePoints: string[];
+  semanticBoundaryNotes: string[];
+  labels: ConfusionClusterLabel[];
+  purposes: ConfusionClusterPurpose[];
+  anchorPattern: string | null;
+  quickDistinction: string | null;
+  examHook: string | null;
+  members: Array<{
+    entryId: string;
+    lemma: string;
+    meaningsZh: string[];
+    emphasisNote: string | null;
+    inScope: boolean;
+  }>;
+};
+
+export type RootFamilyView = {
+  id: string;
+  fragment: string;
+  coreImage: string;
+  note: string;
+  caution: string;
+  members: Array<{
+    lemma: string;
+    partOfSpeech: string;
+    prefix: string | null;
+    prefixDirection: string;
+    actionStory: string;
+    modernMeaningZh: string;
+    priority: RootFamilyPriority;
+    entryId: string | null;
+    inScope: boolean;
+  }>;
+};
+
+export type AnswerGrounding = {
+  activeExamTarget: ExamTargetCode;
+  activeExamTargetLabel: string;
+  query: string;
+  queryMode: QueryMode;
+  answerStyle: AnswerStyle;
+  resolution: RetrievalResolution;
+  noMatchReason: NoMatchReason | null;
+  matchType?: RetrievalMatchType | null;
+  mainAnswer: ChatGroundingCandidate[];
+  confusionBoundary: ChatGroundingCandidate[];
+  scopeReminder: string;
+  followUpPrompt: string;
+  comparisonView: ComparisonView | null;
+  rootFamilyView: RootFamilyView | null;
+  spellingCorrection?: {
+    input: string;
+    lemma: string;
+  } | null;
+};
 
 export type ChatHistoryMessage = {
   role: "user" | "assistant";
   content: string;
+};
+
+export type ChatApiRequestBody = {
+  activeExamTarget: ExamTargetCode;
+  activeWordbookId: string;
+  query: string;
+  history: ChatHistoryMessage[];
+  conversationContext?: ConversationalLearningContext;
 };
 
 export type LearningCandidateRef = {
@@ -85,4 +209,10 @@ export type ChatApiSuccessResponse = {
   providerRequestId: string | null;
   conversationContext?: ConversationalLearningContext;
   resolvedFollowUp?: ResolvedFollowUp;
+};
+
+export type ChatApiErrorResponse = {
+  error?: {
+    message?: string;
+  };
 };

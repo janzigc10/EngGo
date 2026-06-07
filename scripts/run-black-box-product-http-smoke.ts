@@ -4,7 +4,7 @@ import type {
   AnswerStyle,
   QueryMode,
   RetrievalResolution,
-} from "@/features/retrieval/types";
+} from "@/features/chat/types";
 import {
   buildBlackBoxProductSmokeCases,
   evaluateBlackBoxProductSmoke,

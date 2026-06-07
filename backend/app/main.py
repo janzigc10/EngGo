@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from backend.app.api.chat import router as chat_router
@@ -24,6 +25,13 @@ def create_app(
 ) -> FastAPI:
     settings = load_settings()
     app = FastAPI(title="EngGo FastAPI Backend")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(settings.cors_allow_origins),
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type"],
+    )
     app.state.ordinary_lookup_service = ordinary_lookup_service
     app.state.direct_compare_service = direct_compare_service
     app.state.advanced_lookup_service = advanced_lookup_service

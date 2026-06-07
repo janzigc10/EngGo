@@ -9,8 +9,8 @@ export type DevStackConfig = {
   backendPort: number;
   nextPort: number;
   backendUrl: string;
+  frontendFastApiUrl: string;
   pythonCommand: string;
-  backendUrlWasCustomized: boolean;
 };
 
 export type CommandSpec = {
@@ -58,17 +58,18 @@ export function createDevStackConfig(
   const host = env.ENGGO_DEV_HOST?.trim() || defaultHost;
   const backendPort = parsePort(env.ENGGO_FASTAPI_PORT, defaultBackendPort);
   const nextPort = parsePort(env.ENGGO_NEXT_PORT, defaultNextPort);
-  const explicitBackendUrl = env.ENGGO_BACKEND_URL?.trim();
-  const backendUrl = explicitBackendUrl || `http://${host}:${backendPort}`;
+  const backendUrl = `http://${host}:${backendPort}`;
+  const frontendFastApiUrl =
+    env.NEXT_PUBLIC_ENGGO_FASTAPI_URL?.trim() || backendUrl;
 
   return {
     host,
     backendPort,
     nextPort,
     backendUrl,
+    frontendFastApiUrl,
     pythonCommand:
       env.ENGGO_PYTHON?.trim() || defaultPythonCommand(platform),
-    backendUrlWasCustomized: Boolean(explicitBackendUrl),
   };
 }
 
@@ -99,9 +100,9 @@ export function buildNextCommand(config: DevStackConfig): CommandSpec {
       "--port",
       String(config.nextPort),
     ],
-    env: config.backendUrlWasCustomized
-      ? { ENGGO_BACKEND_URL: config.backendUrl }
-      : {},
+    env: {
+      NEXT_PUBLIC_ENGGO_FASTAPI_URL: config.frontendFastApiUrl,
+    },
   };
 }
 

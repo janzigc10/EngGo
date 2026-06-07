@@ -63,15 +63,29 @@ default_joined_phrase_aliases = {
     "owingto": "owing to",
 }
 exam_profile_tags = {"zk", "gk", "cet4", "cet6", "ky"}
-preferred_ecdict_tags_by_exam_target = {
+direct_ecdict_tags_by_scope_code = {
     "gaokao": ("gk", "zk"),
     "cet4": ("cet4",),
     "cet6": ("cet6",),
     "postgrad": ("ky",),
 }
+scope_closure_by_exam_target = {
+    "gaokao": ("gaokao",),
+    "cet4": ("gaokao", "cet4"),
+    "cet6": ("gaokao", "cet4", "cet6"),
+    "postgrad": ("gaokao", "cet4", "cet6", "postgrad"),
+}
+preferred_ecdict_tags_by_exam_target = {
+    exam_target: tuple(
+        tag
+        for scope_code in scope_codes
+        for tag in direct_ecdict_tags_by_scope_code[scope_code]
+    )
+    for exam_target, scope_codes in scope_closure_by_exam_target.items()
+}
 ecdict_tags_by_scope_code = {
     scope_code: set(tags)
-    for scope_code, tags in preferred_ecdict_tags_by_exam_target.items()
+    for scope_code, tags in direct_ecdict_tags_by_scope_code.items()
 }
 scope_code_order = ["gaokao", "cet4", "cet6", "postgrad"]
 
@@ -218,6 +232,25 @@ def profile_tag_set(profile: EcdictBasicProfile) -> set[str]:
     }
 
 
+def scope_codes_for_exam_target(active_exam_target: str) -> list[str]:
+    return [
+        scope_code
+        for scope_code in scope_code_order
+        if scope_code in scope_closure_by_exam_target.get(active_exam_target, ())
+    ]
+
+
+def scope_code_in_exam_target(scope_code: str, active_exam_target: str) -> bool:
+    return scope_code in scope_closure_by_exam_target.get(active_exam_target, ())
+
+
+def scope_codes_in_exam_target(scope_codes: list[str] | tuple[str, ...], active_exam_target: str) -> bool:
+    return any(
+        scope_code_in_exam_target(scope_code, active_exam_target)
+        for scope_code in scope_codes
+    )
+
+
 def scope_codes_for_profile(
     profile: EcdictBasicProfile,
     *,
@@ -234,7 +267,7 @@ def scope_codes_for_profile(
         return [
             scope_code
             for scope_code in scope_codes
-            if scope_code == active_exam_target
+            if scope_code_in_exam_target(scope_code, active_exam_target)
         ]
 
     return scope_codes

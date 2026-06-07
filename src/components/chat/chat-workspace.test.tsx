@@ -57,6 +57,9 @@ describe("ChatWorkspace", () => {
     await waitFor(() => {
       expect(window.localStorage.getItem("enggo.activeExamTarget")).toBe("cet4");
     });
+    expect(window.localStorage.getItem("enggo.activeWordbook.v1")).toBe(
+      "cet4-foundation-v1",
+    );
     expect(screen.getByTestId("active-exam-target")).toHaveTextContent("当前词书：CET-4");
   });
 
@@ -143,12 +146,18 @@ describe("ChatWorkspace", () => {
     await user.click(screen.getByRole("button", { name: /开始提问/i }));
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/chat");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("http://127.0.0.1:8000/api/chat");
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
+    });
+    expect(
+      JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string),
+    ).toMatchObject({
+      activeExamTarget: "cet6",
+      activeWordbookId: "cet6-foundation-v1",
     });
 
     expect(await screen.findByText(/comply with/i)).toBeInTheDocument();
@@ -306,6 +315,7 @@ describe("ChatWorkspace", () => {
     ) as Record<string, unknown>;
 
     expect(secondRequestBody.activeExamTarget).toBe("postgrad");
+    expect(secondRequestBody.activeWordbookId).toBe("postgrad-foundation-v1");
     expect(secondRequestBody).not.toHaveProperty("conversationContext");
   });
 
@@ -338,6 +348,9 @@ describe("ChatWorkspace", () => {
     await waitFor(() => {
       expect(window.localStorage.getItem("enggo.activeExamTarget")).toBe("postgrad");
     });
+    expect(window.localStorage.getItem("enggo.activeWordbook.v1")).toBe(
+      "postgrad-foundation-v1",
+    );
     expect(screen.getByTestId("active-exam-target")).toHaveTextContent("当前词书：考研");
   });
 

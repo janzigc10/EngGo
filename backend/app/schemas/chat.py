@@ -29,6 +29,7 @@ class LearningFocus(BaseModel):
 class ConversationalLearningContext(BaseModel):
     version: Literal[1] = 1
     activeExamTarget: ExamTarget
+    activeWordbookId: str | None = None
     sourceMessageId: str
     topicKind: str
     sourceQuery: str | None = None
@@ -54,6 +55,7 @@ class ChatHistoryMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     activeExamTarget: ExamTarget
+    activeWordbookId: str | None = None
     query: str = Field(min_length=1)
     history: list[ChatHistoryMessage] = Field(default_factory=list)
     conversationContext: ConversationalLearningContext | None = None

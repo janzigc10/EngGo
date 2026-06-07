@@ -5,6 +5,7 @@ from backend.app.content.ecdict import (
     create_ecdict_basic_profile_lookup,
     lookup_ecdict_basic_profile,
     parse_ecdict_csv,
+    preferred_ecdict_tags_by_exam_target,
     scope_codes_for_profile,
 )
 
@@ -49,9 +50,20 @@ def test_scope_codes_for_profile_maps_ecdict_exam_tags():
     assert accent is not None
     assert scope_codes_for_profile(accent) == ["gaokao", "cet4", "postgrad"]
     assert scope_codes_for_profile(accent, active_exam_target="postgrad") == [
+        "gaokao",
+        "cet4",
         "postgrad",
     ]
-    assert scope_codes_for_profile(accent, active_exam_target="cet6") == []
+    assert scope_codes_for_profile(accent, active_exam_target="cet6") == [
+        "gaokao",
+        "cet4",
+    ]
+    assert preferred_ecdict_tags_by_exam_target["cet6"] == (
+        "gk",
+        "zk",
+        "cet4",
+        "cet6",
+    )
 
 
 def test_create_ecdict_basic_profile_lookup_returns_none_when_file_missing(tmp_path):

@@ -1,6 +1,10 @@
 import rawEntries from "../../../data/exam-vocab/ecdict-wordbook/entries.json";
 
 import type { ExamTargetCode } from "@/features/exam-target/model";
+import {
+  hasScopeInExamTargetClosure,
+  scopeCodesFromEcdictTags,
+} from "@/features/exam-target/scope-closure";
 import type { Wordbook, WordbookEntry, WordbookId } from "@/features/wordbook/wordbook-types";
 
 export const defaultWordbookId: WordbookId = "cet6-foundation-v1";
@@ -57,7 +61,7 @@ function normalizeEntry(value: RawEntry): WordbookEntry | null {
   const meaningsZh = normalizeTextList(value.meaningsZh);
   const examScopes = normalizeExamScopes(value.examScopes);
 
-  if (!lemma || meaningsZh.length === 0 || !examScopes.includes("cet6")) {
+  if (!lemma || meaningsZh.length === 0 || examScopes.length === 0) {
     return null;
   }
 
@@ -73,17 +77,52 @@ function normalizeEntry(value: RawEntry): WordbookEntry | null {
   };
 }
 
-const defaultWordbook: Wordbook = {
-  id: defaultWordbookId,
-  label: "CET-6 ECDICT 基础词书 V1",
-  sourceLabel: "基于 ECDICT + source lemma manifests 的 compact entries",
-  entries: (rawEntries as RawEntry[])
-    .map((entry) => normalizeEntry(entry))
-    .filter((entry): entry is WordbookEntry => entry !== null)
-    .sort((left, right) => left.lemma.localeCompare(right.lemma)),
-};
+const allEntries = (rawEntries as RawEntry[])
+  .map((entry) => normalizeEntry(entry))
+  .filter((entry): entry is WordbookEntry => entry !== null)
+  .sort((left, right) => left.lemma.localeCompare(right.lemma));
 
-const wordbookRegistry: Wordbook[] = [defaultWordbook];
+const wordbookConfigs = [
+  {
+    id: "gaokao-foundation-v1",
+    examTarget: "gaokao",
+    label: "高考 ECDICT 基础词书 V1",
+  },
+  {
+    id: "cet4-foundation-v1",
+    examTarget: "cet4",
+    label: "CET-4 ECDICT 基础词书 V1",
+  },
+  {
+    id: "cet6-foundation-v1",
+    examTarget: "cet6",
+    label: "CET-6 ECDICT 基础词书 V1",
+  },
+  {
+    id: "postgrad-foundation-v1",
+    examTarget: "postgrad",
+    label: "考研 ECDICT 基础词书 V1",
+  },
+] as const satisfies readonly {
+  id: WordbookId;
+  examTarget: ExamTargetCode;
+  label: string;
+}[];
+
+function buildWordbook(config: (typeof wordbookConfigs)[number]): Wordbook {
+  return {
+    id: config.id,
+    examTarget: config.examTarget,
+    label: config.label,
+    sourceLabel: "基于 ECDICT exam tags 的 compact entries",
+    entries: allEntries.filter((entry) =>
+      hasScopeInExamTargetClosure(entry.examScopes, config.examTarget),
+    ),
+  };
+}
+
+const wordbookRegistry: Wordbook[] = wordbookConfigs.map((config) => buildWordbook(config));
+const defaultWordbook = getWordbookById(defaultWordbookId);
 
 export function isKnownWordbookId(value: unknown): value is WordbookId {
   return typeof value === "string" && wordbookRegistry.some((wordbook) => wordbook.id === value);
@@ -98,7 +137,11 @@ export function listWordbooks(): Wordbook[] {
 }
 
 export function getWordbookById(wordbookId: WordbookId = defaultWordbookId): Wordbook {
-  return wordbookRegistry.find((wordbook) => wordbook.id === wordbookId) ?? defaultWordbook;
+  return (
+    wordbookRegistry.find((wordbook) => wordbook.id === wordbookId)
+    ?? wordbookRegistry.find((wordbook) => wordbook.id === defaultWordbookId)
+    ?? wordbookRegistry[0]
+  );
 }
 
 export function getDefaultWordbook(): Wordbook {
@@ -107,6 +150,14 @@ export function getDefaultWordbook(): Wordbook {
 
 export function listWordbookEntries(wordbookId: WordbookId = defaultWordbookId): WordbookEntry[] {
   return getWordbookById(wordbookId).entries;
+}
+
+export function getWordbookByExamTarget(examTarget: ExamTargetCode): Wordbook {
+  return wordbookRegistry.find((wordbook) => wordbook.examTarget === examTarget) ?? defaultWordbook;
+}
+
+export function getWordbookIdForExamTarget(examTarget: ExamTargetCode): WordbookId {
+  return getWordbookByExamTarget(examTarget).id;
 }
 
 export function findWordbookEntry(
@@ -122,3 +173,5 @@ export function findWordbookEntry(
       entry.aliases.some((alias) => alias.toLowerCase() === normalizedLemma),
   );
 }
+
+export { scopeCodesFromEcdictTags };

@@ -10,6 +10,7 @@ import {
   loadActiveStudySession,
   saveActiveStudySession,
 } from "@/features/wordbook/wordbook-active-session-store";
+import { saveActiveWordbookId } from "@/features/wordbook/wordbook-active-store";
 import { WordbookDashboard } from "@/features/wordbook/wordbook-dashboard";
 import {
   createDefaultProgress,
@@ -83,9 +84,23 @@ describe("WordbookDashboard", () => {
 
     render(<WordbookDashboard mode="learn" onStartSession={vi.fn()} />);
 
-    expect(screen.getByText("CET-6 ECDICT 基础词书 V1")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "CET-6 ECDICT 基础词书 V1" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("当前词书：CET-6 ECDICT 基础词书 V1")).toBeInTheDocument();
-    expect(screen.getByText(/目前只接入这一本 ECDICT compact 词书/)).toBeInTheDocument();
+    const selector = screen.getByRole("group", { name: "选择词书" });
+    expect(
+      within(selector).getByRole("button", { name: "高考 ECDICT 基础词书 V1" }),
+    ).toBeInTheDocument();
+    expect(
+      within(selector).getByRole("button", { name: "CET-4 ECDICT 基础词书 V1" }),
+    ).toBeInTheDocument();
+    expect(
+      within(selector).getByRole("button", { name: "CET-6 ECDICT 基础词书 V1" }),
+    ).toBeInTheDocument();
+    expect(
+      within(selector).getByRole("button", { name: "考研 ECDICT 基础词书 V1" }),
+    ).toBeInTheDocument();
     expect(screen.getAllByText(String(wordbook.entries.length)).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /开始 Learn/ })).toBeEnabled();
   });
@@ -293,14 +308,17 @@ describe("WordbookDashboard", () => {
     expect(screen.getByRole("button", { name: /开始 Review \(1\)/ })).toBeEnabled();
   });
 
-  it("shows the postgrad boundary note without fabricating a postgrad wordbook", () => {
+  it("shows the active postgrad wordbook", () => {
     window.localStorage.setItem(examTargetStorageKey, "postgrad");
+    saveActiveWordbookId("postgrad-foundation-v1");
 
     render(<WordbookDashboard mode="learn" onStartSession={vi.fn()} />);
 
-    expect(screen.getByText("CET-6 ECDICT 基础词书 V1")).toBeInTheDocument();
     expect(
-      screen.getByText("考研词书还没接入可机读来源，先用 CET-6 ECDICT 基础词书 V1。"),
+      screen.getByRole("heading", { name: "考研 ECDICT 基础词书 V1" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("当前词书：考研 ECDICT 基础词书 V1")).toBeInTheDocument();
+    expect(screen.getByText("当前考试目标：考研")).toBeInTheDocument();
+    expect(screen.queryByText(/考研词书还没接入/)).not.toBeInTheDocument();
   });
 });

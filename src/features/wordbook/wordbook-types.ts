@@ -1,6 +1,10 @@
 import type { ExamTargetCode } from "@/features/exam-target/model";
 
-export type WordbookId = "cet6-foundation-v1";
+export type WordbookId =
+  | "gaokao-foundation-v1"
+  | "cet4-foundation-v1"
+  | "cet6-foundation-v1"
+  | "postgrad-foundation-v1";
 
 export type WordbookEntry = {
   id: string;
@@ -17,6 +21,7 @@ export type Wordbook = {
   id: WordbookId;
   label: string;
   sourceLabel: string;
+  examTarget: ExamTargetCode;
   entries: WordbookEntry[];
 };
 

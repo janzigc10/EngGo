@@ -402,10 +402,11 @@ def test_source_lemma_vocabulary_and_structured_merge(tmp_path):
 
     assert merged_by_lemma["accent"] is structured_accent
     assert merged_by_lemma["journal"].source_kind == "source_lemma"
-    assert source_lemma_vocabulary(
+    postgrad_source = source_lemma_vocabulary(
         active_exam_target="postgrad",
         source_lemma_base_dir=tmp_path,
-    ) == []
+    )
+    assert {item.lemma for item in postgrad_source} == {"access", "accent", "journal"}
 
 
 def test_source_lemma_vocabulary_derives_pos_from_ecdict_meanings(tmp_path):

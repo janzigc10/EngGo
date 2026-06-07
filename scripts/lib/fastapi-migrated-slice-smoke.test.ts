@@ -777,13 +777,13 @@ describe("fastapi migrated-slice smoke", () => {
     expect(
       parseFastApiMigratedSliceSmokeArgs([
         "--base-url",
-        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8010",
         "--label",
-        "next-proxy",
+        "custom-direct",
       ]),
     ).toEqual({
-      baseUrl: "http://127.0.0.1:3000",
-      label: "next-proxy",
+      baseUrl: "http://127.0.0.1:8010",
+      label: "custom-direct",
     });
   });
 });

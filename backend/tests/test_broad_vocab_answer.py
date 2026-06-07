@@ -281,8 +281,8 @@ def test_ecdict_tagged_collection_grounding_uses_exam_tag_support_label():
         candidates=candidates,
     )
 
-    assert grounding["supportLabel"] == "基于 ECDICT 考研标签候选总结"
-    assert grounding["scopeReminder"] == "基于 ECDICT 考研标签候选总结"
+    assert grounding["supportLabel"] == "基于 ECDICT 考研词书候选总结"
+    assert grounding["scopeReminder"] == "基于 ECDICT 考研词书候选总结"
 
 
 def test_collection_confusion_cues_still_use_simple_inventory_table():

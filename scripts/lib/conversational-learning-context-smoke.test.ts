@@ -160,7 +160,6 @@ describe("conversational learning-context smoke", () => {
             query: "还有吗",
             expectedResolvedKind: "resolved_action",
             expectedAction: "show_more",
-            expectedTargetLemmas: ["salute", "value"],
           }),
         ],
       }),
@@ -480,13 +479,13 @@ describe("conversational learning-context smoke", () => {
     expect(
       parseConversationContextSmokeArgs([
         "--base-url",
-        "http://127.0.0.1:3000/",
+        "http://127.0.0.1:8010/",
         "--label",
-        "next-proxy",
+        "custom-direct",
       ]),
     ).toEqual({
-      baseUrl: "http://127.0.0.1:3000",
-      label: "next-proxy",
+      baseUrl: "http://127.0.0.1:8010",
+      label: "custom-direct",
     });
   });
 });

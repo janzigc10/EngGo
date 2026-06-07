@@ -52,6 +52,10 @@ type BatchCaseResult = TestCase & {
   error: ChatResponse["error"] | { code: string; message: string } | null;
 };
 
+const chatBaseUrl =
+  process.env.ENGGO_CHAT_BASE_URL?.trim().replace(/\/+$/, "")
+  || "http://127.0.0.1:8000";
+
 const cases: TestCase[] = [
   {
     category: "知识库内-中文释义",
@@ -323,7 +327,7 @@ async function requestChat(
   item: TestCase,
   attempt = 0,
 ): Promise<{ response: Response; payload: ChatResponse }> {
-  const response = await fetch("http://127.0.0.1:3000/api/chat", {
+  const response = await fetch(`${chatBaseUrl}/api/chat`, {
     method: "POST",
     headers: {
       "content-type": "application/json",

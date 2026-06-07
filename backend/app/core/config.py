@@ -9,6 +9,15 @@ def parse_bool(value: str | None) -> bool:
     return (value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def parse_csv(value: str | None, default: tuple[str, ...]) -> tuple[str, ...]:
+    if value is None:
+        return default
+
+    items = tuple(item.strip() for item in value.split(",") if item.strip())
+
+    return items or default
+
+
 @dataclass(frozen=True)
 class Settings:
     app_name: str = "enggo-fastapi"
@@ -21,6 +30,10 @@ class Settings:
     source_lemma_base_dir: Path = Path.cwd() / "data" / "exam-vocab"
     ecdict_dictionary_path: Path = (
         Path.cwd() / "output" / "external-dictionaries" / "ecdict.csv"
+    )
+    cors_allow_origins: tuple[str, ...] = (
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
     )
 
 
@@ -43,5 +56,9 @@ def load_settings(env_file: Path | str | None = None) -> Settings:
         ),
         ecdict_dictionary_path=Path(
             os.getenv("ENGGO_ECDICT_PATH", str(Settings.ecdict_dictionary_path)),
+        ),
+        cors_allow_origins=parse_csv(
+            os.getenv("ENGGO_CORS_ALLOW_ORIGINS"),
+            Settings.cors_allow_origins,
         ),
     )

@@ -12,16 +12,15 @@ export type SmokeCommand = [command: string, ...args: string[]];
 
 export function buildDefaultFastApiSmokeCommands(): SmokeCommand[] {
   return [
-    ["corepack", "pnpm", "eval:fastapi:migrated-smoke:proxy"],
-    ["corepack", "pnpm", "eval:product-smoke:http:proxy"],
+    ["corepack", "pnpm", "eval:fastapi:conversation-context-smoke"],
   ];
 }
 
 export function formatDefaultFastApiSmokeBanner() {
   return [
     "=== DEFAULT FASTAPI SMOKE ===",
-    "Verifying: Next /api/chat -> FastAPI http://127.0.0.1:8000",
-    "Prerequisite: run `corepack pnpm dev:fastapi` in another terminal.",
+    "Verifying: FastAPI direct http://127.0.0.1:8000/api/chat",
+    "Prerequisite: run FastAPI through `corepack pnpm dev:fastapi` or an equivalent backend process.",
     "",
   ].join("\n");
 }
