@@ -259,19 +259,20 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
       }
 
       setMessages((previousMessages) => {
-        const updatedMessages = [
+        const assistantMessage: ChatMessage = {
+          id: createMessageId("assistant"),
+          role: "assistant",
+          content: payload.answer,
+          answerKind: payload.answerKind,
+          grounding: payload.grounding,
+          requestId: payload.requestId,
+          providerRequestId: payload.providerRequestId,
+          conversationContext: payload.conversationContext,
+          resolvedFollowUp: payload.resolvedFollowUp,
+        };
+        const updatedMessages: ChatMessage[] = [
           ...previousMessages,
-          {
-            id: createMessageId("assistant"),
-            role: "assistant",
-            content: payload.answer,
-            answerKind: payload.answerKind,
-            grounding: payload.grounding,
-            requestId: payload.requestId,
-            providerRequestId: payload.providerRequestId,
-            conversationContext: payload.conversationContext,
-            resolvedFollowUp: payload.resolvedFollowUp,
-          },
+          assistantMessage,
         ];
 
         persistChatTranscript(updatedMessages);

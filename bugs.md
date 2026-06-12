@@ -1,5 +1,19 @@
 # EngGo 已知问题与环境坑
 
+## 2026-06-12 Next dev 用 `127.0.0.1:3000` 会拦截 dev resources（环境坑）
+### 症状
+Browser QA 打开 `http://127.0.0.1:3000` 时，Next 16 dev server 返回 200，但页面可能停在 loading fallback 或出现 hydration / RSC 噪声。dev log 会出现：
+
+`Blocked cross-origin request to Next.js dev resource /_next/webpack-hmr from "127.0.0.1".`
+
+### 根因判断
+Next dev 默认 Local origin 是 `http://localhost:3000`。用 `127.0.0.1:3000` 访问时，dev resource / HMR 被 Next 的 `allowedDevOrigins` 保护拦截，浏览器侧不能代表真实 hydrated 状态。
+
+### 处理方式
+1. 本地 Browser QA 默认打开 `http://localhost:3000`。
+2. 只有确实需要 `127.0.0.1:3000` 时，再在 `next.config.ts` 配 `allowedDevOrigins` 并重启 dev server。
+3. 如果看到 RSC 脚本文本、loading fallback 长时间不消失或 hydration 异常，先确认 URL origin，不要直接当成功能回归。
+
 ## 2026-06-02 No-match / weak-answer audit 残留（2026-06-04 已修主要 weak resolved，需防回归）
 ### 症状
 真实 Next proxy `/api/chat` 探测确认，当前 hard no-match 已经不算最主要问题；更影响体验的是部分问法会“看起来回答了”，但实际没有真正理解意图。

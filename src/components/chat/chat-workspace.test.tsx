@@ -76,6 +76,21 @@ describe("ChatWorkspace", () => {
     expect(screen.getByDisplayValue("遵从怎么说")).toBeInTheDocument();
   });
 
+  it("renders the wordbook overview instead of a static workspace note", () => {
+    render(<ChatWorkspace />);
+
+    expect(screen.getByLabelText("今日学习概览")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /学习新词/ })).toHaveAttribute(
+      "href",
+      "/learn",
+    );
+    expect(screen.getByRole("link", { name: /查看进度/ })).toHaveAttribute(
+      "href",
+      "/progress",
+    );
+    expect(screen.queryByText("主舞台先保持安静，但方向很明确。")).not.toBeInTheDocument();
+  });
+
   it("restores the last active exam target after remount", async () => {
     const user = userEvent.setup();
     window.localStorage.clear();
