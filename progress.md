@@ -11,6 +11,7 @@
   - `/wordbook` 集中承载词书切换、学习设置、总词数、已学、复习次数、每日背词量曲线。
   - `Progress` 从主导航退役，数据并入词书详情页。
   - Learn / Review 页面专注会话，不再塞词书切换和解释卡。
+  - 具体视觉风格定为 Ink Amber：冷白背景、墨黑主文字 / 主按钮、少量 amber 强调；amber 不承载白字主按钮。
 - 产品口径保持：不做“系统告诉用户今天必须先做什么”。用户自由选择 Today、Learn、Review、Chat 或进入词书页。
 - 上一轮已完成基线：Scope Closure + Legacy Cleanup + Frontend Direct FastAPI + Affix Semantic Gate 均已验证；聊天、检索、辨析和词缀语义 gate 先进入维护。
 - 保留边界：
@@ -32,11 +33,12 @@
    - 确认抽屉只放 `Today / Learn / Review / Chat`。
    - 确认词书页单独做路由，不进入抽屉导航。
    - 确认底部工具组 V1 只放一个词书图标。
+   - 确认具体配色为 Ink Amber，并记录白字压 amber 对比度不足的约束。
 4. 写入正式设计文档 `docs/superpowers/specs/2026-06-12-app-shell-redesign-v1-design.md`。
 5. 更新 `docs/README.md`，把 App Shell Redesign V1 加入当前有效设计。
 
 ## 最新验证（本轮）
-- Browser visual companion：`http://localhost:64986` 已展示最终确认稿，用户回复“嗯”确认。
+- Browser visual companion：`http://localhost:64986` 已展示最终确认稿，用户回复“嗯”确认；随后又确认 Ink Amber 配色。
 - 本轮是 docs/design-only，未运行前端实现测试。
 
 ## 下一步

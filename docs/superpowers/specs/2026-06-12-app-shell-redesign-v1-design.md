@@ -2,7 +2,7 @@
 
 ## Design Read
 
-Reading this as an exam-focused English learning app redesign for students, with a calm mobile-first app language, leaning toward Tailwind v4, Geist, restrained motion, and a single teal/cyan accent.
+Reading this as an exam-focused English learning app redesign for students, with a calm mobile-first app language, leaning toward Tailwind v4, Geist, restrained motion, and an Ink Amber palette.
 
 This is not a marketing-page redesign. The relevant `design-taste-frontend` constraints are the redesign/audit discipline, card restraint, consistent typography, clear controls, icon accessibility, and avoiding generic AI-looking UI. The landing-page and hero-image rules do not apply.
 
@@ -225,8 +225,17 @@ Typography:
 
 Color:
 
-- Use one accent family, likely teal/cyan.
-- Keep neutral slate/zinc surfaces.
+- Use the confirmed Ink Amber palette:
+  - App background: `#f8f8f6`.
+  - Surface: `#ffffff`.
+  - Primary ink: `#151515`.
+  - Muted text: `#6f6f68`.
+  - Border: `#e5e1d7`.
+  - Amber accent: `#d08a18`.
+- Keep amber as a restrained accent for badges, progress, chart bars, small highlights, and secondary emphasis.
+- Use primary ink for main text and primary filled buttons.
+- Do not use white text on amber. Local contrast check showed `#ffffff` on `#d08a18` is about `2.86:1`, below WCAG AA for ordinary text. Use `#151515` on amber instead, which is about `6.37:1`.
+- Keep the background cool off-white rather than beige/yellow paper. The app should feel like a sharp exam tool, not a retro notebook.
 - Avoid purple/blue gradient styling as a default app look.
 
 Shape:
