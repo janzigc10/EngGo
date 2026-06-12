@@ -1,55 +1,59 @@
 # EngGo 滚动交接
 
-## 当前状态（2026-06-12 Wordbook Daily Overview V1）
+## 当前状态（2026-06-12 App Shell Redesign V1 Design）
 - 当前分支 / worktree：`codex/meaning-lookup-quality-gate-v1`，工作区 `C:\Users\Chen\Desktop\EngGo`。
-- 当前活跃目标：完成首页 Wordbook Daily Overview V1，并用浏览器验收。
-- 产品口径已改：不做“系统告诉用户今天必须先做什么”。用户可以自由选择查词、学习、复习或看进度；首页只把当前词书状态和入口讲清楚。
-- 当前实现方向：复用现有 `WordbookDashboard`、progress records、study settings、active session store 和 active wordbook，不改 Learn / Review / Progress 状态机。
+- 当前活跃目标：前端 UI 从“几个独立页面 + 顶部 pill nav + 层层卡片”收成一个移动优先的 app shell；已完成设计确认，尚未开始实现。
+- 当前有效设计：`docs/superpowers/specs/2026-06-12-app-shell-redesign-v1-design.md`。
+- 用户已确认的信息架构：
+  - 顶部不放主导航，只保留三条杠菜单按钮和当前页面标题。
+  - 三条杠 / 左滑唤醒抽屉，抽屉只放 `Today / Learn / Review / Chat`。
+  - 词书入口不进抽屉；底部只放一个 book icon，进入 `/wordbook`。
+  - `/wordbook` 集中承载词书切换、学习设置、总词数、已学、复习次数、每日背词量曲线。
+  - `Progress` 从主导航退役，数据并入词书详情页。
+  - Learn / Review 页面专注会话，不再塞词书切换和解释卡。
+- 产品口径保持：不做“系统告诉用户今天必须先做什么”。用户自由选择 Today、Learn、Review、Chat 或进入词书页。
 - 上一轮已完成基线：Scope Closure + Legacy Cleanup + Frontend Direct FastAPI + Affix Semantic Gate 均已验证；聊天、检索、辨析和词缀语义 gate 先进入维护。
 - 保留边界：
   - 不做完整 ReAct Agent。
   - 不让 provider 自由扩词或决定工具参数。
   - 不做完整词根溯源或 morpheme analyzer。
-  - 不改 Learn / Review / Progress 状态机。
+  - 不改 Learn / Review 状态机。
   - 不迁移 Vite React。
+  - 不做账号、云同步或后端化学习进度。
   - 不恢复 Prisma dev / `db:*` / `real-smoke` / 旧 `eval:product-smoke`。
 
 ## 本轮已完成
-1. 重新扫了当前首页、Wordbook dashboard、progress store、active session store、study settings store 和相关测试，确认 Learn / Review / Progress 已经可用，缺口主要是首页右侧仍是静态工作区文案。
-2. 新增 `src/features/wordbook/wordbook-daily-overview.ts`：
-   - 输入当前词书、词书进度、学习设置、未完成 Learn / Review 轮次。
-   - 输出自然语言概览、状态指标和入口列表。
-   - 不输出单一 daily priority；Review、新词、继续学习和进度可以并列出现。
-3. 新增 `src/features/wordbook/wordbook-daily-overview-panel.tsx`，把首页右侧改成“今日学习概览”：
-   - 展示待复习、可学习、学习中、已通过。
-   - 根据本地状态展示 `继续复习`、`继续学习`、`复习到期词`、`学习新词`、`查看进度`。
-   - 文案避开“推荐 / 优先 / 必须 / 先做什么”的强制排序。
-4. `ChatWorkspace` 已移除旧静态 aside，改为挂载 Wordbook Daily Overview panel。
-5. 已补 focused tests：
-   - helper 层验证复习和新词并列出现，不被压成一个强制选择。
-   - panel 层验证从 localStorage 读取 due review 和 active learn session。
-   - ChatWorkspace 层验证旧静态文案已退役。
-6. Browser 验收时发现并修复首页概览的 hydration mismatch：服务端先稳定渲染默认词书概览，客户端 mount 后再读取 localStorage 中的 active session / progress。
-7. 新增 `bugs.md` 环境坑：Next 16 dev 下 Browser QA 应优先用 `http://localhost:3000`，`127.0.0.1:3000` 会被 `allowedDevOrigins` 拦截 dev resources，可能造成误判。
-8. `corepack pnpm build` 暴露既有 `use-chat-session.ts` assistant message 类型推断问题；已用显式 `ChatMessage` 注解修掉，生产 build 通过。
+1. 按用户要求使用 `design-taste-frontend` 的 redesign / audit 口径和 Brainstorm visual companion；没有直接改实现代码。
+2. 重新审计当前渲染 UI：确认主要问题是大 header 卡、顶部 pill nav、Learn / Review / Progress 重复词书切换和嵌套卡片，整体不像一个稳定 app shell。
+3. 通过 visual companion 逐步收敛方案：
+   - 否定常驻顶部主导航。
+   - 否定常驻左侧导航。
+   - 确认抽屉式主导航。
+   - 确认抽屉只放 `Today / Learn / Review / Chat`。
+   - 确认词书页单独做路由，不进入抽屉导航。
+   - 确认底部工具组 V1 只放一个词书图标。
+4. 写入正式设计文档 `docs/superpowers/specs/2026-06-12-app-shell-redesign-v1-design.md`。
+5. 更新 `docs/README.md`，把 App Shell Redesign V1 加入当前有效设计。
 
 ## 最新验证（本轮）
-- `corepack pnpm test src\features\wordbook\wordbook-daily-overview.test.ts src\features\wordbook\wordbook-daily-overview-panel.test.tsx src\components\chat\chat-workspace.test.tsx` -> 3 files / 32 tests passed。
-- `corepack pnpm lint` -> passed。
-- `corepack pnpm test:unit` -> 28 files / 233 tests passed。
-- `corepack pnpm build` -> passed；`/`、`/collections`、`/learn`、`/progress`、`/review` 均完成静态生成。
-- `git diff --check` -> passed，仅 Windows LF -> CRLF warnings。
-- Browser / computer use：
-  - `http://127.0.0.1:3000` 首次验收暴露 Next 16 dev resource origin 拦截，已改用 `http://localhost:3000` 并记录到 `bugs.md`。
-  - 首页右侧显示“今日学习概览”，真实本地状态下同时出现 `继续复习`、`继续学习`、`查看进度`，没有输出一个唯一推荐动作。
-  - 概览链接可进入 `/review`、`/learn`、`/progress`；目标页可见对应 dashboard / progress 内容。
-  - 修复 hydration gate 后，新标签页重新打开首页没有新的 console error / warning。
-  - 390px viewport 下无横向溢出，概览卡片和入口链接宽度正常。
+- Browser visual companion：`http://localhost:64986` 已展示最终确认稿，用户回复“嗯”确认。
+- 本轮是 docs/design-only，未运行前端实现测试。
 
 ## 下一步
-1. 本轮可提交。
-2. 后续如果继续 Wordbook 产品线，下一刀再处理 Chat -> Wordbook 的沉淀入口：查词 / 收藏后的词如何更自然进入之后的 Learn / Review。
-3. 不要把本轮概览扩成强制 daily priority；保留“用户想干什么就点什么”的产品口径。
+1. 本轮可提交设计文档与交接更新。
+2. Brainstorm 规范的 subagent spec review 受当前 subagent 工具“必须由用户显式要求 delegation”限制；如果要严格跑 subagent review，需要用户明确授权。
+3. 用户 review 当前 spec 后，下一步写实现计划。建议第一刀顺序：
+   - App shell + drawer + route IA：`/` Today、`/chat` 迁移、`/learn`、`/review`、`/wordbook`。
+   - Wordbook route：复用现有 active wordbook / settings / snapshot，集中词书切换和数据。
+   - Daily stats store + compact activity chart。
+   - Retire top pill nav and remove Learn / Review 内的词书切换块。
+4. 不要把 Today 或 Wordbook 扩成强制 daily priority；保持用户自由选择。
+
+## 上一轮完成内容（Wordbook Daily Overview V1）
+1. 重新扫了当前首页、Wordbook dashboard、progress store、active session store、study settings store 和相关测试，确认 Learn / Review / Progress 已经可用，缺口主要是首页右侧仍是静态工作区文案。
+2. 新增 `src/features/wordbook/wordbook-daily-overview.ts` 和 `src/features/wordbook/wordbook-daily-overview-panel.tsx`，首页右侧改成“今日学习概览”，并行展示继续复习、继续学习、学习新词和查看进度等入口，不输出单一 daily priority。
+3. `ChatWorkspace` 已移除旧静态 aside，改为挂载 Wordbook Daily Overview panel；相关 focused tests、lint、unit、build、`git diff --check` 和 Browser QA 当时均已通过。
+4. 新增 `bugs.md` 环境坑：Next 16 dev 下 Browser QA 应优先用 `http://localhost:3000`，`127.0.0.1:3000` 会被 `allowedDevOrigins` 拦截 dev resources，可能造成误判。
 
 ## 上一轮完成内容
 1. 新增 `docs/superpowers/specs/2026-06-01-controlled-chat-orchestrator-v1-design.md` 和 `docs/superpowers/plans/2026-06-01-controlled-chat-orchestrator-v1.md`。
