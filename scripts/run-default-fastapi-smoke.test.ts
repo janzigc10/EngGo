@@ -32,7 +32,7 @@ describe("default FastAPI smoke command", () => {
   test("wraps Windows command shims on the real execution path", () => {
     expect(
       resolveSmokeCommandForSpawn(
-        ["corepack", "pnpm", "eval:product-smoke:http"],
+        ["corepack", "pnpm", "eval:fastapi:conversation-context-smoke"],
         "win32",
       ),
     ).toEqual({
@@ -43,7 +43,7 @@ describe("default FastAPI smoke command", () => {
         "/c",
         "corepack",
         "pnpm",
-        "eval:product-smoke:http",
+        "eval:fastapi:conversation-context-smoke",
       ],
     });
   });

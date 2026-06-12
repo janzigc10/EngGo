@@ -34,7 +34,9 @@ from backend.app.retrieval.dynamic_light_grounding import (
     LightGroundingCandidate,
     build_light_grounding_candidates,
     clean_ecdict_broad_meanings,
+    has_person_noun_evidence,
     infer_ecdict_part_of_speech,
+    is_person_suffix_constraint,
     matched_meaning_constraint_keyword,
     merge_dynamic_vocabulary,
     source_lemma_vocabulary,
@@ -845,14 +847,22 @@ def root_fragment_query(normalized_text: str):
     return None
 
 
+def matches_prefix_constraint(lemma: str, prefix: str) -> bool:
+    return lemma.startswith(prefix) and len(lemma) > len(prefix)
+
+
+def matches_suffix_constraint(lemma: str, suffix: str) -> bool:
+    return lemma.endswith(suffix) and len(lemma) > len(suffix)
+
+
 def matches_constraint(lemma: str, constraint: dict[str, object]) -> bool:
     constraint_type = constraint["type"]
 
     if constraint_type == "prefix":
-        return lemma.startswith(str(constraint["value"]))
+        return matches_prefix_constraint(lemma, str(constraint["value"]))
 
     if constraint_type == "suffix":
-        return lemma.endswith(str(constraint["value"]))
+        return matches_suffix_constraint(lemma, str(constraint["value"]))
 
     if constraint_type == "contains":
         return str(constraint["value"]) in lemma
@@ -917,6 +927,31 @@ ecdict_definition_semantic_keywords = {
     "限制": ("restrict", "restrain", "prevent from leaving", "deprive of freedom"),
     "约束": ("restrict", "restrain", "prevent from leaving", "deprive of freedom"),
     "制约": ("restrict", "restrain", "prevent from leaving", "deprive of freedom"),
+    "反对": ("against", "opposite", "opposing", "resist", "counter"),
+    "相反": ("against", "opposite", "opposing", "reverse", "counter"),
+    "抗": ("against", "resist", "counter"),
+    "再次": ("again", "anew", "new consideration", "written again"),
+    "重新": ("again", "anew", "new consideration", "written again"),
+    "再": ("again", "anew", "new consideration", "written again"),
+    "重": ("again", "anew", "new consideration", "written again"),
+    "下面": ("below", "under", "beneath", "lower", "subordinate"),
+    "下": ("below", "under", "beneath", "lower", "subordinate"),
+    "以下": ("below", "under", "beneath", "lower"),
+    "低于": ("below", "under", "lower"),
+    "次级": ("subordinate", "lower"),
+    "跨越": ("across", "crossing", "through", "beyond"),
+    "横跨": ("across", "crossing"),
+    "穿过": ("through", "across"),
+    "转移": ("transfer", "transmit", "transport", "convert"),
+    "传递": ("transmit", "send", "transfer"),
+    "传送": ("transmit", "send", "transport"),
+    "没有": ("without", "lacking", "lack", "no "),
+    "无": ("without", "lacking", "lack", "no "),
+    "缺少": ("without", "lacking", "lack"),
+    "人": ("person", "one who", "someone who"),
+    "者": ("person", "one who", "someone who"),
+    "员": ("person", "worker"),
+    "师": ("teacher", "person"),
 }
 meaning_lookup_aliases = {
     "遵守": ("遵守", "遵循", "遵从"),
@@ -1287,11 +1322,23 @@ def matches_ecdict_intent_constraints(
         if not constraint.hard:
             continue
 
-        if constraint.type == "prefix" and not lemma.startswith(constraint.value):
+        if constraint.type == "prefix" and not matches_prefix_constraint(
+            lemma,
+            constraint.value,
+        ):
             return False
-        if constraint.type == "suffix" and not lemma.endswith(constraint.value):
+        if constraint.type == "suffix" and not matches_suffix_constraint(
+            lemma,
+            constraint.value,
+        ):
             return False
         if constraint.type == "contains" and constraint.value not in lemma:
+            return False
+        if (
+            constraint.type == "meaning"
+            and is_person_suffix_constraint(intent_plan, constraint)
+            and not has_person_noun_evidence(candidate)
+        ):
             return False
         if (
             constraint.type == "meaning"

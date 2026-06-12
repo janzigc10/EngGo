@@ -351,6 +351,66 @@ def meaning_matches_keyword(meaning: str, keyword: str, *, primary_only: bool) -
     return keyword in first_meaning_segment(meaning)
 
 
+def matches_prefix_constraint(lemma: str, prefix: str) -> bool:
+    return lemma.startswith(prefix) and len(lemma) > len(prefix)
+
+
+def matches_suffix_constraint(lemma: str, suffix: str) -> bool:
+    return lemma.endswith(suffix) and len(lemma) > len(suffix)
+
+
+person_suffix_meaning_keywords = {
+    "人",
+    "者",
+    "员",
+    "师",
+}
+person_noun_meaning_markers = (
+    "人",
+    "者",
+    "员",
+    "师",
+    "家",
+    "工",
+    "教师",
+    "老师",
+    "工人",
+    "劳动者",
+    "作者",
+)
+
+
+def is_person_meaning_constraint(constraint: IntentConstraint) -> bool:
+    keywords = set(constraint.alternatives or (constraint.value,))
+    keywords.add(constraint.value)
+
+    return bool(keywords & person_suffix_meaning_keywords)
+
+
+def is_person_suffix_constraint(
+    plan: LearningIntentPlan | None,
+    constraint: IntentConstraint,
+) -> bool:
+    if plan is None or not is_person_meaning_constraint(constraint):
+        return False
+
+    return any(
+        item.type == "suffix" and item.value == "er"
+        for item in plan.constraints
+    )
+
+
+def has_person_noun_evidence(candidate: RetrievalCandidate) -> bool:
+    part_of_speech = normalize_part_of_speech_label(candidate.part_of_speech)
+    if not part_of_speech or "n." not in part_of_speech:
+        return False
+
+    return any(
+        any(marker in first_meaning_segment(meaning) for marker in person_noun_meaning_markers)
+        for meaning in candidate.meanings_zh
+    )
+
+
 def matches_intent_constraints(
     candidate: RetrievalCandidate,
     plan: LearningIntentPlan | None,
@@ -363,11 +423,23 @@ def matches_intent_constraints(
         if not constraint.hard:
             continue
 
-        if constraint.type == "prefix" and not lemma.startswith(constraint.value):
+        if constraint.type == "prefix" and not matches_prefix_constraint(
+            lemma,
+            constraint.value,
+        ):
             return False
-        if constraint.type == "suffix" and not lemma.endswith(constraint.value):
+        if constraint.type == "suffix" and not matches_suffix_constraint(
+            lemma,
+            constraint.value,
+        ):
             return False
         if constraint.type == "contains" and constraint.value not in lemma:
+            return False
+        if (
+            constraint.type == "meaning"
+            and is_person_suffix_constraint(plan, constraint)
+            and not has_person_noun_evidence(candidate)
+        ):
             return False
         if (
             constraint.type == "meaning"
@@ -437,7 +509,10 @@ def add_intent_constraint_signals(
         if not constraint.hard:
             continue
 
-        if constraint.type == "prefix" and lemma.startswith(constraint.value):
+        if constraint.type == "prefix" and matches_prefix_constraint(
+            lemma,
+            constraint.value,
+        ):
             add_signal_once(
                 signals,
                 signal_type="prefix",
@@ -445,7 +520,10 @@ def add_intent_constraint_signals(
                 detail=constraint.value,
             )
             score_delta += 110
-        elif constraint.type == "suffix" and lemma.endswith(constraint.value):
+        elif constraint.type == "suffix" and matches_suffix_constraint(
+            lemma,
+            constraint.value,
+        ):
             add_signal_once(
                 signals,
                 signal_type="suffix",
@@ -462,6 +540,12 @@ def add_intent_constraint_signals(
             )
             score_delta += 90
         elif constraint.type == "meaning":
+            if (
+                is_person_suffix_constraint(plan, constraint)
+                and not has_person_noun_evidence(candidate)
+            ):
+                continue
+
             if matched_keyword := matched_meaning_constraint_keyword(
                 candidate,
                 constraint,
@@ -573,13 +657,15 @@ def score_candidate(
                 score += weight
 
     for prefix in prefix_hint_pattern.findall(query):
-        if lemma.startswith(prefix.lower()):
-            add_signal(signals, signal_type="prefix", weight=110, detail=prefix.lower())
+        normalized_prefix = prefix.lower()
+        if matches_prefix_constraint(lemma, normalized_prefix):
+            add_signal(signals, signal_type="prefix", weight=110, detail=normalized_prefix)
             score += 110
 
     for suffix in suffix_hint_pattern.findall(query):
-        if lemma.endswith(suffix.lower()):
-            add_signal(signals, signal_type="suffix", weight=110, detail=suffix.lower())
+        normalized_suffix = suffix.lower()
+        if matches_suffix_constraint(lemma, normalized_suffix):
+            add_signal(signals, signal_type="suffix", weight=110, detail=normalized_suffix)
             score += 110
 
     fragment_hints = [

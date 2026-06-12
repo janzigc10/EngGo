@@ -10,14 +10,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run --maxWorkers=1",
-    "test:unit": "vitest run --maxWorkers=1 --exclude src/features/content/seed-content.test.ts",
+    "test:unit": "vitest run --maxWorkers=1",
     "test:watch": "vitest --maxWorkers=1",
     "test:e2e": "playwright test",
-    "db:migrate": "prisma migrate deploy",
-    "db:seed": "prisma db seed",
-    "db:seed:real-smoke": "tsx prisma/seed.ts --dataset real-smoke",
-    "eval:product-smoke": "tsx scripts/run-black-box-product-http-smoke.ts",
-    "eval:product-smoke:http": "tsx scripts/run-black-box-product-http-smoke.ts",
     "eval:answer-style:provider": "tsx scripts/run-answer-style-provider-smoke.ts",
     "eval:standard-lookup:provider": "tsx scripts/run-standard-lookup-provider-smoke.ts",
     "eval:fastapi:migrated-smoke": "tsx scripts/run-fastapi-migrated-slice-smoke.ts",
@@ -26,15 +21,9 @@
     "eval:default-fastapi-smoke": "tsx scripts/run-default-fastapi-smoke.ts",
     "verify": "corepack pnpm lint && corepack pnpm test:unit && corepack pnpm test:e2e"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.7.0",
-    "@prisma/client": "^7.7.0",
     "dotenv": "^17.4.2",
     "next": "16.2.4",
-    "pg": "^8.20.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "zod": "^4.3.6"
@@ -51,7 +40,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "jsdom": "^29.0.2",
-    "prisma": "^7.7.0",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5",

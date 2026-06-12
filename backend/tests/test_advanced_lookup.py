@@ -1016,6 +1016,182 @@ def test_con_restrict_question_can_use_ecdict_definition_without_forced_alias():
     assert "contain" not in main_lemmas
 
 
+def test_anti_form_prefix_inventory_can_include_non_affix_words():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("antiwar", ["adj. 反战的"], tag="ky"),
+            ecdict_profile("antibody", ["n. 抗体"], tag="ky"),
+            ecdict_profile("antique", ["n. 古董", "adj. 古时的"], tag="ky"),
+            ecdict_profile("anticipate", ["vt. 预料；预期"], tag="ky"),
+        ],
+    )
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=FakeProvider(),
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="anti开头的词有哪些",
+        request_id="req_anti_form_prefix",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = {item["lemma"] for item in grounding["mainAnswer"]}
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert grounding["learningIntentPlan"]["task"] == "form_filter"
+    assert grounding["broadAnswerPlan"]["presentation"] == "inventory_table"
+    assert {"antiwar", "antibody", "antique", "anticipate"} <= main_lemmas
+
+
+def test_anti_semantic_prefix_requires_meaning_evidence():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("antiwar", ["adj. 反战的"], tag="ky"),
+            ecdict_profile("antibody", ["n. 抗体"], tag="ky"),
+            ecdict_profile("antique", ["n. 古董", "adj. 古时的"], tag="ky"),
+            ecdict_profile("anticipate", ["vt. 预料；预期"], tag="ky"),
+        ],
+    )
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=FakeProvider(),
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    for query in ["anti开头表示反对的词", "anti表示反对的词"]:
+        result = service.answer(
+            active_exam_target="postgrad",
+            query=query,
+            request_id=f"req_anti_semantic_prefix_{query}",
+        )
+
+        grounding = result.payload.grounding
+        main_lemmas = {item["lemma"] for item in grounding["mainAnswer"]}
+
+        assert result.status_code == 200
+        assert result.payload.providerRequestId is None
+        assert grounding["learningIntentPlan"]["task"] == "semantic_filter"
+        assert grounding["broadAnswerPlan"]["presentation"] == "semantic_filter_table"
+        assert {"antiwar", "antibody"} <= main_lemmas
+        assert "antique" not in main_lemmas
+        assert "anticipate" not in main_lemmas
+
+
+def test_re_semantic_prefix_does_not_keep_reconcile_from_form_only():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("rewrite", ["v. 重写"], tag="ky"),
+            ecdict_profile("renew", ["v. 重新开始；更新"], tag="ky"),
+            ecdict_profile("reconsider", ["v. 重新考虑"], tag="ky"),
+            ecdict_profile("reconcile", ["vt. 使和解，调停，使一致"], tag="ky"),
+        ],
+    )
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=FakeProvider(),
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="re开头表示再次的词",
+        request_id="req_re_again_prefix",
+    )
+
+    grounding = result.payload.grounding
+    main_lemmas = {item["lemma"] for item in grounding["mainAnswer"]}
+
+    assert result.status_code == 200
+    assert result.payload.providerRequestId is None
+    assert grounding["learningIntentPlan"]["task"] == "semantic_filter"
+    assert {"rewrite", "renew", "reconsider"} <= main_lemmas
+    assert "reconcile" not in main_lemmas
+
+
+def test_suffix_semantic_filters_exclude_same_suffix_noise():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("hopeless", ["adj. 没有希望的"], tag="ky"),
+            ecdict_profile("useless", ["adj. 无用的"], tag="ky"),
+            ecdict_profile("unless", ["conj. 除非"], tag="ky"),
+            ecdict_profile("teacher", ["n. 教师"], tag="ky"),
+            ecdict_profile("worker", ["n. 工人"], tag="ky"),
+            ecdict_profile(
+                "administer",
+                ["vt. 管理, 料理, 执行", "vi. 执行遗产管理人的职责, 给予帮助"],
+                tag="ky",
+            ),
+            ecdict_profile("better", ["a. 较好的", "adv. 比较好"], tag="ky"),
+            ecdict_profile("water", ["n. 水"], tag="ky"),
+        ],
+    )
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=FakeProvider(),
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    for query in ["less结尾表示没有的词", "-less表示没有的词"]:
+        less_result = service.answer(
+            active_exam_target="postgrad",
+            query=query,
+            request_id=f"req_less_without_suffix_{query}",
+        )
+        less_lemmas = {
+            item["lemma"] for item in less_result.payload.grounding["mainAnswer"]
+        }
+
+        assert less_result.status_code == 200
+        assert less_result.payload.grounding["learningIntentPlan"]["task"] == "semantic_filter"
+        assert {"hopeless", "useless"} <= less_lemmas
+        assert "unless" not in less_lemmas
+
+    for query in ["er结尾表示人的词", "-er表示人的词"]:
+        er_result = service.answer(
+            active_exam_target="postgrad",
+            query=query,
+            request_id=f"req_er_person_suffix_{query}",
+        )
+        er_lemmas = {item["lemma"] for item in er_result.payload.grounding["mainAnswer"]}
+
+        assert er_result.status_code == 200
+        assert er_result.payload.grounding["learningIntentPlan"]["task"] == "semantic_filter"
+        assert {"teacher", "worker"} <= er_lemmas
+        assert "administer" not in er_lemmas
+        assert "better" not in er_lemmas
+        assert "water" not in er_lemmas
+
+
+def test_prefix_query_does_not_resolve_exact_same_length_token():
+    ecdict_lookup = SearchableEcdictLookup(
+        [
+            ecdict_profile("xyz", ["n. 字母组合"], tag="ky"),
+        ],
+    )
+    service = AdvancedLookupService(
+        repository=FakeRepository(in_scope_entries=[]),
+        provider=FakeProvider(),
+        ecdict_lookup=ecdict_lookup,
+    )
+
+    result = service.answer(
+        active_exam_target="postgrad",
+        query="xyz开头的单词",
+        request_id="req_xyz_prefix_exact_token",
+    )
+
+    grounding = result.payload.grounding
+
+    assert result.status_code == 200
+    assert grounding["queryMode"] == "root_family_summary"
+    assert grounding["resolution"] == "no_match"
+    assert grounding["mainAnswer"] == []
+
+
 def test_desert_dessert_similarity_question_resolves_shape_neighbors():
     desert = candidate("desert", ["\u6c99\u6f20\uff1b\u629b\u5f03"], part_of_speech="n. / v.")
     dessert = candidate("dessert", ["\u751c\u70b9"], part_of_speech="n.")

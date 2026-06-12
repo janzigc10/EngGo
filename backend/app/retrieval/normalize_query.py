@@ -27,6 +27,14 @@ root_fragment_pattern = re.compile(
     r"[a-z]+\+[a-z]+|[a-z]+\.\.\.[a-z]+|(?:^|\s)-[a-z]+",
     re.IGNORECASE,
 )
+literal_affix_semantic_prefix_pattern = re.compile(
+    r"\b(?:anti|re|sub|trans|pre|co|con|e)\s*(?:表示|表达|意思是|含义是|中文是)[\u3400-\u9fff]{1,24}",
+    re.IGNORECASE,
+)
+literal_affix_semantic_suffix_pattern = re.compile(
+    r"(?:^|\s)-(?:less|er)\s*(?:表示|表达|意思是|含义是|中文是)[\u3400-\u9fff]{1,24}",
+    re.IGNORECASE,
+)
 standalone_fragment_recall_pattern = re.compile(
     r"\b[a-z]{3,12}\s*(?:这串|这段|这个片段|相关.*(?:词|整理)|怎么整理)",
     re.IGNORECASE,
@@ -400,6 +408,12 @@ def contains_root_fragment_recall_pattern(normalized_text: str) -> bool:
 
     if contains_related_word_exclusion(text):
         return False
+
+    if literal_affix_semantic_prefix_pattern.search(text) is not None:
+        return True
+
+    if literal_affix_semantic_suffix_pattern.search(text) is not None:
+        return True
 
     if standalone_fragment_recall_pattern.search(text):
         return True

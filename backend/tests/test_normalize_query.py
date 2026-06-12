@@ -305,6 +305,24 @@ def test_combined_fragment_query_is_detected_as_root_family_summary():
     assert result.is_supported_ordinary_lookup is False
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "anti表示反对的词",
+        "re表示再次的词",
+        "sub表示下面的词",
+        "trans表示跨越的词",
+        "-less表示没有的词",
+        "-er表示人的词",
+    ],
+)
+def test_literal_affix_semantic_query_is_detected_as_root_family_summary(query):
+    result = normalize_query(query)
+
+    assert result.query_mode == "root_family_summary"
+    assert result.is_supported_ordinary_lookup is False
+
+
 def test_standalone_fragment_query_is_detected_as_root_family_summary():
     result = normalize_query("spect 这串相关的词怎么整理")
 

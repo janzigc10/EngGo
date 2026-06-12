@@ -599,5 +599,61 @@
       "breath": "短一些，记作名词“一口气”。",
       "breathe": "末尾 e 拉长，记作动词“呼吸”。"
     }
+  },
+  {
+    "id": "root-stitute",
+    "members": ["institute", "institution", "constitute", "substitute"],
+    "labels": ["root_family", "shape_like", "exam_high_value"],
+    "purposes": ["memory_map", "confusion_untangle"],
+    "anchorPattern": "stitute",
+    "quickDistinction": "institute 偏“设立/机构”；institution 是“机构/制度”；constitute 是“构成”；substitute 是“代替”。",
+    "examHook": "阅读和改错先看动作方向：设立、构成、替代、机构名词不要互换。",
+    "teachFirst": "institute",
+    "whyConfusing": "这组都含 stitute 形近片段，又常出现在制度、组成和替代语境中，容易按中文大意混用。",
+    "commonMisusePoints": [
+      "institute 和 institution 都可关联“机构/制度”，但一个常作动词或具体机构名，一个是名词。",
+      "constitute 不是“建立机构”，而是“构成、组成”。",
+      "substitute 强调替代关系，常搭配 for。"
+    ],
+    "semanticBoundaryNotes": [
+      "institute 作动词表示正式设立、制定或开始实施，也可作名词表示研究所、学院。",
+      "institution 是名词，表示机构、制度或惯例。",
+      "constitute 表示构成、组成或被视为，相当于 make up。",
+      "substitute 表示代替、替换，关注 A 替 B。"
+    ],
+    "memberNotes": {
+      "institute": "常见搭配 institute a policy/reform。",
+      "institution": "常见搭配 educational institution / financial institution。",
+      "constitute": "常见搭配 constitute a threat / constitute the majority。",
+      "substitute": "常见搭配 substitute A for B / a substitute for。"
+    }
+  },
+  {
+    "id": "root-tempt",
+    "members": ["attempt", "tempt", "temptation", "contempt"],
+    "labels": ["root_family", "exam_high_value"],
+    "purposes": ["memory_map", "confusion_untangle"],
+    "anchorPattern": "tempt",
+    "quickDistinction": "attempt 是尝试；tempt 是引诱；temptation 是诱惑；contempt 是轻蔑。",
+    "examHook": "完形题看情绪和动作：attempt to do 是尝试，tempt sb. to do 是诱使，contempt 是负面态度。",
+    "teachFirst": "attempt",
+    "whyConfusing": "这组都带 tempt 片段，但 attempt 偏动作尝试，tempt/temptation 偏诱惑，contempt 偏态度轻蔑。",
+    "commonMisusePoints": [
+      "attempt 不等于 tempt，前者是自己尝试做事，后者是诱使别人做事。",
+      "temptation 是名词“诱惑”，不能直接当动词用。",
+      "contempt 不是诱惑，而是轻蔑、鄙视。"
+    ],
+    "semanticBoundaryNotes": [
+      "attempt 表示尝试、企图，常接 to do。",
+      "tempt 表示引诱、诱使，常接 someone to do。",
+      "temptation 表示诱惑、引诱物或想做某事的冲动。",
+      "contempt 表示轻蔑、鄙视，是态度名词。"
+    ],
+    "memberNotes": {
+      "attempt": "常见搭配 attempt to solve / make an attempt。",
+      "tempt": "常见搭配 tempt someone to do something。",
+      "temptation": "常见搭配 resist temptation。",
+      "contempt": "常见搭配 show contempt for。"
+    }
   }
 ]

@@ -5,7 +5,7 @@ EngGo 是一个面向高考、四级、六级、考研用户的聊天式英语�
 ## 项目亮点
 
 - **聊天式学习入口**：用户可以直接用中文或中英混合提问，例如“access assess excess 怎么区分”“tion 结尾的词有哪些”“complex 和 complicate 是一个意思吗”。
-- **ECDICT 大词库底座**：以 ECDICT 作为默认词库来源，旧结构化 DB 保留为冻结覆盖层和历史回归资产。
+- **ECDICT 大词库底座**：以 ECDICT 作为默认词库来源，运行时不再依赖旧 Prisma / real-smoke 数据链路。
 - **考试范围优先**：回答优先结合当前考试目标和词库证据；未命中当前范围时，可以给出有边界的普通英语学习回答，但不会伪装成范围命中。
 - **模糊检索与纠错**：支持 exact lookup、中文核心义召回、形近词检索、拼写 typo 候选确认、词根/后缀/碎片检索。
 - **易混词辨析**：针对用户明确提到的词，使用词典 grounding 交给大模型组织短中文辨析，避免把普通词典释义包装成伪人工易混图谱。
@@ -37,7 +37,7 @@ EngGo 是一个面向高考、四级、六级、考研用户的聊天式英语�
 
 - **Frontend**：Next.js 16, React 19, Tailwind CSS
 - **Backend**：Python FastAPI；Next.js 只作为前端壳，不再提供聊天代理后端
-- **Data / Database**：ECDICT CSV / generated compact JSON；PostgreSQL + Prisma 7 保留作结构化覆盖层和历史回归资产
+- **Data**：ECDICT CSV / generated compact JSON；`data/exam-vocab/seed` 保留少量 curated 回归内容
 - **LLM Provider**：OpenAI-compatible API abstraction
 - **Testing**：Vitest, React Testing Library, Playwright
 - **Tooling**：TypeScript, ESLint, pnpm, Corepack
@@ -60,14 +60,13 @@ User query
 - `src/features/chat/`：聊天响应契约、前端 session hook 和短期会话上下文处理。
 - `src/components/chat/`：聊天界面、答案渲染、收藏动作。
 - `src/features/wordbook/`：Learn / Review / Progress 本地学习状态机和 UI。
-- `data/exam-vocab/`：seed、real-smoke 和 generated ECDICT compact 词库数据。
-- `scripts/`：FastAPI-first dev stack、HTTP 产品 smoke、provider smoke 和 ECDICT wordbook 生成。
+- `data/exam-vocab/`：curated seed 数据和 generated ECDICT compact 词书数据。
+- `scripts/`：FastAPI-first dev stack、FastAPI direct smoke、provider smoke 和 ECDICT wordbook 生成。
 - `docs/`：产品设计、实现计划和文档索引。
 
 ## 数据说明
 
-- `data/exam-vocab/seed/`：开发基础数据，覆盖 `gaokao`、`cet4`、`cet6`、`postgrad`。
-- `data/exam-vocab/real-smoke/`：source-backed 真实词库 smoke 数据，当前覆盖 `gaokao`、`cet4`、`cet6`。
+- `data/exam-vocab/seed/`：少量 curated expression / root-family 回归内容，由 FastAPI 直接读取。
 - `data/exam-vocab/ecdict-wordbook/`：由 ECDICT CSV exam tags 生成的 compact wordbook 数据，当前约 7,348 entries；CET-4 / CET-6 / 考研词书在 app 层按 scope closure 继承低级别基础词。
 - `output/external-dictionaries/ecdict.csv`：本地 ignored 原始 ECDICT CSV，不提交到仓库；生成器会读取该文件产出 compact JSON。
 - `postgrad` 词书来自 ECDICT `ky` tag，并在 app 层继承高考、CET-4 和 CET-6 基础词。
@@ -79,7 +78,6 @@ User query
 
 - Node.js 20+
 - pnpm 10.x
-- PostgreSQL
 - Python 3.12 或本机 Anaconda Python
 
 启用 Corepack：
@@ -98,16 +96,7 @@ pnpm install
 
 ```bash
 OPENAI_API_KEY=
-DATABASE_URL=
-DIRECT_URL=
 SENTRY_DSN=
-```
-
-数据库迁移和 seed：
-
-```bash
-pnpm db:migrate
-pnpm db:seed
 ```
 
 启动 FastAPI + Next 开发栈：
@@ -143,12 +132,11 @@ corepack pnpm eval:standard-lookup:provider
 
 最近一轮记录过的验证基线包括：
 
-- Direct compare focused tests：`backend/tests/test_direct_compare_answer.py` 13 passed
-- Chat contract / learning context focused tests：direct compare、provider 和 context 相关测试通过
-- Advanced lookup focused tests：43 passed
-- Wordbook Learn / Review / Progress focused tests 与 lint 通过
+- Backend pytest：`backend/tests` 391 passed
+- Wordbook / FastAPI-direct focused tests：6 files / 49 tests passed
+- Lint 与 `git diff --check` 通过
 - Playwright 浏览器 E2E 验证首页聊天、`/learn`、`/review`、`/progress`
-- ECDICT-backed wordbook dataset：约 7,890 entries；CET-6 约 7,765，CET-4 约 6,077，Gaokao 约 2,978
+- ECDICT-backed wordbook dataset：7,348 entries；app 层 scope closure 后 Gaokao 3,678 / CET-4 5,299 / CET-6 7,046 / Postgrad 7,348
 
 ## 文档入口
 
@@ -161,6 +149,4 @@ corepack pnpm eval:standard-lookup:provider
 
 ## 当前状态
 
-项目处于 MVP + 产品能力打磨阶段。当前已完成聊天式查词/辨析主链路、ECDICT 大词库底座、Wordbook Learn / Review / Progress 和 ECDICT-grounded direct compare。下一阶段重点不是继续扩人工 confusion graph，而是把聊天、收藏、背词、复习和进度串成更自然的学习闭环，并逐步把硬路由回答链路改造成更像“模型选择内部工具”的受控学习助手。
-
-Windows + local Prisma Postgres 在本机开发时偶发不稳定，恢复路径记录在 `bugs.md`。
+项目处于 MVP + 产品能力打磨阶段。当前已完成聊天式查词/辨析主链路、ECDICT 大词库底座、Wordbook Learn / Review / Progress、ECDICT-grounded direct compare、浏览器直连 FastAPI，以及旧 Prisma / real-smoke / product-smoke 链路退役。下一阶段重点不是继续扩人工 confusion graph 或词缀规则，而是把聊天、收藏、背词、复习和进度串成更自然的日常学习闭环。

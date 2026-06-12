@@ -647,6 +647,10 @@ def build_broad_answer_plan(
                 "Do not invent terms outside broadAnswerPlan answer material.",
             ],
         )
+        if presentation == "semantic_filter_table":
+            rules.append(
+                "For semantic_filter_table, include only words that satisfy both the spelling clue and meaning clue.",
+            )
 
     if style == "meaning_core" and presentation == "meaning_confusion_list":
         rules.extend(
@@ -751,6 +755,8 @@ def build_broad_vocab_answer(
             ][:3]
             if note_terms:
                 lines.extend(["", f"注意：先区分 {' / '.join(note_terms)}。"])
+        elif answer_plan["presentation"] == "semantic_filter_table":
+            lines.extend(["", "注意：这里只保留同时满足拼写和释义线索的词。"])
         else:
             lines.extend(["", "注意：先按词形线索和中文核心义一起看。"])
 

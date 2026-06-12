@@ -8,10 +8,12 @@
 - `context.md`：长期项目地图和代码地图。
 
 ## 当前有效设计
+- `docs/superpowers/specs/2026-06-07-affix-semantic-gate-v1-design.md`
+  - 当前活跃设计：按用户意图区分“字母开头 / 结尾”和“前缀 / 后缀真的表达某个意思”。`anti 开头` 是词形问题，`anti 表示反对` 是词缀语义问题；语义题主答案必须有释义证据，不能只靠 `startsWith` / `endsWith`。
 - `docs/superpowers/specs/2026-06-07-frontend-direct-fastapi-v1-design.md`
   - 当前活跃架构收口设计：Next.js 保留为 React 前端壳，浏览器聊天请求通过 `NEXT_PUBLIC_ENGGO_FASTAPI_URL` 直连 FastAPI `/api/chat`；Next `/api/chat` proxy 退役，默认验证路径改为 FastAPI direct。
 - `docs/superpowers/specs/2026-06-05-ecdict-tag-scope-closure-design.md`
-  - 当前活跃设计：直接使用 ECDICT exam tags 作为词书事实源，前端词书和聊天检索统一走 scope closure。`gaokao` 只含高考基础词，`cet4` 继承高考，`cet6` 继承高考 + CET-4，`postgrad` 继承高考 + CET-4 + CET-6 + 考研；词条数据保留直接 tag 来源，不把继承结果写回原始 `examScopes`。本轮不解决 `anti` / `sub` / `re` 的语义纯度，那是后续 root / prefix semantic quality gate。
+  - 当前活跃设计：直接使用 ECDICT exam tags 作为词书事实源，前端词书和聊天检索统一走 scope closure。`gaokao` 只含高考基础词，`cet4` 继承高考，`cet6` 继承高考 + CET-4，`postgrad` 继承高考 + CET-4 + CET-6 + 考研；词条数据保留直接 tag 来源，不把继承结果写回原始 `examScopes`。`anti` / `sub` / `re` 等词缀语义纯度已由 `2026-06-07-affix-semantic-gate-v1-design.md` 单独收口。
 - `docs/superpowers/specs/2026-06-03-model-assisted-intent-routing-v1-design.md`
   - 当前活跃设计：不做完整 ReAct Agent；在 Controlled Tool Router V1 上新增规则置信度、灰区 provider classifier、参数来源校验、semantic expression 分支和 grounding / observation 质量闸门。目标是让明确查词/辨析继续走确定性规则，让 `more formal way to say...`、`同义词/近义词`、`还有更适合作文的吗` 这类灰区由模型辅助识别，但最终仍由代码验收参数和工具证据。
 - `docs/superpowers/specs/2026-06-01-controlled-tool-router-v1-design.md`
@@ -55,15 +57,21 @@
 - `docs/superpowers/specs/2026-04-21-enggo-technical-architecture-design.md`
   - 初始技术设计。
 
-## 当前活跃计划
+## 当前计划状态
+当前没有正在执行中的实现计划。下面几项是最近完成或仍作为防回归边界的计划，继续任务时不要从 Task 1 重开。
+
+- `docs/superpowers/plans/2026-06-07-structured-legacy-data-cleanup-v1.md`
+  - 已完成清理计划：在 FastAPI + ECDICT wordbook 成为当前主线后，迁走 `real-smoke` 中仍有价值的少量人工 root-family 内容，退役 Prisma schema/migrations/seed、旧 TypeScript seed/repository 路径、旧 `real-smoke` 数据集和过时的 `eval:product-smoke` gate。保留 ECDICT wordbook、source lemma manifests 和 FastAPI 直接读取的 `data/exam-vocab/seed` curated 内容。
+- `docs/superpowers/plans/2026-06-07-affix-semantic-gate-v1.md`
+  - 本轮已完成计划：实现 Affix Semantic Gate V1，让 `anti / re / sub / trans` 等前缀和 `-less / -er` 等后缀查询先按意图区分词形与含义；词缀语义题的主答案必须同时满足拼写和释义证据，`antique`、`reconcile`、`water`、`administer` 这类只长得像或只有偶然释义噪声的词不能冒充语义命中。
 - `docs/superpowers/plans/2026-06-07-frontend-direct-fastapi-v1.md`
-  - 当前架构收口计划：让浏览器聊天请求直接调用 FastAPI，删除 Next `/api/chat` proxy，补 CORS、direct smoke 和文档交接；不迁移 Vite React，不后端化 Learn / Review / Progress。
+  - 已完成架构收口计划：让浏览器聊天请求直接调用 FastAPI，删除 Next `/api/chat` proxy，补 CORS、direct smoke 和文档交接；不迁移 Vite React，不后端化 Learn / Review / Progress。
 - `docs/superpowers/plans/2026-06-07-legacy-ts-backend-cleanup-v1.md`
-  - 当前清理计划：FastAPI 迁移后退役 legacy TypeScript retrieval / answering 后端实现，保留 Next 前端壳、FastAPI HTTP smoke、provider smoke 和 ECDICT wordbook 生成工具；Prisma schema / seed 历史路径暂不在本轮删除。
+  - 已完成清理计划：FastAPI 迁移后退役 legacy TypeScript retrieval / answering 后端实现，保留 Next 前端壳、FastAPI HTTP smoke、provider smoke 和 ECDICT wordbook 生成工具；当时暂留的 Prisma schema / seed 历史路径已由 `2026-06-07-structured-legacy-data-cleanup-v1.md` 接手退役。
 - `docs/superpowers/plans/2026-06-05-ecdict-tag-scope-closure-v1.md`
-  - 当前执行计划：把 ECDICT tag-derived scope closure 作为 Learn / Review / Progress / Chat 的统一词书 membership，修复 CET-6 不继承高考 / CET-4 基础词导致的 `activity` 漏召回，并补 backend / frontend / E2E 防回归覆盖。2026-06-07 已追加清理 legacy TypeScript retrieval / answering 后端实现；后续验收不再依赖 Prisma-backed TS retrieval integration。
+  - 已完成范围收口计划：把 ECDICT tag-derived scope closure 作为 Learn / Review / Progress / Chat 的统一词书 membership，修复 CET-6 不继承高考 / CET-4 基础词导致的 `activity` 漏召回，并补 backend / frontend / E2E 防回归覆盖。2026-06-07 已追加清理 legacy TypeScript retrieval / answering 后端实现；后续验收不再依赖 Prisma-backed TS retrieval integration。
 - `docs/superpowers/plans/2026-06-04-meaning-lookup-weak-resolved-quality-gate-v1.md`
-  - 当前已完成待 review 的实现计划：给 `meaning_lookup` 增加弱候选质量闸门，防止 `表达观点`、`遵循`、`限制` 这类中译英 / 表达召回问题在只有偏离候选时仍被标成 source-backed `resolved`。本轮没有扩大 hard `no_match`，而是优先让 strong preferred candidates 进入 grounded resolved；只有 weak expression-like 且无强候选时才降级为 provider-assisted / bounded plain advice。
+  - 已完成质量闸门计划：给 `meaning_lookup` 增加弱候选质量闸门，防止 `表达观点`、`遵循`、`限制` 这类中译英 / 表达召回问题在只有偏离候选时仍被标成 source-backed `resolved`。本轮没有扩大 hard `no_match`，而是优先让 strong preferred candidates 进入 grounded resolved；只有 weak expression-like 且无强候选时才降级为 provider-assisted / bounded plain advice。
 - `docs/superpowers/plans/2026-06-03-model-assisted-intent-routing-v1.md`
   - 最近完成计划：规则高置信路径直接执行；规则灰区才调用 provider 产出受限 intent / slots；代码校验 terms、style、context provenance；semantic expression / style follow-up 用受控工具承接；broad grounding 增加弱候选质量闸门，并输出 before/after comparison matrix 证明真实增强。
 

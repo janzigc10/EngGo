@@ -39,6 +39,89 @@ def test_prefix_meaning_query_is_semantic_filter_not_prefix_inventory():
     assert set(meaning["alternatives"]) >= {"合作", "协作", "配合"}
 
 
+def test_affix_form_and_affix_meaning_are_different_intents():
+    form_plan = plan_for("anti开头的词有哪些")
+    semantic_plan = plan_for("anti开头表示反对的词")
+
+    assert form_plan.task == "form_filter"
+    assert {"type": "prefix", "value": "anti", "hard": True} in serialized_constraints(
+        form_plan,
+    )
+    assert not any(item["type"] == "meaning" for item in serialized_constraints(form_plan))
+
+    assert semantic_plan.task == "semantic_filter"
+    assert {"type": "prefix", "value": "anti", "hard": True} in serialized_constraints(
+        semantic_plan,
+    )
+    meaning = next(
+        item for item in serialized_constraints(semantic_plan) if item["type"] == "meaning"
+    )
+    assert meaning["value"] == "反对"
+    assert set(meaning["alternatives"]) >= {"反对", "相反", "反", "抗"}
+
+
+@pytest.mark.parametrize(
+    ("query", "constraint_type", "constraint_value", "meaning_value"),
+    [
+        ("anti表示反对的词", "prefix", "anti", "反对"),
+        ("anti为前缀表示反对的词", "prefix", "anti", "反对"),
+        ("anti作为前缀表示反对的词", "prefix", "anti", "反对"),
+        ("-less表示没有的词", "suffix", "less", "没有"),
+        ("-er表示人的词", "suffix", "er", "人"),
+    ],
+)
+def test_literal_affix_semantic_forms_build_semantic_filter(
+    query,
+    constraint_type,
+    constraint_value,
+    meaning_value,
+):
+    normalized = normalize_query(query)
+    plan = normalized.intent_plan
+
+    assert normalized.query_mode == "root_family_summary"
+    assert plan.task == "semantic_filter"
+    assert {
+        "type": constraint_type,
+        "value": constraint_value,
+        "hard": True,
+    } in serialized_constraints(plan)
+    meaning = next(item for item in serialized_constraints(plan) if item["type"] == "meaning")
+    assert meaning["value"] == meaning_value
+
+
+@pytest.mark.parametrize(
+    ("query", "constraint_type", "constraint_value", "meaning_value", "alternatives"),
+    [
+        ("re开头表示再次的词", "prefix", "re", "再次", {"再次", "重新", "再", "重"}),
+        ("sub开头表示下面的词", "prefix", "sub", "下面", {"下面", "下", "以下", "次级"}),
+        ("trans开头表示跨越的词", "prefix", "trans", "跨越", {"跨越", "横跨", "穿过"}),
+        ("less结尾表示没有的词", "suffix", "less", "没有", {"没有", "无", "缺少"}),
+        ("er结尾表示人的词", "suffix", "er", "人", {"人", "者", "员", "师"}),
+    ],
+)
+def test_common_affix_meaning_queries_build_semantic_filter(
+    query,
+    constraint_type,
+    constraint_value,
+    meaning_value,
+    alternatives,
+):
+    plan = plan_for(query)
+
+    assert plan.task == "semantic_filter"
+    assert {
+        "type": constraint_type,
+        "value": constraint_value,
+        "hard": True,
+    } in serialized_constraints(plan)
+
+    meaning = next(item for item in serialized_constraints(plan) if item["type"] == "meaning")
+
+    assert meaning["value"] == meaning_value
+    assert set(meaning["alternatives"]) >= alternatives
+
+
 def test_word_family_request_allows_grounded_derivative_expansion():
     plan = plan_for("respect派生词")
 

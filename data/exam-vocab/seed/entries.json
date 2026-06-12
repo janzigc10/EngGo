@@ -818,5 +818,65 @@
     "examScopes": ["gaokao", "cet4"],
     "examples": ["It is easier to breathe in clean air."],
     "collocations": ["breathe deeply", "breathe in"]
+  },
+  {
+    "id": "constitute",
+    "lemma": "constitute",
+    "aliases": [],
+    "pos": ["verb"],
+    "meaningsZh": ["构成", "组成"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": [],
+    "collocations": ["constitute a threat"]
+  },
+  {
+    "id": "substitute",
+    "lemma": "substitute",
+    "aliases": [],
+    "pos": ["verb", "noun"],
+    "meaningsZh": ["代替", "替代品"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": [],
+    "collocations": ["substitute for"]
+  },
+  {
+    "id": "attempt",
+    "lemma": "attempt",
+    "aliases": [],
+    "pos": ["verb", "noun"],
+    "meaningsZh": ["尝试", "企图"],
+    "examScopes": ["gaokao", "cet4", "cet6"],
+    "examples": [],
+    "collocations": ["attempt to do"]
+  },
+  {
+    "id": "tempt",
+    "lemma": "tempt",
+    "aliases": [],
+    "pos": ["verb"],
+    "meaningsZh": ["引诱", "诱使"],
+    "examScopes": ["cet6"],
+    "examples": [],
+    "collocations": ["tempt someone to do"]
+  },
+  {
+    "id": "temptation",
+    "lemma": "temptation",
+    "aliases": [],
+    "pos": ["noun"],
+    "meaningsZh": ["诱惑", "引诱"],
+    "examScopes": ["cet6"],
+    "examples": [],
+    "collocations": ["resist temptation"]
+  },
+  {
+    "id": "contempt",
+    "lemma": "contempt",
+    "aliases": [],
+    "pos": ["noun"],
+    "meaningsZh": ["轻蔑", "鄙视"],
+    "examScopes": ["cet4", "cet6"],
+    "examples": [],
+    "collocations": ["show contempt for"]
   }
 ]

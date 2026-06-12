@@ -214,6 +214,118 @@ def test_pre_meaning_does_not_match_pressure():
     assert [item.lemma for item in result] == ["precede", "prevent"]
 
 
+def test_anti_meaning_filter_excludes_form_only_prefix_words():
+    vocabulary = [
+        candidate("antiwar", ["反战的"], part_of_speech="adj."),
+        candidate("antibody", ["抗体"], part_of_speech="n."),
+        candidate("antique", ["古董"], part_of_speech="n. / adj."),
+        candidate("anticipate", ["预料；预期"]),
+    ]
+    plan = normalize_query("anti开头表示反对的词").intent_plan
+
+    result = build_light_grounding_candidates(
+        query="anti开头表示反对的词",
+        active_exam_target="cet6",
+        vocabulary=vocabulary,
+        groups=[],
+        intent_plan=plan,
+    )
+
+    lemmas = [item.lemma for item in result]
+
+    assert lemmas == ["antiwar", "antibody"]
+    assert all("meaning_keyword" in signal_types(item) for item in result)
+
+
+def test_re_meaning_filter_excludes_reconcile_when_query_means_again():
+    vocabulary = [
+        candidate("rewrite", ["重写"]),
+        candidate("renew", ["重新开始；更新"]),
+        candidate("reconsider", ["重新考虑"]),
+        candidate("reconcile", ["使和解；调停；使一致"]),
+    ]
+    plan = normalize_query("re开头表示再次的词").intent_plan
+
+    result = build_light_grounding_candidates(
+        query="re开头表示再次的词",
+        active_exam_target="cet6",
+        vocabulary=vocabulary,
+        groups=[],
+        intent_plan=plan,
+    )
+
+    lemmas = [item.lemma for item in result]
+
+    assert set(lemmas) == {"rewrite", "renew", "reconsider"}
+    assert "reconcile" not in lemmas
+
+
+def test_sub_and_trans_meaning_filters_require_semantic_evidence():
+    vocabulary = [
+        candidate("subconscious", ["下意识的"], part_of_speech="adj."),
+        candidate("subzero", ["零度以下的"], part_of_speech="adj."),
+        candidate("subject", ["主题；科目"], part_of_speech="n."),
+        candidate("transatlantic", ["横越大西洋的"], part_of_speech="adj."),
+        candidate("transmit", ["传送；传播"]),
+        candidate("transaction", ["交易"], part_of_speech="n."),
+    ]
+
+    sub_result = build_light_grounding_candidates(
+        query="sub开头表示下面的词",
+        active_exam_target="cet6",
+        vocabulary=vocabulary,
+        groups=[],
+        intent_plan=normalize_query("sub开头表示下面的词").intent_plan,
+    )
+    trans_result = build_light_grounding_candidates(
+        query="trans开头表示跨越的词",
+        active_exam_target="cet6",
+        vocabulary=vocabulary,
+        groups=[],
+        intent_plan=normalize_query("trans开头表示跨越的词").intent_plan,
+    )
+
+    assert [item.lemma for item in sub_result] == ["subconscious", "subzero"]
+    assert {item.lemma for item in trans_result} == {"transatlantic", "transmit"}
+    assert "subject" not in [item.lemma for item in sub_result]
+    assert "transaction" not in [item.lemma for item in trans_result]
+
+
+def test_suffix_meaning_filters_exclude_same_suffix_noise():
+    vocabulary = [
+        candidate("hopeless", ["没有希望的"], part_of_speech="adj."),
+        candidate("useless", ["无用的"], part_of_speech="adj."),
+        candidate("unless", ["除非"], part_of_speech="conj."),
+        candidate("teacher", ["教师"], part_of_speech="n."),
+        candidate("worker", ["工人"], part_of_speech="n."),
+        candidate("administer", ["管理；执行", "执行遗产管理人的职责"], part_of_speech="v."),
+        candidate("better", ["较好的"], part_of_speech="adj. / adv."),
+        candidate("water", ["水"], part_of_speech="n."),
+    ]
+
+    less_result = build_light_grounding_candidates(
+        query="less结尾表示没有的词",
+        active_exam_target="cet6",
+        vocabulary=vocabulary,
+        groups=[],
+        intent_plan=normalize_query("less结尾表示没有的词").intent_plan,
+    )
+    er_result = build_light_grounding_candidates(
+        query="er结尾表示人的词",
+        active_exam_target="cet6",
+        vocabulary=vocabulary,
+        groups=[],
+        intent_plan=normalize_query("er结尾表示人的词").intent_plan,
+    )
+
+    assert {item.lemma for item in less_result} == {"hopeless", "useless"}
+    assert {item.lemma for item in er_result} == {"teacher", "worker"}
+    assert "unless" not in [item.lemma for item in less_result]
+    assert "administer" not in [item.lemma for item in er_result]
+    assert "better" not in [item.lemma for item in er_result]
+    assert "water" not in [item.lemma for item in er_result]
+
+
 def test_restrict_semantic_filter_keeps_primary_meaning_conservative():
     vocabulary = [
         candidate("confine", ["\u9650\u5236, \u4f7f\u4e0d\u5916\u51fa, \u7981\u95ed"]),

@@ -1,27 +1,64 @@
 # EngGo 滚动交接
 
-## 当前状态（2026-06-07 Scope Closure + Legacy Cleanup + Frontend Direct FastAPI 已验证）
+## 当前状态（2026-06-08 下一主线判断：Wordbook Daily Loop V1）
 - 当前分支 / worktree：`codex/meaning-lookup-quality-gate-v1`，工作区 `C:\Users\Chen\Desktop\EngGo`。
-- 当前活跃计划：`docs/superpowers/plans/2026-06-05-ecdict-tag-scope-closure-v1.md`。
-- 当前清理计划：`docs/superpowers/plans/2026-06-07-legacy-ts-backend-cleanup-v1.md`。
-- 当前前后端分离计划：`docs/superpowers/plans/2026-06-07-frontend-direct-fastapi-v1.md`。
-- 当前参考设计：`docs/superpowers/specs/2026-06-05-ecdict-tag-scope-closure-design.md`。
-- 当前前后端分离设计：`docs/superpowers/specs/2026-06-07-frontend-direct-fastapi-v1-design.md`。
-- 上一轮验收报告：`docs/superpowers/reports/2026-06-04-meaning-lookup-quality-gate-v1-comparison.md`。
-- Scope closure 结果：已完成 ECDICT tag-derived 词书事实源、scope closure helper、四本前端 wordbook registry、聊天 active wordbook 同步、FastAPI 后端 closure 接入、重新生成 compact wordbook JSON，以及 37-case providerless before/after E2E。
-- Legacy cleanup 结果：已删除旧 TypeScript `retrieval` / `answering` 运行时、旧 direct eval runners、source-lemma TS helper 和 Prisma-backed TS retrieval integration gate。
-- Frontend direct FastAPI 结果：Next.js 只保留 React 前端壳；浏览器聊天请求通过 `src/features/chat/chat-api-client.ts` 直连 FastAPI `/api/chat`；Next `/api/chat` route / proxy tests / `src/lib/env.ts` 已删除。
+- 当前活跃实现计划：无；上一轮清理和词缀语义收口均已完成。
+- 上一轮完成计划：
+  - `docs/superpowers/plans/2026-06-07-structured-legacy-data-cleanup-v1.md`。
+  - `docs/superpowers/plans/2026-06-07-affix-semantic-gate-v1.md`。
+- 当前参考设计仍包括：`docs/superpowers/specs/2026-06-07-affix-semantic-gate-v1-design.md`，但它现在只作为防回归边界，不再是下一阶段主线。
+- 上一轮已完成基线：Scope Closure + Legacy Cleanup + Frontend Direct FastAPI 已验证；Next.js 只保留 React 前端壳，浏览器聊天请求直连 FastAPI `/api/chat`。
+- 上一轮目标已完成：退役仍残留的 Prisma / `real-smoke` / 旧 product-smoke 链路，只保留当前 FastAPI + ECDICT wordbook 主线需要的数据和工具。
+- 当前进度：Structured Legacy Data Cleanup V1 已完成；少量有价值的人工 root-family 内容已迁入 `data/exam-vocab/seed`，旧 Prisma schema/migrations/seed、旧 TypeScript seed/repository、旧 `real-smoke` 数据集、旧 product-smoke gate 和 Node `pg` 依赖均已删除。
+- 下一阶段主线：从“能查”转到“能每天学”。聊天、检索、辨析、范围控制和 Affix Semantic Gate 当前先进入维护；接下来优先把已经存在的 Wordbook Learn / Review / Progress 收成更自然的日常使用路径。
+- 建议下一刀命名：Wordbook Daily Loop V1。
+  - 不是从零重做 Learn / Review dashboard：当前 `WordbookDashboard` 已有计数、开始、继续、重新开始、放弃本轮和 10/20/30 设置。
+  - 真正缺口更像是统一日常优先级入口：有未完成 Review 先继续 Review；有到期复习先 Review；否则继续 / 开始 Learn；都没有时显示今天已完成。
+  - 第一刀应先做真实体验 audit，确认首页、Learn、Review、Progress 是否入口分散、优先级不清或移动端不顺，而不是直接堆新 UI。
+  - Chat 查到的词要更自然地沉淀到收藏 / 词书 / 后续复习里，避免“查完就断”。
+  - 数据补充只做轻量小批，优先服务学习闭环；不再为了前缀后缀继续扩大量规则或做完整词根理论。
+  - 数据库、账号、云同步暂不作为下一主线；只有当产品明确要多设备或长期账号保存时再推进。
 - 保留边界：
   - 顶层工具仍是 `ordinary_lookup`、`direct_compare`、`advanced_lookup` 三个。
   - 不做完整 ReAct Agent。
   - 不让 provider 自由扩词或决定工具参数。
   - 不做完整词根溯源或 morpheme analyzer。
-  - 不改 Learn / Review / Progress 状态机，只统一它们读取的词书 membership。
-  - 不修 `anti` / `sub` / `re` 前缀语义纯度；那是下一轮 root / prefix semantic quality gate。
-  - 本轮不删除 Prisma schema / migrations / seed 历史路径；是否完全退役 structured overlay 需要单独决策。
-  - 本轮不迁移 Vite React，不把 Learn / Review / Progress 后端化。
+  - 不改 Learn / Review / Progress 状态机。
+  - 不迁移 Vite React。
+  - 不回退 scope closure；`scopeCodes` 仍表示 direct ECDICT tag，词书 membership 由 closure helper 判断。
+  - 不恢复 Prisma dev / `db:*` / `real-smoke` / 旧 `eval:product-smoke`。
+  - `data/exam-vocab/seed` 不是 Prisma 专属数据；FastAPI 仍直接读取其中 curated expression / group 内容。
 
 ## 本轮已完成
+1. Affix Semantic Gate V1 文档启动：
+   - 新增 `docs/superpowers/specs/2026-06-07-affix-semantic-gate-v1-design.md`。
+   - 新增 `docs/superpowers/plans/2026-06-07-affix-semantic-gate-v1.md`。
+   - 更新 `docs/README.md`，把 Affix Semantic Gate V1 设为当前活跃设计 / 计划。
+2. Affix Semantic Gate V1 focused tests：
+   - 新增意图层、候选准入、服务层 ECDICT fallback、回答计划和 providerless E2E/smoke 用例。
+   - 初次 focused 红灯：`C:\Users\Chen\anaconda3\python.exe -m pytest backend/tests/test_learning_intent.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py -q --basetemp tmp_pytest_affix_gate_tests -p no:cacheprovider` -> 15 failed / 134 passed。
+   - 红灯集中在本轮实现范围：`anti/re/sub/trans/-less/-er` 语义别名、拼写-only 候选准入、`xyz` exact token 边界、semantic_filter 回答提示。
+3. Affix Semantic Gate V1 实现：
+   - `anti开头` 保持 form_filter，可按拼写列出 `antique / anticipate`，不声称这些词表达“反对”。
+   - `anti/re/sub/trans/-less/-er` 语义题会同时检查词形和释义线索；拼写-only 候选不进主答案。
+   - prefix / suffix exact token 边界已收紧：`xyz` 本身不算 `xyz开头的单词`。
+   - 复审补洞：`anti表示反对的词`、`-less表示没有的词`、`-er表示人的词` 这类不显式写“前缀/后缀”的 literal 问法也会进入词缀语义 gate。
+   - semantic_filter deterministic answer note 改为“这里只保留同时满足拼写和释义线索的词”。
+   - focused 绿灯：`C:\Users\Chen\anaconda3\python.exe -m pytest backend/tests/test_normalize_query.py backend/tests/test_learning_intent.py backend/tests/test_dynamic_light_grounding.py backend/tests/test_advanced_lookup.py backend/tests/test_broad_vocab_answer.py -q --basetemp tmp_pytest_affix_gate_tests -p no:cacheprovider` -> 218 passed。
+4. Affix Semantic Gate V1 验证：
+   - `corepack pnpm test scripts/lib/fastapi-migrated-slice-smoke.test.ts` -> 1 file / 12 tests passed。
+   - `C:\Users\Chen\anaconda3\python.exe -m pytest -q --basetemp tmp_pytest_affix_semantic_gate_full -p no:cacheprovider` -> 390 passed。
+   - `corepack pnpm lint` -> passed。
+   - `C:\Users\Chen\anaconda3\python.exe scripts\run-model-routing-e2e-compare.py` -> 46 total / 46 pass / 0 fail / 32 changed。
+   - `git diff --check` -> passed，仅 Windows LF/CRLF warnings。
+5. Structured Legacy Data Cleanup V1：
+   - 新增 `docs/superpowers/plans/2026-06-07-structured-legacy-data-cleanup-v1.md`。
+   - 从旧 `real-smoke` 迁入 `constitute / substitute / attempt / tempt / temptation / contempt` 和 `root-stitute` / `root-tempt` 两个 curated group；`defer` 已在 seed 中，无需重复迁移。
+   - 删除 `data/exam-vocab/real-smoke/*`、`prisma.config.ts`、`prisma/` schema/migrations/seed、`src/lib/db.ts`、旧 TypeScript seed/repository 模块与测试、旧 black-box product smoke runner/test。
+   - `package.json` 删除 `db:*`、`eval:product-smoke*`、Prisma、Node `pg` 依赖；`pnpm-lock.yaml` 已用 `corepack pnpm install --lockfile-only --offline` 对齐。
+   - 新增 `backend/tests/test_curated_seed_content.py`，保护迁入 seed 的 root-family groups 能被当前 FastAPI loader 读到。
+
+## 上一轮已完成
 1. 文档与计划：
    - 新增 `docs/superpowers/specs/2026-06-05-ecdict-tag-scope-closure-design.md`。
    - 新增 `docs/superpowers/plans/2026-06-05-ecdict-tag-scope-closure-v1.md`。
@@ -68,7 +105,15 @@
   - `corepack pnpm test src\features\exam-target\scope-closure.test.ts src\components\chat\chat-workspace.test.tsx src\features\chat\conversation-context.test.ts scripts\lib\conversational-learning-context-smoke.test.ts` -> 4 files / 43 tests passed。
 - Legacy cleanup frontend / scripts：
   - `corepack pnpm test src\features\wordbook\wordbook-dashboard.test.tsx` -> 1 file / 12 tests passed。
-  - `corepack pnpm test src\components\chat\answer-actions.test.tsx src\components\chat\chat-workspace.test.tsx scripts\lib\black-box-product-smoke.test.ts scripts\lib\fastapi-migrated-slice-smoke.test.ts scripts\lib\answer-style-provider-smoke.test.ts scripts\lib\conversational-learning-context-smoke.test.ts` -> route test 删除后，相关 frontend/script tests 继续通过。
+  - `corepack pnpm test src\components\chat\answer-actions.test.tsx src\components\chat\chat-workspace.test.tsx scripts\lib\fastapi-migrated-slice-smoke.test.ts scripts\lib\answer-style-provider-smoke.test.ts scripts\lib\conversational-learning-context-smoke.test.ts` -> route test 删除后，相关 frontend/script tests 继续通过。
+- Structured legacy cleanup：
+  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_curated_seed_content.py backend\tests\test_advanced_lookup.py --basetemp tmp_pytest_structured_cleanup -p no:cacheprovider` -> 61 passed。
+  - `corepack pnpm test scripts\run-default-fastapi-smoke.test.ts scripts\lib\fastapi-migrated-slice-smoke.test.ts scripts\lib\conversational-learning-context-smoke.test.ts` -> 3 files / 25 tests passed。
+  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q --basetemp tmp_pytest_structured_cleanup_full -p no:cacheprovider` -> 391 passed。
+  - `corepack pnpm test:unit` -> sandbox 里仍因 Windows 权限报 `EPERM ...\vitest.mjs`；提权后同一命令通过，26 files / 227 tests passed。
+  - `corepack pnpm lint` -> passed。
+  - `git diff --check` -> passed，仅 Windows LF/CRLF warnings。
+  - `rg` 扫描 Prisma / DB scripts / product-smoke / real-smoke 活跃入口 -> source / scripts / package / lock 已无旧运行链路引用；剩余只在当前文档说明或历史 docs 中。
 - Frontend direct FastAPI：
   - `corepack pnpm test src\features\chat\chat-api-client.test.ts src\components\chat\chat-workspace.test.tsx scripts\lib\dev-fastapi-stack.test.ts scripts\run-default-fastapi-smoke.test.ts scripts\lib\fastapi-migrated-slice-smoke.test.ts scripts\lib\conversational-learning-context-smoke.test.ts` -> 6 files / 60 tests passed。
   - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_config.py backend\tests\test_cors.py -p no:cacheprovider --basetemp tmp_pytest_frontend_direct` -> 5 passed。
@@ -87,14 +132,21 @@
   - 分类：stable 12 / 12 pass / 1 changed；regression probe 2 / 2 pass / 1 changed；expected improvement 23 / 23 pass / 22 changed。
   - 新增关键差距：`活动的英文是什么` 从 `dormant / kinetic` 变成 `activity / event / action`，且 main first 为 `activity`。
 ## 下一步
-1. 下一轮优先做 `Affix Semantic Gate V1`：
-   - 目标：把“词形匹配”和“词缀语义匹配”分开，避免 `anti` / `sub` / `re` / `trans` 等查询只按 startsWith / contains 硬召回。
-   - 覆盖范围：prefix、suffix、root / fragment、pseudo-token boundary。
-   - 关键样例：`anti 开头表示反对的词` 不能把 `antique` 当 anti- 反义词缀；`sub 开头表示下面的词`、`re 开头表示再次的词`、`trans 开头表示跨越/转移的词` 要先定义可验证语义 gate；`xyz开头的单词` 要单独处理 pseudo-token / dictionary-entry 边界。
-   - 产品原则：仍以“考生易混词 / 备考召回”为核心，不做完整词源学或 morpheme analyzer；先定义小而可验证的 gate，不测一个补一个。
-2. 不要继续拆 Next：Next 现在只作为 React 前端壳，聊天请求已直连 FastAPI；Vite React 迁移不是下一步。
-3. Scope closure 已过关，不要把 Affix Semantic Gate 混回 closure；`scopeCodes` 仍表示 direct ECDICT tag，词书 membership 由 closure helper 判断。
-4. `eval:product-smoke` 当前矩阵含旧 structured exact / comparisonView / root prototype 期望，不再作为默认 gate；如要恢复，先按当前 scope closure + FastAPI direct 行为重写矩阵。
+1. 下一主线转为 Wordbook Daily Loop V1：先基于现有 `WordbookDashboard` / Learn / Review / Progress 做真实体验 audit，找入口分散、优先级不清和移动端体感问题。
+2. 第一刀不要从零做新 dashboard，而是做统一日常优先级入口：未完成 session、到期 Review、新词 Learn、今日完成四种状态要在首页或词书入口清楚排序。
+3. 第二刀再整理 Learn / Review 使用体感：空状态、失败回流、错词补救说明、进度反馈和移动端可用性。
+4. 第三刀补 Chat -> Wordbook 桥接：聊天查到 / 收藏的词能更自然进入之后的学习，不让收藏页和聊天结果成为死胡同。
+5. 数据和检索只做轻量维护：优先补服务学习闭环的小批词 / 小批正反例，不再为了前缀后缀扩大量 fallback 或完整词根理论。
+6. Structured Legacy Data Cleanup V1 已完成；后续不要恢复 Prisma dev、`db:*`、旧 `real-smoke` 数据集或旧 `eval:product-smoke`。
+7. Affix Semantic Gate V1 也已完成；后续如继续扩展词缀语义，优先补小范围正反例和 focused tests，不要回退到纯 `startsWith` / `endsWith`。
+8. 词缀防回归重点样例：
+   - `anti 开头表示反对的词`：`antique` / `anticipate` 不进主答案。
+   - `anti 开头的词有哪些`：可以按拼写返回，但不能说这些词都表示“反对”。
+   - `re开头cile结尾的单词`：继续 resolved 到 `reconcile`。
+   - `re 开头表示再次的词`：不能只靠拼写把 `reconcile` 放进主答案。
+   - `sub / trans / -less / -er`：正例与误判例已进 focused tests 并通过。
+   - `xyz开头的单词`：不能因 exact `xyz` 条目误判为 prefix 列表。
+9. 默认验证继续以 focused tests、full backend pytest、lint、FastAPI direct smoke 和 `scripts/run-model-routing-e2e-compare.py` 为准；旧 product-smoke 已删除。
 
 ## 上一轮完成内容
 1. 新增 `docs/superpowers/specs/2026-06-01-controlled-chat-orchestrator-v1-design.md` 和 `docs/superpowers/plans/2026-06-01-controlled-chat-orchestrator-v1.md`。
@@ -142,7 +194,7 @@
 4. Wordbook Learn / Review V1、体验打磨、V2 产品硬化、V2.1 active session persistence 及 Review 可见词数修复均已完成并通过 focused tests、lint、`git diff --check` 和浏览器验证。
 
 ## 边界与风险
-- 不要继续围绕 `real-smoke` 小词书扩写背词内容；它现在只是历史开发切片和回归资产。
+- 不要继续围绕 `real-smoke` 小词书扩写背词内容；旧目录已删除，少量值得保留的人工内容已迁入 `data/exam-vocab/seed`。
 - 不要把 ECDICT 自动释义压缩当成人工 confusion graph；direct compare 要么走 provider 组织真实短辨析，要么干净退回并列释义。
 - 不要在本轮基础上扩 Learn / Review 状态机、账号/云同步、完整 SRS、收藏体系或 NotebookLM 方向。
 - 生成器依赖本地 `output/external-dictionaries/ecdict.csv`；该文件被 git ignore，提交的是 compact generated JSON。

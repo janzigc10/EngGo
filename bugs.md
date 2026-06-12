@@ -42,9 +42,9 @@
 
 ### 2026-06-05 扩展覆盖新增残留
 - `活动的英文是什么`：2026-06-05 已修。当前策略是 ECDICT tag-derived scope closure：CET-6 继承 Gaokao + CET-4，Postgrad 继承所有低级别基础词；E2E 当前为 `activity / event / action`，且 `activity` main first。后续不要再把词书 membership 写成“直接 tag 必须等于当前 scope”。
-- `anti 前缀有哪些词`：仍可能包含 `antique / anticipate` 这类词形以 `anti` 开头但不是稳定 `anti-` 反义前缀语义的候选。
-- `sub开头表示下面的词`、`re开头表示再次的词`：会给出 source-backed 但偏生僻的候选，属于 root/prefix semantic quality gate 下一轮问题。
-- `xyz开头的单词`：会命中 ECDICT 的 `xyz` 条目。需要后续决定裸 prefix / pseudo-token 查询是否应把这种词典条目降级为 no-match 或 clarification。
+- `anti 前缀有哪些词` / `anti开头的词有哪些`：2026-06-07 已收口为词形题，可以包含 `antique / anticipate` 这类拼写命中词，但 inventory answer 不声称它们都表达 `anti-` 的“反对”含义。
+- `anti/re/sub/trans/-less/-er` 词缀语义题：2026-06-07 已补 Affix Semantic Gate V1，主答案必须同时满足拼写和释义证据；`antique / anticipate / reconcile / unless / water / administer / better` 这类只靠拼写或偶然释义噪声的词不能冒充语义命中。
+- `xyz开头的单词`：2026-06-07 已修，不再因 ECDICT exact `xyz` 条目把它误判为 prefix 列表；当前 providerless E2E 为 bounded root no-match。
 
 ### 后续防回归
 - 不要把灰区 classifier 扩成完整 ReAct Agent；V1 仍是 rule-first + validated slots。
@@ -54,6 +54,7 @@
 - meaning lookup 不能重新让 source lemma 同 lemma 候选覆盖 ECDICT meaning candidate；否则 `restrict` 这类正确词会失去 semantic hints，被 `bridle/lid/law` 这类边缘候选抢走。
 - scope closure 不要退回直接 scope 等值判断；`scopeCodes` 是 direct ECDICT tag 来源，当前词书 membership 应由 closure helper 判断。
 - 不要重新把 `遵循 / 遵守` alias 扩回 `服从`；否则 `submit/subdue` 容易回流到 `遵循` 主答案。
+- Affix Semantic Gate 不要退回纯 `startsWith` / `endsWith`：词缀语义题必须有 meaning signal；`-er 表示人` 还要求名词性的人/者/员/师等证据，不能让 `administer / better` 只因释义或英文 definition 有 person 噪声进入主答案。
 - `meaning_expression_advice` 是表达建议，不是词库命中；不要让后端 grounding 或前端 support panel 把它显示成 resolved hit，也不要给它收藏工具。
 - phrase hint 只能保护正向短语；遇到 `不 / 不要 / 不能 / 没有 / 未能 / 别 / 勿` 等否定上下文时必须保留原始 meaning hint。
 
@@ -281,55 +282,25 @@ $env:TEMP = 'C:\tmp\enggo-pytest-tmp'
 & 'C:\Users\Chen\anaconda3\python.exe' -m pytest -q backend/tests -o cache_dir='C:\tmp\enggo-pytest-cache'
 ```
 
-### Vitest integration 会改变本地 DB 基线
-`corepack pnpm test` / retrieval integration test 跑完后，本地 Prisma DB 可能只剩小 fixture。跑 FastAPI direct/proxy product smoke 前必须重新执行：
-- `corepack pnpm db:seed:real-smoke`
+### 旧 Prisma / real-smoke DB 基线已退役
+2026-06-07 之后，Prisma schema/migrations/seed、`db:*` scripts、旧 `real-smoke` 数据集和旧 product-smoke gate 已删除。后续 FastAPI direct smoke 不需要恢复本地 Prisma dev，也不需要重新 seed `real-smoke`。
 
 ### Next build tracing warning
 `corepack pnpm run build` 已通过。默认 FastAPI 切流后，Next `/api/chat` 不再 import legacy TypeScript retrieval/service。2026-06-07 已删除 legacy TypeScript retrieval / answering 运行时和 source-lemma TS helper；如后续 build 仍出现 Turbopack/NFT tracing warning，再按实际 import trace 处理。
 
 ## 环境恢复路径
 
-### Windows + Prisma dev 不稳定
-本地 Windows + `Prisma 7.7.0 + local Prisma Postgres (prisma dev)` 仍不稳定。
+### Prisma dev 历史坑不再是恢复路径
+历史上的 Windows + Prisma dev 不稳定问题已经不再是当前恢复路径。不要为了聊天、词书、FastAPI smoke 或默认验证去启动 Prisma dev、migrate 或 seed；如果旧文档里仍出现这些命令，只按历史记录理解。
 
-常见症状：
-- `prisma migrate dev` / `prisma migrate resolve` 报 `P1017`
-- `unexpected message from server`
-- `prepared statement already exists`
-- `Connection terminated unexpectedly`
-- `read ECONNRESET`
-- `prisma dev ls` 显示 `running`，但实际 TCP 连接不健康
-- `corepack pnpm exec prisma dev ...` 报 `%TEMP%\\@prisma\\cli-dev@latest-*` 的 `EPERM, Permission denied`
-- 本机其它程序占用 Prisma dev 固定端口，例如 WeGame 使用本地 `51219` 外连时，`node_modules\\.bin\\prisma.CMD dev ...` 会报 `listen EACCES: permission denied 127.0.0.1:51219`；即使改 `-p/-P/--shadow-db-port` 也绕不过 CLI 自身端口。当前 Codex 无权限停止该 WeGame 进程，需要用户手动关闭后再启动 Prisma dev。
+### pnpm lockfile 更新优先离线
+当前仓库依赖已经在本机缓存里。清理依赖后只需要更新 lockfile 时，优先用：
 
-优先恢复路径：
-1. 先检查：
-   - `corepack pnpm exec prisma dev ls`
-2. 如果 `corepack pnpm exec prisma dev ...` 命中 `EPERM`，改用仓库内 Prisma 二进制：
-   - `node_modules\\.bin\\prisma.CMD dev ls`
-3. 当前 `.env` 指向的实例名是 `enggo`。如需重建：
-   - `node_modules\\.bin\\prisma.CMD dev rm enggo --force`
-   - `node_modules\\.bin\\prisma.CMD dev -n enggo -d -p 51213 -P 51214 --shadow-db-port 51215`
-4. 恢复后串行执行：
-   - `corepack pnpm db:migrate`
-   - `corepack pnpm db:seed`
-   - 或按任务需要执行 `corepack pnpm db:seed:real-smoke`
+```powershell
+corepack pnpm install --lockfile-only --offline
+```
 
-注意：
-- 不要在 Prisma dev 不健康时继续跑 retrieval / API / product smoke。
-- 不要并行跑会访问本地库的命令，例如 `verify` 与 `eval:shape`。
-- 如果 `corepack pnpm db:seed` 首次报 `Received unexpected commandComplete message from backend`，先确认表计数仍是 `0 / 0`，再重试一次。
-
-### Codex sandbox + pnpm junction
-非 escalated shell 里，pnpm junction 依赖可能被映射到 sandbox 路径，导致 `@prisma/debug` 明明存在却报：
-- `MODULE_NOT_FOUND`
-- `EPERM package.json access denied`
-- 2026-05-16 又确认过 `@prisma/engines/package.json` 在非 escalated shell 中会触发 `EPERM`，进而影响 `corepack pnpm db:migrate`；需要在真实工作区权限下重跑 Prisma 相关命令。
-
-遇到时不要先删 `node_modules`。先在真实工作区权限下复查：
-- `node -e "require.resolve('@prisma/debug')"`
-- `node_modules\\.bin\\prisma.CMD dev ls`
+不要因为 registry 访问失败就先改业务代码或删除 `node_modules`。
 
 ### 中文 smoke 编码
 Windows PowerShell 直接用 `Invoke-RestMethod` / `Invoke-WebRequest` 发中文 JSON 到本地 `/api/chat` 时可能乱码，导致 query mode 误判。
@@ -342,12 +313,12 @@ Windows PowerShell 直接用 `Invoke-RestMethod` / `Invoke-WebRequest` 发中文
 - `$OutputEncoding = [System.Text.UTF8Encoding]::new($false)`
 - `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)`
 
-### FastAPI / psycopg 读取现有 Prisma 环境
-FastAPI Stage 2 复用现有 `.env` 和 Prisma Postgres 时确认过两个兼容坑：
+### FastAPI / psycopg 可选 structured runtime
+FastAPI 仍保留 Python 侧 optional structured repository，但默认不启用。历史上复用 `.env` 中的 PostgreSQL URL 时确认过几个兼容坑：
 
 - `.env` 文件带 UTF-8 BOM；Python 侧读取必须用 `utf-8-sig`，否则 `DATABASE_URL` 可能不会被识别。
-- Prisma 的 `DATABASE_URL` 可能带 `schema`、`connection_limit`、`pool_timeout`、`max_idle_connection_lifetime` 等 query 参数，`psycopg` 不接受；Python repository 连接前要剥离 Prisma-only 参数，只保留 libpq 支持的参数。
-- 本机 Prisma Postgres 当前只监听 `127.0.0.1:51214`，而 `.env` 使用 `localhost`；Python 侧连接前规范到 `127.0.0.1`，避免 IPv6/localhost 解析导致连接卡住。
+- 旧 Prisma `DATABASE_URL` 可能带 `schema`、`connection_limit`、`pool_timeout`、`max_idle_connection_lifetime` 等 query 参数，`psycopg` 不接受；Python repository 连接前要剥离这些非 libpq 参数。
+- 本机旧 PostgreSQL URL 可能使用 `localhost`；Python 侧连接前规范到 `127.0.0.1`，避免 IPv6/localhost 解析导致连接卡住。
 
 ### Frontend direct FastAPI 与 Next dev 环境变量
 历史上 Next proxy 依赖 `ENGGO_BACKEND_URL`，现在该路径已退役。前端直连只读 `NEXT_PUBLIC_ENGGO_FASTAPI_URL`；如果需要覆盖地址，可靠方式是临时创建被 `.gitignore` 忽略的 `.env.local`：
@@ -365,7 +336,7 @@ NEXT_PUBLIC_ENGGO_FASTAPI_URL=http://127.0.0.1:8000
 - 真实 provider smoke 尽量小批量串行跑。
 
 ## 当前产品侧残留
-- `eval:product-smoke` / `scripts/run-black-box-product-http-smoke.ts` 当前矩阵含旧期望，不再作为默认 FastAPI direct gate。2026-06-07 frontend direct FastAPI 验证时，失败集中在旧 structured exact、旧 comparisonView/root prototype、旧 typo/fuzzy 期望；默认 smoke 已改为 `eval:fastapi:conversation-context-smoke`。如后续要恢复 product smoke，先按 scope closure + legacy TS backend cleanup 后的真实产品行为重写矩阵。
+- 旧 `eval:product-smoke` / `scripts/run-black-box-product-http-smoke.ts` 已于 2026-06-07 structured legacy cleanup 中删除。默认 smoke 是 `eval:fastapi:conversation-context-smoke` / `eval:default-fastapi-smoke`；如后续要恢复全量 product smoke，必须按当前 FastAPI + ECDICT 行为重写矩阵，不能复用旧 structured exact / comparisonView / root prototype 期望。
 - 普通查词 exact lookup 现有 21 条 provider smoke 已通过；后续新增词库或改 prompt 时仍需小批防回归，重点防止：
   - exact 命中自动带出裸 `confusion_group`
   - 回答出现 `CET` / 当前范围尾巴
@@ -392,7 +363,7 @@ NEXT_PUBLIC_ENGGO_FASTAPI_URL=http://127.0.0.1:8000
 - `corepack pnpm exec tsc --noEmit` 仍是已知工程债，主要集中在：
   - 测试 fixture 的 `activeExamTarget` / `examScopes` 被推宽为 `string`
   - `src/features/chat/use-chat-session.ts` 的 API 成功/错误响应联合类型需要收窄
-  - Prisma / `pg` 相关声明只服务历史 structured overlay / seed path；不再服务旧 TS retrieval。
+  - 旧 Prisma / Node `pg` 声明已删除；剩余类型债集中在前端测试 fixture 和 chat API 响应联合类型。
 
 ## 已处理但要防回归
 - legacy TypeScript `retrieveCandidates -> buildGrounding -> chatService` 已于 2026-06-07 退役；库外 meaning / fuzzy / compare 防硬猜现在以 FastAPI 后端测试和 HTTP smoke 为准。
@@ -424,11 +395,11 @@ NEXT_PUBLIC_ENGGO_FASTAPI_URL=http://127.0.0.1:8000
 - `confusion_untangle` 已从过度压缩回调到四段辨析卡；后续不要把“更短”当成唯一胜利标准。
 
 ## 不要重复走的失败路径
-- 不要在 Prisma dev 不健康时继续跑验证。
+- 不要为了当前验证恢复 Prisma dev；这条链路已经退役。
 - 不要把 no-match 闸门放宽成“弱相关也先答一个像样答案”。
 - 不要因为 provider 429 / timeout 就回退检索逻辑。
 - 不要用 prompt 兜 retrieval 边界污染；如果 ordinary lookup 又带出裸组，优先修 retrieval。
 - 不要一次性导入几千词。
 - 不要抠商业词书完整释义、例句、辨析、助记和章节结构。
-- 不要为 `postgrad` 编造 `real-smoke` scope。
+- 不要为 `postgrad` 编造 curated scope。
 - 不要把 embedding 当成形近词和考试范围过滤主干。

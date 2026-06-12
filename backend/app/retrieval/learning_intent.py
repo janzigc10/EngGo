@@ -68,10 +68,24 @@ class LearningIntentPlan:
         }
 
 
-prefix_pattern = re.compile(r"(?<![a-z])([a-z]{1,8})(?![a-z])\s*(?:开头|词首|前缀)", re.IGNORECASE)
-suffix_pattern = re.compile(r"(?<![a-z])([a-z]{2,8})(?![a-z])\s*(?:结尾|词尾|后缀)", re.IGNORECASE)
+prefix_pattern = re.compile(
+    r"(?<![a-z])([a-z]{1,8})(?![a-z])\s*(?:为|作为)?\s*(?:开头|词首|前缀)",
+    re.IGNORECASE,
+)
+suffix_pattern = re.compile(
+    r"(?<![a-z])([a-z]{2,8})(?![a-z])\s*(?:为|作为)?\s*(?:结尾|词尾|后缀)",
+    re.IGNORECASE,
+)
 contains_pattern = re.compile(r"(?:有|含有|包含)\s*([a-z]{2,12})\s*(?:的词|这个片段|这个词形)?", re.IGNORECASE)
 meaning_constraint_pattern = re.compile(r"(?:意思是|表示|表达|含义是|中文是)([\u3400-\u9fff]{1,24})")
+literal_affix_semantic_prefix_pattern = re.compile(
+    r"(?<![a-z])(anti|re|sub|trans|pre|co|con|e)(?![a-z])\s*(?:表示|表达|意思是|含义是|中文是)[\u3400-\u9fff]{1,24}",
+    re.IGNORECASE,
+)
+literal_affix_semantic_suffix_pattern = re.compile(
+    r"(?:^|\s)-(less|er)(?![a-z])\s*(?:表示|表达|意思是|含义是|中文是)[\u3400-\u9fff]{1,24}",
+    re.IGNORECASE,
+)
 word_family_pattern = re.compile(
     r"(派生词|派生|拓展词|扩展词|相关词|变形|形式|同根|同族|这一族|一族|家族|词族|这一组|这组词|那组词|那几个词)",
     re.IGNORECASE,
@@ -114,6 +128,24 @@ semantic_aliases = {
     "观点": ("观点", "看法", "意见"),
     "提前": ("提前", "预先", "先于", "之前", "预期", "预防"),
     "预先": ("提前", "预先", "先于", "之前", "预期", "预防"),
+    "反对": ("反对", "相反", "反", "抗", "抵抗"),
+    "相反": ("相反", "反对", "反", "抗", "抵抗"),
+    "抗": ("抗", "抵抗", "反对", "反"),
+    "再次": ("再次", "重新", "再", "重"),
+    "重新": ("重新", "再次", "再", "重"),
+    "下面": ("下面", "下", "以下", "低于", "次级", "下级"),
+    "以下": ("以下", "下面", "下", "低于"),
+    "次级": ("次级", "下级", "低级", "低于"),
+    "跨越": ("跨越", "横跨", "穿过", "横越", "转移", "传递", "传送"),
+    "横跨": ("横跨", "跨越", "穿过", "横越"),
+    "穿过": ("穿过", "跨越", "横跨", "横越"),
+    "转移": ("转移", "传递", "传送", "转化", "转换"),
+    "传递": ("传递", "传送", "传播", "转移"),
+    "没有": ("没有", "无", "缺少", "没有了", "不"),
+    "无": ("无", "没有", "缺少", "不"),
+    "缺少": ("缺少", "没有", "无"),
+    "人": ("人", "者", "员", "师", "工人", "教师", "老师", "劳动者"),
+    "者": ("者", "人", "员", "师", "工人", "教师", "劳动者"),
 }
 meaning_separator_pattern = re.compile(r"(?:或者|或|和|与|及|、|，|,|；|;)")
 
@@ -142,15 +174,37 @@ def normalize_meaning_alternatives(value: str) -> tuple[str, ...]:
 
 def build_form_constraints(text: str) -> list[IntentConstraint]:
     constraints: list[IntentConstraint] = []
+    seen: set[tuple[str, str]] = set()
 
     for value in prefix_pattern.findall(text):
-        constraints.append(IntentConstraint("prefix", value.lower()))
+        normalized = value.lower()
+        if ("prefix", normalized) not in seen:
+            seen.add(("prefix", normalized))
+            constraints.append(IntentConstraint("prefix", normalized))
 
     for value in suffix_pattern.findall(text):
-        constraints.append(IntentConstraint("suffix", value.lower()))
+        normalized = value.lower()
+        if ("suffix", normalized) not in seen:
+            seen.add(("suffix", normalized))
+            constraints.append(IntentConstraint("suffix", normalized))
+
+    for value in literal_affix_semantic_prefix_pattern.findall(text):
+        normalized = value.lower()
+        if ("prefix", normalized) not in seen:
+            seen.add(("prefix", normalized))
+            constraints.append(IntentConstraint("prefix", normalized))
+
+    for value in literal_affix_semantic_suffix_pattern.findall(text):
+        normalized = value.lower()
+        if ("suffix", normalized) not in seen:
+            seen.add(("suffix", normalized))
+            constraints.append(IntentConstraint("suffix", normalized))
 
     for value in contains_pattern.findall(text):
-        constraints.append(IntentConstraint("contains", value.lower()))
+        normalized = value.lower()
+        if ("contains", normalized) not in seen:
+            seen.add(("contains", normalized))
+            constraints.append(IntentConstraint("contains", normalized))
 
     return constraints
 

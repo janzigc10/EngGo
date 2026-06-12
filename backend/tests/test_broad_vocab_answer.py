@@ -201,6 +201,35 @@ def test_collection_plan_with_meaning_keyword_uses_semantic_matches_only():
     assert grounding["selectedMainTerms"] == ["cooperate", "cooperative"]
 
 
+def test_semantic_filter_answer_note_names_form_and_meaning_gate():
+    query = "anti开头表示反对的词"
+    normalized = normalize_query(query)
+    answer = build_broad_vocab_answer(
+        [
+            light_candidate(
+                "antiwar",
+                meanings=["反战的"],
+                part_of_speech="adj.",
+                signals=[
+                    LightGroundingSignal("prefix", 110, "anti"),
+                    LightGroundingSignal("meaning_keyword", 105, "反"),
+                ],
+            ),
+            light_candidate(
+                "antique",
+                meanings=["古董"],
+                part_of_speech="n.",
+                signals=[LightGroundingSignal("prefix", 110, "anti")],
+            ),
+        ],
+        normalized,
+    )
+
+    assert "antiwar" in answer
+    assert "antique" not in answer
+    assert "同时满足拼写和释义线索" in answer
+
+
 def test_broad_grounding_normalizes_part_of_speech_to_abbreviations():
     query = "\u0063\u006f\u006d\u006d \u5f00\u5934\u7684\u5355\u8bcd\u603b\u7ed3"
     grounding = build_broad_vocab_grounding(

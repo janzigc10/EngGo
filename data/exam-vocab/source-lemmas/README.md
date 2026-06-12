@@ -18,4 +18,4 @@ This directory stores machine-extracted lemma forms from confirmed public exam-s
 
 ## Current Gap
 
-Postgrad vocabulary remains source-blocked for entry-level ingestion. The current official NEEA page for the 2022 英语（二）大纲 confirms an appendix vocabulary list in the book images, but does not expose a machine-readable word list. Do not assign `postgrad` scope in `real-smoke` until an entry-level source is available.
+Postgrad vocabulary remains source-blocked for entry-level ingestion. The current official NEEA page for the 2022 英语（二）大纲 confirms an appendix vocabulary list in the book images, but does not expose a machine-readable word list. Do not assign `postgrad` scope in generated or curated vocabulary content until an entry-level source is available.
