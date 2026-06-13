@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -79,29 +79,27 @@ describe("WordbookDashboard", () => {
     window.localStorage.clear();
   });
 
-  it("shows the CET-6 foundation wordbook and dashboard counts", () => {
+  it("shows the active wordbook summary without management controls", () => {
     const wordbook = getDefaultWordbook();
 
     render(<WordbookDashboard mode="learn" onStartSession={vi.fn()} />);
 
     expect(
-      screen.getByRole("heading", { name: "CET-6 ECDICT 基础词书 V1" }),
+      screen.getByRole("heading", { name: "Learn session" }),
     ).toBeInTheDocument();
     expect(screen.getByText("当前词书：CET-6 ECDICT 基础词书 V1")).toBeInTheDocument();
-    const selector = screen.getByRole("group", { name: "选择词书" });
     expect(
-      within(selector).getByRole("button", { name: "高考 ECDICT 基础词书 V1" }),
-    ).toBeInTheDocument();
-    expect(
-      within(selector).getByRole("button", { name: "CET-4 ECDICT 基础词书 V1" }),
-    ).toBeInTheDocument();
-    expect(
-      within(selector).getByRole("button", { name: "CET-6 ECDICT 基础词书 V1" }),
-    ).toBeInTheDocument();
-    expect(
-      within(selector).getByRole("button", { name: "考研 ECDICT 基础词书 V1" }),
-    ).toBeInTheDocument();
-    expect(screen.getAllByText(String(wordbook.entries.length)).length).toBeGreaterThan(0);
+      screen.getByRole("link", { name: "管理词书" }),
+    ).toHaveAttribute("href", "/wordbook");
+    expect(screen.getByText("考试目标")).toBeInTheDocument();
+    expect(screen.getByText("本轮数量")).toBeInTheDocument();
+    expect(screen.getByText("可学习")).toBeInTheDocument();
+    expect(screen.getByText(String(wordbook.entries.length))).toBeInTheDocument();
+    expect(screen.queryByText("总词数")).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "选择词书" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Learn 每组" })).not.toBeInTheDocument();
+    expect(screen.queryByText("学习设置")).not.toBeInTheDocument();
+    expect(screen.queryByText("掌握进度")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /开始 Learn/ })).toBeEnabled();
   });
 
@@ -120,24 +118,22 @@ describe("WordbookDashboard", () => {
     );
   });
 
-  it("persists Learn target count from dashboard settings", async () => {
+  it("uses the stored Learn target count without rendering settings controls", async () => {
     const user = userEvent.setup();
     const onStartSession = vi.fn();
+    window.localStorage.setItem(
+      wordbookStudySettingsStorageKey,
+      JSON.stringify({
+        learnTargetCount: 20,
+        reviewTargetCount: 10,
+      }),
+    );
 
     render(<WordbookDashboard mode="learn" onStartSession={onStartSession} />);
 
-    await user.click(
-      within(screen.getByRole("group", { name: "Learn 每组" })).getByRole(
-        "button",
-        { name: "20" },
-      ),
-    );
+    expect(screen.queryByRole("group", { name: "Learn 每组" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /开始 Learn/ }));
 
-    expect(JSON.parse(window.localStorage.getItem(wordbookStudySettingsStorageKey) ?? "{}")).toMatchObject({
-      learnTargetCount: 20,
-      reviewTargetCount: 10,
-    });
     expect(onStartSession).toHaveBeenCalledWith(
       "learn",
       20,
@@ -197,12 +193,19 @@ describe("WordbookDashboard", () => {
       wordbookId: "cet6-foundation-v1",
     })).toBeNull();
     expect(screen.queryByText("有一轮 Learn 正在进行")).not.toBeInTheDocument();
-    expect(screen.getByText(/学习中 1/)).toBeInTheDocument();
+    expect(screen.getByText("学习中").closest("div")).toHaveTextContent("1");
   });
 
-  it("keeps a continued session target count after settings change", async () => {
+  it("keeps a continued session target count when stored settings differ", async () => {
     const user = userEvent.setup();
     const onStartSession = vi.fn();
+    window.localStorage.setItem(
+      wordbookStudySettingsStorageKey,
+      JSON.stringify({
+        learnTargetCount: 30,
+        reviewTargetCount: 10,
+      }),
+    );
 
     saveActiveStudySession({
       mode: "learn",
@@ -213,12 +216,6 @@ describe("WordbookDashboard", () => {
 
     render(<WordbookDashboard mode="learn" onStartSession={onStartSession} />);
 
-    await user.click(
-      within(screen.getByRole("group", { name: "Learn 每组" })).getByRole(
-        "button",
-        { name: "30" },
-      ),
-    );
     await user.click(screen.getByRole("button", { name: "继续" }));
 
     expect(onStartSession).toHaveBeenCalledWith(
@@ -233,8 +230,16 @@ describe("WordbookDashboard", () => {
 
     expect(screen.getByRole("button", { name: /开始 Review/ })).toBeDisabled();
     expect(screen.getByText("先完成 Learn，Review 会在词到期后出现。")).toBeInTheDocument();
-    expect(screen.getByText(/未到期/)).toBeInTheDocument();
+    expect(screen.queryByText(/未到期/)).not.toBeInTheDocument();
     expect(screen.queryByText("可学习")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "管理词书" }),
+    ).toHaveAttribute("href", "/wordbook");
+    expect(screen.queryByText("总词数")).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "选择词书" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Review 每组" })).not.toBeInTheDocument();
+    expect(screen.queryByText("学习设置")).not.toBeInTheDocument();
+    expect(screen.queryByText("掌握进度")).not.toBeInTheDocument();
   });
 
   it("explains when Learn is empty because review work remains", () => {
@@ -272,8 +277,8 @@ describe("WordbookDashboard", () => {
 
     render(<WordbookDashboard mode="review" onStartSession={vi.fn()} />);
 
-    expect(screen.getByText(/补救中 1/)).toBeInTheDocument();
-    expect(screen.getByText(/Review 里失误后仍留在 Review 队列/)).toBeInTheDocument();
+    expect(screen.getByText("补救中").closest("div")).toHaveTextContent("1");
+    expect(screen.queryByText(/Review 里失误后仍留在 Review 队列/)).not.toBeInTheDocument();
   });
 
   it("enables Review when a passed word is due", () => {
@@ -315,10 +320,10 @@ describe("WordbookDashboard", () => {
     render(<WordbookDashboard mode="learn" onStartSession={vi.fn()} />);
 
     expect(
-      screen.getByRole("heading", { name: "考研 ECDICT 基础词书 V1" }),
+      screen.getByRole("heading", { name: "Learn session" }),
     ).toBeInTheDocument();
     expect(screen.getByText("当前词书：考研 ECDICT 基础词书 V1")).toBeInTheDocument();
-    expect(screen.getByText("当前考试目标：考研")).toBeInTheDocument();
+    expect(screen.getByText("考研")).toBeInTheDocument();
     expect(screen.queryByText(/考研词书还没接入/)).not.toBeInTheDocument();
   });
 });

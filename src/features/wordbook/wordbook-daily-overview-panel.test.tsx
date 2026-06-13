@@ -84,7 +84,7 @@ describe("WordbookDailyOverviewPanel", () => {
     );
     expect(screen.getByRole("link", { name: /查看进度/ })).toHaveAttribute(
       "href",
-      "/progress",
+      "/wordbook",
     );
     expect(screen.getByText(/CET-6 ECDICT 基础词书 V1/)).toBeInTheDocument();
   });
@@ -113,7 +113,7 @@ describe("WordbookDailyOverviewPanel", () => {
     );
     expect(screen.getByRole("link", { name: /查看进度/ })).toHaveAttribute(
       "href",
-      "/progress",
+      "/wordbook",
     );
   });
 });

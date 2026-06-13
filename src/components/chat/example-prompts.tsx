@@ -11,7 +11,7 @@ export function ExamplePrompts({ prompts, onSelect }: ExamplePromptsProps) {
           key={prompt}
           type="button"
           onClick={() => onSelect(prompt)}
-          className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-left text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-900"
+          className="rounded-xl border border-[#e5e1d7] bg-[#f8f8f6] px-4 py-4 text-left text-sm font-semibold text-[#151515] transition hover:border-[#d08a18] hover:bg-[#fbfaf7]"
         >
           {prompt}
         </button>

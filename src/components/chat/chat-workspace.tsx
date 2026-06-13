@@ -1,9 +1,7 @@
 "use client";
 
 import { ChatInput } from "@/components/chat/chat-input";
-import { ExamplePrompts } from "@/components/chat/example-prompts";
 import { MessageThread } from "@/components/chat/message-thread";
-import { ExamTargetSwitcher } from "@/components/shell/exam-target-switcher";
 import { latestConversationContext } from "@/features/chat/conversation-context";
 import type {
   ChatMessage,
@@ -11,7 +9,6 @@ import type {
 } from "@/features/chat/types";
 import { isExamTargetCode } from "@/features/exam-target/model";
 import { useChatSession } from "@/features/chat/use-chat-session";
-import { WordbookDailyOverviewPanel } from "@/features/wordbook/wordbook-daily-overview-panel";
 
 function readDraftPromptFromLocation() {
   if (typeof window === "undefined") {
@@ -66,10 +63,8 @@ export function ChatWorkspace() {
     activeExamTarget,
     composerValue,
     errorMessage,
-    examplePrompts,
     isLoading,
     messages,
-    chooseExamplePrompt,
     setActiveExamTarget,
     setComposerValue,
     submitPrompt,
@@ -78,9 +73,7 @@ export function ChatWorkspace() {
     initialExamTarget: readInitialExamTargetFromLocation(),
   });
   const currentContext = latestConversationContext(messages, activeExamTarget);
-  const contextHintLabel = currentContext
-    ? buildContextHintLabel(currentContext)
-    : "";
+  const contextHintLabel = currentContext ? buildContextHintLabel(currentContext) : "";
   const latestAssistantMessage = findLatestUnansweredAssistantMessage(messages);
   const clarificationOptions =
     latestAssistantMessage?.resolvedFollowUp?.kind === "clarification"
@@ -88,27 +81,17 @@ export function ChatWorkspace() {
       : [];
 
   return (
-    <section className="grid flex-1 gap-6 lg:grid-cols-[minmax(0,1.2fr)_320px]">
-      <div className="flex min-h-[560px] min-w-0 flex-col justify-between rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.06)] backdrop-blur sm:p-8">
-        <div className="space-y-6">
-          <ExamTargetSwitcher
-            activeExamTarget={activeExamTarget}
-            onChange={setActiveExamTarget}
-          />
-          <MessageThread
-            messages={messages}
-            errorMessage={errorMessage}
-            isLoading={isLoading}
-          />
-          <ExamplePrompts
-            prompts={examplePrompts}
-            onSelect={chooseExamplePrompt}
-          />
-        </div>
+    <section className="flex flex-1 justify-center">
+      <div className="flex min-h-[calc(100dvh-9.5rem)] w-full max-w-3xl min-w-0 flex-col">
+        <MessageThread
+          messages={messages}
+          errorMessage={errorMessage}
+          isLoading={isLoading}
+        />
         {contextHintLabel || clarificationOptions.length > 0 ? (
-          <div className="mt-6 space-y-3">
+          <div className="mt-4 space-y-2">
             {contextHintLabel ? (
-              <p className="text-xs text-slate-500">
+              <p className="sr-only" data-testid="conversation-context-hint">
                 正在追问：{contextHintLabel}
               </p>
             ) : null}
@@ -122,7 +105,7 @@ export function ChatWorkspace() {
                       key={`${option.index}-${option.lemma}`}
                       type="button"
                       onClick={() => setComposerValue(optionPrompt)}
-                      className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-sky-300 hover:text-sky-900"
+                      className="rounded-full border border-[#dedacf] bg-white px-3 py-1.5 text-xs font-medium text-[#6f6f68] transition hover:border-[#d08a18] hover:text-[#151515]"
                     >
                       {optionPrompt}
                     </button>
@@ -137,9 +120,10 @@ export function ChatWorkspace() {
           onChange={setComposerValue}
           onSubmit={() => submitPrompt()}
           isLoading={isLoading}
+          activeExamTarget={activeExamTarget}
+          onExamTargetChange={setActiveExamTarget}
         />
       </div>
-      <WordbookDailyOverviewPanel />
     </section>
   );
 }

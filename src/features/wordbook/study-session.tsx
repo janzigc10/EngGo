@@ -15,6 +15,9 @@ import {
   saveWordProgress,
 } from "@/features/wordbook/wordbook-progress-store";
 import {
+  recordWordbookDailyActivity,
+} from "@/features/wordbook/wordbook-daily-stats-store";
+import {
   applyStudyAction,
   createBlockedProgress,
   createLearnSession,
@@ -66,9 +69,14 @@ export function StudySession({ mode, targetCount, wordbookId, onExit }: StudySes
     });
   }, [current, state.sessionId, state.stage, wordbook.entries]);
 
-  function persistUpdates(updates: WordStudyProgress[]) {
+  const persistUpdates = useCallback((updates: WordStudyProgress[]) => {
     updates.forEach((update) => saveWordProgress(update));
-  }
+    recordWordbookDailyActivity({
+      mode,
+      wordbookId: wordbook.id,
+      progressUpdates: updates,
+    });
+  }, [mode, wordbook.id]);
 
   const dispatch = useCallback((action: StudySessionAction) => {
     const result = applyStudyAction(state, action);
@@ -84,7 +92,7 @@ export function StudySession({ mode, targetCount, wordbookId, onExit }: StudySes
       ...currentSession,
       state: result.state,
     }));
-  }, [mode, session.targetCount, state, wordbook.id]);
+  }, [mode, persistUpdates, session.targetCount, state, wordbook.id]);
 
   if ((state.stage === "complete" || !current) && state.totalTargets === 0) {
     return (

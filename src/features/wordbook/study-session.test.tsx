@@ -11,6 +11,10 @@ import {
   StudySession,
 } from "@/features/wordbook/study-session";
 import {
+  loadWordbookDailyStats,
+  wordbookDailyStatsStorageKey,
+} from "@/features/wordbook/wordbook-daily-stats-store";
+import {
   loadActiveStudySession,
   saveActiveStudySession,
 } from "@/features/wordbook/wordbook-active-session-store";
@@ -298,6 +302,27 @@ describe("StudySession", () => {
     });
   });
 
+  it("records daily Learn activity from persisted progress updates", async () => {
+    const user = userEvent.setup();
+    const wordbook = getDefaultWordbook();
+    const entry = wordbook.entries[0];
+
+    render(<StudySession mode="learn" targetCount={10} onExit={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: entry.meaningsZh[0] }));
+
+    expect(window.localStorage.getItem(wordbookDailyStatsStorageKey)).toContain(
+      wordbook.id,
+    );
+    expect(loadWordbookDailyStats()).toEqual([
+      expect.objectContaining({
+        wordbookId: wordbook.id,
+        learnActivityCount: 1,
+        reviewActivityCount: 0,
+      }),
+    ]);
+  });
+
   it("renders first Learn detail without collocations", () => {
     const entry = makeLayeredDetailEntry();
 
@@ -437,6 +462,13 @@ describe("StudySession", () => {
 
     await user.click(screen.getByRole("button", { name: "认识" }));
     expect(screen.getByText("Meaning")).toBeInTheDocument();
+    expect(loadWordbookDailyStats()).toEqual([
+      expect.objectContaining({
+        wordbookId: wordbook.id,
+        reviewActivityCount: 1,
+        reviewCompletedCount: 0,
+      }),
+    ]);
 
     await user.click(screen.getByRole("button", { name: "下一词" }));
 
@@ -447,6 +479,13 @@ describe("StudySession", () => {
         reviewStrength: 2,
       });
     });
+    expect(loadWordbookDailyStats()).toEqual([
+      expect.objectContaining({
+        wordbookId: wordbook.id,
+        reviewActivityCount: 1,
+        reviewCompletedCount: 1,
+      }),
+    ]);
   });
 
   it("returns forgotten Review words to Review relearn choices after detail", async () => {

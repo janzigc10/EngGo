@@ -1,8 +1,5 @@
-import { AnswerActions } from "@/components/chat/answer-actions";
 import { AnswerContent } from "@/components/chat/answer-content";
 import type { ChatMessage } from "@/features/chat/types";
-
-const loadingSteps = ["正在检索当前范围词条", "整理易混边界", "组织可读答案"];
 
 type MessageThreadProps = {
   messages: ChatMessage[];
@@ -10,214 +7,39 @@ type MessageThreadProps = {
   isLoading: boolean;
 };
 
-function hasExternalDictionarySource(grounding: NonNullable<ChatMessage["grounding"]>) {
-  return (
-    grounding.matchType === "external_dictionary_exact"
-    || grounding.mainAnswer.some(
-      (candidate) => candidate.sourceKind === "external_dictionary_basic",
-    )
-  );
-}
-
-function hasSourceLemmaSource(grounding: NonNullable<ChatMessage["grounding"]>) {
-  return (
-    grounding.matchType === "source_lemma_exact"
-    || grounding.mainAnswer.some((candidate) => candidate.sourceKind === "source_lemma")
-  );
-}
-
-function buildHitSummary(grounding: NonNullable<ChatMessage["grounding"]>) {
-  const count = grounding.mainAnswer.length;
-  const firstLemma = grounding.mainAnswer[0]?.lemma;
-
-  if (hasExternalDictionarySource(grounding)) {
-    if (count === 1 && firstLemma) {
-      return `已找到 1 条外部基础释义：${firstLemma}`;
-    }
-
-    return `已找到 ${count} 条外部基础释义`;
-  }
-
-  if (hasSourceLemmaSource(grounding)) {
-    if (count === 1 && firstLemma) {
-      return `已命中 1 个来源词表词：${firstLemma}`;
-    }
-
-    return `已命中 ${count} 个来源词表词`;
-  }
-
-  if (count === 1 && firstLemma) {
-    return `已命中 1 个当前范围词：${firstLemma}`;
-  }
-
-  return `已命中 ${count} 个当前范围词`;
-}
-
-function buildCompactSourceSummary(grounding: NonNullable<ChatMessage["grounding"]>) {
-  if (hasExternalDictionarySource(grounding)) {
-    return "外部基础词典 · 不参与易混词/词根/考试优先级判断";
-  }
-
-  if (hasSourceLemmaSource(grounding)) {
-    return "来源词表命中 · 待补人工结构化词条";
-  }
-
-  return buildHitSummary(grounding);
-}
-
-function isCompactDictionaryLookup(grounding: NonNullable<ChatMessage["grounding"]>) {
-  return (
-    grounding.resolution === "resolved"
-    && grounding.answerStyle === "standard_lookup"
-    && (hasExternalDictionarySource(grounding) || hasSourceLemmaSource(grounding))
-  );
-}
-
-function isMeaningExpressionAdvice(grounding: NonNullable<ChatMessage["grounding"]>) {
-  return grounding.answerStyle === "meaning_expression_advice";
-}
-
-function shouldShowFollowUp(grounding: NonNullable<ChatMessage["grounding"]>) {
-  if (grounding.resolution === "no_match") {
-    return true;
-  }
-
-  if (isCompactDictionaryLookup(grounding) && grounding.confusionBoundary.length === 0) {
-    return false;
-  }
-
-  return true;
-}
-
 export function MessageThread({
   messages,
   errorMessage,
   isLoading,
 }: MessageThreadProps) {
   if (messages.length === 0) {
-    return (
-      <div className="space-y-4">
-        <p className="text-sm font-medium uppercase tracking-[0.22em] text-slate-500">
-          Chat Workspace
-        </p>
-        <div className="space-y-3">
-          <h2 className="max-w-2xl font-serif text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-            先问出你模糊记得的那个词，我们来把范围缩准。
-          </h2>
-          <p className="max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
-            这里优先给你当前考试范围内的主答案，再顺手讲清楚附近易混词的边界，不把首页做成一长串搜索结果。
-          </p>
-        </div>
-      </div>
-    );
+    return <div className="flex-1" aria-label="空对话" />;
   }
 
   return (
-    <div className="min-w-0 space-y-4">
+    <div className="min-w-0 flex-1 space-y-6 pb-4">
       {messages.map((message) => (
         <article
           key={message.id}
-          className={`min-w-0 rounded-[1.5rem] border px-4 py-4 shadow-sm ${
+          className={`min-w-0 ${
             message.role === "user"
-              ? "ml-auto max-w-xl border-sky-200 bg-sky-50 text-slate-900"
-              : "border-slate-200 bg-white text-slate-800"
+              ? "ml-auto max-w-[82%] rounded-2xl bg-[#f1eee7] px-4 py-3 text-[#151515]"
+              : "text-[#151515]"
           }`}
         >
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-            {message.role === "user" ? "你的问题" : "EngGo 回答"}
-          </p>
           <AnswerContent content={message.content} />
-          {message.role === "assistant" && message.grounding ? (
-            <div className="mt-4 space-y-3">
-              {isMeaningExpressionAdvice(message.grounding) ? (
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    表达建议
-                  </p>
-                  <p className="mt-1 text-sm text-slate-700">
-                    {message.grounding.scopeReminder}
-                  </p>
-                </div>
-              ) : message.grounding.resolution === "no_match" ? (
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    暂未稳定命中
-                  </p>
-                  <p className="mt-1 text-sm text-slate-700">
-                    当前词库暂未稳定定位到对应词条，我先不硬猜，避免答错对象。
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <p className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
-                    {buildCompactSourceSummary(message.grounding)}
-                  </p>
-                  {message.grounding.confusionBoundary.length > 0 ? (
-                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                        易混边界
-                      </p>
-                      <p className="mt-1 text-sm text-slate-700">
-                        {message.grounding.confusionBoundary
-                          .map((item) => item.lemma)
-                          .join(" / ")}
-                      </p>
-                    </div>
-                  ) : null}
-                </>
-              )}
-              {shouldShowFollowUp(message.grounding) ? (
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    下一步
-                  </p>
-                  <p className="mt-1 text-sm text-slate-700">
-                    {message.grounding.followUpPrompt}
-                  </p>
-                </div>
-              ) : null}
-              <AnswerActions grounding={message.grounding} />
-            </div>
-          ) : null}
         </article>
       ))}
       {isLoading ? (
         <div
           aria-live="polite"
-          className="rounded-[1.5rem] border border-sky-100 bg-sky-50/70 px-4 py-4 text-sm text-slate-700 shadow-sm"
+          className="px-1 py-2 text-sm text-[#6f6f68]"
         >
-          <div className="flex items-start gap-3">
-            <span className="mt-1 flex h-2.5 w-2.5 shrink-0 rounded-full bg-sky-500 shadow-[0_0_0_6px_rgba(14,165,233,0.14)]" />
-            <div className="min-w-0 space-y-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-800">
-                  EngGo 正在工作
-                </p>
-                <p className="mt-1 text-sm text-slate-600">
-                  先锁定范围内证据，再把回答整理成能直接看的学习材料。
-                </p>
-              </div>
-              <ol className="grid gap-2 sm:grid-cols-3">
-                {loadingSteps.map((step, index) => (
-                  <li
-                    key={step}
-                    className="flex items-center gap-2 rounded-full border border-white/80 bg-white/80 px-3 py-2 text-xs font-medium text-slate-600"
-                  >
-                    <span
-                      className={`h-2 w-2 rounded-full ${
-                        index === 0 ? "bg-sky-500" : "bg-slate-300"
-                      }`}
-                    />
-                    {step}
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </div>
+          正在思考...
         </div>
       ) : null}
       {errorMessage ? (
-        <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-700">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {errorMessage}
         </div>
       ) : null}

@@ -56,7 +56,7 @@ describe("CollectionsPanel", () => {
       within(cet4Section).getByRole("link", { name: "继续追问 make up" }),
     ).toHaveAttribute(
       "href",
-      "/?draft=make%20up%20%E6%80%8E%E4%B9%88%E7%94%A8&examTarget=cet4",
+      "/chat?draft=make%20up%20%E6%80%8E%E4%B9%88%E7%94%A8&examTarget=cet4",
     );
   });
 

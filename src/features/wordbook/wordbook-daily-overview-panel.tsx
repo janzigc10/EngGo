@@ -106,26 +106,28 @@ export function WordbookDailyOverviewPanel() {
   return (
     <aside
       aria-label="今日学习概览"
-      className="flex flex-col justify-between rounded-[2rem] border border-slate-200 bg-[linear-gradient(180deg,_rgba(14,116,144,0.08),_rgba(255,255,255,0.96))] p-6 shadow-[0_20px_60px_rgba(14,116,144,0.10)]"
+      className="flex flex-col justify-between rounded-lg border border-[#e5e1d7] bg-[#f8f8f6] p-5 shadow-[0_18px_56px_rgba(21,21,21,0.05)] sm:p-6"
     >
       <div className="space-y-5">
         <div className="space-y-2">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-sky-800">
+          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#8a5a10]">
             今日学习概览
           </p>
-          <h3 className="font-serif text-2xl font-semibold text-slate-950">
+          <h3 className="text-2xl font-extrabold tracking-normal text-[#151515]">
             {overview.title}
           </h3>
-          <p className="text-sm leading-7 text-slate-700">
+          <p className="text-sm leading-7 text-[#6f6f68]">
             {overview.summary}
           </p>
         </div>
 
-        <dl className="grid grid-cols-2 gap-x-5 gap-y-4 border-y border-sky-100/80 py-4">
+        <dl className="grid grid-cols-2 gap-x-5 gap-y-4 border-y border-[#e5e1d7] py-4">
           {overview.metrics.map((metric) => (
             <div key={metric.label} className="min-w-0">
-              <dt className="text-xs text-slate-500">{metric.label}</dt>
-              <dd className="mt-1 text-2xl font-semibold text-slate-950">
+              <dt className="text-xs font-medium text-[#6f6f68]">
+                {metric.label}
+              </dt>
+              <dd className="mt-1 text-2xl font-extrabold text-[#151515]">
                 {metric.value}
               </dd>
             </div>
@@ -137,18 +139,14 @@ export function WordbookDailyOverviewPanel() {
             <Link
               key={action.kind}
               href={action.href}
-              className={`block rounded-2xl border px-4 py-3 transition active:translate-y-px ${
+              className={`block rounded-lg border bg-white px-4 py-3 text-[#151515] transition hover:bg-[#f8f8f6] focus:outline-none focus:ring-2 focus:ring-[#d08a18] focus:ring-offset-2 focus:ring-offset-[#f8f8f6] active:translate-y-px ${
                 action.tone === "strong"
-                  ? "border-slate-950 bg-slate-950 text-white hover:bg-slate-800"
-                  : "border-slate-200 bg-white/80 text-slate-800 hover:border-sky-200 hover:bg-white"
+                  ? "border-[#d08a18]"
+                  : "border-[#e5e1d7] hover:border-[#d08a18]"
               }`}
             >
               <span className="block text-sm font-semibold">{action.label}</span>
-              <span
-                className={`mt-1 block text-xs leading-5 ${
-                  action.tone === "strong" ? "text-slate-200" : "text-slate-500"
-                }`}
-              >
+              <span className="mt-1 block text-xs leading-5 text-[#6f6f68]">
                 {action.detail}
               </span>
             </Link>
@@ -156,7 +154,7 @@ export function WordbookDailyOverviewPanel() {
         </nav>
       </div>
 
-      <p className="mt-6 border-t border-white/80 pt-4 text-sm leading-6 text-slate-600">
+      <p className="mt-6 border-t border-[#e5e1d7] pt-4 text-sm leading-6 text-[#6f6f68]">
         {overview.wordbookLabel} · {overview.progressLabel}
       </p>
     </aside>

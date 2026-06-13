@@ -4,7 +4,6 @@ const secondaryAreas = [
   { href: "/collections", label: "收藏" },
   { href: "/learn", label: "学习" },
   { href: "/review", label: "复习" },
-  { href: "/progress", label: "进度" },
 ];
 
 export function AppNav() {

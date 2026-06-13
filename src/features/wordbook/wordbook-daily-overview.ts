@@ -13,7 +13,7 @@ export type WordbookDailyOverviewAction = {
     | "start_review"
     | "start_learn"
     | "view_progress";
-  href: "/learn" | "/review" | "/progress";
+  href: "/learn" | "/review" | "/wordbook";
   label: string;
   detail: string;
   tone: "strong" | "quiet";
@@ -80,7 +80,7 @@ export function buildWordbookDailyOverview({
 
   actions.push({
     kind: "view_progress",
-    href: "/progress",
+    href: "/wordbook",
     label: "查看进度",
     detail: `${snapshot.passed} / ${snapshot.total} 已阶段通过`,
     tone: actions.length === 0 ? "strong" : "quiet",

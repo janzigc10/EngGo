@@ -62,6 +62,9 @@
 ## 当前计划状态
 当前没有正在执行中的实现计划。下面几项是最近完成或仍作为防回归边界的计划，继续任务时不要从 Task 1 重开。
 
+- `docs/superpowers/plans/2026-06-13-app-shell-redesign-v1.md`
+  - 已完成实现计划：按 `2026-06-12-app-shell-redesign-v1-design.md` 落地 App Shell Redesign V1。已完成 Ink Amber app shell、抽屉式主导航、底部词书图标、Today/Chat/Wordbook 路由迁移、Learn/Review UI 收口、daily stats/词书数据页，并已补齐 Chat、Collections 兼容流的 Ink Amber 视觉断层。Focused tests、lint/build、Playwright route slice，以及 Browser/Computer Use 桌面和 390px 移动端 QA 均已通过。后续如继续，只做非阻塞 housekeeping，例如真实 icon package 或删除未使用旧入口，不要重开 IA。
+
 - `docs/superpowers/plans/2026-06-07-structured-legacy-data-cleanup-v1.md`
   - 已完成清理计划：在 FastAPI + ECDICT wordbook 成为当前主线后，迁走 `real-smoke` 中仍有价值的少量人工 root-family 内容，退役 Prisma schema/migrations/seed、旧 TypeScript seed/repository 路径、旧 `real-smoke` 数据集和过时的 `eval:product-smoke` gate。保留 ECDICT wordbook、source lemma manifests 和 FastAPI 直接读取的 `data/exam-vocab/seed` curated 内容。
 - `docs/superpowers/plans/2026-06-07-affix-semantic-gate-v1.md`

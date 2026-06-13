@@ -1,9 +1,11 @@
 # EngGo 滚动交接
 
-## 当前状态（2026-06-12 App Shell Redesign V1 Design）
+## 当前状态（2026-06-13 App Shell Redesign V1 Implementation）
 - 当前分支 / worktree：`codex/meaning-lookup-quality-gate-v1`，工作区 `C:\Users\Chen\Desktop\EngGo`。
-- 当前活跃目标：前端 UI 从“几个独立页面 + 顶部 pill nav + 层层卡片”收成一个移动优先的 app shell；已完成设计确认，尚未开始实现。
+- 当前活跃目标：App Shell Redesign V1 已按 spec 完成；用户 review 后追加 Chat A 方案细节打磨，已把 `/chat` 收成 ChatGPT 式单主对话流。
 - 当前有效设计：`docs/superpowers/specs/2026-06-12-app-shell-redesign-v1-design.md`。
+- 当前实现计划：`docs/superpowers/plans/2026-06-13-app-shell-redesign-v1.md`，已完成。
+- 当前执行步骤：等待用户 review / 是否提交；没有剩余 spec blocker。
 - 用户已确认的信息架构：
   - 顶部不放主导航，只保留三条杠菜单按钮和当前页面标题。
   - 三条杠 / 左滑唤醒抽屉，抽屉只放 `Today / Learn / Review / Chat`。
@@ -24,6 +26,60 @@
   - 不恢复 Prisma dev / `db:*` / `real-smoke` / 旧 `eval:product-smoke`。
 
 ## 本轮已完成
+1. 按 `2026-06-12-app-shell-redesign-v1-design.md` 完成 App Shell Redesign V1：
+   - `/` 和 `/today` 渲染 Today；`/chat` 承载原 ChatWorkspace；`/wordbook` 承载词书管理；`/progress` redirect 到 `/wordbook`。
+   - `AppFrame` 改为 Ink Amber topbar + hamburger drawer + 底部词书图标；drawer 只含 `Today / Learn / Review / Chat`。
+   - Today 保持 Learn / Review / Chat 自由入口，没有 forced daily priority。
+   - Learn / Review 入口移除旧词书 switcher、学习设置和解释型进度卡，只保留会话开始/继续/重开/放弃与“管理词书”入口。
+   - `/wordbook` 集中处理词书切换、学习/复习设置、词书进度、7 天活动曲线和 Collections 次级入口。
+   - 新增 `enggo.wordbookDailyStats.v1`，在 `StudySession` 的 progress persistence 边界记录 daily stats，不改 Learn / Review 状态机。
+2. 按用户目标使用 subagent 做完成审查，并处理审查结果：
+   - Chat 审查指出旧 `sky/slate`、serif 空状态、旧大圆角容器和收藏工具蓝色按钮；已统一 `ChatWorkspace`、`MessageThread`、`ChatInput`、`ExamplePrompts`、`AnswerActions`、`AnswerContent` 和 `ExamTargetSwitcher` 到 Ink Amber。
+   - Collections 审查指出 `/wordbook -> Collections` 可见兼容流仍是旧风格；已统一 `CollectionsPanel`、Collections loading fallback、Learn/Review loading fallback，以及未使用的 `ProgressPanel` 样式残留。
+   - 覆盖审查指出需要更强 `/progress` redirect、移动端 FAB、Wordbook 切换联动、drawer backdrop 和 tooltip 证据；已补 `tests/e2e/app-shell.spec.ts` 和 `AppFrame` 单测。
+3. 本轮额外修复 / 防回归：
+   - `/wordbook` hydration mismatch 已用 `useHasMounted` server-safe snapshot 处理。
+   - 390px 底部词书图标改为右下 44px FAB，并补偿桌面滚动条；移动端 Browser top/bottom 检查所有路由均 0 overlap。
+   - Playwright baseURL 从 `127.0.0.1:3000` 改为 `localhost:3000`，避免 Next 16 dev 下脚本接管异常。
+   - 目标目录扫描确认 `src/components/chat`、`src/features/collections`、`src/app/collections`、`src/app/learn`、`src/app/review` 和 `ExamTargetSwitcher` 没有旧 `sky-*`、`font-serif`、旧大圆角类残留。
+4. 按用户选择的 A 方案细化 `/chat`：
+   - 移除 Chat 右侧 `WordbookDailyOverviewPanel`、示例 prompt、空状态大标题、输入区说明文案、回答内“下一步 / 命中摘要 / 易混边界 / 收藏工具”等分布式卡片。
+   - `/chat` 现在只保留单列对话流、一个底部 composer、发送按钮和极轻量当前词书 selector；Enter 直接发送，Shift+Enter 保留换行。
+   - clarification options 作为真实交互 chip 保留；conversation context hint 改为 screen-reader only，不再作为可见提示干扰页面。
+   - Collections 空状态文案同步去掉“回到聊天页点加入收藏”的旧指引，避免和 Chat 纯对话流冲突。
+
+## 当前待办
+1. 用户 review 当前 `/chat` 单对话框效果；本轮没有剩余 spec blocker。
+2. 如后续继续，建议只做非阻塞 housekeeping：是否引入真实 icon package 替换当前 CSS book glyph、是否删除未使用的旧 `AppNav` / `ProgressClient`。不要重开 IA。
+3. 本地 dev server 仍以 `http://localhost:3000` 作为前端验收入口；后续 Browser / Playwright 验收继续优先用 `localhost`。
+
+## 最新验证（本轮）
+- Focused lint：
+  - `corepack pnpm lint -- src\components\shell\exam-target-switcher.tsx src\components\chat\chat-workspace.tsx src\components\chat\message-thread.tsx src\components\chat\chat-input.tsx src\components\chat\example-prompts.tsx src\components\chat\answer-actions.tsx src\components\chat\answer-content.tsx src\app\collections\collections-client.tsx src\app\learn\learn-client.tsx src\app\review\review-client.tsx src\features\collections\study-panels.tsx src\components\shell\app-frame.test.tsx tests\e2e\app-shell.spec.ts` -> passed。
+- Focused Vitest：
+  - `corepack pnpm test -- src\components\chat\chat-workspace.test.tsx src\features\collections\study-panels.test.tsx src\components\shell\app-frame.test.tsx` -> 32 files / 257 tests passed。
+- Playwright route slice：
+  - `corepack pnpm test:e2e -- tests\e2e\app-shell.spec.ts tests\e2e\chat-mvp.spec.ts tests\e2e\collection-flow.spec.ts` -> 6 passed。
+- Final full gates：
+  - `corepack pnpm lint` -> passed。
+  - `corepack pnpm test` -> 32 files / 257 tests passed。
+  - `corepack pnpm build` -> passed；Next 16.2.4 compiled, TypeScript passed, 11 static pages generated。
+  - `git diff --check` -> passed，只有 Windows LF/CRLF warnings。
+- Browser desktop QA（in-app Browser / Computer Use）：
+  - `http://localhost:3000` 覆盖 `/`、`/learn`、`/review`、`/chat`、`/wordbook`、`/collections`、`/progress`。
+  - 所有路由 header / main content 正常；`/progress` redirect 到 `/wordbook`；visible page style audit 结果为 0 blueish controls、0 serif heading、0 horizontal overflow、0 console error。
+  - Drawer 用 DOM CUA 打开后只有 `Today / Learn / Review / Chat`，关闭正常。
+- Browser 390px QA：
+  - 视口 `390x844` 覆盖 `/`、`/learn`、`/review`、`/chat`、`/wordbook`、`/collections`、`/progress` 的 top/bottom。
+  - 所有路由 horizontal overflow 为 0；底部词书 icon 在 viewport 内；overlapCount 为 0；fresh console error 为 0。
+- Chat A 方案追加验证：
+  - `corepack pnpm lint -- src\components\chat\chat-workspace.tsx src\components\chat\message-thread.tsx src\components\chat\chat-input.tsx src\components\chat\chat-workspace.test.tsx src\features\collections\study-panels.tsx tests\e2e\app-shell.spec.ts tests\e2e\chat-mvp.spec.ts tests\e2e\collection-flow.spec.ts` -> passed。
+  - `corepack pnpm test -- src\components\chat\chat-workspace.test.tsx src\features\collections\study-panels.test.tsx` -> 32 files / 257 tests passed。
+  - `corepack pnpm test:e2e -- tests\e2e\app-shell.spec.ts tests\e2e\chat-mvp.spec.ts tests\e2e\collection-flow.spec.ts` -> 6 passed。
+  - 临时 Playwright layout audit 覆盖 `/chat` 桌面和 `390x844` 移动端：旧 Chat Workspace / 示例 prompt / 今日学习概览文案均未出现，horizontal overflow 为 0，词书 icon 不遮挡 composer / 发送按钮，console error 为 0；临时测试文件已删除。
+  - `corepack pnpm build` -> passed；Next 16.2.4 compiled, TypeScript passed, 11 static pages generated。
+
+## 上一轮已完成
 1. 按用户要求使用 `design-taste-frontend` 的 redesign / audit 口径和 Brainstorm visual companion；没有直接改实现代码。
 2. 重新审计当前渲染 UI：确认主要问题是大 header 卡、顶部 pill nav、Learn / Review / Progress 重复词书切换和嵌套卡片，整体不像一个稳定 app shell。
 3. 通过 visual companion 逐步收敛方案：
@@ -37,19 +93,9 @@
 4. 写入正式设计文档 `docs/superpowers/specs/2026-06-12-app-shell-redesign-v1-design.md`。
 5. 更新 `docs/README.md`，把 App Shell Redesign V1 加入当前有效设计。
 
-## 最新验证（本轮）
+## 上一轮验证
 - Browser visual companion：`http://localhost:64986` 已展示最终确认稿，用户回复“嗯”确认；随后又确认 Ink Amber 配色。
-- 本轮是 docs/design-only，未运行前端实现测试。
-
-## 下一步
-1. 本轮可提交设计文档与交接更新。
-2. Brainstorm 规范的 subagent spec review 受当前 subagent 工具“必须由用户显式要求 delegation”限制；如果要严格跑 subagent review，需要用户明确授权。
-3. 用户 review 当前 spec 后，下一步写实现计划。建议第一刀顺序：
-   - App shell + drawer + route IA：`/` Today、`/chat` 迁移、`/learn`、`/review`、`/wordbook`。
-   - Wordbook route：复用现有 active wordbook / settings / snapshot，集中词书切换和数据。
-   - Daily stats store + compact activity chart。
-   - Retire top pill nav and remove Learn / Review 内的词书切换块。
-4. 不要把 Today 或 Wordbook 扩成强制 daily priority；保持用户自由选择。
+- 该轮只产出设计文档；实现与验收已在本轮 App Shell Redesign V1 中完成。
 
 ## 上一轮完成内容（Wordbook Daily Overview V1）
 1. 重新扫了当前首页、Wordbook dashboard、progress store、active session store、study settings store 和相关测试，确认 Learn / Review / Progress 已经可用，缺口主要是首页右侧仍是静态工作区文案。

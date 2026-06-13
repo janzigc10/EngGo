@@ -7,7 +7,7 @@ const ReviewPanel = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-white/80 p-6 text-sm text-slate-500">
+      <div className="rounded-2xl border border-dashed border-[#d7d2c6] bg-white p-6 text-sm text-[#6f6f68]">
         复习页正在加载占位内容...
       </div>
     ),

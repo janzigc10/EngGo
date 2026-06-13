@@ -60,7 +60,7 @@ describe("ChatWorkspace", () => {
     expect(window.localStorage.getItem("enggo.activeWordbook.v1")).toBe(
       "cet4-foundation-v1",
     );
-    expect(screen.getByTestId("active-exam-target")).toHaveTextContent("当前词书：CET-4");
+    expect(screen.getByTestId("active-exam-target")).toHaveTextContent("CET-4");
   });
 
   it("persists active exam target and sends prompt", async () => {
@@ -69,25 +69,19 @@ describe("ChatWorkspace", () => {
 
     render(<ChatWorkspace />);
 
-    await user.click(screen.getByRole("button", { name: /CET-6/i }));
-    await user.click(screen.getByText("遵从怎么说"));
+    await user.selectOptions(screen.getByRole("combobox", { name: "当前词书" }), "postgrad");
+    await user.type(screen.getByTestId("chat-input"), "遵从怎么说");
 
-    expect(window.localStorage.getItem("enggo.activeExamTarget")).toBe("cet6");
+    expect(window.localStorage.getItem("enggo.activeExamTarget")).toBe("postgrad");
     expect(screen.getByDisplayValue("遵从怎么说")).toBeInTheDocument();
   });
 
-  it("renders the wordbook overview instead of a static workspace note", () => {
+  it("keeps the empty chat surface free of overview cards and example prompts", () => {
     render(<ChatWorkspace />);
 
-    expect(screen.getByLabelText("今日学习概览")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /学习新词/ })).toHaveAttribute(
-      "href",
-      "/learn",
-    );
-    expect(screen.getByRole("link", { name: /查看进度/ })).toHaveAttribute(
-      "href",
-      "/progress",
-    );
+    expect(screen.queryByLabelText("今日学习概览")).not.toBeInTheDocument();
+    expect(screen.queryByText("遵从怎么说")).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText("问点什么")).toBeInTheDocument();
     expect(screen.queryByText("主舞台先保持安静，但方向很明确。")).not.toBeInTheDocument();
   });
 
@@ -97,13 +91,13 @@ describe("ChatWorkspace", () => {
 
     const firstRender = render(<ChatWorkspace />);
 
-    await user.click(screen.getByRole("button", { name: /考研/i }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "当前词书" }), "postgrad");
     expect(window.localStorage.getItem("enggo.activeExamTarget")).toBe("postgrad");
 
     firstRender.unmount();
     render(<ChatWorkspace />);
 
-    expect(screen.getByTestId("active-exam-target")).toHaveTextContent("当前词书：考研");
+    expect(screen.getByTestId("active-exam-target")).toHaveTextContent("考研");
   });
 
   it("submits the prompt and renders the structured answer", async () => {
@@ -157,8 +151,8 @@ describe("ChatWorkspace", () => {
 
     render(<ChatWorkspace />);
 
-    await user.click(screen.getByText("遵从怎么说"));
-    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+    await user.type(screen.getByTestId("chat-input"), "遵从怎么说");
+    await user.click(screen.getByRole("button", { name: /发送/i }));
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0]?.[0]).toBe("http://127.0.0.1:8000/api/chat");
@@ -176,8 +170,9 @@ describe("ChatWorkspace", () => {
     });
 
     expect(await screen.findByText(/comply with/i)).toBeInTheDocument();
-    expect(screen.getByText("conform")).toBeInTheDocument();
-    expect(screen.getByText(/下一步/)).toBeInTheDocument();
+    expect(screen.getByText(/conform to/)).toBeInTheDocument();
+    expect(screen.queryByText(/下一步/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /加入收藏/i })).not.toBeInTheDocument();
   });
 
   it("sends the latest conversation context with the next follow-up prompt", async () => {
@@ -319,7 +314,7 @@ describe("ChatWorkspace", () => {
     await user.click(getSubmitButton());
     expect(await screen.findByText("access / assess context ready.")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /考研/i }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "当前词书" }), "postgrad");
     await user.type(screen.getByTestId("chat-input"), "把这组都收藏");
     await user.click(getSubmitButton());
 
@@ -366,10 +361,10 @@ describe("ChatWorkspace", () => {
     expect(window.localStorage.getItem("enggo.activeWordbook.v1")).toBe(
       "postgrad-foundation-v1",
     );
-    expect(screen.getByTestId("active-exam-target")).toHaveTextContent("当前词书：考研");
+    expect(screen.getByTestId("active-exam-target")).toHaveTextContent("考研");
   });
 
-  it("shows a quiet context hint after an assistant response with conversation context", async () => {
+  it("keeps conversation context without showing a visible prompt hint", async () => {
     const user = userEvent.setup();
     const conversationContext: ConversationalLearningContext = {
       version: 1,
@@ -414,7 +409,9 @@ describe("ChatWorkspace", () => {
     await user.click(getSubmitButton());
 
     expect(await screen.findByText("comply / conform context ready.")).toBeInTheDocument();
-    expect(screen.getByText("正在追问：comply / conform")).toBeInTheDocument();
+    expect(screen.getByTestId("conversation-context-hint")).toHaveTextContent(
+      "正在追问：comply / conform",
+    );
   });
 
   it("renders clarification option buttons that fill the composer without submitting", async () => {
@@ -737,7 +734,7 @@ describe("ChatWorkspace", () => {
     const firstRender = render(<ChatWorkspace />);
 
     await user.type(screen.getByTestId("chat-input"), "commit meaning");
-    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+    await user.click(screen.getByRole("button", { name: /发送/i }));
 
     expect(await screen.findByText("commit meaning")).toBeInTheDocument();
     expect(
@@ -855,13 +852,14 @@ describe("ChatWorkspace", () => {
     render(<ChatWorkspace />);
 
     await user.type(screen.getByTestId("chat-input"), "tion 结尾的词有哪些");
-    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+    await user.click(screen.getByRole("button", { name: /发送/i }));
 
-    expect(await screen.findByText("已命中 8 个当前范围词")).toBeInTheDocument();
+    expect(await screen.findByText("家族召回")).toBeInTheDocument();
+    expect(screen.getByText("word1")).toBeInTheDocument();
     expect(
       screen.queryByText("word1 / word2 / word3 / word4 / word5 / word6 / word7 / word8"),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "展开收藏工具" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "展开收藏工具" })).not.toBeInTheDocument();
   });
 
   it("renders meaning expression advice as non-hit guidance", async () => {
@@ -898,10 +896,11 @@ describe("ChatWorkspace", () => {
     render(<ChatWorkspace />);
 
     await user.type(screen.getByTestId("chat-input"), "表达观点的英文是什么");
-    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+    await user.click(screen.getByRole("button", { name: /发送/i }));
 
-    expect(await screen.findByText("表达建议")).toBeInTheDocument();
-    expect(screen.getByText("这次是表达建议，不标记为词库命中。")).toBeInTheDocument();
+    expect(await screen.findByText(/express an opinion/)).toBeInTheDocument();
+    expect(screen.queryByText("表达建议")).not.toBeInTheDocument();
+    expect(screen.queryByText("这次是表达建议，不标记为词库命中。")).not.toBeInTheDocument();
     expect(screen.queryByText("已命中 0 个当前范围词")).not.toBeInTheDocument();
     expect(screen.queryByText("暂未稳定命中")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /收藏/i })).not.toBeInTheDocument();
@@ -952,12 +951,11 @@ describe("ChatWorkspace", () => {
     render(<ChatWorkspace />);
 
     await user.type(screen.getByTestId("chat-input"), "accent");
-    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+    await user.click(screen.getByRole("button", { name: /发送/i }));
 
-    expect(
-      await screen.findByText("来源词表命中 · 待补人工结构化词条"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("n. 重音；口音；特点；注重点")).toBeInTheDocument();
     expect(screen.queryByText("来源说明")).not.toBeInTheDocument();
+    expect(screen.queryByText("来源词表命中 · 待补人工结构化词条")).not.toBeInTheDocument();
     expect(screen.queryByText("已命中 1 个当前范围词：accent")).not.toBeInTheDocument();
   });
 
@@ -1006,12 +1004,13 @@ describe("ChatWorkspace", () => {
     render(<ChatWorkspace />);
 
     await user.type(screen.getByTestId("chat-input"), "make up");
-    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+    await user.click(screen.getByRole("button", { name: /发送/i }));
 
-    expect(
-      await screen.findByText("外部基础词典 · 不参与易混词/词根/考试优先级判断"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("phr. 组成；编造；化妆；弥补")).toBeInTheDocument();
     expect(screen.queryByText("来源说明")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("外部基础词典 · 不参与易混词/词根/考试优先级判断"),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("已命中 1 个当前范围词：make up")).not.toBeInTheDocument();
   });
 
@@ -1033,7 +1032,7 @@ describe("ChatWorkspace", () => {
     render(<ChatWorkspace />);
 
     await user.type(screen.getByTestId("chat-input"), "你好");
-    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+    await user.click(screen.getByRole("button", { name: /发送/i }));
 
     expect(await screen.findByText(/你可以直接问一个单词/)).toBeInTheDocument();
     expect(screen.queryByText("命中状态")).not.toBeInTheDocument();
@@ -1062,7 +1061,7 @@ describe("ChatWorkspace", () => {
     render(<ChatWorkspace />);
 
     await user.type(screen.getByTestId("chat-input"), "complex 和 complicate 是一个意思吗");
-    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+    await user.click(screen.getByRole("button", { name: /发送/i }));
 
     expect(await screen.findByText(/complex 多表示/)).toBeInTheDocument();
     expect(screen.queryByText("命中状态")).not.toBeInTheDocument();
@@ -1092,12 +1091,10 @@ describe("ChatWorkspace", () => {
     render(<ChatWorkspace />);
 
     await user.type(screen.getByTestId("chat-input"), "tion 结尾的词有哪些");
-    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+    await user.click(screen.getByRole("button", { name: /发送/i }));
 
-    expect(screen.getByRole("button", { name: "组织答案中" })).toBeDisabled();
-    expect(screen.getByText("正在检索当前范围词条")).toBeInTheDocument();
-    expect(screen.getByText("整理易混边界")).toBeInTheDocument();
-    expect(screen.getByText("组织可读答案")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "发送中" })).toBeDisabled();
+    expect(screen.getByText("正在思考...")).toBeInTheDocument();
 
     resolveResponse({
       ok: true,
@@ -1122,7 +1119,7 @@ describe("ChatWorkspace", () => {
     });
 
     expect(await screen.findByText("当前范围内暂时没有稳定命中。")).toBeInTheDocument();
-    expect(screen.queryByText("正在检索当前范围词条")).not.toBeInTheDocument();
+    expect(screen.queryByText("正在思考...")).not.toBeInTheDocument();
   });
 
   it("renders a no-match assistant card without an empty main-answer section", async () => {
@@ -1156,10 +1153,10 @@ describe("ChatWorkspace", () => {
     render(<ChatWorkspace />);
 
     await user.type(screen.getByTestId("chat-input"), "recent 这个词什么意思");
-    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+    await user.click(screen.getByRole("button", { name: /发送/i }));
 
     expect(await screen.findByText(/这次先不硬猜/)).toBeInTheDocument();
-    expect(screen.getByText("暂未稳定命中")).toBeInTheDocument();
+    expect(screen.queryByText("暂未稳定命中")).not.toBeInTheDocument();
     expect(screen.queryByText("主答案")).not.toBeInTheDocument();
     expect(screen.queryByText(/加入收藏/i)).not.toBeInTheDocument();
   });
@@ -1179,8 +1176,8 @@ describe("ChatWorkspace", () => {
 
     render(<ChatWorkspace />);
 
-    await user.click(screen.getByText("遵从怎么说"));
-    await user.click(screen.getByRole("button", { name: /开始提问/i }));
+    await user.type(screen.getByTestId("chat-input"), "遵从怎么说");
+    await user.click(screen.getByRole("button", { name: /发送/i }));
 
     expect(
       await screen.findByText("当前回答服务暂时不可用，请稍后再试。"),

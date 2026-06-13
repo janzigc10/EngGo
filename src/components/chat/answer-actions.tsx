@@ -127,20 +127,20 @@ export function AnswerActions({ grounding }: AnswerActionsProps) {
 
   if (shouldStartCompact) {
     return (
-      <div className="mt-4 space-y-3 rounded-[1.25rem] border border-slate-100 bg-white p-4">
+      <div className="mt-4 space-y-3 rounded-xl border border-[#e5e1d7] bg-white p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#8a5a10]">
               收藏工具
             </p>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-[#6f6f68]">
               这次命中 {grounding.mainAnswer.length} 个词，展开后可以逐个收藏。
             </p>
           </div>
           <button
             type="button"
             onClick={() => setAreToolsOpen(true)}
-            className="rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-900 transition hover:border-sky-300 hover:bg-sky-50"
+            className="rounded-xl border border-[#e5e1d7] bg-white px-4 py-2 text-sm font-semibold text-[#151515] transition hover:border-[#d08a18] hover:bg-[#fbfaf7]"
           >
             展开收藏工具
           </button>
@@ -156,22 +156,22 @@ export function AnswerActions({ grounding }: AnswerActionsProps) {
     const isSaved = collectedLemmas.has(candidate.lemma);
 
     return (
-      <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 text-sm text-slate-600">
-          <span className="font-semibold text-slate-900">{candidate.lemma}</span>
-          <span className="text-slate-400"> · </span>
+      <div className="mt-3 flex flex-col gap-3 rounded-xl border border-[#e5e1d7] bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 text-sm text-[#6f6f68]">
+          <span className="font-semibold text-[#151515]">{candidate.lemma}</span>
+          <span className="text-[#8f8f86]"> · </span>
           <span>{compactNote}</span>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {statusMessage ? (
-            <p className="text-sm font-medium text-emerald-700" aria-live="polite">
+            <p className="text-sm font-semibold text-[#8a5a10]" aria-live="polite">
               {statusMessage}
             </p>
           ) : null}
           <button
             type="button"
             onClick={() => handleCollect(candidate, note)}
-            className="inline-flex items-center justify-center rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-900 transition hover:border-sky-300 hover:bg-sky-50"
+            className="inline-flex items-center justify-center rounded-xl border border-[#e5e1d7] bg-white px-4 py-2 text-sm font-semibold text-[#151515] transition hover:border-[#d08a18] hover:bg-[#fbfaf7]"
           >
             {isSaved ? "已收藏" : "加入收藏"}
           </button>
@@ -181,13 +181,13 @@ export function AnswerActions({ grounding }: AnswerActionsProps) {
   }
 
   return (
-    <div className="mt-4 space-y-3 rounded-[1.25rem] border border-slate-100 bg-white p-4">
+    <div className="mt-4 space-y-3 rounded-xl border border-[#e5e1d7] bg-white p-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#8a5a10]">
             收藏动作
           </p>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-[#6f6f68]">
             {shouldCollapse
               ? `先显示前 ${collapsedMainAnswerLimit} 个，展开后可以逐个收藏。`
               : "把这条主答案收进当前考试范围，后面再慢慢整理。"}
@@ -199,13 +199,13 @@ export function AnswerActions({ grounding }: AnswerActionsProps) {
               type="button"
               aria-expanded={isExpanded}
               onClick={() => setIsExpanded((current) => !current)}
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-200 hover:text-sky-900"
+              className="rounded-xl border border-[#e5e1d7] bg-white px-4 py-2 text-sm font-semibold text-[#6f6f68] transition hover:border-[#d08a18] hover:text-[#151515]"
             >
               {isExpanded ? "收起" : `展开全部 ${grounding.mainAnswer.length} 个`}
             </button>
           ) : null}
           {statusMessage ? (
-            <p className="text-sm font-medium text-emerald-700" aria-live="polite">
+            <p className="text-sm font-semibold text-[#8a5a10]" aria-live="polite">
               {statusMessage}
             </p>
           ) : null}
@@ -219,16 +219,16 @@ export function AnswerActions({ grounding }: AnswerActionsProps) {
           return (
             <div
               key={candidate.entryId}
-              className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-3 rounded-xl border border-[#e5e1d7] bg-[#f8f8f6] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="space-y-1">
-                <p className="text-sm font-semibold text-slate-900">{candidate.lemma}</p>
-                <p className="text-sm text-slate-600">{note}</p>
+                <p className="text-sm font-semibold text-[#151515]">{candidate.lemma}</p>
+                <p className="text-sm text-[#6f6f68]">{note}</p>
               </div>
               <button
                 type="button"
                 onClick={() => handleCollect(candidate, note)}
-                className="inline-flex items-center justify-center rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-900 transition hover:border-sky-300 hover:bg-sky-50"
+                className="inline-flex items-center justify-center rounded-xl border border-[#e5e1d7] bg-white px-4 py-2 text-sm font-semibold text-[#151515] transition hover:border-[#d08a18] hover:bg-[#fbfaf7]"
               >
                 {isSaved ? "已收藏" : "加入收藏"}
               </button>

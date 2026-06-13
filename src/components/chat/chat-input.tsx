@@ -1,8 +1,12 @@
+import { examTargets, type ExamTargetCode } from "@/features/exam-target/model";
+
 type ChatInputProps = {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
   isLoading: boolean;
+  activeExamTarget: ExamTargetCode;
+  onExamTargetChange: (value: ExamTargetCode) => void;
 };
 
 export function ChatInput({
@@ -10,32 +14,70 @@ export function ChatInput({
   onChange,
   onSubmit,
   isLoading,
+  activeExamTarget,
+  onExamTargetChange,
 }: ChatInputProps) {
+  const activeExamTargetLabel =
+    examTargets.find((target) => target.code === activeExamTarget)?.label ?? "CET-6";
+
   return (
-    <div className="space-y-4 pt-8">
-      <label htmlFor="chat-input" className="text-sm font-medium text-slate-700">
-        试着输入中文意思、半截拼写，或者直接问两个词的区别
-      </label>
-      <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-3 shadow-inner shadow-slate-200/50">
+    <div className="sticky bottom-4 mt-4">
+      <div className="rounded-2xl border border-[#dedacf] bg-white p-3 shadow-[0_18px_48px_rgba(21,21,21,0.10)]">
         <textarea
           id="chat-input"
           data-testid="chat-input"
-          className="min-h-32 w-full resize-none rounded-[1.25rem] border-0 bg-white px-4 py-4 text-base leading-7 text-slate-900 outline-none ring-0 placeholder:text-slate-400"
-          placeholder="比如：遵从怎么说"
+          className="max-h-56 min-h-24 w-full resize-none border-0 bg-transparent px-2 py-2 text-base leading-7 text-[#151515] outline-none ring-0 placeholder:text-[#8f8f86]"
+          placeholder="问点什么"
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+
+              if (!isLoading) {
+                onSubmit();
+              }
+            }
+          }}
         />
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <p className="text-sm text-slate-500">
-            回答会优先锁定当前考试范围内的主答案，再补易混边界。
-          </p>
+        <div className="mt-2 flex items-center justify-between gap-3 border-t border-[#eeeae0] pt-3">
+          <div className="flex min-w-0 items-center gap-2 text-xs text-[#6f6f68]">
+            <span
+              data-testid="active-exam-target"
+              className="shrink-0 font-medium text-[#151515]"
+            >
+              {activeExamTargetLabel}
+            </span>
+            <label htmlFor="exam-target-select" className="sr-only">
+              当前词书
+            </label>
+            <select
+              id="exam-target-select"
+              aria-label="当前词书"
+              value={activeExamTarget}
+              onChange={(event) => {
+                const next = event.target.value;
+
+                if (next === "gaokao" || next === "cet4" || next === "cet6" || next === "postgrad") {
+                  onExamTargetChange(next);
+                }
+              }}
+              className="max-w-28 rounded-lg border border-transparent bg-transparent px-1 py-1 text-xs font-medium text-[#6f6f68] outline-none transition hover:border-[#dedacf] focus:border-[#d08a18]"
+            >
+              {examTargets.map((target) => (
+                <option key={target.code} value={target.code}>
+                  {target.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <button
             type="button"
             onClick={onSubmit}
             disabled={isLoading}
-            className="min-w-28 rounded-full bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-sky-700 disabled:cursor-wait disabled:bg-slate-700"
+            className="shrink-0 rounded-xl bg-[#151515] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2a2a28] disabled:cursor-wait disabled:bg-[#6f6f68]"
           >
-            {isLoading ? "组织答案中" : "开始提问"}
+            {isLoading ? "发送中" : "发送"}
           </button>
         </div>
       </div>

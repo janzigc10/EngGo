@@ -136,7 +136,7 @@ function renderInline(text: string) {
 
     if (token.startsWith("**") && token.endsWith("**")) {
       nodes.push(
-        <strong key={key} className="font-semibold text-slate-950">
+        <strong key={key} className="font-semibold text-[#151515]">
           {token.slice(2, -2).trim()}
         </strong>,
       );
@@ -144,7 +144,7 @@ function renderInline(text: string) {
       nodes.push(
         <code
           key={key}
-          className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[0.92em] text-slate-800"
+          className="rounded-md bg-[#f1eee7] px-1.5 py-0.5 font-mono text-[0.92em] text-[#151515]"
         >
           {token.slice(1, -1)}
         </code>,
@@ -177,13 +177,13 @@ export function AnswerContent({ content }: AnswerContentProps) {
   const blocks = parseAnswerBlocks(content);
 
   return (
-    <div className="min-w-0 max-w-full space-y-4 text-sm leading-7 text-slate-800">
+    <div className="min-w-0 max-w-full space-y-4 text-sm leading-7 text-[#151515]">
       {blocks.map((block, blockIndex) => {
         if (block.kind === "heading") {
           return (
             <h3
               key={`heading-${blockIndex}`}
-              className="text-sm font-semibold text-slate-950"
+              className="text-sm font-semibold text-[#151515]"
             >
               {renderInline(block.text)}
             </h3>
@@ -194,7 +194,7 @@ export function AnswerContent({ content }: AnswerContentProps) {
           return (
             <div
               key={`table-${blockIndex}`}
-              className="max-w-full overflow-x-auto rounded-2xl border border-slate-200 bg-white"
+              className="max-w-full overflow-x-auto rounded-xl border border-[#e5e1d7] bg-white"
             >
               <table className="w-full table-fixed border-collapse text-left text-sm">
                 <colgroup>
@@ -207,26 +207,26 @@ export function AnswerContent({ content }: AnswerContentProps) {
                     />
                   ))}
                 </colgroup>
-                <thead className="bg-slate-50 text-slate-500">
+                <thead className="bg-[#f8f8f6] text-[#6f6f68]">
                   <tr>
                     {block.headers.map((header) => (
                       <th
                         key={header}
                         scope="col"
-                        className="break-words border-b border-slate-200 px-3 py-3 text-xs font-semibold sm:px-4"
+                        className="break-words border-b border-[#e5e1d7] px-3 py-3 text-xs font-semibold sm:px-4"
                       >
                         {header}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-[#e5e1d7]">
                   {block.rows.map((row, rowIndex) => (
                     <tr key={`${row.join("-")}-${rowIndex}`}>
                       {block.headers.map((header, cellIndex) => (
                         <td
                           key={`${header}-${cellIndex}`}
-                          className="break-words px-3 py-3 align-top text-slate-700 sm:px-4"
+                          className="break-words px-3 py-3 align-top text-[#151515] sm:px-4"
                         >
                           {renderInline(row[cellIndex] ?? "")}
                         </td>

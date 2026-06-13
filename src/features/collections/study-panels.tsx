@@ -146,7 +146,7 @@ function formatCollectedDate(value: string) {
 function buildDraftHref(lemma: string, examTarget: CollectionSection["code"]) {
   const draft = `${lemma} 怎么用`;
 
-  return `/?draft=${encodeURIComponent(draft)}&examTarget=${examTarget}`;
+  return `/chat?draft=${encodeURIComponent(draft)}&examTarget=${examTarget}`;
 }
 
 export function CollectionsPanel() {
@@ -158,19 +158,19 @@ export function CollectionsPanel() {
   return (
     <div className="space-y-5">
       <div className="space-y-2">
-        <p className="text-sm font-medium uppercase tracking-[0.22em] text-slate-500">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8a5a10]">
           Collections
         </p>
-        <h2 className="font-serif text-3xl font-semibold tracking-tight text-slate-950">
+        <h2 className="text-2xl font-extrabold tracking-tight text-[#151515] sm:text-3xl">
           收藏词条会按考试范围分组保存
         </h2>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-[#6f6f68]">
           当前共 {total} 条本地收藏。先把词条整理干净，再进入复习卡片。
         </p>
       </div>
       {!hasAnyWords ? (
-        <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-white/80 p-6 text-sm text-slate-600">
-          现在还没有收藏任何词条。回到聊天页点一下“加入收藏”，这里就会按当前考试目标分组出现。
+        <div className="rounded-2xl border border-dashed border-[#d7d2c6] bg-white p-6 text-sm text-[#6f6f68]">
+          现在还没有收藏任何词条。这里会保留你后续整理进来的词条，并按当前考试目标分组。
         </div>
       ) : (
         <div className="space-y-4">
@@ -178,12 +178,12 @@ export function CollectionsPanel() {
             <section
               key={section.code}
               aria-label={`${section.label} 收藏`}
-              className="rounded-[1.5rem] border border-slate-200 bg-white/90 p-5 shadow-sm"
+              className="rounded-2xl border border-[#e5e1d7] bg-white p-5 shadow-sm"
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-slate-950">{section.label}</p>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm font-semibold text-[#151515]">{section.label}</p>
+                  <p className="text-sm text-[#6f6f68]">
                     {section.words.length} 条收藏
                   </p>
                 </div>
@@ -193,29 +193,29 @@ export function CollectionsPanel() {
                   {section.words.map((word) => (
                     <li
                       key={`${word.examTarget}-${word.lemma}-${word.collectedAt}`}
-                      className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4"
+                      className="rounded-xl border border-[#e5e1d7] bg-[#f8f8f6] px-4 py-4"
                     >
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0 space-y-2">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-base font-semibold text-slate-950">
+                            <p className="text-base font-semibold text-[#151515]">
                               {word.lemma}
                             </p>
                             {word.partOfSpeech ? (
-                              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
+                              <span className="rounded-lg bg-[#f1eee7] px-2 py-0.5 text-xs font-semibold text-[#6f6f68]">
                                 {word.partOfSpeech}
                               </span>
                             ) : null}
                           </div>
-                          <p className="text-sm leading-6 text-slate-700">
+                          <p className="text-sm leading-6 text-[#151515]">
                             {getMeaningDisplay(word)}
                           </p>
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                            <span className="rounded-full border border-slate-200 bg-white px-2 py-1">
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-[#6f6f68]">
+                            <span className="rounded-lg border border-[#e5e1d7] bg-white px-2 py-1">
                               {getSourceLabel(word)}
                             </span>
                             {word.reviewStatus === "unreviewed" ? (
-                              <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800">
+                              <span className="rounded-lg border border-[#e4c27a] bg-[#fff7e8] px-2 py-1 text-[#8a5a10]">
                                 未人工校验
                               </span>
                             ) : null}
@@ -225,7 +225,7 @@ export function CollectionsPanel() {
                         <div className="flex shrink-0 flex-wrap items-center gap-2">
                           <Link
                             href={buildDraftHref(word.lemma, section.code)}
-                            className="inline-flex items-center justify-center rounded-full border border-sky-200 bg-white px-3 py-1.5 text-sm font-medium text-sky-900 transition hover:border-sky-300 hover:bg-sky-50"
+                            className="inline-flex items-center justify-center rounded-xl border border-[#151515] bg-[#151515] px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-[#2a2a28]"
                           >
                             继续追问 {word.lemma}
                           </Link>
@@ -233,7 +233,7 @@ export function CollectionsPanel() {
                             type="button"
                             aria-label={`删除 ${word.lemma}`}
                             onClick={() => removeCollectedWord(section.code, word.lemma)}
-                            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+                            className="inline-flex items-center justify-center rounded-xl border border-[#e5e1d7] bg-white px-3 py-1.5 text-sm font-semibold text-[#6f6f68] transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
                           >
                             删除
                           </button>
@@ -243,7 +243,7 @@ export function CollectionsPanel() {
                   ))}
                 </ul>
               ) : (
-                <p className="mt-4 text-sm text-slate-500">
+                <p className="mt-4 text-sm text-[#6f6f68]">
                   这一档暂时还没有收藏内容。
                 </p>
               )}
@@ -380,75 +380,75 @@ export function ProgressPanel() {
   return (
     <div className="space-y-5">
       <div className="space-y-2">
-        <p className="text-sm font-medium uppercase tracking-[0.22em] text-slate-500">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8a5a10]">
           Progress
         </p>
-        <h2 className="font-serif text-3xl font-semibold tracking-tight text-slate-950">
+        <h2 className="text-2xl font-extrabold tracking-tight text-[#151515] sm:text-3xl">
           基础计数和阶段说明
         </h2>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-[1.5rem] border border-slate-200 bg-white/90 p-6 shadow-sm">
-          <p className="text-sm text-slate-500">总收藏词条</p>
-          <p className="mt-2 text-4xl font-semibold text-slate-950">
+        <div className="rounded-2xl border border-[#e5e1d7] bg-white p-6 shadow-sm">
+          <p className="text-sm text-[#6f6f68]">总收藏词条</p>
+          <p className="mt-2 text-4xl font-extrabold text-[#151515]">
             {snapshot.total}
           </p>
-          <p className="mt-3 text-sm leading-7 text-slate-600">
+          <p className="mt-3 text-sm leading-7 text-[#6f6f68]">
             这是当前本地骨架能直接统计出来的最小进度指标。
           </p>
         </div>
-        <div className="rounded-[1.5rem] border border-dashed border-slate-300 bg-white/80 p-6 text-sm leading-7 text-slate-600">
+        <div className="rounded-2xl border border-dashed border-[#d7d2c6] bg-white p-6 text-sm leading-7 text-[#6f6f68]">
           词书进度来自本地 Learn / Review 记录；收藏词条继续按考试范围单独统计。
         </div>
       </div>
-      <div className="rounded-[1.5rem] border border-slate-200 bg-white/90 p-6 shadow-sm">
+      <div className="rounded-2xl border border-[#e5e1d7] bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-sm text-slate-500">词书进度</p>
-            <p className="mt-1 text-xl font-semibold text-slate-950">
+            <p className="text-sm text-[#6f6f68]">词书进度</p>
+            <p className="mt-1 text-xl font-extrabold text-[#151515]">
               {snapshot.wordbook.label}
             </p>
           </div>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-[#6f6f68]">
             {snapshot.wordbookProgress.passed} / {snapshot.wordbookProgress.total}
           </p>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-5">
-          <div className="rounded-2xl bg-slate-50 px-4 py-3">
-            <p className="text-xs text-slate-500">未学习</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-950">
+          <div className="rounded-xl bg-[#f8f8f6] px-4 py-3">
+            <p className="text-xs text-[#6f6f68]">未学习</p>
+            <p className="mt-1 text-2xl font-extrabold text-[#151515]">
               {snapshot.wordbookProgress.unseen}
             </p>
           </div>
-          <div className="rounded-2xl bg-slate-50 px-4 py-3">
-            <p className="text-xs text-slate-500">学习中</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-950">
+          <div className="rounded-xl bg-[#f8f8f6] px-4 py-3">
+            <p className="text-xs text-[#6f6f68]">学习中</p>
+            <p className="mt-1 text-2xl font-extrabold text-[#151515]">
               {snapshot.wordbookProgress.learning}
             </p>
           </div>
-          <div className="rounded-2xl bg-slate-50 px-4 py-3">
-            <p className="text-xs text-slate-500">待复习</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-950">
+          <div className="rounded-xl bg-[#f8f8f6] px-4 py-3">
+            <p className="text-xs text-[#6f6f68]">待复习</p>
+            <p className="mt-1 text-2xl font-extrabold text-[#151515]">
               {snapshot.wordbookProgress.dueReview}
             </p>
           </div>
-          <div className="rounded-2xl bg-slate-50 px-4 py-3">
-            <p className="text-xs text-slate-500">补救中</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-950">
+          <div className="rounded-xl bg-[#f8f8f6] px-4 py-3">
+            <p className="text-xs text-[#6f6f68]">补救中</p>
+            <p className="mt-1 text-2xl font-extrabold text-[#151515]">
               {snapshot.wordbookProgress.reviewRescue}
             </p>
           </div>
-          <div className="rounded-2xl bg-slate-50 px-4 py-3">
-            <p className="text-xs text-slate-500">已阶段通过</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-950">
+          <div className="rounded-xl bg-[#f8f8f6] px-4 py-3">
+            <p className="text-xs text-[#6f6f68]">已阶段通过</p>
+            <p className="mt-1 text-2xl font-extrabold text-[#151515]">
               {snapshot.wordbookProgress.passed}
             </p>
           </div>
         </div>
-        <div className="mt-4 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
+        <div className="mt-4 grid gap-2 text-sm text-[#6f6f68] md:grid-cols-2">
           {progressExplanations.map((item) => (
-            <p key={item.key} className="rounded-2xl bg-white px-4 py-3">
-              <span className="font-semibold text-slate-950">
+            <p key={item.key} className="rounded-xl bg-[#fbfaf7] px-4 py-3">
+              <span className="font-semibold text-[#151515]">
                 {item.label} {item.value}
               </span>
               ：{item.description}
@@ -460,11 +460,11 @@ export function ProgressPanel() {
         {snapshot.sections.map((section) => (
           <div
             key={section.code}
-            className="rounded-2xl border border-slate-100 bg-white/90 px-4 py-4 text-sm text-slate-700 shadow-sm"
+            className="rounded-xl border border-[#e5e1d7] bg-white px-4 py-4 text-sm text-[#151515] shadow-sm"
           >
             <div className="flex items-center justify-between gap-3">
-              <span className="font-medium text-slate-900">{section.label}</span>
-              <span className="text-slate-500">{section.words.length} 条</span>
+              <span className="font-semibold text-[#151515]">{section.label}</span>
+              <span className="text-[#6f6f68]">{section.words.length} 条</span>
             </div>
           </div>
         ))}

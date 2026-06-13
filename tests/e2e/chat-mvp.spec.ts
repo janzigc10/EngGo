@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("chat MVP flow can switch targets and save a collected word", async ({
+test("chat MVP flow can switch targets and render a plain answer", async ({
   page,
 }) => {
   await page.route("**/api/chat", async (route) => {
@@ -48,21 +48,15 @@ test("chat MVP flow can switch targets and save a collected word", async ({
     });
   });
 
-  await page.goto("/");
+  await page.goto("/chat");
 
-  await page.getByRole("button", { name: /CET-4/i }).click();
+  await page.getByRole("combobox", { name: "当前词书" }).selectOption("cet4");
   await expect(page.getByTestId("active-exam-target")).toContainText("CET-4");
   await page.getByTestId("chat-input").fill("遵从怎么说？");
-  await page.getByRole("button", { name: /开始提问/i }).click();
+  await page.getByRole("button", { name: /发送/i }).click();
 
-  const answerCard = page.locator("article").filter({ hasText: /comply/i });
-  await expect(answerCard).toBeVisible();
-  await expect(answerCard).toContainText("comply");
-  await answerCard.getByRole("button", { name: /加入收藏/i }).click();
-  await expect(answerCard).toContainText(/已加入收藏|宸插姞鍏ユ敹钘忥细comply/i);
-
-  await page.goto("/collections");
-
-  await expect(page.getByText("comply", { exact: true })).toBeVisible();
-  await expect(page.getByText(/CET-4/i)).toBeVisible();
+  const answer = page.locator("article").filter({ hasText: /comply/i });
+  await expect(answer).toBeVisible();
+  await expect(answer).toContainText("comply");
+  await expect(answer.getByRole("button", { name: /加入收藏/i })).toHaveCount(0);
 });

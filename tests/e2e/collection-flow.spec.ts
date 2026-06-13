@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("user can save an answer card word into the active exam target collection", async ({
+test("chat answer stays plain and collections route remains available", async ({
   page,
 }) => {
   await page.route("**/api/chat", async (route) => {
@@ -48,20 +48,18 @@ test("user can save an answer card word into the active exam target collection",
     });
   });
 
-  await page.goto("/");
-  await page.getByRole("button", { name: /CET-4/i }).click();
-  await page.getByText("遵从怎么说").click();
-  await page.getByRole("button", { name: /开始提问/i }).click();
+  await page.goto("/chat");
+  await page.getByRole("combobox", { name: "当前词书" }).selectOption("cet4");
+  await page.getByTestId("chat-input").fill("遵从怎么说");
+  await page.getByRole("button", { name: /发送/i }).click();
 
-  await expect(page.getByRole("button", { name: "加入收藏" })).toBeVisible();
-  await page.getByRole("button", { name: "加入收藏" }).click();
-  await expect(page.getByText("已加入收藏：comply")).toBeVisible();
+  await expect(page.locator("article").filter({ hasText: /comply/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: "加入收藏" })).toHaveCount(0);
 
   await page.goto("/collections");
 
   await expect(
     page.getByText("收藏词条会按考试范围分组保存", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("CET-4", { exact: true })).toBeVisible();
-  await expect(page.getByText("遵从，遵守", { exact: true })).toBeVisible();
+  await expect(page.getByText(/现在还没有收藏任何词条/)).toBeVisible();
 });

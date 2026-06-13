@@ -153,7 +153,7 @@ describe("buildWordbookDailyOverview", () => {
     expect(overview.actions).toEqual([
       {
         kind: "view_progress",
-        href: "/progress",
+        href: "/wordbook",
         label: "查看进度",
         detail: "20 / 20 已阶段通过",
         tone: "strong",
