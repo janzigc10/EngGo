@@ -862,6 +862,87 @@ describe("ChatWorkspace", () => {
     expect(screen.queryByRole("button", { name: "展开收藏工具" })).not.toBeInTheDocument();
   });
 
+  it("renders multiline candidate answers as compact result rows", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer: [
+          "transit n. 经过；通行；运输",
+          "tranquil adj. 安静的",
+          "transaction n. 交易；办理",
+        ].join("\n"),
+        requestId: "req_multiline_candidates",
+        providerRequestId: null,
+        grounding: {
+          activeExamTarget: "postgrad",
+          activeExamTargetLabel: "考研",
+          query: "tran开头的单词有哪些",
+          queryMode: "root_family_summary",
+          answerStyle: "root_family_summary",
+          resolution: "resolved",
+          noMatchReason: null,
+          mainAnswer: [
+            {
+              entryId: "external-dictionary-basic:transit",
+              lemma: "transit",
+              meaningsZh: [],
+              matchedAlias: null,
+              scopeCodes: ["postgrad"],
+              inScope: true,
+              reason: "prefix match",
+              score: 18,
+              sourceKind: "external_dictionary_basic",
+            },
+            {
+              entryId: "external-dictionary-basic:tranquil",
+              lemma: "tranquil",
+              meaningsZh: [],
+              matchedAlias: null,
+              scopeCodes: ["postgrad"],
+              inScope: true,
+              reason: "prefix match",
+              score: 17,
+              sourceKind: "external_dictionary_basic",
+            },
+            {
+              entryId: "external-dictionary-basic:transaction",
+              lemma: "transaction",
+              meaningsZh: [],
+              matchedAlias: null,
+              scopeCodes: ["postgrad"],
+              inScope: true,
+              reason: "prefix match",
+              score: 16,
+              sourceKind: "external_dictionary_basic",
+            },
+          ],
+          confusionBoundary: [],
+          scopeReminder: "scope",
+          followUpPrompt: "follow-up",
+          comparisonView: null,
+          rootFamilyView: null,
+        },
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "tran开头的单词有哪些");
+    await user.click(screen.getByRole("button", { name: /发送/i }));
+
+    expect(await screen.findByText("找到 3 个词")).toBeInTheDocument();
+    expect(screen.getByText("transit")).toBeInTheDocument();
+    expect(screen.getByText("n. 经过；通行；运输")).toBeInTheDocument();
+    expect(screen.getByText("tranquil")).toBeInTheDocument();
+    expect(screen.getByText("adj. 安静的")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/transit n\. 经过；通行；运输 tranquil adj\. 安静的/),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders meaning expression advice as non-hit guidance", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockResolvedValue({
@@ -1094,7 +1175,7 @@ describe("ChatWorkspace", () => {
     await user.click(screen.getByRole("button", { name: /发送/i }));
 
     expect(screen.getByRole("button", { name: "发送中" })).toBeDisabled();
-    expect(screen.getByText("正在思考...")).toBeInTheDocument();
+    expect(screen.getByText("正在查词库")).toBeInTheDocument();
 
     resolveResponse({
       ok: true,
@@ -1119,7 +1200,7 @@ describe("ChatWorkspace", () => {
     });
 
     expect(await screen.findByText("当前范围内暂时没有稳定命中。")).toBeInTheDocument();
-    expect(screen.queryByText("正在思考...")).not.toBeInTheDocument();
+    expect(screen.queryByText("正在查词库")).not.toBeInTheDocument();
   });
 
   it("renders a no-match assistant card without an empty main-answer section", async () => {

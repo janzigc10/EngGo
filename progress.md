@@ -2,10 +2,10 @@
 
 ## 当前状态（2026-06-13 App Shell Redesign V1 Implementation）
 - 当前分支 / worktree：`codex/meaning-lookup-quality-gate-v1`，工作区 `C:\Users\Chen\Desktop\EngGo`。
-- 当前活跃目标：App Shell Redesign V1 已按 spec 完成；用户 review 后追加 Chat A 方案细节打磨，已把 `/chat` 收成 ChatGPT 式单主对话流。
+- 当前活跃目标：App Shell Redesign V1 已按 spec 完成；用户 review 后追加 Chat A 方案细节打磨，已把 `/chat` 收成 ChatGPT 式单主对话流，并开始统一 Chat 输出层视觉。
 - 当前有效设计：`docs/superpowers/specs/2026-06-12-app-shell-redesign-v1-design.md`。
 - 当前实现计划：`docs/superpowers/plans/2026-06-13-app-shell-redesign-v1.md`，已完成。
-- 当前执行步骤：等待用户 review / 是否提交；没有剩余 spec blocker。
+- 当前执行步骤：等待用户 review；下一阶段已收敛为 Chat 前后端回答协议对齐，不重开 IA。本地前端 `http://localhost:3000` 与 FastAPI `http://127.0.0.1:8000` 已恢复可用，没有剩余 spec blocker。
 - 用户已确认的信息架构：
   - 顶部不放主导航，只保留三条杠菜单按钮和当前页面标题。
   - 三条杠 / 左滑唤醒抽屉，抽屉只放 `Today / Learn / Review / Chat`。
@@ -47,11 +47,30 @@
    - `/chat` 现在只保留单列对话流、一个底部 composer、发送按钮和极轻量当前词书 selector；Enter 直接发送，Shift+Enter 保留换行。
    - clarification options 作为真实交互 chip 保留；conversation context hint 改为 screen-reader only，不再作为可见提示干扰页面。
    - Collections 空状态文案同步去掉“回到聊天页点加入收藏”的旧指引，避免和 Chat 纯对话流冲突。
+5. 处理用户手测 `/chat` 出现 `Failed to fetch`：
+   - 根因确认：前端 3000 正常，但 FastAPI 8000 未监听；当前前端聊天请求默认直连 `http://127.0.0.1:8000/api/chat`。
+   - 按 `bugs.md` 的 Windows `Path/PATH` 恢复路径归一化环境后，启动 FastAPI 后台进程 PID `80968`，并显式使用本地 ECDICT 路径、不启用旧 structured DB。
+6. 统一 `/chat` assistant 输出层第一版：
+   - 新增 `AssistantAnswer`，所有 assistant 回复统一进入同一套白底 answer surface，不再裸露成左侧散文。
+   - 优先使用 `grounding` 结构渲染：单词查词显示词头和释义；多候选召回显示“找到 N 个词”的分行词条；compare / root family 有轻量结构化 block。
+   - 多候选答案不再把后端多行文本压成一整段；loading 从纯文字 `正在思考...` 改成同一 answer surface 内的“正在查词库”状态。
+   - 本轮未改 FastAPI 协议，真实 SSE / stream 仍作为后续独立任务处理。
+7. 按用户要求做 `/chat` 浏览器 QA：
+   - 用真实 in-app Browser 覆盖 50 条 UI 发送用例：查词 10、候选召回 10、易混词对比 10、多轮/边界 10、390px 移动混合 10。
+   - 50/50 均返回 assistant 回复；未复现 `Failed to fetch`、服务错误、console error 或横向溢出。
+   - QA 发现并修复：Chat 页面底部词书 icon 在窄宽度下会与 composer / 发送按钮重叠；现已在 `/chat` 专属抬高到 composer 上方，并补 AppFrame 单测防回归。
 
 ## 当前待办
-1. 用户 review 当前 `/chat` 单对话框效果；本轮没有剩余 spec blocker。
-2. 如后续继续，建议只做非阻塞 housekeeping：是否引入真实 icon package 替换当前 CSS book glyph、是否删除未使用的旧 `AppNav` / `ProgressClient`。不要重开 IA。
-3. 本地 dev server 仍以 `http://localhost:3000` 作为前端验收入口；后续 Browser / Playwright 验收继续优先用 `localhost`。
+1. 下一阶段主线：补齐 Chat answer surface contract，让后端明确返回稳定的 `answerSurface` / view data，前端按类型渲染，不再靠猜 `grounding` 或解析长文本。建议 surface 集合：`lookup`、`phrase_lookup`、`candidate_list`、`compare`、`expression_advice`、`context_choice`、`root_family`、`clarification`、`plain`。
+2. 协议对齐优先级：
+   - 先做 `direct_compare -> compare surface`：后端保证 `comparisonView` 或等价 compare view data，前端稳定渲染核心区别和逐词边界，避免 provider-backed compare 退成长段落。
+   - 再做 `meaning_lookup / semantic_expression -> expression_advice`：中文表达、正式/自然/作文表达不显示成“命中词库”，而是推荐表达和使用边界。
+   - 再做 `fuzzy_recall / shape_neighbor_search / show_more -> candidate_list`：候选列表统一标题、来源、匹配原因和续问上下文。
+   - 再做 `root_family_summary -> root_family`：区分真实词族、词形/前后缀召回和宽泛片段召回，避免 UI 暗示不存在的词源关系。
+   - 最后做 `no_match / clarification -> empty_or_clarify`：稳定展示未命中和可选澄清方向。
+3. 如果继续做“真 stream”，单独开一轮：定义 FastAPI streaming contract、前端 incremental message state、错误/取消语义，不和 answer surface 协议对齐混在一起。
+4. 如后续继续做 housekeeping：是否引入真实 icon package 替换当前 CSS book glyph、是否删除未使用的旧 `AppNav` / `ProgressClient`。不要重开 IA。
+5. 本地验收入口仍是 `http://localhost:3000`；聊天页还需要 FastAPI `http://127.0.0.1:8000` 同时在线，后续 Browser / Playwright 验收继续优先用 `localhost`。
 
 ## 最新验证（本轮）
 - Focused lint：
@@ -78,6 +97,23 @@
   - `corepack pnpm test:e2e -- tests\e2e\app-shell.spec.ts tests\e2e\chat-mvp.spec.ts tests\e2e\collection-flow.spec.ts` -> 6 passed。
   - 临时 Playwright layout audit 覆盖 `/chat` 桌面和 `390x844` 移动端：旧 Chat Workspace / 示例 prompt / 今日学习概览文案均未出现，horizontal overflow 为 0，词书 icon 不遮挡 composer / 发送按钮，console error 为 0；临时测试文件已删除。
   - `corepack pnpm build` -> passed；Next 16.2.4 compiled, TypeScript passed, 11 static pages generated。
+- Chat runtime recovery 验证：
+  - `http://127.0.0.1:8000/health` -> `{"status":"ok","service":"enggo-fastapi"}`。
+  - Node direct `/api/chat`：`access是什么意思` -> 200；`tran开头的单词有哪些` -> 200。
+  - in-app Browser `/chat`：旧失败消息后重新发送 `access是什么意思`，页面返回 `access` 释义，无新增 console error。
+- Chat output renderer V1 验证：
+  - `corepack pnpm test -- src\components\chat\chat-workspace.test.tsx src\components\chat\answer-content.test.tsx` -> 32 files / 258 tests passed。
+  - `corepack pnpm lint -- src\components\chat\assistant-answer.tsx src\components\chat\message-thread.tsx src\components\chat\chat-workspace.test.tsx` -> passed。
+  - `corepack pnpm build` -> passed；Next 16.2.4 compiled, TypeScript passed, 11 static pages generated。
+  - `git diff --check` -> passed，只有 Windows LF/CRLF warnings。
+  - in-app Browser `/chat` 刷新后切到考研，发送 `tran开头的单词有哪些`：页面显示“找到 18 个词”并逐词分行，无 console error。
+- Chat browser QA V1：
+  - in-app Browser 桌面真实输入 40 条：lookup 10 / recall 10 / compare 10 / dialogue-boundary 10，全部返回，0 failed / 0 overflow / 0 service error / 0 console error。
+  - in-app Browser 390px 真实输入 10 条 mixed cases，全部返回，0 failed / 0 overflow / 0 service error；词书 icon 与 composer / send button 均 0 overlap。
+  - 修复后验证：当前 584px 宽度下词书 icon `bookOverlapsComposer=false`、`bookOverlapsSend=false`、`scrollWidth=clientWidth`。
+  - 追加验证：`corepack pnpm test -- src\components\shell\app-frame.test.tsx src\components\chat\chat-workspace.test.tsx src\components\chat\answer-content.test.tsx` -> 32 files / 258 tests passed。
+  - 追加验证：`corepack pnpm lint -- src\components\shell\app-frame.tsx src\components\shell\app-frame.test.tsx src\components\chat\assistant-answer.tsx src\components\chat\message-thread.tsx src\components\chat\chat-workspace.test.tsx` -> passed。
+  - 追加验证：`corepack pnpm build` -> passed；`git diff --check` -> passed，只有 Windows LF/CRLF warnings。
 
 ## 上一轮已完成
 1. 按用户要求使用 `design-taste-frontend` 的 redesign / audit 口径和 Brainstorm visual companion；没有直接改实现代码。

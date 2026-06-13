@@ -78,6 +78,9 @@ describe("AppFrame", () => {
       "title",
       "词书",
     );
+    expect(screen.getByRole("link", { name: "打开词书" })).toHaveClass(
+      "bottom-[20rem]",
+    );
 
     await user.click(screen.getByRole("button", { name: "打开主导航" }));
 

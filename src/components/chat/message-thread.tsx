@@ -1,3 +1,7 @@
+import {
+  AssistantAnswer,
+  AssistantLoadingAnswer,
+} from "@/components/chat/assistant-answer";
 import { AnswerContent } from "@/components/chat/answer-content";
 import type { ChatMessage } from "@/features/chat/types";
 
@@ -17,26 +21,21 @@ export function MessageThread({
   }
 
   return (
-    <div className="min-w-0 flex-1 space-y-6 pb-4">
+    <div className="min-w-0 flex-1 space-y-5 pb-4">
       {messages.map((message) => (
-        <article
-          key={message.id}
-          className={`min-w-0 ${
-            message.role === "user"
-              ? "ml-auto max-w-[82%] rounded-2xl bg-[#f1eee7] px-4 py-3 text-[#151515]"
-              : "text-[#151515]"
-          }`}
-        >
-          <AnswerContent content={message.content} />
-        </article>
+        message.role === "user" ? (
+          <article
+            key={message.id}
+            className="ml-auto min-w-0 max-w-[84%] rounded-2xl bg-[#f1eee7] px-4 py-3 text-[#151515]"
+          >
+            <AnswerContent content={message.content} />
+          </article>
+        ) : (
+          <AssistantAnswer key={message.id} message={message} />
+        )
       ))}
       {isLoading ? (
-        <div
-          aria-live="polite"
-          className="px-1 py-2 text-sm text-[#6f6f68]"
-        >
-          正在思考...
-        </div>
+        <AssistantLoadingAnswer />
       ) : null}
       {errorMessage ? (
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

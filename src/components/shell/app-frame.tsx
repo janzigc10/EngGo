@@ -55,6 +55,7 @@ export function AppFrame({ children }: AppFrameProps) {
   const drawerRef = useRef<HTMLElement>(null);
   const firstDrawerLinkRef = useRef<HTMLAnchorElement>(null);
   const pageTitle = getPageTitle(pathname);
+  const isChatRoute = pathname.startsWith("/chat");
 
   function closeDrawer() {
     setDrawerOpen(false);
@@ -151,7 +152,11 @@ export function AppFrame({ children }: AppFrameProps) {
           href="/wordbook"
           aria-label="打开词书"
           title="词书"
-          className="fixed bottom-3 right-[calc(0.5rem-(100vw-100%))] z-30 flex h-11 w-11 items-center justify-center rounded-xl border border-[#151515] bg-[#151515] text-white shadow-[0_12px_28px_rgba(21,21,21,0.18)] transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#d08a18] focus:ring-offset-2 focus:ring-offset-[#f8f8f6] active:translate-y-px sm:bottom-5 sm:left-1/2 sm:right-auto sm:h-14 sm:w-14 sm:-translate-x-1/2 sm:rounded-2xl sm:hover:-translate-x-1/2"
+          className={`fixed z-30 flex h-11 w-11 items-center justify-center rounded-xl border border-[#151515] bg-[#151515] text-white shadow-[0_12px_28px_rgba(21,21,21,0.18)] transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#d08a18] focus:ring-offset-2 focus:ring-offset-[#f8f8f6] active:translate-y-px sm:h-14 sm:w-14 sm:rounded-2xl ${
+            isChatRoute
+              ? "bottom-[20rem] right-3 sm:bottom-5 sm:left-auto sm:right-5"
+              : "bottom-3 right-3 sm:bottom-5 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:hover:-translate-x-1/2"
+          }`}
         >
           <span aria-hidden="true" className="relative block h-6 w-5 rounded-r-md rounded-l-sm border-2 border-white">
             <span className="absolute -bottom-0.5 -top-0.5 left-1.5 w-0.5 bg-white/75" />
