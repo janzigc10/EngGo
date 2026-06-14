@@ -1,119 +1,64 @@
 # EngGo 滚动交接
 
-## 当前状态（2026-06-13 App Shell Redesign V1 Implementation）
+## 当前状态（2026-06-14 Chat answerSurface Contract V1.1 Hardening）
 - 当前分支 / worktree：`codex/meaning-lookup-quality-gate-v1`，工作区 `C:\Users\Chen\Desktop\EngGo`。
-- 当前活跃目标：App Shell Redesign V1 已按 spec 完成；用户 review 后追加 Chat A 方案细节打磨，已把 `/chat` 收成 ChatGPT 式单主对话流，并开始统一 Chat 输出层视觉。
-- 当前有效设计：`docs/superpowers/specs/2026-06-12-app-shell-redesign-v1-design.md`。
-- 当前实现计划：`docs/superpowers/plans/2026-06-13-app-shell-redesign-v1.md`，已完成。
-- 当前执行步骤：等待用户 review；下一阶段已收敛为 Chat 前后端回答协议对齐，不重开 IA。本地前端 `http://localhost:3000` 与 FastAPI `http://127.0.0.1:8000` 已恢复可用，没有剩余 spec blocker。
-- 用户已确认的信息架构：
-  - 顶部不放主导航，只保留三条杠菜单按钮和当前页面标题。
-  - 三条杠 / 左滑唤醒抽屉，抽屉只放 `Today / Learn / Review / Chat`。
-  - 词书入口不进抽屉；底部只放一个 book icon，进入 `/wordbook`。
-  - `/wordbook` 集中承载词书切换、学习设置、总词数、已学、复习次数、每日背词量曲线。
-  - `Progress` 从主导航退役，数据并入词书详情页。
-  - Learn / Review 页面专注会话，不再塞词书切换和解释卡。
-  - 具体视觉风格定为 Ink Amber：冷白背景、墨黑主文字 / 主按钮、少量 amber 强调；amber 不承载白字主按钮。
-- 产品口径保持：不做“系统告诉用户今天必须先做什么”。用户自由选择 Today、Learn、Review、Chat 或进入词书页。
-- 上一轮已完成基线：Scope Closure + Legacy Cleanup + Frontend Direct FastAPI + Affix Semantic Gate 均已验证；聊天、检索、辨析和词缀语义 gate 先进入维护。
+- 当前活跃目标：Chat answerSurface Contract V1.1 已收口。FastAPI `/api/chat` 会在 `ChatSuccessResponse` 返回 `answerSurface`，前端 `AssistantAnswer` 优先按 `answerSurface.type` 渲染；`grounding` 继续保留为 evidence/context 和旧响应 fallback。
+- 已覆盖并验证的 surface：`lookup`、`phrase_lookup`、`compare`、`expression_advice`、`candidate_list`、`root_family`、`plain`、`context_choice`、`clarification`。
 - 保留边界：
-  - 不做完整 ReAct Agent。
-  - 不让 provider 自由扩词或决定工具参数。
-  - 不做完整词根溯源或 morpheme analyzer。
+  - 不重开 App Shell / IA。
   - 不改 Learn / Review 状态机。
-  - 不迁移 Vite React。
-  - 不做账号、云同步或后端化学习进度。
+  - 不做真 streaming。
+  - 不恢复 Next `/api/chat` proxy。
   - 不恢复 Prisma dev / `db:*` / `real-smoke` / 旧 `eval:product-smoke`。
+  - 不让 provider 自由扩词或决定工具参数。
+  - `grounding` 仍是证据与上下文来源，`answerSurface` 只负责稳定展示协议。
+- 本地验收入口：前端 `http://localhost:3000`，FastAPI `http://127.0.0.1:8000`。Next dev 仍优先用 `localhost`，不要改回 `127.0.0.1:3000` 做页面 QA。
 
 ## 本轮已完成
-1. 按 `2026-06-12-app-shell-redesign-v1-design.md` 完成 App Shell Redesign V1：
-   - `/` 和 `/today` 渲染 Today；`/chat` 承载原 ChatWorkspace；`/wordbook` 承载词书管理；`/progress` redirect 到 `/wordbook`。
-   - `AppFrame` 改为 Ink Amber topbar + hamburger drawer + 底部词书图标；drawer 只含 `Today / Learn / Review / Chat`。
-   - Today 保持 Learn / Review / Chat 自由入口，没有 forced daily priority。
-   - Learn / Review 入口移除旧词书 switcher、学习设置和解释型进度卡，只保留会话开始/继续/重开/放弃与“管理词书”入口。
-   - `/wordbook` 集中处理词书切换、学习/复习设置、词书进度、7 天活动曲线和 Collections 次级入口。
-   - 新增 `enggo.wordbookDailyStats.v1`，在 `StudySession` 的 progress persistence 边界记录 daily stats，不改 Learn / Review 状态机。
-2. 按用户目标使用 subagent 做完成审查，并处理审查结果：
-   - Chat 审查指出旧 `sky/slate`、serif 空状态、旧大圆角容器和收藏工具蓝色按钮；已统一 `ChatWorkspace`、`MessageThread`、`ChatInput`、`ExamplePrompts`、`AnswerActions`、`AnswerContent` 和 `ExamTargetSwitcher` 到 Ink Amber。
-   - Collections 审查指出 `/wordbook -> Collections` 可见兼容流仍是旧风格；已统一 `CollectionsPanel`、Collections loading fallback、Learn/Review loading fallback，以及未使用的 `ProgressPanel` 样式残留。
-   - 覆盖审查指出需要更强 `/progress` redirect、移动端 FAB、Wordbook 切换联动、drawer backdrop 和 tooltip 证据；已补 `tests/e2e/app-shell.spec.ts` 和 `AppFrame` 单测。
-3. 本轮额外修复 / 防回归：
-   - `/wordbook` hydration mismatch 已用 `useHasMounted` server-safe snapshot 处理。
-   - 390px 底部词书图标改为右下 44px FAB，并补偿桌面滚动条；移动端 Browser top/bottom 检查所有路由均 0 overlap。
-   - Playwright baseURL 从 `127.0.0.1:3000` 改为 `localhost:3000`，避免 Next 16 dev 下脚本接管异常。
-   - 目标目录扫描确认 `src/components/chat`、`src/features/collections`、`src/app/collections`、`src/app/learn`、`src/app/review` 和 `ExamTargetSwitcher` 没有旧 `sky-*`、`font-serif`、旧大圆角类残留。
-4. 按用户选择的 A 方案细化 `/chat`：
-   - 移除 Chat 右侧 `WordbookDailyOverviewPanel`、示例 prompt、空状态大标题、输入区说明文案、回答内“下一步 / 命中摘要 / 易混边界 / 收藏工具”等分布式卡片。
-   - `/chat` 现在只保留单列对话流、一个底部 composer、发送按钮和极轻量当前词书 selector；Enter 直接发送，Shift+Enter 保留换行。
-   - clarification options 作为真实交互 chip 保留；conversation context hint 改为 screen-reader only，不再作为可见提示干扰页面。
-   - Collections 空状态文案同步去掉“回到聊天页点加入收藏”的旧指引，避免和 Chat 纯对话流冲突。
-5. 处理用户手测 `/chat` 出现 `Failed to fetch`：
-   - 根因确认：前端 3000 正常，但 FastAPI 8000 未监听；当前前端聊天请求默认直连 `http://127.0.0.1:8000/api/chat`。
-   - 按 `bugs.md` 的 Windows `Path/PATH` 恢复路径归一化环境后，启动 FastAPI 后台进程 PID `80968`，并显式使用本地 ECDICT 路径、不启用旧 structured DB。
-6. 统一 `/chat` assistant 输出层第一版：
-   - 新增 `AssistantAnswer`，所有 assistant 回复统一进入同一套白底 answer surface，不再裸露成左侧散文。
-   - 优先使用 `grounding` 结构渲染：单词查词显示词头和释义；多候选召回显示“找到 N 个词”的分行词条；compare / root family 有轻量结构化 block。
-   - 多候选答案不再把后端多行文本压成一整段；loading 从纯文字 `正在思考...` 改成同一 answer surface 内的“正在查词库”状态。
-   - 本轮未改 FastAPI 协议，真实 SSE / stream 仍作为后续独立任务处理。
-7. 按用户要求做 `/chat` 浏览器 QA：
-   - 用真实 in-app Browser 覆盖 50 条 UI 发送用例：查词 10、候选召回 10、易混词对比 10、多轮/边界 10、390px 移动混合 10。
-   - 50/50 均返回 assistant 回复；未复现 `Failed to fetch`、服务错误、console error 或横向溢出。
-   - QA 发现并修复：Chat 页面底部词书 icon 在窄宽度下会与 composer / 发送按钮重叠；现已在 `/chat` 专属抬高到 composer 上方，并补 AppFrame 单测防回归。
+1. 后端 contract：
+   - `backend/app/schemas/chat.py` 新增集中式 `answerSurface` builder，并在 `ChatSuccessResponse` 初始化时自动填充。
+   - `compare` 可在 `comparisonView is None` 时从 `grounding.mainAnswer` 生成 `members`，解决 provider-backed direct compare 只能退成长段文本的问题。
+   - `semantic_expression` 与 `meaning_expression_advice` 均输出 `expression_advice`，不再让 UI 把表达建议误当词库命中。
+   - `shape_neighbor_search`、`root_family_summary`、`broad_vocab_summary`、`show_more` 可输出 `candidate_list`。
+   - `lookup` 单项 resolved 现在固定输出 `lookup`，并从 answer body 修正 source-lemma 这类轻量候选的 `meaningZh`，避免显示 `source lemma exact match` 这类内部 reason。
+   - `phrase_lookup` 现在按 surface type 明确输出；`make up`、`according to` 这类短语不再只靠前端从 lemma 猜。
+   - `root_family` 现在从 `rootFamilyView.members[].modernMeaningZh` 生成 surface `members[].meaningZh`，并透出 `note`、`caution`、`source=root_family_view`。
+   - 无 grounding 的寒暄/兜底输出 `plain`；无上下文追问输出 `clarification`。
+2. 前端 contract：
+   - `src/features/chat/types.ts` 新增 `AnswerSurface` 类型，并把 `semantic_expression` 纳入 `QueryMode` / `AnswerStyle`。
+   - `src/features/chat/use-chat-session.ts` 透传 `payload.answerSurface` 到 assistant message。
+   - `src/components/chat/assistant-answer.tsx` 优先按 `answerSurface.type` 渲染；旧 `grounding` 推断路径保留为 legacy fallback。
+   - `phrase_lookup` 显示短语副标题；`root_family` surface 显示 note/caution 和成员中文义项。
+   - `src/components/chat/answer-actions.tsx` 兼容轻量 `meaningZh` 与旧 `meaningsZh[]`。
+3. 测试覆盖：
+   - 后端补了 `lookup`、`phrase_lookup`、`root_family`、`compare`、`expression_advice`、`candidate_list`、`plain/clarification` 的 contract 断言。
+   - 前端补了 `answerSurface` 驱动的 `lookup`、`phrase_lookup`、`candidate_list`、`compare`、`expression_advice`、`root_family`、`plain` 渲染用例，覆盖 `comparisonView=null` 的 compare 和 `rootFamilyView=null` 的 surface 渲染。
 
 ## 当前待办
-1. 下一阶段主线：补齐 Chat answer surface contract，让后端明确返回稳定的 `answerSurface` / view data，前端按类型渲染，不再靠猜 `grounding` 或解析长文本。建议 surface 集合：`lookup`、`phrase_lookup`、`candidate_list`、`compare`、`expression_advice`、`context_choice`、`root_family`、`clarification`、`plain`。
-2. 协议对齐优先级：
-   - 先做 `direct_compare -> compare surface`：后端保证 `comparisonView` 或等价 compare view data，前端稳定渲染核心区别和逐词边界，避免 provider-backed compare 退成长段落。
-   - 再做 `meaning_lookup / semantic_expression -> expression_advice`：中文表达、正式/自然/作文表达不显示成“命中词库”，而是推荐表达和使用边界。
-   - 再做 `fuzzy_recall / shape_neighbor_search / show_more -> candidate_list`：候选列表统一标题、来源、匹配原因和续问上下文。
-   - 再做 `root_family_summary -> root_family`：区分真实词族、词形/前后缀召回和宽泛片段召回，避免 UI 暗示不存在的词源关系。
-   - 最后做 `no_match / clarification -> empty_or_clarify`：稳定展示未命中和可选澄清方向。
-3. 如果继续做“真 stream”，单独开一轮：定义 FastAPI streaming contract、前端 incremental message state、错误/取消语义，不和 answer surface 协议对齐混在一起。
-4. 如后续继续做 housekeeping：是否引入真实 icon package 替换当前 CSS book glyph、是否删除未使用的旧 `AppNav` / `ProgressClient`。不要重开 IA。
-5. 本地验收入口仍是 `http://localhost:3000`；聊天页还需要 FastAPI `http://127.0.0.1:8000` 同时在线，后续 Browser / Playwright 验收继续优先用 `localhost`。
+1. answerSurface Contract V1.1 已完成。后续不建议继续在这一轮里扩字段；只在发现真实 matrix 漏洞时补小红测。
+2. 若要做真 stream，单独开 Chat Streaming Contract V1：定义 FastAPI streaming contract、前端 incremental message state、最终 `answerSurface` 落地时机、错误/取消/重试语义。不要和 V1.1 surface 收口合并。
+3. 本地环境注意：
+   - `corepack pnpm dev:fastapi` 会因为已有 Next dev server 占用 3000 而拒绝启动；本轮曾改用单独 FastAPI + 单独 Next 方式验证。
+   - Windows `Start-Process` 仍可能命中 `Path/PATH` 重复环境坑；按 `bugs.md` 先归一化再启动。
+   - in-app Browser 如出现空 DOM / CDP 导航卡住，先重新获取 `iab` browser session 并重开 tab；本轮重连后已完成 `/chat` 真实发送验证，不是页面 Failed to fetch。
+   - 本轮发现现有 `127.0.0.1:8000` 可能是 stale FastAPI 进程；验收当前代码时如结果不符合最新 contract，先重启 FastAPI 或临时起新端口验证，不要直接当成代码回归。
 
 ## 最新验证（本轮）
-- Focused lint：
-  - `corepack pnpm lint -- src\components\shell\exam-target-switcher.tsx src\components\chat\chat-workspace.tsx src\components\chat\message-thread.tsx src\components\chat\chat-input.tsx src\components\chat\example-prompts.tsx src\components\chat\answer-actions.tsx src\components\chat\answer-content.tsx src\app\collections\collections-client.tsx src\app\learn\learn-client.tsx src\app\review\review-client.tsx src\features\collections\study-panels.tsx src\components\shell\app-frame.test.tsx tests\e2e\app-shell.spec.ts` -> passed。
-- Focused Vitest：
-  - `corepack pnpm test -- src\components\chat\chat-workspace.test.tsx src\features\collections\study-panels.test.tsx src\components\shell\app-frame.test.tsx` -> 32 files / 257 tests passed。
-- Playwright route slice：
-  - `corepack pnpm test:e2e -- tests\e2e\app-shell.spec.ts tests\e2e\chat-mvp.spec.ts tests\e2e\collection-flow.spec.ts` -> 6 passed。
-- Final full gates：
-  - `corepack pnpm lint` -> passed。
-  - `corepack pnpm test` -> 32 files / 257 tests passed。
+- Backend focused pytest：
+  - `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_chat_contract.py backend\tests\test_ordinary_lookup_answer.py backend\tests\test_advanced_lookup.py -o cache_dir=.runlogs/pytest-cache --basetemp=.runlogs/pytest-basetemp` -> 115 passed。
+- Frontend focused Vitest：
+  - `corepack pnpm test -- src\components\chat\chat-workspace.test.tsx` -> 32 files / 260 tests passed。
+- Lint / build / diff：
+  - `corepack pnpm lint -- src\features\chat\types.ts src\components\chat\assistant-answer.tsx src\components\chat\chat-workspace.test.tsx` -> passed。
   - `corepack pnpm build` -> passed；Next 16.2.4 compiled, TypeScript passed, 11 static pages generated。
   - `git diff --check` -> passed，只有 Windows LF/CRLF warnings。
-- Browser desktop QA（in-app Browser / Computer Use）：
-  - `http://localhost:3000` 覆盖 `/`、`/learn`、`/review`、`/chat`、`/wordbook`、`/collections`、`/progress`。
-  - 所有路由 header / main content 正常；`/progress` redirect 到 `/wordbook`；visible page style audit 结果为 0 blueish controls、0 serif heading、0 horizontal overflow、0 console error。
-  - Drawer 用 DOM CUA 打开后只有 `Today / Learn / Review / Chat`，关闭正常。
-- Browser 390px QA：
-  - 视口 `390x844` 覆盖 `/`、`/learn`、`/review`、`/chat`、`/wordbook`、`/collections`、`/progress` 的 top/bottom。
-  - 所有路由 horizontal overflow 为 0；底部词书 icon 在 viewport 内；overlapCount 为 0；fresh console error 为 0。
-- Chat A 方案追加验证：
-  - `corepack pnpm lint -- src\components\chat\chat-workspace.tsx src\components\chat\message-thread.tsx src\components\chat\chat-input.tsx src\components\chat\chat-workspace.test.tsx src\features\collections\study-panels.tsx tests\e2e\app-shell.spec.ts tests\e2e\chat-mvp.spec.ts tests\e2e\collection-flow.spec.ts` -> passed。
-  - `corepack pnpm test -- src\components\chat\chat-workspace.test.tsx src\features\collections\study-panels.test.tsx` -> 32 files / 257 tests passed。
-  - `corepack pnpm test:e2e -- tests\e2e\app-shell.spec.ts tests\e2e\chat-mvp.spec.ts tests\e2e\collection-flow.spec.ts` -> 6 passed。
-  - 临时 Playwright layout audit 覆盖 `/chat` 桌面和 `390x844` 移动端：旧 Chat Workspace / 示例 prompt / 今日学习概览文案均未出现，horizontal overflow 为 0，词书 icon 不遮挡 composer / 发送按钮，console error 为 0；临时测试文件已删除。
-  - `corepack pnpm build` -> passed；Next 16.2.4 compiled, TypeScript passed, 11 static pages generated。
-- Chat runtime recovery 验证：
-  - `http://127.0.0.1:8000/health` -> `{"status":"ok","service":"enggo-fastapi"}`。
-  - Node direct `/api/chat`：`access是什么意思` -> 200；`tran开头的单词有哪些` -> 200。
-  - in-app Browser `/chat`：旧失败消息后重新发送 `access是什么意思`，页面返回 `access` 释义，无新增 console error。
-- Chat output renderer V1 验证：
-  - `corepack pnpm test -- src\components\chat\chat-workspace.test.tsx src\components\chat\answer-content.test.tsx` -> 32 files / 258 tests passed。
-  - `corepack pnpm lint -- src\components\chat\assistant-answer.tsx src\components\chat\message-thread.tsx src\components\chat\chat-workspace.test.tsx` -> passed。
-  - `corepack pnpm build` -> passed；Next 16.2.4 compiled, TypeScript passed, 11 static pages generated。
-  - `git diff --check` -> passed，只有 Windows LF/CRLF warnings。
-  - in-app Browser `/chat` 刷新后切到考研，发送 `tran开头的单词有哪些`：页面显示“找到 18 个词”并逐词分行，无 console error。
-- Chat browser QA V1：
-  - in-app Browser 桌面真实输入 40 条：lookup 10 / recall 10 / compare 10 / dialogue-boundary 10，全部返回，0 failed / 0 overflow / 0 service error / 0 console error。
-  - in-app Browser 390px 真实输入 10 条 mixed cases，全部返回，0 failed / 0 overflow / 0 service error；词书 icon 与 composer / send button 均 0 overlap。
-  - 修复后验证：当前 584px 宽度下词书 icon `bookOverlapsComposer=false`、`bookOverlapsSend=false`、`scrollWidth=clientWidth`。
-  - 追加验证：`corepack pnpm test -- src\components\shell\app-frame.test.tsx src\components\chat\chat-workspace.test.tsx src\components\chat\answer-content.test.tsx` -> 32 files / 258 tests passed。
-  - 追加验证：`corepack pnpm lint -- src\components\shell\app-frame.tsx src\components\shell\app-frame.test.tsx src\components\chat\assistant-answer.tsx src\components\chat\message-thread.tsx src\components\chat\chat-workspace.test.tsx` -> passed。
-  - 追加验证：`corepack pnpm build` -> passed；`git diff --check` -> passed，只有 Windows LF/CRLF warnings。
+- Real FastAPI `/api/chat` probes（临时 current-code FastAPI, Node fetch, `http://127.0.0.1:8010`，跑完已停止）：
+  - `access 是什么意思` -> 200, `answerSurface.type=lookup`, title `access`, source-lemma body 修正为真实释义。
+  - `make up 是什么意思` -> 200, `answerSurface.type=phrase_lookup`, title `make up`, subtitle `短语`。
+  - `tran开头的单词有哪些` -> 200, `answerSurface.type=candidate_list`, 18 items。
+  - `re+con+sub 的词根有什么词` -> 200, `answerSurface.type=plain`, `queryMode=root_family_summary`, `resolution=no_match`。
+- in-app Browser `/chat` probe（`http://localhost:3000/chat` + current-code FastAPI `127.0.0.1:8000`）：
+  - 发送 `make up 是什么意思`；页面显示 `短语`、`make up` 和释义；无 Failed to fetch；console error 为空；`scrollWidth=clientWidth=1265`。
 
 ## 上一轮已完成
 1. 按用户要求使用 `design-taste-frontend` 的 redesign / audit 口径和 Brainstorm visual companion；没有直接改实现代码。

@@ -867,13 +867,34 @@ describe("ChatWorkspace", () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        answer: [
-          "transit n. 经过；通行；运输",
-          "tranquil adj. 安静的",
-          "transaction n. 交易；办理",
-        ].join("\n"),
+        answer: "raw answer text should not decide candidate-list rendering",
         requestId: "req_multiline_candidates",
         providerRequestId: null,
+        answerSurface: {
+          type: "candidate_list",
+          title: "找到 3 个词",
+          subtitle: "考研",
+          items: [
+            {
+              id: "external-dictionary-basic:transit",
+              lemma: "transit",
+              partOfSpeech: "n.",
+              meaningZh: "经过；通行；运输",
+            },
+            {
+              id: "external-dictionary-basic:tranquil",
+              lemma: "tranquil",
+              partOfSpeech: "adj.",
+              meaningZh: "安静的",
+            },
+            {
+              id: "external-dictionary-basic:transaction",
+              lemma: "transaction",
+              partOfSpeech: "n.",
+              meaningZh: "交易；办理",
+            },
+          ],
+        },
         grounding: {
           activeExamTarget: "postgrad",
           activeExamTargetLabel: "考研",
@@ -935,12 +956,141 @@ describe("ChatWorkspace", () => {
 
     expect(await screen.findByText("找到 3 个词")).toBeInTheDocument();
     expect(screen.getByText("transit")).toBeInTheDocument();
-    expect(screen.getByText("n. 经过；通行；运输")).toBeInTheDocument();
+    expect(screen.getByText("经过；通行；运输")).toBeInTheDocument();
     expect(screen.getByText("tranquil")).toBeInTheDocument();
-    expect(screen.getByText("adj. 安静的")).toBeInTheDocument();
+    expect(screen.getByText("安静的")).toBeInTheDocument();
     expect(
-      screen.queryByText(/transit n\. 经过；通行；运输 tranquil adj\. 安静的/),
+      screen.queryByText(/raw answer text should not decide/),
     ).not.toBeInTheDocument();
+  });
+
+  it("renders root-family answers from answerSurface members", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer: "raw root-family answer should not drive rows",
+        requestId: "req_root_family_surface",
+        providerRequestId: "resp_root_family_surface",
+        answerSurface: {
+          type: "root_family",
+          title: "stitute",
+          subtitle: "放置 / 建立",
+          note: "stitute 更适合作为构词部件理解，不要机械套前缀。",
+          caution: "候选过少时不要硬凑规律。",
+          source: "root_family_view",
+          members: [
+            {
+              id: "institute",
+              lemma: "institute",
+              partOfSpeech: "v. / n.",
+              meaningZh: "建立；学院",
+            },
+            {
+              id: "institution",
+              lemma: "institution",
+              partOfSpeech: "n.",
+              meaningZh: "机构；制度",
+            },
+          ],
+        },
+        grounding: {
+          activeExamTarget: "cet6",
+          activeExamTargetLabel: "CET-6",
+          query: "institute 这一族怎么记",
+          queryMode: "root_family_summary",
+          answerStyle: "root_family_summary",
+          resolution: "resolved",
+          noMatchReason: null,
+          mainAnswer: [],
+          confusionBoundary: [],
+          scopeReminder: "scope",
+          followUpPrompt: "follow-up",
+          comparisonView: null,
+          rootFamilyView: null,
+        },
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "institute 这一族怎么记");
+    await user.click(screen.getByRole("button", { name: /发送/i }));
+
+    expect(await screen.findByText("stitute")).toBeInTheDocument();
+    expect(screen.getByText("放置 / 建立")).toBeInTheDocument();
+    expect(screen.getByText("建立；学院")).toBeInTheDocument();
+    expect(screen.getByText("机构；制度")).toBeInTheDocument();
+    expect(
+      screen.getByText("stitute 更适合作为构词部件理解，不要机械套前缀。"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/raw root-family answer should not drive rows/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders compare answers from answerSurface without comparisonView", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        answer: "access 侧重进入或使用；assess 侧重评估判断。",
+        answerKind: "grounded",
+        requestId: "req_compare_surface",
+        providerRequestId: "provider_compare_surface",
+        answerSurface: {
+          type: "compare",
+          title: "核心区别",
+          text: "access 侧重进入或使用；assess 侧重评估判断。",
+          source: "main_answer",
+          members: [
+            {
+              id: "access",
+              lemma: "access",
+              partOfSpeech: "n. / v.",
+              meaningZh: "进入；使用权",
+            },
+            {
+              id: "assess",
+              lemma: "assess",
+              partOfSpeech: "v.",
+              meaningZh: "评估；评价",
+            },
+          ],
+        },
+        grounding: {
+          activeExamTarget: "cet6",
+          activeExamTargetLabel: "CET-6",
+          query: "access assess 怎么区分",
+          queryMode: "direct_compare",
+          answerStyle: "confusion_untangle",
+          resolution: "resolved",
+          noMatchReason: null,
+          mainAnswer: [],
+          confusionBoundary: [],
+          scopeReminder: "scope",
+          followUpPrompt: "follow-up",
+          comparisonView: null,
+          rootFamilyView: null,
+        },
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "access assess 怎么区分");
+    await user.click(screen.getByRole("button", { name: /发送/i }));
+
+    expect(await screen.findByText("核心区别")).toBeInTheDocument();
+    expect(screen.getByText(/access 侧重进入或使用/)).toBeInTheDocument();
+    expect(screen.getByText("access")).toBeInTheDocument();
+    expect(screen.getByText("进入；使用权")).toBeInTheDocument();
+    expect(screen.getByText("assess")).toBeInTheDocument();
+    expect(screen.getByText("评估；评价")).toBeInTheDocument();
   });
 
   it("renders meaning expression advice as non-hit guidance", async () => {
@@ -952,6 +1102,11 @@ describe("ChatWorkspace", () => {
         answerKind: "plain",
         requestId: "req_meaning_expression_advice",
         providerRequestId: null,
+        answerSurface: {
+          type: "expression_advice",
+          title: "表达建议",
+          text: "表达观点可以先用 express an opinion 或 state your view。",
+        },
         grounding: {
           activeExamTarget: "postgrad",
           activeExamTargetLabel: "考研",
@@ -980,7 +1135,7 @@ describe("ChatWorkspace", () => {
     await user.click(screen.getByRole("button", { name: /发送/i }));
 
     expect(await screen.findByText(/express an opinion/)).toBeInTheDocument();
-    expect(screen.queryByText("表达建议")).not.toBeInTheDocument();
+    expect(screen.getByText("表达建议")).toBeInTheDocument();
     expect(screen.queryByText("这次是表达建议，不标记为词库命中。")).not.toBeInTheDocument();
     expect(screen.queryByText("已命中 0 个当前范围词")).not.toBeInTheDocument();
     expect(screen.queryByText("暂未稳定命中")).not.toBeInTheDocument();
@@ -996,6 +1151,19 @@ describe("ChatWorkspace", () => {
         answerKind: "grounded",
         requestId: "req_source_lemma",
         providerRequestId: null,
+        answerSurface: {
+          type: "lookup",
+          title: "accent",
+          text: "accent\n\nn. 重音；口音；特点；注重点",
+          items: [
+            {
+              id: "source-lemma:accent",
+              lemma: "accent",
+              meaningZh: "n. 重音；口音；特点；注重点",
+              sourceKind: "source_lemma",
+            },
+          ],
+        },
         grounding: {
           activeExamTarget: "cet4",
           activeExamTargetLabel: "CET-4",
@@ -1049,6 +1217,20 @@ describe("ChatWorkspace", () => {
         answerKind: "grounded",
         requestId: "req_external_dictionary",
         providerRequestId: null,
+        answerSurface: {
+          type: "phrase_lookup",
+          title: "make up",
+          subtitle: "短语",
+          text: "make up\n\nphr. 组成；编造；化妆；弥补",
+          items: [
+            {
+              id: "external-dictionary-basic:make up",
+              lemma: "make up",
+              meaningZh: "phr. 组成；编造；化妆；弥补",
+              sourceKind: "external_dictionary_basic",
+            },
+          ],
+        },
         grounding: {
           activeExamTarget: "cet4",
           activeExamTargetLabel: "CET-4",
@@ -1088,6 +1270,7 @@ describe("ChatWorkspace", () => {
     await user.click(screen.getByRole("button", { name: /发送/i }));
 
     expect(await screen.findByText("phr. 组成；编造；化妆；弥补")).toBeInTheDocument();
+    expect(screen.getByText("短语")).toBeInTheDocument();
     expect(screen.queryByText("来源说明")).not.toBeInTheDocument();
     expect(
       screen.queryByText("外部基础词典 · 不参与易混词/词根/考试优先级判断"),
@@ -1105,6 +1288,11 @@ describe("ChatWorkspace", () => {
         answerKind: "plain",
         requestId: "req_greeting",
         providerRequestId: null,
+        answerSurface: {
+          type: "plain",
+          text:
+            "你好。你可以直接问一个单词、两个易混词，或者给我一个中文意思，我会先帮你缩小备考范围。",
+        },
       }),
     });
 

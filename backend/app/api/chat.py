@@ -53,7 +53,12 @@ learning_mood_pattern = re.compile(
 def response_json(payload: ChatSuccessResponse | ChatErrorResponse, status_code: int) -> JSONResponse:
     content = payload.model_dump()
 
-    for key in ("grounding", "conversationContext", "resolvedFollowUp"):
+    for key in (
+        "grounding",
+        "answerSurface",
+        "conversationContext",
+        "resolvedFollowUp",
+    ):
         if content.get(key) is None:
             content.pop(key, None)
 

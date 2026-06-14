@@ -6,13 +6,15 @@ export type QueryMode =
   | "shape_neighbor_search"
   | "root_family_summary"
   | "direct_compare"
-  | "direct_lookup";
+  | "direct_lookup"
+  | "semantic_expression";
 
 export type AnswerStyle =
   | "standard_lookup"
   | "confusion_untangle"
   | "root_family_summary"
   | "expression_recall"
+  | "semantic_expression"
   | "meaning_expression_advice"
   | "broad_vocab_summary";
 
@@ -48,7 +50,8 @@ export type ChatGroundingCandidate = {
   entryId: string;
   lemma: string;
   partOfSpeech?: string;
-  meaningsZh: string[];
+  meaningsZh?: string[];
+  meaningZh?: string;
   matchedAlias: string | null;
   scopeCodes: ExamTargetCode[];
   inScope: boolean;
@@ -115,6 +118,49 @@ export type AnswerGrounding = {
     input: string;
     lemma: string;
   } | null;
+};
+
+export type AnswerSurfaceType =
+  | "lookup"
+  | "phrase_lookup"
+  | "candidate_list"
+  | "compare"
+  | "expression_advice"
+  | "context_choice"
+  | "root_family"
+  | "clarification"
+  | "plain";
+
+export type AnswerSurfaceItem = {
+  id?: string;
+  entryId?: string;
+  lemma: string;
+  label?: string;
+  partOfSpeech?: string | null;
+  meaningZh?: string | null;
+  sourceKind?: string | null;
+  entryKind?: "word" | "phrase" | string | null;
+  reason?: string | null;
+  prefix?: string | null;
+  priority?: RootFamilyPriority | string | null;
+  inScope?: boolean | null;
+  reviewStatus?: string | null;
+};
+
+export type AnswerSurface = {
+  type: AnswerSurfaceType;
+  title?: string;
+  subtitle?: string | null;
+  text?: string;
+  note?: string | null;
+  caution?: string | null;
+  items?: AnswerSurfaceItem[];
+  members?: AnswerSurfaceItem[];
+  terms?: string[];
+  meaningHint?: string | null;
+  style?: string | null;
+  options?: AnswerSurfaceItem[];
+  source?: "comparison_view" | "main_answer" | string;
 };
 
 export type ChatHistoryMessage = {
@@ -195,6 +241,7 @@ export type ChatMessage = ChatHistoryMessage & {
   id: string;
   answerKind?: "grounded" | "plain";
   grounding?: AnswerGrounding;
+  answerSurface?: AnswerSurface;
   requestId?: string;
   providerRequestId?: string | null;
   conversationContext?: ConversationalLearningContext;
@@ -205,6 +252,7 @@ export type ChatApiSuccessResponse = {
   answer: string;
   answerKind?: "grounded" | "plain";
   grounding?: AnswerGrounding;
+  answerSurface?: AnswerSurface;
   requestId: string;
   providerRequestId: string | null;
   conversationContext?: ConversationalLearningContext;

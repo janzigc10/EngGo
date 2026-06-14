@@ -608,6 +608,18 @@ def test_root_family_summary_uses_known_family_and_provider():
         "constitute",
         "substitute",
     ]
+    assert result.payload.answerSurface["type"] == "root_family"
+    assert result.payload.answerSurface["title"] == "stitute"
+    assert result.payload.answerSurface["source"] == "root_family_view"
+    assert result.payload.answerSurface["note"] == (
+        "stitute 更适合作为构词部件理解，不要机械套前缀。"
+    )
+    assert [item["meaningZh"] for item in result.payload.answerSurface["members"]] == [
+        "建立；学院",
+        "机构；制度",
+        "组成；构成",
+        "替代",
+    ]
 
 
 def test_root_family_known_family_without_candidates_returns_root_no_match():
@@ -1478,6 +1490,9 @@ def test_semantic_expression_uses_provider_without_claiming_wordbook_hit():
     assert grounding["terms"] == ["follow"]
     assert grounding["style"] == "formal"
     assert grounding["mainAnswer"] == []
+    assert result.payload.answerSurface is not None
+    assert result.payload.answerSurface["type"] == "expression_advice"
+    assert result.payload.answerSurface["terms"] == ["follow"]
     assert "not a wordbook hit" in "\n".join(grounding["rules"])
 
 
@@ -1503,6 +1518,9 @@ def test_semantic_expression_provider_failure_returns_bounded_plain_fallback():
     assert grounding["queryMode"] == "semantic_expression"
     assert grounding["resolution"] == "resolved"
     assert grounding["terms"] == ["follow"]
+    assert result.payload.answerSurface is not None
+    assert result.payload.answerSurface["type"] == "expression_advice"
+    assert result.payload.answerSurface["terms"] == ["follow"]
     assert provider.calls
 
 
@@ -1906,6 +1924,8 @@ def test_meaning_lookup_weak_reverse_candidates_become_plain_expression_advice()
     assert grounding["mainAnswer"] == []
     assert grounding["followUpPrompt"]
     assert grounding["weakCandidateLemmas"] == ["disobedience", "subdue"]
+    assert result.payload.answerSurface is not None
+    assert result.payload.answerSurface["type"] == "expression_advice"
     assert "not a wordbook hit" in "\n".join(grounding["rules"])
     assert provider.calls
 
@@ -1943,6 +1963,8 @@ def test_meaning_lookup_weak_expression_candidate_uses_bounded_advice_without_pr
     assert grounding["mainAnswer"] == []
     assert grounding["followUpPrompt"]
     assert grounding["weakCandidateLemmas"] == ["hiss"]
+    assert result.payload.answerSurface is not None
+    assert result.payload.answerSurface["type"] == "expression_advice"
 
 
 def test_meaning_lookup_quality_gate_keeps_direct_cooperation_hit_grounded():

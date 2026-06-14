@@ -144,6 +144,13 @@ def test_direct_compare_returns_grounding_without_provider_or_manual_group_depen
 
     assert result.status_code == 200
     assert result.payload.answerKind == "grounded"
+    assert result.payload.answerSurface is not None
+    assert result.payload.answerSurface["type"] == "compare"
+    assert [item["lemma"] for item in result.payload.answerSurface["members"]] == [
+        "access",
+        "assess",
+        "excess",
+    ]
     assert result.payload.providerRequestId is None
     assert grounding["queryMode"] == "direct_compare"
     assert grounding["learningIntentPlan"]["task"] == "focused_compare"
@@ -187,6 +194,9 @@ def test_direct_compare_uses_provider_when_available():
 
     assert result.payload.providerRequestId == "provider_req_compare"
     assert result.payload.answer == "provider compare answer"
+    assert result.payload.answerSurface is not None
+    assert result.payload.answerSurface["type"] == "compare"
+    assert result.payload.answerSurface["source"] == "main_answer"
     assert len(provider.calls) == 1
     call = provider.calls[0]
     assert call["history"] == [{"role": "user", "content": "previous"}]

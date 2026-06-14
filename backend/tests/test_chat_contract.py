@@ -294,6 +294,8 @@ def test_chat_clarifies_follow_up_without_context_without_calling_services():
     assert payload["providerRequestId"] is None
     assert payload["resolvedFollowUp"]["kind"] == "clarification"
     assert "grounding" not in payload
+    assert payload["answerSurface"]["type"] == "clarification"
+    assert payload["answerSurface"]["text"] == payload["answer"]
 
 
 def test_chat_resolves_collect_group_action_without_calling_lookup_services():
@@ -759,6 +761,9 @@ def test_chat_semantic_expression_uses_grey_zone_classifier_then_advanced_provid
     assert payload["grounding"]["style"] == "formal"
     assert payload["grounding"]["terms"] == ["follow"]
     assert payload["grounding"]["mainAnswer"] == []
+    assert payload["answerSurface"]["type"] == "expression_advice"
+    assert payload["answerSurface"]["text"] == payload["answer"]
+    assert payload["answerSurface"]["terms"] == ["follow"]
     assert payload["grounding"]["routeDecision"]["source"] == "llm"
     assert payload["grounding"]["routeDecision"]["terms"] == ["follow"]
     assert len(provider.calls) == 2
@@ -819,6 +824,8 @@ def test_chat_explicit_seed_style_request_routes_to_semantic_expression_with_con
     assert payload["answerKind"] == "plain"
     assert payload["grounding"]["queryMode"] == "semantic_expression"
     assert payload["grounding"]["terms"] == ["good"]
+    assert payload["answerSurface"]["type"] == "expression_advice"
+    assert payload["answerSurface"]["terms"] == ["good"]
 
 
 def test_chat_keeps_normal_query_with_context_on_original_route():
@@ -870,6 +877,10 @@ def test_chat_keeps_normal_query_with_context_on_original_route():
     assert response.status_code == 200
     assert ordinary_service.calls[0]["query"] == "make up 是什么意思"
     assert "resolvedFollowUp" not in payload
+    assert payload["answerSurface"]["type"] == "phrase_lookup"
+    assert payload["answerSurface"]["title"] == "make up"
+    assert payload["answerSurface"]["subtitle"] == "短语"
+    assert payload["answerSurface"]["items"][0]["meaningZh"] == "组成；编造"
 
 
 def test_chat_clarifies_mixed_explicit_and_ordinal_reference_without_services():
@@ -928,6 +939,8 @@ def test_chat_returns_plain_greeting_without_grounding():
     assert payload["answerKind"] == "plain"
     assert payload["providerRequestId"] is None
     assert "grounding" not in payload
+    assert payload["answerSurface"]["type"] == "plain"
+    assert payload["answerSurface"]["text"] == payload["answer"]
     assert "我可以陪你" in payload["answer"]
 
 
@@ -1259,6 +1272,12 @@ def test_chat_returns_grounded_ordinary_lookup_from_fastapi_service(tmp_path):
     assert payload["answerKind"] == "grounded"
     assert payload["providerRequestId"] is None
     assert payload["grounding"]["matchType"] == "exact"
+    assert payload["answerSurface"]["type"] == "lookup"
+    assert payload["answerSurface"]["title"] == "access"
+    assert payload["answerSurface"]["items"][0]["lemma"] == "access"
+    assert payload["answerSurface"]["items"][0]["meaningZh"] == (
+        "进入权；使用权；访问"
+    )
 
 
 def test_chat_runtime_does_not_instantiate_structured_repository_by_default(
@@ -1442,6 +1461,11 @@ def test_chat_tool_router_sends_shape_query_without_ordinary_preflight():
     assert advanced_service.calls[0]["query"] == "给我几个跟 evaluate 易混的单词"
     assert payload["answer"] == "shape neighbor answer"
     assert payload["grounding"]["queryMode"] == "shape_neighbor_search"
+    assert payload["answerSurface"]["type"] == "candidate_list"
+    assert [item["lemma"] for item in payload["answerSurface"]["items"]] == [
+        "evaluate",
+        "evacuate",
+    ]
 
 
 def test_chat_routes_direct_compare_after_ordinary_lookup_rejects_mode(tmp_path):
@@ -1524,6 +1548,12 @@ def test_chat_routes_direct_compare_after_ordinary_lookup_rejects_mode(tmp_path)
     assert payload["grounding"]["queryMode"] == "direct_compare"
     assert payload["grounding"]["answerStyle"] == "confusion_untangle"
     assert payload["grounding"]["comparisonView"] is None
+    assert payload["answerSurface"]["type"] == "compare"
+    assert payload["answerSurface"]["source"] == "main_answer"
+    assert [item["lemma"] for item in payload["answerSurface"]["members"]] == [
+        "access",
+        "assess",
+    ]
     assert [item["lemma"] for item in provider.calls[0]["grounding"]["mainAnswer"]] == [
         "access",
         "assess",

@@ -1,6 +1,8 @@
 import { AnswerContent } from "@/components/chat/answer-content";
 import type {
   AnswerGrounding,
+  AnswerSurface,
+  AnswerSurfaceItem,
   ChatGroundingCandidate,
   ChatMessage,
   ComparisonView,
@@ -58,11 +60,18 @@ function lookupAnswerLine(candidate: ChatGroundingCandidate, lines: string[]) {
   });
 }
 
+function candidateMeanings(candidate: ChatGroundingCandidate) {
+  return [
+    ...(candidate.meaningsZh ?? []),
+    ...(candidate.meaningZh ? [candidate.meaningZh] : []),
+  ];
+}
+
 function candidateMeaning(
   candidate: ChatGroundingCandidate,
   answerLines: string[],
 ) {
-  const structuredMeaning = candidate.meaningsZh
+  const structuredMeaning = candidateMeanings(candidate)
     .map((meaning) => meaning.trim())
     .filter(Boolean)
     .join("；");
@@ -78,6 +87,52 @@ function candidateMeaning(
   }
 
   return candidate.reason;
+}
+
+function surfaceItemMeaning(item: AnswerSurfaceItem) {
+  return (
+    item.meaningZh?.trim()
+    || item.reason?.trim()
+    || item.label?.trim()
+    || ""
+  );
+}
+
+function surfaceItemKey(item: AnswerSurfaceItem, index: number) {
+  return item.id ?? item.entryId ?? `${item.lemma}-${index}`;
+}
+
+function SurfaceRows({ items }: { items: AnswerSurfaceItem[] }) {
+  return (
+    <div className="divide-y divide-[#eeeae0] border-y border-[#eeeae0]">
+      {items.map((item, index) => {
+        const meaning = surfaceItemMeaning(item);
+
+        return (
+          <div
+            key={surfaceItemKey(item, index)}
+            className="grid gap-1 py-3 sm:grid-cols-[10rem_1fr] sm:gap-4"
+          >
+            <div className="min-w-0">
+              <p className="break-words text-sm font-semibold text-[#151515]">
+                {item.lemma}
+              </p>
+              {item.partOfSpeech ? (
+                <p className="mt-0.5 text-xs text-[#8f8f86]">
+                  {item.partOfSpeech}
+                </p>
+              ) : null}
+            </div>
+            {meaning ? (
+              <p className="min-w-0 break-words text-sm leading-6 text-[#4f4d48]">
+                {meaning}
+              </p>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function singleLookupText(message: ChatMessage, candidate: ChatGroundingCandidate) {
@@ -258,7 +313,187 @@ function RootFamilyAnswer({ view }: { view: RootFamilyView }) {
   );
 }
 
+function SurfaceHeader({ surface }: { surface: AnswerSurface }) {
+  if (!surface.title && !surface.subtitle) {
+    return null;
+  }
+
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      {surface.title ? (
+        <h3 className="min-w-0 break-words text-sm font-semibold text-[#151515]">
+          {surface.title}
+        </h3>
+      ) : <span />}
+      {surface.subtitle ? (
+        <span className="shrink-0 text-xs font-medium text-[#8a5a10]">
+          {surface.subtitle}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function SurfaceLookup({
+  message,
+  surface,
+}: {
+  message: ChatMessage;
+  surface: AnswerSurface;
+}) {
+  const item = surface.items?.[0];
+  const body = item ? surfaceItemMeaning(item) : surface.text;
+
+  return (
+    <div className="space-y-3">
+      <h3 className="break-words text-base font-semibold text-[#151515]">
+        {surface.title ?? item?.lemma}
+      </h3>
+      {surface.subtitle ? (
+        <p className="text-xs font-medium text-[#8a5a10]">
+          {surface.subtitle}
+        </p>
+      ) : null}
+      {body ? (
+        <p className="break-words text-sm leading-7 text-[#2f2f2c]">
+          {body}
+        </p>
+      ) : (
+        <AnswerContent content={surface.text ?? message.content} />
+      )}
+    </div>
+  );
+}
+
+function SurfaceCandidateList({ surface }: { surface: AnswerSurface }) {
+  const items = surface.items ?? [];
+
+  return (
+    <div className="space-y-3">
+      <SurfaceHeader surface={surface} />
+      <SurfaceRows items={items} />
+    </div>
+  );
+}
+
+function SurfaceCompare({
+  message,
+  surface,
+}: {
+  message: ChatMessage;
+  surface: AnswerSurface;
+}) {
+  const members = surface.members ?? surface.items ?? [];
+
+  return (
+    <div className="space-y-4">
+      <SurfaceHeader surface={surface} />
+      {surface.text ? <AnswerContent content={surface.text} /> : null}
+      {members.length > 0 ? (
+        <SurfaceRows items={members} />
+      ) : (
+        <AnswerContent content={message.content} />
+      )}
+    </div>
+  );
+}
+
+function SurfaceExpressionAdvice({
+  message,
+  surface,
+}: {
+  message: ChatMessage;
+  surface: AnswerSurface;
+}) {
+  const options = surface.options ?? surface.items ?? [];
+
+  return (
+    <div className="space-y-4">
+      <SurfaceHeader
+        surface={{
+          ...surface,
+          title: surface.title ?? "表达建议",
+        }}
+      />
+      <AnswerContent content={surface.text ?? message.content} />
+      {options.length > 0 ? <SurfaceRows items={options} /> : null}
+    </div>
+  );
+}
+
+function SurfaceRootFamily({
+  message,
+  surface,
+}: {
+  message: ChatMessage;
+  surface: AnswerSurface;
+}) {
+  const members = surface.members ?? surface.items ?? [];
+
+  return (
+    <div className="space-y-4">
+      <SurfaceHeader surface={surface} />
+      {surface.note || surface.caution ? (
+        <div className="space-y-1 border-l-2 border-[#d79b29] pl-3">
+          {surface.note ? (
+            <p className="text-sm leading-6 text-[#4f4d48]">
+              {surface.note}
+            </p>
+          ) : null}
+          {surface.caution ? (
+            <p className="text-xs leading-5 text-[#6f6f68]">
+              {surface.caution}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {surface.text && members.length === 0 ? (
+        <AnswerContent content={surface.text} />
+      ) : null}
+      {members.length > 0 ? (
+        <SurfaceRows items={members} />
+      ) : (
+        <AnswerContent content={message.content} />
+      )}
+    </div>
+  );
+}
+
+function AnswerSurfaceView({ message }: { message: ChatMessage }) {
+  const surface = message.answerSurface;
+
+  if (!surface) {
+    return null;
+  }
+
+  if (surface.type === "lookup" || surface.type === "phrase_lookup") {
+    return <SurfaceLookup message={message} surface={surface} />;
+  }
+
+  if (surface.type === "candidate_list") {
+    return <SurfaceCandidateList surface={surface} />;
+  }
+
+  if (surface.type === "compare") {
+    return <SurfaceCompare message={message} surface={surface} />;
+  }
+
+  if (surface.type === "expression_advice") {
+    return <SurfaceExpressionAdvice message={message} surface={surface} />;
+  }
+
+  if (surface.type === "root_family") {
+    return <SurfaceRootFamily message={message} surface={surface} />;
+  }
+
+  return <AnswerContent content={surface.text ?? message.content} />;
+}
+
 function StructuredAnswer({ message }: { message: ChatMessage }) {
+  if (message.answerSurface) {
+    return <AnswerSurfaceView message={message} />;
+  }
+
   const grounding = message.grounding;
 
   if (!grounding || grounding.resolution !== "resolved") {

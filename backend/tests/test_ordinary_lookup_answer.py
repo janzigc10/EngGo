@@ -162,6 +162,11 @@ def test_exact_phrase_no_match_uses_ecdict_phrase_fallback(tmp_path):
     assert result.payload.grounding["mainAnswer"][0]["sourceKind"] == (
         "external_dictionary_basic"
     )
+    assert result.payload.answerSurface["type"] == "phrase_lookup"
+    assert result.payload.answerSurface["title"] == "make up"
+    assert result.payload.answerSurface["items"][0]["meaningZh"] == (
+        "v. 组成；编造；化妆；和解"
+    )
 
 
 def test_phrase_lookup_with_chinese_suffix_uses_ecdict_phrase_fallback(tmp_path):
@@ -192,6 +197,8 @@ def test_phrase_lookup_with_chinese_suffix_uses_ecdict_phrase_fallback(tmp_path)
     assert result.payload.grounding["matchType"] == "external_dictionary_exact"
     assert result.payload.grounding["queryMode"] == "direct_lookup"
     assert result.payload.grounding["mainAnswer"][0]["lemma"] == "make up"
+    assert result.payload.answerSurface["type"] == "phrase_lookup"
+    assert result.payload.answerSurface["title"] == "make up"
 
 
 def test_postgrad_single_word_meaning_lookup_uses_ecdict_exact_fallback(tmp_path):
@@ -392,6 +399,9 @@ def test_source_phrase_lookup_with_chinese_suffix_uses_source_lemma(tmp_path):
     assert result.payload.grounding["matchType"] == "source_lemma_exact"
     assert result.payload.grounding["queryMode"] == "direct_lookup"
     assert result.payload.grounding["mainAnswer"][0]["lemma"] == "accordingto"
+    assert result.payload.answerSurface["type"] == "phrase_lookup"
+    assert result.payload.answerSurface["title"] == "according to"
+    assert result.payload.answerSurface["items"][0]["meaningZh"] == "prep. 根据；按照"
 
 
 def test_ordinary_no_match_returns_grounded_no_match_without_provider(tmp_path):

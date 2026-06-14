@@ -265,6 +265,7 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
           content: payload.answer,
           answerKind: payload.answerKind,
           grounding: payload.grounding,
+          answerSurface: payload.answerSurface,
           requestId: payload.requestId,
           providerRequestId: payload.providerRequestId,
           conversationContext: payload.conversationContext,

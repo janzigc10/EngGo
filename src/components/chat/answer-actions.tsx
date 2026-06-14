@@ -13,9 +13,15 @@ const collapsedMainAnswerLimit = 5;
 
 type MainAnswerCandidate = AnswerGrounding["mainAnswer"][number];
 
+function candidateMeanings(candidate: MainAnswerCandidate) {
+  return [
+    ...(candidate.meaningsZh ?? []),
+    ...(candidate.meaningZh ? [candidate.meaningZh] : []),
+  ].map((item) => item.trim()).filter(Boolean);
+}
+
 function buildCollectionNote(candidate: MainAnswerCandidate) {
-  const normalizedMeaning =
-    candidate.meaningsZh?.map((item) => item.trim()).filter(Boolean) ?? [];
+  const normalizedMeaning = candidateMeanings(candidate);
 
   if (candidate.sourceKind === "external_dictionary_basic") {
     if (normalizedMeaning.length > 0) {
@@ -45,7 +51,7 @@ function buildCompactCollectionNote(candidate: MainAnswerCandidate) {
     return "外部基础词典释义";
   }
 
-  if (candidate.sourceKind === "source_lemma" && candidate.meaningsZh.length === 0) {
+  if (candidate.sourceKind === "source_lemma" && candidateMeanings(candidate).length === 0) {
     return "来源词表命中，待补结构化释义";
   }
 
@@ -100,10 +106,7 @@ export function AnswerActions({ grounding }: AnswerActionsProps) {
     addCollectedWord(grounding.activeExamTarget, {
       lemma: candidate.lemma,
       note,
-      meaningZh: candidate.meaningsZh
-        .map((meaning) => meaning.trim())
-        .filter(Boolean)
-        .join(" / "),
+      meaningZh: candidateMeanings(candidate).join(" / "),
       partOfSpeech: candidate.partOfSpeech,
       reviewStatus: candidate.reviewStatus,
       sourceKind: candidate.sourceKind,
