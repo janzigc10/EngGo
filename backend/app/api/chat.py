@@ -1,7 +1,8 @@
+import json
 import re
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from backend.app.answering.no_match_policy import (
     get_unique_english_tokens,
@@ -48,6 +49,16 @@ capability_pattern = re.compile(
 learning_mood_pattern = re.compile(
     r"(不想背词|不想学|记不住|老记不住|背不下来|没状态|没动力|学不进去)",
 )
+stream_surface_types = {
+    "compare",
+    "expression_advice",
+    "context_choice",
+}
+stream_surface_deferred_keys = {
+    "items",
+    "members",
+    "options",
+}
 
 
 def response_json(payload: ChatSuccessResponse | ChatErrorResponse, status_code: int) -> JSONResponse:
@@ -67,6 +78,52 @@ def response_json(payload: ChatSuccessResponse | ChatErrorResponse, status_code:
         content=content,
         headers={"x-request-id": payload.requestId},
     )
+
+
+def sse_event(event: str, data: dict) -> str:
+    return "\n".join(
+        [
+            f"event: {event}",
+            f"data: {json.dumps(data, ensure_ascii=False)}",
+            "",
+            "",
+        ],
+    )
+
+
+def stream_text_chunks(value: str, *, chunk_size: int = 36):
+    normalized = value.strip()
+    if not normalized:
+        return
+
+    for index in range(0, len(normalized), chunk_size):
+        yield normalized[index:index + chunk_size]
+
+
+def should_stream_answer(content: dict) -> bool:
+    if not content.get("providerRequestId"):
+        return False
+
+    answer_surface = content.get("answerSurface")
+    if not isinstance(answer_surface, dict):
+        return False
+
+    return answer_surface.get("type") in stream_surface_types
+
+
+def stream_surface_shell(content: dict) -> dict | None:
+    answer_surface = content.get("answerSurface")
+    if not isinstance(answer_surface, dict):
+        return None
+
+    surface_shell = {
+        key: value
+        for key, value in answer_surface.items()
+        if key not in stream_surface_deferred_keys
+    }
+    surface_shell["text"] = ""
+
+    return surface_shell
 
 
 def provider_error_response(error: ChatProviderError, request_id: str) -> JSONResponse:
@@ -640,4 +697,44 @@ async def post_chat(request: Request, payload: ChatRequest) -> JSONResponse:
         query=query,
         active_exam_target=active_exam_target,
         resolved_follow_up=resolved,
+    )
+
+
+@router.post("/api/chat/stream")
+async def post_chat_stream(request: Request, payload: ChatRequest) -> StreamingResponse:
+    request_id = request.state.request_id
+
+    async def generate_events():
+        yield sse_event("meta", {"requestId": request_id})
+
+        response = await post_chat(request, payload)
+        content = json.loads(response.body.decode("utf-8"))
+
+        if response.status_code < 200 or response.status_code >= 300:
+            yield sse_event(
+                "error",
+                {
+                    "statusCode": response.status_code,
+                    "payload": content,
+                },
+            )
+            return
+
+        if should_stream_answer(content):
+            surface_shell = stream_surface_shell(content)
+            if surface_shell:
+                yield sse_event("surface_start", {"surface": surface_shell})
+
+            for chunk in stream_text_chunks(content.get("answer", "")):
+                yield sse_event("answer_delta", {"text": chunk})
+
+        yield sse_event("final", {"payload": content})
+
+    return StreamingResponse(
+        generate_events(),
+        media_type="text/event-stream",
+        headers={
+            "x-request-id": request_id,
+            "Cache-Control": "no-cache",
+        },
     )

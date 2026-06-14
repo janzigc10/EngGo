@@ -6,12 +6,18 @@ import {
   applyResolvedFollowUpAction,
   latestConversationContext,
 } from "@/features/chat/conversation-context";
-import { postChatRequest } from "@/features/chat/chat-api-client";
+import {
+  postChatRequest,
+  postChatStreamRequest,
+  readChatStreamResponse,
+} from "@/features/chat/chat-api-client";
 import type {
+  AnswerSurface,
   ChatApiErrorResponse,
   ChatApiSuccessResponse,
   ChatHistoryMessage,
   ChatMessage,
+  ConversationalLearningContext,
 } from "@/features/chat/types";
 import {
   getServerExamTargetSnapshot,
@@ -42,6 +48,15 @@ const sensitiveErrorPatterns = [
   /traceback/i,
   /stack trace/i,
 ];
+const contextChoicePattern = (
+  /(哪个|哪一个|哪种|更正式|更常用|更自然|更适合|作文|书面|口语|formal|common|natural|exam)/i
+);
+const comparePromptPattern = (
+  /(怎么区分|区别|差别|辨析|\bvs\b|\bversus\b|\bdifference\b|\bcompare\b)/i
+);
+const expressionPromptPattern = (
+  /(more formal|formal way|better way to say|更正式.*表达|更适合.*表达|作文.*表达)/i
+);
 
 function createMessageId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -143,6 +158,60 @@ function getChatErrorMessage(
   return genericChatErrorMessage;
 }
 
+function englishTermCount(value: string) {
+  return value.match(/[a-z][a-z'-]*/gi)?.length ?? 0;
+}
+
+function shouldUseStreamingRequest(
+  prompt: string,
+  conversationContext: ConversationalLearningContext | null,
+) {
+  if (
+    conversationContext?.availableActions.includes("context_choice")
+    && contextChoicePattern.test(prompt)
+  ) {
+    return true;
+  }
+
+  if (expressionPromptPattern.test(prompt)) {
+    return true;
+  }
+
+  return comparePromptPattern.test(prompt) && englishTermCount(prompt) >= 2;
+}
+
+function buildAssistantMessage(
+  payload: ChatApiSuccessResponse,
+  id = createMessageId("assistant"),
+): ChatMessage {
+  return {
+    id,
+    role: "assistant",
+    content: payload.answer,
+    answerKind: payload.answerKind,
+    grounding: payload.grounding,
+    answerSurface: payload.answerSurface,
+    requestId: payload.requestId,
+    providerRequestId: payload.providerRequestId,
+    conversationContext: payload.conversationContext,
+    resolvedFollowUp: payload.resolvedFollowUp,
+  };
+}
+
+function buildStreamingSurface(
+  surface: AnswerSurface | null,
+  streamedAnswer: string,
+) {
+  if (!surface) {
+    return undefined;
+  }
+
+  return {
+    ...surface,
+    text: streamedAnswer,
+  };
+}
+
 type UseChatSessionOptions = {
   initialExamTarget?: ExamTargetCode;
   initialPrompt?: string;
@@ -232,17 +301,12 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
     setErrorMessage(null);
     setIsLoading(true);
 
-    try {
-      const response = await postChatRequest(requestBody);
+    let streamAssistantId: string | null = null;
 
-      const payload = (await response.json()) as
-        | ChatApiSuccessResponse
-        | ChatApiErrorResponse;
-
-      if (!response.ok || !("answer" in payload)) {
-        throw new Error(getChatErrorMessage(payload));
-      }
-
+    const applyFinalPayload = (
+      payload: ChatApiSuccessResponse,
+      assistantMessageId?: string,
+    ) => {
       if (
         payload.resolvedFollowUp
         && "activeExamTarget" in payload.resolvedFollowUp
@@ -259,28 +323,140 @@ export function useChatSession(options: UseChatSessionOptions = {}) {
       }
 
       setMessages((previousMessages) => {
-        const assistantMessage: ChatMessage = {
-          id: createMessageId("assistant"),
-          role: "assistant",
-          content: payload.answer,
-          answerKind: payload.answerKind,
-          grounding: payload.grounding,
-          answerSurface: payload.answerSurface,
-          requestId: payload.requestId,
-          providerRequestId: payload.providerRequestId,
-          conversationContext: payload.conversationContext,
-          resolvedFollowUp: payload.resolvedFollowUp,
-        };
-        const updatedMessages: ChatMessage[] = [
-          ...previousMessages,
-          assistantMessage,
-        ];
+        const assistantMessage = buildAssistantMessage(
+          payload,
+          assistantMessageId,
+        );
+        const hasExistingAssistant = assistantMessageId
+          ? previousMessages.some((message) => message.id === assistantMessageId)
+          : false;
+        const updatedMessages: ChatMessage[] = hasExistingAssistant
+          ? previousMessages.map((message) => (
+            message.id === assistantMessageId ? assistantMessage : message
+          ))
+          : [...previousMessages, assistantMessage];
 
         persistChatTranscript(updatedMessages);
 
         return updatedMessages;
       });
+    };
+
+    const upsertStreamDraft = (
+      assistantMessageId: string,
+      content: string,
+      surface: AnswerSurface | null,
+    ) => {
+      setMessages((previousMessages) => {
+        const draftMessage: ChatMessage = {
+          id: assistantMessageId,
+          role: "assistant",
+          content,
+          answerSurface: buildStreamingSurface(surface, content),
+          isStreaming: true,
+        };
+        const hasExistingDraft = previousMessages.some(
+          (message) => message.id === assistantMessageId,
+        );
+
+        if (hasExistingDraft) {
+          return previousMessages.map((message) => (
+            message.id === assistantMessageId ? draftMessage : message
+          ));
+        }
+
+        return [...previousMessages, draftMessage];
+      });
+    };
+
+    const submitJsonRequest = async () => {
+      const response = await postChatRequest(requestBody);
+
+      const payload = (await response.json()) as
+        | ChatApiSuccessResponse
+        | ChatApiErrorResponse;
+
+      if (!response.ok || !("answer" in payload)) {
+        throw new Error(getChatErrorMessage(payload));
+      }
+
+      applyFinalPayload(payload);
+    };
+
+    const submitStreamRequest = async () => {
+      const response = await postChatStreamRequest(requestBody);
+
+      if (!response.ok) {
+        return false;
+      }
+
+      if (!response.body) {
+        const payload = (await response.json()) as
+          | ChatApiSuccessResponse
+          | ChatApiErrorResponse;
+
+        if (!("answer" in payload)) {
+          throw new Error(getChatErrorMessage(payload));
+        }
+
+        applyFinalPayload(payload);
+
+        return true;
+      }
+
+      let streamedAnswer = "";
+      let streamSurface: AnswerSurface | null = null;
+      let finalPayload: ChatApiSuccessResponse | null = null;
+      streamAssistantId = createMessageId("assistant");
+
+      await readChatStreamResponse(response, (event) => {
+        if (event.type === "surface_start") {
+          streamSurface = event.surface;
+          upsertStreamDraft(streamAssistantId as string, streamedAnswer, streamSurface);
+          return;
+        }
+
+        if (event.type === "answer_delta") {
+          streamedAnswer += event.text;
+          upsertStreamDraft(streamAssistantId as string, streamedAnswer, streamSurface);
+          return;
+        }
+
+        if (event.type === "error") {
+          throw new Error(getChatErrorMessage(event.payload));
+        }
+
+        if (event.type === "final") {
+          finalPayload = event.payload;
+        }
+      });
+
+      if (!finalPayload) {
+        throw new Error(genericChatErrorMessage);
+      }
+
+      applyFinalPayload(finalPayload, streamAssistantId);
+
+      return true;
+    };
+
+    try {
+      if (shouldUseStreamingRequest(prompt, conversationContext)) {
+        const didStream = await submitStreamRequest();
+
+        if (didStream) {
+          return;
+        }
+      }
+
+      await submitJsonRequest();
     } catch (error) {
+      if (streamAssistantId) {
+        setMessages((previousMessages) => previousMessages.filter(
+          (message) => message.id !== streamAssistantId,
+        ));
+      }
+
       setErrorMessage(
         error instanceof Error && error.message.trim().length > 0
           ? error.message

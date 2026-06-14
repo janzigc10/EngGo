@@ -242,6 +242,7 @@ export type ChatMessage = ChatHistoryMessage & {
   answerKind?: "grounded" | "plain";
   grounding?: AnswerGrounding;
   answerSurface?: AnswerSurface;
+  isStreaming?: boolean;
   requestId?: string;
   providerRequestId?: string | null;
   conversationContext?: ConversationalLearningContext;
@@ -264,3 +265,26 @@ export type ChatApiErrorResponse = {
     message?: string;
   };
 };
+
+export type ChatStreamEvent =
+  | {
+      type: "meta";
+      requestId: string;
+    }
+  | {
+      type: "answer_delta";
+      text: string;
+    }
+  | {
+      type: "surface_start";
+      surface: AnswerSurface;
+    }
+  | {
+      type: "final";
+      payload: ChatApiSuccessResponse;
+    }
+  | {
+      type: "error";
+      statusCode?: number;
+      payload: ChatApiErrorResponse | ChatApiSuccessResponse;
+    };

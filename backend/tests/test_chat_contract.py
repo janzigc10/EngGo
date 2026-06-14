@@ -1,3 +1,5 @@
+import json
+
 from fastapi.testclient import TestClient
 
 from backend.app.answering.direct_compare import DirectCompareService
@@ -92,6 +94,26 @@ def create_client(
     )
 
 
+def parse_sse_events(body: str):
+    events = []
+
+    for block in body.strip().split("\n\n"):
+        lines = block.splitlines()
+        event_name = next(
+            line.removeprefix("event: ").strip()
+            for line in lines
+            if line.startswith("event: ")
+        )
+        data = "\n".join(
+            line.removeprefix("data: ")
+            for line in lines
+            if line.startswith("data: ")
+        )
+        events.append((event_name, json.loads(data)))
+
+    return events
+
+
 class RecordingService:
     def __init__(
         self,
@@ -99,12 +121,14 @@ class RecordingService:
         answer="ok",
         answer_kind="grounded",
         grounding=None,
+        provider_request_id=None,
         status_code=200,
     ):
         self.calls = []
         self.answer_text = answer
         self.answer_kind = answer_kind
         self.grounding = grounding
+        self.provider_request_id = provider_request_id
         self.status_code = status_code
 
     def answer(self, **kwargs):
@@ -116,7 +140,7 @@ class RecordingService:
                 answerKind=self.answer_kind,
                 grounding=self.grounding,
                 requestId=kwargs["request_id"],
-                providerRequestId=None,
+                providerRequestId=self.provider_request_id,
             ),
         )
 
@@ -1558,6 +1582,128 @@ def test_chat_routes_direct_compare_after_ordinary_lookup_rejects_mode(tmp_path)
         "access",
         "assess",
     ]
+
+
+def test_chat_stream_emits_answer_delta_for_provider_backed_surface():
+    direct_service = RecordingService(
+        answer=(
+            "access focuses on entry or permission; assess focuses on judgment "
+            "or evaluation in exam wording."
+        ),
+        grounding={
+            "activeExamTarget": "cet6",
+            "queryMode": "direct_compare",
+            "answerStyle": "confusion_untangle",
+            "resolution": "resolved",
+            "mainAnswer": [
+                {
+                    "entryId": "access",
+                    "lemma": "access",
+                    "partOfSpeech": "n. / v.",
+                    "meaningZh": "entry; permission",
+                    "sourceKind": "structured",
+                },
+                {
+                    "entryId": "assess",
+                    "lemma": "assess",
+                    "partOfSpeech": "v.",
+                    "meaningZh": "evaluate",
+                    "sourceKind": "structured",
+                },
+            ],
+            "confusionBoundary": [],
+        },
+        provider_request_id="provider_stream_compare",
+    )
+    client = create_client(
+        ordinary_lookup_service=RejectingService(),
+        direct_compare_service=direct_service,
+        advanced_lookup_service=FailingIfCalled(),
+    )
+
+    response = client.post(
+        "/api/chat/stream",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "access assess compare",
+            "history": [],
+        },
+    )
+
+    events = parse_sse_events(response.text)
+    event_names = [event_name for event_name, _event_payload in events]
+    delta_events = [
+        event_payload
+        for event_name, event_payload in events
+        if event_name == "answer_delta"
+    ]
+    surface_event = next(
+        event_payload
+        for event_name, event_payload in events
+        if event_name == "surface_start"
+    )
+    final_payload = events[-1][1]["payload"]
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert event_names[0:2] == ["meta", "surface_start"]
+    assert event_names[-1] == "final"
+    assert surface_event["surface"]["type"] == "compare"
+    assert surface_event["surface"]["title"] == "核心区别"
+    assert surface_event["surface"]["text"] == ""
+    assert "members" not in surface_event["surface"]
+    assert delta_events
+    assert "".join(event["text"] for event in delta_events) == final_payload["answer"]
+    assert final_payload["providerRequestId"] == "provider_stream_compare"
+    assert final_payload["answerSurface"]["type"] == "compare"
+    assert [item["lemma"] for item in final_payload["answerSurface"]["members"]] == [
+        "access",
+        "assess",
+    ]
+
+
+def test_chat_stream_keeps_deterministic_lookup_final_only():
+    ordinary_service = RecordingService(
+        answer="access\n\nn. entry; permission",
+        grounding={
+            "activeExamTarget": "cet6",
+            "queryMode": "direct_lookup",
+            "answerStyle": "standard_lookup",
+            "resolution": "resolved",
+            "mainAnswer": [
+                {
+                    "entryId": "access",
+                    "lemma": "access",
+                    "partOfSpeech": "n.",
+                    "meaningZh": "entry; permission",
+                    "sourceKind": "structured",
+                }
+            ],
+            "confusionBoundary": [],
+        },
+    )
+    client = create_client(
+        ordinary_lookup_service=ordinary_service,
+        direct_compare_service=FailingIfCalled(),
+        advanced_lookup_service=FailingIfCalled(),
+    )
+
+    response = client.post(
+        "/api/chat/stream",
+        json={
+            "activeExamTarget": "cet6",
+            "query": "access",
+            "history": [],
+        },
+    )
+
+    events = parse_sse_events(response.text)
+    final_payload = events[-1][1]["payload"]
+
+    assert response.status_code == 200
+    assert [event_name for event_name, _event_payload in events] == ["meta", "final"]
+    assert final_payload["providerRequestId"] is None
+    assert final_payload["answerSurface"]["type"] == "lookup"
 
 
 def test_chat_routes_advanced_lookup_after_prior_services_reject_mode():

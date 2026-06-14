@@ -391,7 +391,7 @@ function SurfaceCompare({
       {surface.text ? <AnswerContent content={surface.text} /> : null}
       {members.length > 0 ? (
         <SurfaceRows items={members} />
-      ) : (
+      ) : surface.text ? null : (
         <AnswerContent content={message.content} />
       )}
     </div>
@@ -417,6 +417,29 @@ function SurfaceExpressionAdvice({
       />
       <AnswerContent content={surface.text ?? message.content} />
       {options.length > 0 ? <SurfaceRows items={options} /> : null}
+    </div>
+  );
+}
+
+function SurfaceContextChoice({
+  message,
+  surface,
+}: {
+  message: ChatMessage;
+  surface: AnswerSurface;
+}) {
+  const items = surface.items ?? surface.options ?? [];
+
+  return (
+    <div className="space-y-4">
+      <SurfaceHeader
+        surface={{
+          ...surface,
+          title: surface.title ?? "候选内选择",
+        }}
+      />
+      <AnswerContent content={surface.text ?? message.content} />
+      {items.length > 0 ? <SurfaceRows items={items} /> : null}
     </div>
   );
 }
@@ -482,6 +505,10 @@ function AnswerSurfaceView({ message }: { message: ChatMessage }) {
     return <SurfaceExpressionAdvice message={message} surface={surface} />;
   }
 
+  if (surface.type === "context_choice") {
+    return <SurfaceContextChoice message={message} surface={surface} />;
+  }
+
   if (surface.type === "root_family") {
     return <SurfaceRootFamily message={message} surface={surface} />;
   }
@@ -531,7 +558,10 @@ function StructuredAnswer({ message }: { message: ChatMessage }) {
 
 export function AssistantAnswer({ message }: AssistantAnswerProps) {
   return (
-    <article className="mr-auto min-w-0 max-w-full sm:max-w-[94%]">
+    <article
+      aria-live={message.isStreaming ? "polite" : undefined}
+      className="mr-auto min-w-0 max-w-full sm:max-w-[94%]"
+    >
       <div className="rounded-2xl border border-[#e5e1d7] bg-white px-4 py-4 shadow-[0_12px_32px_rgba(21,21,21,0.05)] sm:px-5">
         <StructuredAnswer message={message} />
       </div>

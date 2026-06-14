@@ -23,6 +23,48 @@ function getSubmitButton() {
   return button as HTMLButtonElement;
 }
 
+type StreamTestEvent = {
+  event: string;
+  data: unknown;
+};
+
+function createControlledStreamResponse() {
+  const encoder = new TextEncoder();
+  let streamController: ReadableStreamDefaultController<Uint8Array> | null = null;
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      streamController = controller;
+    },
+  });
+  const enqueue = (event: StreamTestEvent) => {
+    if (!streamController) {
+      throw new Error("Stream controller was not initialized");
+    }
+
+    streamController.enqueue(
+      encoder.encode(
+        `event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`,
+      ),
+    );
+  };
+  const close = () => {
+    streamController?.close();
+  };
+
+  return {
+    close,
+    enqueue,
+    response: {
+      ok: true,
+      status: 200,
+      body,
+      headers: new Headers({
+        "content-type": "text/event-stream",
+      }),
+    } as Response,
+  };
+}
+
 describe("ChatWorkspace", () => {
   afterEach(() => {
     window.history.pushState({}, "", "/");
@@ -1091,6 +1133,93 @@ describe("ChatWorkspace", () => {
     expect(screen.getByText("进入；使用权")).toBeInTheDocument();
     expect(screen.getByText("assess")).toBeInTheDocument();
     expect(screen.getByText("评估；评价")).toBeInTheDocument();
+  });
+
+  it("updates a provider-backed compare answer from chat stream events", async () => {
+    const user = userEvent.setup();
+    const stream = createControlledStreamResponse();
+    const finalPayload = {
+      answer: "access focuses on entry or permission; assess focuses on evaluation.",
+      answerKind: "grounded",
+      requestId: "req_stream_compare",
+      providerRequestId: "provider_stream_compare",
+      answerSurface: {
+        type: "compare",
+        title: "Core difference",
+        text: "access focuses on entry or permission; assess focuses on evaluation.",
+        source: "main_answer",
+        members: [
+          {
+            id: "access",
+            lemma: "access",
+            partOfSpeech: "n. / v.",
+            meaningZh: "entry or permission",
+          },
+          {
+            id: "assess",
+            lemma: "assess",
+            partOfSpeech: "v.",
+            meaningZh: "evaluate or judge",
+          },
+        ],
+      },
+      grounding: {
+        activeExamTarget: "cet6",
+        activeExamTargetLabel: "CET-6",
+        query: "access assess compare",
+        queryMode: "direct_compare",
+        answerStyle: "confusion_untangle",
+        resolution: "resolved",
+        noMatchReason: null,
+        mainAnswer: [],
+        confusionBoundary: [],
+        scopeReminder: "scope",
+        followUpPrompt: "follow-up",
+        comparisonView: null,
+        rootFamilyView: null,
+      },
+    };
+    const fetchMock = vi.fn().mockResolvedValue(stream.response);
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ChatWorkspace />);
+
+    await user.type(screen.getByTestId("chat-input"), "access assess compare");
+    await user.click(getSubmitButton());
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    stream.enqueue({ event: "meta", data: { requestId: "req_stream_compare" } });
+    stream.enqueue({
+      event: "surface_start",
+      data: {
+        surface: {
+          type: "compare",
+          title: "Core difference",
+          text: "",
+          source: "main_answer",
+        },
+      },
+    });
+    stream.enqueue({
+      event: "answer_delta",
+      data: { text: "access focuses on entry or permission; " },
+    });
+
+    expect(await screen.findByText("Core difference")).toBeInTheDocument();
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("http://127.0.0.1:8000/api/chat/stream");
+    expect(screen.getByText(/access focuses on entry/)).toBeInTheDocument();
+    expect(screen.queryByText("entry or permission")).not.toBeInTheDocument();
+
+    stream.enqueue({
+      event: "answer_delta",
+      data: { text: "assess focuses on evaluation." },
+    });
+    stream.enqueue({ event: "final", data: { payload: finalPayload } });
+    stream.close();
+
+    expect(await screen.findByText("entry or permission")).toBeInTheDocument();
+    expect(screen.getByText("evaluate or judge")).toBeInTheDocument();
   });
 
   it("renders meaning expression advice as non-hit guidance", async () => {

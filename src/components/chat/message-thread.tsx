@@ -16,6 +16,9 @@ export function MessageThread({
   errorMessage,
   isLoading,
 }: MessageThreadProps) {
+  const lastMessage = messages[messages.length - 1];
+  const showLoading = isLoading && lastMessage?.role !== "assistant";
+
   if (messages.length === 0) {
     return <div className="flex-1" aria-label="空对话" />;
   }
@@ -34,7 +37,7 @@ export function MessageThread({
           <AssistantAnswer key={message.id} message={message} />
         )
       ))}
-      {isLoading ? (
+      {showLoading ? (
         <AssistantLoadingAnswer />
       ) : null}
       {errorMessage ? (
