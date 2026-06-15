@@ -1178,6 +1178,45 @@ describe("ChatWorkspace", () => {
         comparisonView: null,
         rootFamilyView: null,
       },
+      conversationContext: {
+        version: 1,
+        activeExamTarget: "cet6",
+        sourceMessageId: "req_stream_compare:assistant",
+        topicKind: "direct_compare",
+        sourceQuery: "access assess compare",
+        focus: null,
+        candidates: [
+          {
+            index: 1,
+            lemma: "access",
+            label: "access",
+            meaningZh: "entry or permission",
+          },
+          {
+            index: 2,
+            lemma: "assess",
+            label: "assess",
+            meaningZh: "evaluate or judge",
+          },
+        ],
+        continuationCandidates: [],
+        availableActions: ["collect_one", "collect_group", "context_choice"],
+        expiresAfterTurns: 2,
+      },
+      resolvedFollowUp: {
+        kind: "resolved_action",
+        action: "collect_one",
+        activeExamTarget: "cet6",
+        targetRefs: [
+          {
+            index: 1,
+            lemma: "access",
+            label: "access",
+            meaningZh: "entry or permission",
+            sourceKind: "structured",
+          },
+        ],
+      },
     };
     const fetchMock = vi.fn().mockResolvedValue(stream.response);
 
@@ -1220,6 +1259,17 @@ describe("ChatWorkspace", () => {
 
     expect(await screen.findByText("entry or permission")).toBeInTheDocument();
     expect(screen.getByText("evaluate or judge")).toBeInTheDocument();
+    expect(screen.getByTestId("conversation-context-hint")).toHaveTextContent("access");
+    expect(window.sessionStorage.getItem("enggo.chatTranscript")).toContain(
+      "access focuses on entry or permission",
+    );
+
+    const stored = JSON.parse(
+      window.localStorage.getItem("enggo.collectedWords") ?? "{}",
+    ) as {
+      cet6?: Array<Record<string, unknown>>;
+    };
+    expect(stored.cet6?.map((item) => item.lemma)).toEqual(["access"]);
   });
 
   it("renders meaning expression advice as non-hit guidance", async () => {

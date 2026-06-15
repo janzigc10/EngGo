@@ -21,7 +21,7 @@ export function ChatInput({
     examTargets.find((target) => target.code === activeExamTarget)?.label ?? "CET-6";
 
   return (
-    <div className="sticky bottom-4 mt-4">
+    <div className="mt-4">
       <div className="rounded-2xl border border-[#dedacf] bg-white p-3 shadow-[0_18px_48px_rgba(21,21,21,0.10)]">
         <textarea
           id="chat-input"

@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 import { AnswerContent } from "@/components/chat/answer-content";
 import type {
   AnswerGrounding,
@@ -18,6 +22,12 @@ const listLikeQueryModes = new Set<AnswerGrounding["queryMode"]>([
   "shape_neighbor_search",
   "root_family_summary",
 ]);
+
+const candidateListPreviewLimit = 5;
+const expressionOptionPreviewLimit = 3;
+const rootFamilyCorePreviewLimit = 4;
+const compareTextPreviewLines = 1;
+const expressionTextPreviewLines = 4;
 
 function normalizedLines(content: string) {
   return content
@@ -102,7 +112,15 @@ function surfaceItemKey(item: AnswerSurfaceItem, index: number) {
   return item.id ?? item.entryId ?? `${item.lemma}-${index}`;
 }
 
+function isLowPriorityItem(item: AnswerSurfaceItem) {
+  return item.priority === "low_priority";
+}
+
 function SurfaceRows({ items }: { items: AnswerSurfaceItem[] }) {
+  if (items.length === 0) {
+    return null;
+  }
+
   return (
     <div className="divide-y divide-[#eeeae0] border-y border-[#eeeae0]">
       {items.map((item, index) => {
@@ -131,6 +149,169 @@ function SurfaceRows({ items }: { items: AnswerSurfaceItem[] }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function ExpandableSurfaceRows({
+  collapseLabel = "收起",
+  expandLabel,
+  items,
+  previewLimit,
+}: {
+  collapseLabel?: string;
+  expandLabel: (hiddenCount: number) => string;
+  items: AnswerSurfaceItem[];
+  previewLimit: number;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const shouldCollapse = items.length > previewLimit;
+  const hiddenCount = Math.max(items.length - previewLimit, 0);
+  const visibleItems =
+    shouldCollapse && !isExpanded
+      ? items.slice(0, previewLimit)
+      : items;
+
+  return (
+    <div className="space-y-3">
+      <SurfaceRows items={visibleItems} />
+      {shouldCollapse ? (
+        <button
+          type="button"
+          aria-expanded={isExpanded}
+          onClick={() => setIsExpanded((current) => !current)}
+          className="inline-flex min-h-9 items-center text-sm font-semibold text-[#8a5a10] transition hover:text-[#151515]"
+        >
+          {isExpanded ? collapseLabel : expandLabel(hiddenCount)}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function DenseAnswerContent({
+  collapseLabel = "收起说明",
+  content,
+  expandLabel = "展开说明",
+  previewLineLimit,
+}: {
+  collapseLabel?: string;
+  content: string;
+  expandLabel?: string;
+  previewLineLimit: number;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const lines = normalizedLines(content);
+
+  if (lines.length <= previewLineLimit) {
+    return <AnswerContent content={content} />;
+  }
+
+  const visibleContent = isExpanded
+    ? content
+    : lines.slice(0, previewLineLimit).join("\n\n");
+
+  return (
+    <div className="space-y-3">
+      <AnswerContent content={visibleContent} />
+      <button
+        type="button"
+        aria-expanded={isExpanded}
+        onClick={() => setIsExpanded((current) => !current)}
+        className="inline-flex min-h-9 items-center text-sm font-semibold text-[#8a5a10] transition hover:text-[#151515]"
+      >
+        {isExpanded ? collapseLabel : expandLabel}
+      </button>
+    </div>
+  );
+}
+
+function SurfaceSummaryRows({ items }: { items: AnswerSurfaceItem[] }) {
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="divide-y divide-[#eeeae0] border-y border-[#eeeae0]">
+      {items.map((item, index) => {
+        const meaning = surfaceItemMeaning(item);
+
+        return (
+          <div
+            key={surfaceItemKey(item, index)}
+            className="grid gap-1 py-2.5 sm:grid-cols-[9rem_1fr] sm:gap-4"
+          >
+            <p className="min-w-0 break-words text-sm font-semibold text-[#151515]">
+              {item.lemma}
+            </p>
+            {meaning ? (
+              <p className="min-w-0 break-words text-sm leading-6 text-[#4f4d48]">
+                {meaning}
+              </p>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CompareDetails({ members }: { members: AnswerSurfaceItem[] }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (members.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-3">
+      <button
+        type="button"
+        aria-expanded={isExpanded}
+        onClick={() => setIsExpanded((current) => !current)}
+        className="inline-flex min-h-9 items-center text-sm font-semibold text-[#8a5a10] transition hover:text-[#151515]"
+      >
+        {isExpanded ? "收起详情" : "展开词性和细节"}
+      </button>
+      {isExpanded ? <SurfaceRows items={members} /> : null}
+    </div>
+  );
+}
+
+function RootFamilyRows({ members }: { members: AnswerSurfaceItem[] }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (members.length === 0) {
+    return null;
+  }
+
+  const coreMembers = members
+    .filter((item) => !isLowPriorityItem(item))
+    .slice(0, rootFamilyCorePreviewLimit);
+  const previewMembers = coreMembers.length > 0
+    ? coreMembers
+    : members.slice(0, rootFamilyCorePreviewLimit);
+  const previewKeys = new Set(
+    previewMembers.map((item, index) => surfaceItemKey(item, index)),
+  );
+  const remainingMembers = members.filter((item, index) => (
+    !previewKeys.has(surfaceItemKey(item, index))
+  ));
+  const visibleMembers = isExpanded ? members : previewMembers;
+
+  return (
+    <div className="space-y-3">
+      <SurfaceRows items={visibleMembers} />
+      {remainingMembers.length > 0 ? (
+        <button
+          type="button"
+          aria-expanded={isExpanded}
+          onClick={() => setIsExpanded((current) => !current)}
+          className="inline-flex min-h-9 items-center text-sm font-semibold text-[#8a5a10] transition hover:text-[#151515]"
+        >
+          {isExpanded ? "收起旁支" : `展开旁支 ${remainingMembers.length} 个`}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -187,32 +368,17 @@ function CandidateList({
           {grounding.activeExamTargetLabel}
         </span>
       </div>
-      <div className="divide-y divide-[#eeeae0] border-y border-[#eeeae0]">
-        {grounding.mainAnswer.map((candidate) => {
-          const meaning = candidateMeaning(candidate, answerLines);
-
-          return (
-            <div
-              key={candidate.entryId}
-              className="grid gap-1 py-3 sm:grid-cols-[10rem_1fr] sm:gap-4"
-            >
-              <div className="min-w-0">
-                <p className="break-words text-sm font-semibold text-[#151515]">
-                  {candidate.lemma}
-                </p>
-                {candidate.partOfSpeech ? (
-                  <p className="mt-0.5 text-xs text-[#8f8f86]">
-                    {candidate.partOfSpeech}
-                  </p>
-                ) : null}
-              </div>
-              <p className="min-w-0 break-words text-sm leading-6 text-[#4f4d48]">
-                {meaning}
-              </p>
-            </div>
-          );
-        })}
-      </div>
+      <ExpandableSurfaceRows
+        items={grounding.mainAnswer.map((candidate) => ({
+          id: candidate.entryId,
+          lemma: candidate.lemma,
+          partOfSpeech: candidate.partOfSpeech,
+          meaningZh: candidateMeaning(candidate, answerLines),
+          sourceKind: candidate.sourceKind,
+        }))}
+        previewLimit={candidateListPreviewLimit}
+        expandLabel={(hiddenCount) => `展开剩余 ${hiddenCount} 个`}
+      />
     </div>
   );
 }
@@ -371,7 +537,11 @@ function SurfaceCandidateList({ surface }: { surface: AnswerSurface }) {
   return (
     <div className="space-y-3">
       <SurfaceHeader surface={surface} />
-      <SurfaceRows items={items} />
+      <ExpandableSurfaceRows
+        items={items}
+        previewLimit={candidateListPreviewLimit}
+        expandLabel={(hiddenCount) => `展开剩余 ${hiddenCount} 个`}
+      />
     </div>
   );
 }
@@ -388,9 +558,18 @@ function SurfaceCompare({
   return (
     <div className="space-y-4">
       <SurfaceHeader surface={surface} />
-      {surface.text ? <AnswerContent content={surface.text} /> : null}
+      {surface.text ? (
+        <DenseAnswerContent
+          content={surface.text}
+          previewLineLimit={compareTextPreviewLines}
+          expandLabel="展开说明"
+        />
+      ) : null}
       {members.length > 0 ? (
-        <SurfaceRows items={members} />
+        <>
+          <SurfaceSummaryRows items={members} />
+          <CompareDetails members={members} />
+        </>
       ) : surface.text ? null : (
         <AnswerContent content={message.content} />
       )}
@@ -415,8 +594,18 @@ function SurfaceExpressionAdvice({
           title: surface.title ?? "表达建议",
         }}
       />
-      <AnswerContent content={surface.text ?? message.content} />
-      {options.length > 0 ? <SurfaceRows items={options} /> : null}
+      <DenseAnswerContent
+        content={surface.text ?? message.content}
+        previewLineLimit={expressionTextPreviewLines}
+        expandLabel="展开更多说明"
+      />
+      {options.length > 0 ? (
+        <ExpandableSurfaceRows
+          items={options}
+          previewLimit={expressionOptionPreviewLimit}
+          expandLabel={(hiddenCount) => `展开更多表达 ${hiddenCount} 个`}
+        />
+      ) : null}
     </div>
   );
 }
@@ -438,8 +627,18 @@ function SurfaceContextChoice({
           title: surface.title ?? "候选内选择",
         }}
       />
-      <AnswerContent content={surface.text ?? message.content} />
-      {items.length > 0 ? <SurfaceRows items={items} /> : null}
+      <DenseAnswerContent
+        content={surface.text ?? message.content}
+        previewLineLimit={expressionTextPreviewLines}
+        expandLabel="展开更多说明"
+      />
+      {items.length > 0 ? (
+        <ExpandableSurfaceRows
+          items={items}
+          previewLimit={expressionOptionPreviewLimit}
+          expandLabel={(hiddenCount) => `展开更多候选 ${hiddenCount} 个`}
+        />
+      ) : null}
     </div>
   );
 }
@@ -474,7 +673,7 @@ function SurfaceRootFamily({
         <AnswerContent content={surface.text} />
       ) : null}
       {members.length > 0 ? (
-        <SurfaceRows items={members} />
+        <RootFamilyRows members={members} />
       ) : (
         <AnswerContent content={message.content} />
       )}
@@ -556,6 +755,64 @@ function StructuredAnswer({ message }: { message: ChatMessage }) {
   return <AnswerContent content={message.content} />;
 }
 
+function evidenceItems(message: ChatMessage) {
+  const surface = message.answerSurface;
+
+  return [
+    ...(surface?.items ?? []),
+    ...(surface?.members ?? []),
+    ...(surface?.options ?? []),
+  ];
+}
+
+function GroundingEvidence({ message }: { message: ChatMessage }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const grounding = message.grounding;
+
+  if (!grounding || (
+    grounding.resolution !== "resolved"
+    && message.answerKind !== "grounded"
+  )) {
+    return null;
+  }
+
+  const candidates = grounding.mainAnswer.length > 0
+    ? grounding.mainAnswer.map((candidate) => candidate.lemma)
+    : evidenceItems(message).map((item) => item.lemma);
+  const visibleCandidates = candidates.filter(Boolean).slice(0, 8);
+
+  return (
+    <div className="mt-4 border-t border-[#eeeae0] pt-3">
+      <button
+        type="button"
+        aria-expanded={isExpanded}
+        onClick={() => setIsExpanded((current) => !current)}
+        className="inline-flex min-h-9 items-center text-xs font-semibold text-[#8f8f86] transition hover:text-[#151515]"
+      >
+        {isExpanded ? "收起依据" : "查看依据"}
+      </button>
+      {isExpanded ? (
+        <dl className="mt-2 grid gap-2 text-xs leading-5 text-[#6f6f68] sm:grid-cols-[5rem_1fr]">
+          <dt className="font-semibold text-[#151515]">范围</dt>
+          <dd>{grounding.activeExamTargetLabel}</dd>
+          <dt className="font-semibold text-[#151515]">问题</dt>
+          <dd className="break-words">{grounding.query}</dd>
+          <dt className="font-semibold text-[#151515]">路径</dt>
+          <dd>{grounding.queryMode}</dd>
+          {visibleCandidates.length > 0 ? (
+            <>
+              <dt className="font-semibold text-[#151515]">候选</dt>
+              <dd className="break-words">
+                {visibleCandidates.join(" / ")}
+              </dd>
+            </>
+          ) : null}
+        </dl>
+      ) : null}
+    </div>
+  );
+}
+
 export function AssistantAnswer({ message }: AssistantAnswerProps) {
   return (
     <article
@@ -564,6 +821,7 @@ export function AssistantAnswer({ message }: AssistantAnswerProps) {
     >
       <div className="rounded-2xl border border-[#e5e1d7] bg-white px-4 py-4 shadow-[0_12px_32px_rgba(21,21,21,0.05)] sm:px-5">
         <StructuredAnswer message={message} />
+        <GroundingEvidence message={message} />
       </div>
     </article>
   );
