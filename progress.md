@@ -1,59 +1,55 @@
 # EngGo 滚动交接
 
-## 当前状态（2026-06-15 Card Density V1）
+## 当前状态（2026-07-17 Retrieval Observability & Spelling Recovery V1 设计待复核）
 
 - 当前分支 / worktree：`codex/meaning-lookup-quality-gate-v1`，工作区 `C:\Users\Chen\Desktop\EngGo`。
-- 已提交基线：`9dc301e Add chat card shell streaming`。本轮仍是未提交 diff；不要提交 `.codex/`，除非用户明确要求，不要 commit/push。
-- Chat `answerSurface` V1.1 final 合同仍是最终权威展示协议，`grounding` 继续作为 evidence/context 与 legacy fallback。
-- Full Card Streaming V1 已作为技术 spike 停止推进。当前正式方向是 Card-Shell Streaming + final `answerSurface` 收敛，不维护 `surface_item` / `surface_member` / `surface_option` 这类 row-level SSE 中间事件。
-- Card Density V1 已落地：默认卡片优先可扫读摘要层，长内容、长列表、证据与低优先级项通过展开/折叠按需显示。
+- 本轮代码起始基线：`9217d07 Implement chat card density controls`；tracked tree 起始为 clean，既存 `?? .codex/` 不纳入提交。
+- 用户已在对话中批准 `docs/superpowers/specs/2026-07-17-retrieval-observability-spelling-recovery-v1-design.md` 的产品与技术方向。
+- 当前只完成设计文档，尚未创建 implementation plan，尚未修改运行时代码；下一步必须先由用户复核正式 spec。
+- Card Density V1、Card-Shell Streaming 和 `answerSurface` V1.1 继续作为稳定 UI 基线，本轮不重开前端展示设计。
 
 ## 本轮已完成
 
-1. Card Density V1 展示规则
-   - `candidate_list` 默认展示前 5 个，显示 `展开剩余 N 个`。
-   - `compare` 默认展示一句话说明 + 每个词的短义摘要，词性/完整释义进入 `展开词性和细节`。
-   - `expression_advice` / `context_choice` 默认展示前 4 行说明，选项默认前 3 个，剩余选项折叠。
-   - `root_family` 默认展示核心项，`low_priority` 或旁支项进入 `展开旁支 N 个`。
-   - `grounding/evidence` 默认收起，用户点 `查看依据` 后显示范围、问题、路径和候选。
+1. 深度检索与路由根因审计
+   - 固定种子 `20260717` 的 360 条明确意图样本中，高层 intent / tool route 全部正确；当前主要失败集中在 slot normalization、candidate recall、ranking 和 recovery。
+   - 100 个合成单编辑 typo 全部进入正确 fuzzy route，但默认 `NullStructuredLookupRepository` 下恢复率为 0%。
+   - ETS TOEFL-Spell 与当前考试词表交集的随机 50 对实跑：50 / 50 进入 `fuzzy_recall`，Recall@1 / Recall@5 均为 0%；说明默认错拼候选通道结构性缺席，而非高层路由失败。
+   - 中文 primary gloss 反查样本 Hit@1 80%、Hit@3 95%、Hit@6 98.3%；形容词 Hit@1 仅 55%，属于后续独立排序问题，不纳入本轮。
+   - 旧 `.runlogs/chat-interaction.jsonl` 混有大量 smoke / test 字面量且缺少 route、slots、candidates、recovery 等字段，不能用于声明当前真实用户故障占比。
 
-2. 前端实现
-   - `src/components/chat/assistant-answer.tsx` 改为 client component，新增通用折叠列表、密度正文、compare 摘要、root family 核心项和 evidence 折叠组件。
-   - `src/components/chat/chat-input.tsx` 去掉 sticky 输入框，避免桌面和移动端长卡片展开后被输入框覆盖。
-   - 没有改 `answerSurface` final 合同、后端 schema、Next `/api/chat` proxy、词库 scope closure、Learn/Review/App Shell/Prisma/schema/source lemma 数据。
+2. Retrieval Observability & Spelling Recovery V1 设计
+   - 第一刀选择“可观测性 + 用户可见错拼修复”的最小闭环，不先迁移 Agent / LangGraph。
+   - 错拼策略为精度优先：高置信才明确纠正，歧义时给最多 3 个候选，随机串保持 no-match。
+   - 候选范围为当前考试范围优先，没有可靠候选时回退全局 ECDICT，并明确范围外状态。
+   - trace 定义为 request-scoped 结构化诊断日志，仅开发 / benchmark 侧使用，不进入公开 API，不记录模型思维链。
+   - 选择独立本地 spelling candidate provider，不恢复 structured DB，不把搜索算法继续堆进 ordinary lookup。
 
-3. 测试覆盖
-   - 新增 `src/components/chat/assistant-answer.test.tsx`，覆盖 candidate top-N 展开、compare 说明/详情折叠、expression 说明/选项折叠、root family 旁支折叠、evidence 默认收起。
-   - 保留并增强 `ChatWorkspace` stream shell 测试，继续断言 final 后不丢 `conversationContext`、`resolvedFollowUp`、收藏副作用和 transcript。
-   - 保留 `chat-api-client` card-shell SSE parser 测试，事件范围仍是 `meta` / `surface_start` / `answer_delta` / `final`。
+## 当前证据与验证边界
 
-## 当前验证
-
-- `C:\Users\Chen\anaconda3\python.exe -m pytest -q backend\tests\test_chat_contract.py -o cache_dir=.runlogs/pytest-cache --basetemp=.runlogs/pytest-basetemp` -> 39 passed。
-- `corepack pnpm test -- src\components\chat\chat-workspace.test.tsx src\features\chat\chat-api-client.test.ts src\components\chat\assistant-answer.test.tsx` -> 33 files / 268 tests passed。
-- `corepack pnpm lint -- src\components\chat\assistant-answer.tsx src\components\chat\assistant-answer.test.tsx src\components\chat\chat-input.tsx src\components\chat\chat-workspace.test.tsx src\features\chat\chat-api-client.test.ts` -> passed。
-- `corepack pnpm build` -> passed，Next 16.2.4 compiled，TypeScript passed，11 static pages generated。
-- Playwright 真实 `/chat` 视觉探针已通过，证据保存在 `output/playwright/card-density-evidence.json` 和同目录截图：
-  - desktop/mobile `tran开头的单词有哪些`：默认 5 个候选 + `展开剩余 13 个`，展开后 18 个候选完整可见。
-  - desktop/mobile `access assess excess 怎么区分`：默认一句话核心区别 + 短义摘要，展开后完整说明和词性细节可见。
-  - desktop/mobile `more formal way to say follow`：默认 3 个推荐表达 + `展开更多说明`。
-  - 6 组默认/展开组合均无水平溢出，输入框不再覆盖最后一张回答卡片。
+- 当前轮为只读审计与文档设计，没有运行时代码 diff，因此尚无新功能测试成绩。
+- 已完成现状基准、真实 FastAPI / provider-off 对照和 TOEFL-Spell 外部交叉验证；这些数字是 baseline，不是修复后成绩。
+- 正式实现的验收门槛已写入 spec：正确词和随机串误纠正率 0%，auto-correct precision >= 98%，held-out Recall@3 >= 85%，warm p95 <= 150ms，新增 RSS <= 100MB。
+- provider-off 检索指标与 provider-on 成文 / recovery 必须分开报告，LLM 补救不能计入检索提升。
 
 ## 下一步
 
-1. 让用户用本地页面实际试一轮密度默认值。若仍觉得多，优先只调 `assistant-answer.tsx` 顶部常量：`candidateListPreviewLimit`、`expressionOptionPreviewLimit`、`rootFamilyCorePreviewLimit`、正文 preview 行数。
-2. 若要继续优化体感，建议做轻量交互 polish：展开/收起区域的过渡、按钮文案统一、evidence 入口位置微调。不要回到 row-level card streaming。
-3. Streaming 后续只作为等待感管理层：provider-backed 路径保留轻量 card shell、状态、可选正文 delta；deterministic 卡片追求快速 final，不伪造逐行流式。
+1. 用户复核正式设计 spec；有修改先修 spec 并重新做独立审查。
+2. 用户确认 spec 后，创建新的 implementation plan，不能续接已完成旧 plan。
+3. 实现顺序保持：baseline / trace contract -> spelling candidate provider -> decision policy -> ordinary lookup 接入 -> trace 汇合 -> calibration / held-out benchmark -> HTTP / browser 回归。
+4. Query Frame、中文词性排序、自然描述语义检索和混合路由比较均留到后续独立 spec，不在本轮顺手实现。
 
 ## 环境注意
 
-- Windows PowerShell 直接发中文 JSON 或中文正则到本地 API/Playwright 时仍可能乱码；真实探针优先用 Node，并对中文 query 或正则使用 Unicode escape。
-- 本地 Browser QA 优先打开 `http://localhost:3000`；若使用 `127.0.0.1:3000` 遇到 hydration/HMR 异常，先按 `bugs.md` 判断 Next dev origin 坑。
-- 启动 dev stack 前建议显式设置 `ENGGO_ECDICT_PATH=C:\Users\Chen\Desktop\EngGo\output\external-dictionaries\ecdict.csv`，并确认 `ENGGO_USE_STRUCTURED_RUNTIME=false`。
+- benchmark 与 live smoke 必须显式设置 `ENGGO_ECDICT_PATH=C:\Users\Chen\Desktop\EngGo\output\external-dictionaries\ecdict.csv`；ignored ECDICT 缺失会制造假 no-match。
+- 默认验证固定 `ENGGO_USE_STRUCTURED_RUNTIME=false`；structured DB 只保留为可选历史 overlay。
+- provider-off 与 provider-on 分开运行；不要让 `.env` 中的 provider key 意外掩盖检索失败。
+- Windows PowerShell 发送中文 JSON / 正则时注意编码；真实探针优先使用 Node 和 Unicode escape。
+- 本地 Browser QA 使用 `http://localhost:3000`，避免 `127.0.0.1` 的 Next dev origin 坑。
 
 ## 稳定基线
 
-- 聊天式 MVP、真实词库 smoke、易混词辨析、词根/碎片检索、聊天回答渲染层、Answer Policy v1 松绑 spike 已完成。
-- 聊天式学习上下文 V1 / V2 / V3 已进入维护状态：继续保护范围切换、`还有吗`、受控 `怎么背`、收藏页继续追问、候选内语境选择和有边界聊天兜底。
-- ECDICT 是运行时默认大词库底座；structured DB 仍是可选覆盖层，默认不启用。
-- Wordbook Learn / Review V1、体验打磨、V2 产品硬化、V2.1 active session persistence 与 Review 可见词数修复均已完成。
+- Chat `answerSurface` V1.1、Card-Shell Streaming、Card Density V1 已完成；不恢复 row-level card streaming。
+- 聊天式学习上下文 V1 / V2 / V3 进入维护状态，继续保护范围切换、`还有吗`、候选内语境选择和有边界聊天兜底。
+- ECDICT CSV + 7,348 compact exam-tagged records 是当前默认词库底座；structured DB 默认不启用。
+- 现有 rule-first + grey-zone model-assisted routing 保持，不升级成开放 ReAct Agent。
+- Wordbook Learn / Review V1、体验打磨、V2 产品硬化与 V2.1 active session persistence 已完成。
