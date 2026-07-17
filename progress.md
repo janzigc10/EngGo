@@ -20,7 +20,8 @@
 2. Retrieval Observability & Spelling Recovery V1 设计
    - 第一刀选择“可观测性 + 用户可见错拼修复”的最小闭环，不先迁移 Agent / LangGraph。
    - 错拼策略为精度优先：高置信才明确纠正，歧义时给最多 3 个候选，随机串保持 no-match。
-   - 候选范围为当前考试范围优先，没有可靠候选时回退全局 ECDICT，并明确范围外状态。
+   - 候选范围采用 scope-first 两阶段：当前考试范围先生成候选，全局 ECDICT 再做有界竞争检查，避免范围内较远词压过范围外更近词。
+   - 歧义结果使用 `needs_clarification`，复用 candidate list，并只在 `spelling_clarification` context 下支持裸“第一个”选择，不能误标成 resolved 或进入 LLM no-match recovery。
    - trace 定义为 request-scoped 结构化诊断日志，仅开发 / benchmark 侧使用，不进入公开 API，不记录模型思维链。
    - 选择独立本地 spelling candidate provider，不恢复 structured DB，不把搜索算法继续堆进 ordinary lookup。
 

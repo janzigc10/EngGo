@@ -38,7 +38,7 @@ EngGo 下一阶段不先迁移 Agent / LangGraph，也不重写整套路由。�
 
 1. 默认 ECDICT-first runtime 在不连接 structured DB 时具备真实错拼候选生成能力。
 2. 正确单词不被擅自纠正；高置信结果明确说明纠正；歧义结果让用户选择；随机串不乱猜。
-3. 当前考试范围优先，没有可靠范围内候选时再回退全局 ECDICT，并明确标记范围外结果。
+3. 当前考试范围先生成候选并获得排序偏好，同时用全局 ECDICT 做有界竞争检查；不能因为范围内存在一个较远候选，就漏掉范围外更近或同距离的竞争候选。
 4. trace 能将 route、slots、tool、candidate recall/ranking、decision、resolution、recovery 和 latency 串到同一 requestId。
 5. benchmark 能分别判断路由、候选召回、排序、自动纠正精度、拒答和性能，而不是只比较最终文案。
 6. 保持现有 exact lookup、direct compare、meaning lookup、上下文续问、answerSurface 和 provider 边界。
@@ -81,8 +81,8 @@ EngGo 下一阶段不先迁移 Agent / LangGraph，也不重写整套路由。�
 职责：
 
 - 接收标准化后的单个英文目标词和 `activeExamTarget`；
-- 先查询当前 scope closure 的考试词池；
-- 当前范围没有可靠候选时，再查询全局 ECDICT canonical lemma 池；
+- 先查询当前 scope closure 的考试词池，建立候选和当前最优编辑距离；
+- 再查询全局 ECDICT canonical lemma 池中落在当前决策距离带内的候选，用于发现更近结果和同距离竞争者；
 - 返回有序候选及其客观信号，不负责生成自然语言回答；
 - 不调用 provider，不连接 structured DB。
 
@@ -108,6 +108,8 @@ EngGo 下一阶段不先迁移 Agent / LangGraph，也不重写整套路由。�
 
 候选生成与产品决策分离：前者回答“有哪些接近词”，后者回答“是否足够可靠，可以纠正”。这样 benchmark 可以分别衡量 Recall@k 和自动纠正 precision。
 
+`scope-first` 不等于“范围内一旦命中就停止全局搜索”。全局阶段可以用当前最优距离作为上限缩小搜索，但每次 `auto_correct` 之前必须完成竞争检查并合并去重两个候选池。最终排序先比较拼写证据，再用 scope membership 等信号处理同等候选；考试范围不能覆盖更短的编辑距离。
+
 ### 3. Ordinary lookup 接入
 
 现有 normalized query 和 controlled tool router 保持入口所有权：
@@ -125,11 +127,25 @@ User query
 行为：
 
 - `auto_correct`：用选中的真实 lemma 继续现有 ECDICT exact lookup，回答中明确展示原输入与纠正词，不能静默替换；
-- `clarify_candidates`：复用现有 candidate list / conversation context，最多展示 3 个候选，支持用户继续说“第一个”；
+- `clarify_candidates`：复用现有 candidate list / conversation context，最多展示 3 个候选，并通过下面的窄合同支持用户继续说“第一个”；
 - `no_reliable_candidate`：保留 grounded no-match 和稳定 reason code，不允许后续 LLM 自行发明拼写候选；
 - 范围外纠正：允许继续解释，但 support / scope 信息必须明确说明不在当前考试词书内。
 
 第一版尽量复用现有 ChatSuccessResponse、grounding 和 answerSurface。只有当前合同无法表达“原词、纠正词、范围状态”时，才在 implementation plan 中提出最小 schema 扩展，不能借机设计新的 UI surface。
+
+#### 歧义候选响应合同
+
+歧义结果不是“已找到目标词”，也不是“完全没找到”，必须使用明确中间状态：
+
+- `answerKind="grounded"`；
+- `grounding.resolution="needs_clarification"`；
+- `grounding.spellingDecision="clarify_candidates"`；
+- `grounding.candidates` 保存按展示顺序排列的最多 3 个候选；
+- `answerSurface.type="candidate_list"`，复用现有候选 UI；
+- `conversationContext.topicKind="spelling_clarification"`，候选按相同顺序写入 context，沿用当前短期过期规则；
+- 该状态不进入 no-match recovery，也不能被 provider 改写成某个确定词。
+
+Follow-up resolver 只为 `topicKind="spelling_clarification"` 增加一个窄分支：查询仅包含一个受支持序号（例如“第一个”）时，直接把对应 lemma 改写为 exact lookup 的 `resolved_query`，reason 为 `spelling_candidate_selection`。越界序号继续 clarification；没有该专用 context 时，不扩大裸序号的通用解释范围。这样不会改变现有普通候选上下文的 follow-up 语义。
 
 ### 4. `RetrievalTrace`
 
@@ -161,11 +177,12 @@ Trace 必须在 chat API 的统一汇合点同时捕获工具执行前后和 rec
 决策顺序固定：
 
 1. 如果输入本身是 ECDICT 真实单词，按真实单词处理，不自动改写。
-2. 生成当前考试范围候选。
-3. 当前范围无可靠候选时，生成全局 ECDICT 候选。
-4. 一个候选在编辑距离、排序信号和与第二名的 margin 上同时满足高置信条件，进入 `auto_correct`。
-5. 多个候选均合理但没有明显领先者，进入 `clarify_candidates`。
-6. 没有可靠候选，进入 `no_reliable_candidate`。
+2. 生成当前考试范围候选并得到当前最优距离。
+3. 使用该距离带对全局 ECDICT 做竞争检查；如果范围内没有候选，则使用允许的最大生成距离。
+4. 合并、按 lemma 去重两个候选池，再统一排序。
+5. 一个候选在编辑距离、排序信号和与第二名的 margin 上同时满足高置信条件，进入 `auto_correct`。
+6. 多个候选均合理但没有明显领先者，进入 `clarify_candidates`。
+7. 没有可靠候选，进入 `no_reliable_candidate`。
 
 考试范围是排序和展示信号，不是覆盖拼写距离的硬特权：范围内但明显更远的词不能压过范围外、拼写显著更接近的正确词。
 
@@ -174,7 +191,7 @@ Trace 必须在 chat API 的统一汇合点同时捕获工具执行前后和 rec
 ## 异常与降级
 
 - ECDICT 或 compact wordbook 不可用：返回可区分的 `candidate_source_unavailable`，保持安全 no-match，不返回 500。
-- 全局候选阶段超过性能预算：停止扩展，使用已有范围内结果或安全 no-match，并在 trace 标记 timeout / budget stop。
+- 全局竞争检查未完成或超过性能预算：不能仅凭范围内候选执行 `auto_correct`；降级为已有多候选 clarification 或安全 no-match，并在 trace 标记 timeout / budget stop。
 - trace sink 不可写：聊天继续，诊断层单独报告 sink failure。
 - provider 不可用：不影响错拼候选、排序和决策；provider-on 只影响受控成文，不改变检索 benchmark 成绩。
 - random-like query：保留当前保守边界，不因全局 ECDICT 候选存在而自动纠正。
@@ -189,7 +206,16 @@ Trace 必须在 chat API 的统一汇合点同时捕获工具执行前后和 rec
 4. **随机串**：固定种子生成并排除真实词碰撞，验证不会乱猜。
 5. **路由与槽位样本**：保留 `{term} 是什么意思`、英文自然查词句和现有稳定路由样本，确保“候选能力改善”没有掩盖 route / slot 回归。
 
-外部 TOEFL-Spell 全量文件不直接 vendoring 到仓库。benchmark 记录上游 URL、commit、数据文件 hash、过滤规则和固定 seed `20260717`。校准集与 held-out 测试集固定分离；最终报告只用 held-out 指标声明质量门是否通过。
+外部 TOEFL-Spell 全量文件不直接 vendoring 到仓库。V1 固定上游为：
+
+- repository：`https://github.com/EducationalTestingService/TOEFL-Spell`；
+- commit：`252ee893b75dbf6186facf9ffda5fc4bc5dc9eca`；
+- input：`Annotations.tsv`；
+- SHA-256：`2efdf7a3c0d0a73d6550a1fbb40e8bec27dd6c004d417950c4571f80a6f85795`；
+- filter：`Type=M`、错误词与正确词均为单个英文字母 token、正确词存在于 EngGo 当前 7,348 词集合、错误词—正确词对去重；
+- split seed：`20260717`，按编辑距离、词长和目标 scope 分层，20% calibration / 80% held-out；当前 2,405 对基线对应 481 / 1,924 对。
+
+benchmark manifest 必须保存最终过滤后 pair hash 和每个 split 的条目 ID / pair，防止上游文件、过滤代码或本地词表变化后仍沿用旧成绩。最终质量门只读取 held-out split；calibration 仅用于冻结距离、margin 和 decision 阈值。
 
 ### 运行模式
 
@@ -223,6 +249,7 @@ Trace 必须在 chat API 的统一汇合点同时捕获工具执行前后和 rec
 - 正确单词误纠正率：0%；
 - 随机字符串直接纠正率：0%；
 - 被标记为 `auto_correct` 的结果，held-out precision >= 98%；
+- `auto_correct` coverage 必须报告但不设最低门槛；精度优先策略不允许为了提高覆盖率放宽错误纠正风险；
 - 真实错拼 gold 进入 Top 3，held-out Recall@3 >= 85%；
 - warm typo candidate generation p95 <= 150ms；
 - 新索引带来的 RSS 增量 <= 100MB；

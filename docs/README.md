@@ -9,7 +9,7 @@
 
 ## 当前有效设计
 - `docs/superpowers/specs/2026-07-17-retrieval-observability-spelling-recovery-v1-design.md`
-  - 当前待实施设计：先建立 request-scoped 开发侧 retrieval trace，再在默认 ECDICT-first / structured runtime off 路径补独立本地错拼候选模块。策略为精度优先、当前考试范围优先后回退全局 ECDICT；高置信才明确纠正，歧义时返回受控候选，随机串保持 no-match。实现前先建立固定 TOEFL-Spell / 负样本 benchmark，不迁移 Agent / LangGraph，不重构语义检索。
+  - 当前待实施设计：先建立 request-scoped 开发侧 retrieval trace，再在默认 ECDICT-first / structured runtime off 路径补独立本地错拼候选模块。策略为精度优先：当前考试范围先生成候选，全局 ECDICT 再做有界竞争检查；高置信才明确纠正，歧义时返回受控候选并支持窄域“第一个”承接，随机串保持 no-match。实现前先建立固定 TOEFL-Spell / 负样本 benchmark，不迁移 Agent / LangGraph，不重构语义检索。
 - `docs/superpowers/specs/2026-06-12-app-shell-redesign-v1-design.md`
   - 当前前端 UI 重设计方向：顶部不再放主导航；左上角三条杠 / 左滑打开抽屉，抽屉只放 `Today / Learn / Review / Chat`；底部只放一个词书图标，进入 `/wordbook`；词书页集中承载词书切换、学习设置、总词数、已学、复习次数和每日背词量曲线；`Progress` 从主导航退役，数据并入词书详情页。具体风格定为 Ink Amber：冷白背景、墨黑主文字 / 主按钮、少量 amber 强调。V1 保持 client-only，不改 Learn / Review 状态机，不做强制 daily priority。
 - `docs/superpowers/specs/2026-06-07-affix-semantic-gate-v1-design.md`
