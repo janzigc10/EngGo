@@ -5,6 +5,7 @@
 - 当前分支 / worktree：`codex/meaning-lookup-quality-gate-v1`，工作区 `C:\Users\Chen\Desktop\EngGo`。
 - 本轮代码起始基线：`9217d07 Implement chat card density controls`；tracked tree 起始为 clean，既存 `?? .codex/` 不纳入提交。
 - 用户已在对话中批准 `docs/superpowers/specs/2026-07-17-retrieval-observability-spelling-recovery-v1-design.md` 的产品与技术方向。
+- 正式 spec 已完成两轮独立审查：第一轮指出 scope/global 竞争与歧义上下文合同不明确，修订后第二轮状态为 `Approved`。
 - 当前只完成设计文档，尚未创建 implementation plan，尚未修改运行时代码；下一步必须先由用户复核正式 spec。
 - Card Density V1、Card-Shell Streaming 和 `answerSurface` V1.1 继续作为稳定 UI 基线，本轮不重开前端展示设计。
 
