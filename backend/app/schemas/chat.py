@@ -223,6 +223,13 @@ def _is_candidate_list_grounding(grounding: dict[str, Any]) -> bool:
     )
 
 
+def _is_spelling_clarification_grounding(grounding: dict[str, Any]) -> bool:
+    return (
+        grounding.get("resolution") == "needs_clarification"
+        and grounding.get("spellingDecision") == "clarify_candidates"
+    )
+
+
 def _lookup_surface(
     *,
     answer: str,
@@ -234,7 +241,12 @@ def _lookup_surface(
         return None
 
     item = items[0]
-    title = _lookup_answer_title(lines, item)
+    is_spelling_auto_correct = grounding.get("spellingDecision") == "auto_correct"
+    title = (
+        str(item["lemma"])
+        if is_spelling_auto_correct
+        else _lookup_answer_title(lines, item)
+    )
     body = _lookup_answer_body(lines, title)
     if body and (
         not _compact_string(item.get("meaningZh"))
@@ -247,9 +259,13 @@ def _lookup_surface(
         items = [item]
 
     surface_type: AnswerSurfaceType = (
-        "phrase_lookup"
-        if _is_phrase_lookup_item(item, title)
-        else "lookup"
+        "lookup"
+        if is_spelling_auto_correct
+        else (
+            "phrase_lookup"
+            if _is_phrase_lookup_item(item, title)
+            else "lookup"
+        )
     )
     return {
         "type": surface_type,
@@ -299,6 +315,21 @@ def build_answer_surface(
         }
 
     lines = _normalized_answer_lines(answer)
+
+    if _is_spelling_clarification_grounding(grounding):
+        items = _surface_items(grounding.get("candidates"), lines=lines)[:3]
+        if items:
+            subtitle = (
+                _compact_string(grounding.get("supportLabel"))
+                or _compact_string(grounding.get("activeExamTargetLabel"))
+            )
+            return {
+                "type": "candidate_list",
+                "title": f"找到 {len(items)} 个可能的词",
+                "subtitle": subtitle,
+                "text": answer,
+                "items": items,
+            }
 
     if _is_expression_advice_grounding(grounding):
         return {

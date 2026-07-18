@@ -14,7 +14,7 @@ function groundedObservation(
     answerKind: "grounded",
     errorCode: null,
     answerStyle: "standard_lookup",
-    matchType: "external_dictionary_exact",
+    matchType: "source_lemma_exact",
     resolution: "resolved",
     comparisonViewId: null,
     rootFamilyViewId: null,

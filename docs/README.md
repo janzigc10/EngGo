@@ -9,7 +9,7 @@
 
 ## 当前有效设计
 - `docs/superpowers/specs/2026-07-17-retrieval-observability-spelling-recovery-v1-design.md`
-  - 当前待实施设计：先建立 request-scoped 开发侧 retrieval trace，再在默认 ECDICT-first / structured runtime off 路径补独立本地错拼候选模块。策略为精度优先：当前考试范围先生成候选，全局 ECDICT 再做有界竞争检查；高置信才明确纠正，歧义时返回受控候选并支持窄域“第一个”承接，随机串保持 no-match。实现前先建立固定 TOEFL-Spell / 负样本 benchmark，不迁移 Agent / LangGraph，不重构语义检索。
+  - 当前已完成设计事实：默认 ECDICT-first / structured runtime off 路径已具备独立本地错拼候选、active-scope-only auto、受控候选澄清、窄域“第一个”承接和 request-scoped 开发侧 trace。固定 held-out Recall@3 89.60%、auto precision 98.80%，全部质量门通过；本轮没有迁移 Agent / LangGraph，也没有重构语义检索。
 - `docs/superpowers/specs/2026-06-12-app-shell-redesign-v1-design.md`
   - 当前前端 UI 重设计方向：顶部不再放主导航；左上角三条杠 / 左滑打开抽屉，抽屉只放 `Today / Learn / Review / Chat`；底部只放一个词书图标，进入 `/wordbook`；词书页集中承载词书切换、学习设置、总词数、已学、复习次数和每日背词量曲线；`Progress` 从主导航退役，数据并入词书详情页。具体风格定为 Ink Amber：冷白背景、墨黑主文字 / 主按钮、少量 amber 强调。V1 保持 client-only，不改 Learn / Review 状态机，不做强制 daily priority。
 - `docs/superpowers/specs/2026-06-07-affix-semantic-gate-v1-design.md`
@@ -62,7 +62,12 @@
   - 初始技术设计。
 
 ## 当前计划状态
-当前没有正在执行中的实现计划。`2026-07-17-retrieval-observability-spelling-recovery-v1-design.md` 已完成设计确认，正等待用户复核正式 spec；复核前不创建 implementation plan、不修改运行时代码。下面几项是最近完成或仍作为防回归边界的计划，继续任务时不要从 Task 1 重开。
+`docs/superpowers/plans/2026-07-17-retrieval-observability-spelling-recovery-v1.md` 已完成。该计划依次完成 baseline/contract、独立 spelling provider、ordinary lookup 与歧义上下文、request-scoped trace、calibration/held-out benchmark、真实回归和最终报告。
+
+- `docs/superpowers/plans/2026-07-17-retrieval-observability-spelling-recovery-v1.md`
+  - 已完成实现计划：在 ECDICT-first / structured runtime off 下落地精度优先的本地错拼恢复和仅开发 / benchmark 可见的 retrieval trace；provider-off 检索成绩与 provider-on 成文 smoke 严格分离。
+
+下面几项是最近完成或仍作为防回归边界的计划，继续任务时不要从 Task 1 重开。
 
 - `docs/superpowers/plans/2026-06-13-app-shell-redesign-v1.md`
   - 已完成实现计划：按 `2026-06-12-app-shell-redesign-v1-design.md` 落地 App Shell Redesign V1。已完成 Ink Amber app shell、抽屉式主导航、底部词书图标、Today/Chat/Wordbook 路由迁移、Learn/Review UI 收口、daily stats/词书数据页，并已补齐 Chat、Collections 兼容流的 Ink Amber 视觉断层。Focused tests、lint/build、Playwright route slice，以及 Browser/Computer Use 桌面和 390px 移动端 QA 均已通过。后续如继续，只做非阻塞 housekeeping，例如真实 icon package 或删除未使用旧入口，不要重开 IA。
@@ -83,6 +88,8 @@
   - 最近完成计划：规则高置信路径直接执行；规则灰区才调用 provider 产出受限 intent / slots；代码校验 terms、style、context provenance；semantic expression / style follow-up 用受控工具承接；broad grounding 增加弱候选质量闸门，并输出 before/after comparison matrix 证明真实增强。
 
 ## 当前验收报告
+- `docs/superpowers/reports/2026-07-17-retrieval-observability-spelling-recovery-v1-comparison.md`
+  - Retrieval Observability & Spelling Recovery V1 正式 before/current 报告：同一 held-out slice 的 candidate Recall@3 从 0% 提升到 89.60%，auto precision 98.80%，warm candidate p95 118.973ms；18 / 18 最终质量门、全量回归、真实 HTTP 和浏览器 smoke 均通过。报告同时固定 one-shot receipt、provider 边界、trace 合同和剩余风险。
 - `docs/superpowers/reports/2026-06-04-meaning-lookup-quality-gate-v1-comparison.md`
   - Meaning Lookup Quality Gate V1 的 before/after matrix 摘要：36 total / 36 pass / 0 fail / 23 changed。关键差异包括 `表达观点的英文是什么` 从 `hiss` 变成 `express / state / voice / represent`，`遵循的英文是什么` 从 `disobedience / subdue / unwilling` 变成 `follow / observe / comply / obey / abide`，`限制的英文是什么` 从 `bridle` 变成 `restrict / limit / constrain`，`遵守规则用英文怎么说` 从 clear_context 变成 `follow / observe / comply / obey / abide`，`负责 / 承担责任` 从 `provost` 变成 `responsible / liable`。
 - `docs/superpowers/reports/2026-06-03-model-assisted-intent-routing-v1-comparison.md`

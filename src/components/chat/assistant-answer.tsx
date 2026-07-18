@@ -116,6 +116,18 @@ function isLowPriorityItem(item: AnswerSurfaceItem) {
   return item.priority === "low_priority";
 }
 
+function ScopeStatusBadge({ inScope }: { inScope?: boolean | null }) {
+  if (inScope !== false) {
+    return null;
+  }
+
+  return (
+    <span className="shrink-0 rounded-full border border-[#dfd2b7] bg-[#fbf7ee] px-2 py-0.5 text-[0.68rem] font-medium text-[#765a2b]">
+      当前词书外
+    </span>
+  );
+}
+
 function SurfaceRows({ items }: { items: AnswerSurfaceItem[] }) {
   if (items.length === 0) {
     return null;
@@ -132,9 +144,12 @@ function SurfaceRows({ items }: { items: AnswerSurfaceItem[] }) {
             className="grid gap-1 py-3 sm:grid-cols-[10rem_1fr] sm:gap-4"
           >
             <div className="min-w-0">
-              <p className="break-words text-sm font-semibold text-[#151515]">
-                {item.lemma}
-              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="break-words text-sm font-semibold text-[#151515]">
+                  {item.lemma}
+                </p>
+                <ScopeStatusBadge inScope={item.inScope} />
+              </div>
               {item.partOfSpeech ? (
                 <p className="mt-0.5 text-xs text-[#8f8f86]">
                   {item.partOfSpeech}
@@ -509,12 +524,24 @@ function SurfaceLookup({
 }) {
   const item = surface.items?.[0];
   const body = item ? surfaceItemMeaning(item) : surface.text;
+  const spellingCorrection = message.grounding?.spellingCorrection;
+  const scopeReminder = item?.inScope === false
+    ? message.grounding?.scopeReminder
+    : null;
 
   return (
     <div className="space-y-3">
-      <h3 className="break-words text-base font-semibold text-[#151515]">
-        {surface.title ?? item?.lemma}
-      </h3>
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="break-words text-base font-semibold text-[#151515]">
+          {surface.title ?? item?.lemma}
+        </h3>
+        <ScopeStatusBadge inScope={item?.inScope} />
+      </div>
+      {spellingCorrection ? (
+        <p className="text-xs leading-5 text-[#765a2b]">
+          已按拼写纠正：{spellingCorrection.input} → {spellingCorrection.lemma}
+        </p>
+      ) : null}
       {surface.subtitle ? (
         <p className="text-xs font-medium text-[#8a5a10]">
           {surface.subtitle}
@@ -527,16 +554,35 @@ function SurfaceLookup({
       ) : (
         <AnswerContent content={surface.text ?? message.content} />
       )}
+      {scopeReminder ? (
+        <p className="text-xs leading-5 text-[#6f6f68]">
+          {scopeReminder}
+        </p>
+      ) : null}
     </div>
   );
 }
 
-function SurfaceCandidateList({ surface }: { surface: AnswerSurface }) {
+function SurfaceCandidateList({
+  message,
+  surface,
+}: {
+  message: ChatMessage;
+  surface: AnswerSurface;
+}) {
   const items = surface.items ?? [];
+  const scopeReminder = items.some((item) => item.inScope === false)
+    ? message.grounding?.scopeReminder
+    : null;
 
   return (
     <div className="space-y-3">
       <SurfaceHeader surface={surface} />
+      {scopeReminder ? (
+        <p className="text-xs leading-5 text-[#6f6f68]">
+          {scopeReminder}
+        </p>
+      ) : null}
       <ExpandableSurfaceRows
         items={items}
         previewLimit={candidateListPreviewLimit}
@@ -693,7 +739,7 @@ function AnswerSurfaceView({ message }: { message: ChatMessage }) {
   }
 
   if (surface.type === "candidate_list") {
-    return <SurfaceCandidateList surface={surface} />;
+    return <SurfaceCandidateList message={message} surface={surface} />;
   }
 
   if (surface.type === "compare") {

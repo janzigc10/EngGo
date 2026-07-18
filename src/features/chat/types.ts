@@ -18,15 +18,37 @@ export type AnswerStyle =
   | "meaning_expression_advice"
   | "broad_vocab_summary";
 
-export type RetrievalResolution = "resolved" | "no_match";
+export type RetrievalResolution =
+  | "resolved"
+  | "needs_clarification"
+  | "no_match";
 
-export type NoMatchReason = "low_confidence" | "out_of_kb";
+export type NoMatchReason =
+  | "low_confidence"
+  | "out_of_kb"
+  | "invalid_term"
+  | "candidate_term_mismatch"
+  | "valid_word"
+  | "candidate_source_unavailable"
+  | "candidate_source_not_ready"
+  | "candidate_source_error"
+  | "candidate_policy_error"
+  | "global_competition_incomplete"
+  | "candidate_order_invalid"
+  | "random_like"
+  | "no_reliable_candidate";
 
 export type RetrievalMatchType =
   | "exact"
   | "fuzzy"
   | "source_lemma_exact"
-  | "external_dictionary_exact";
+  | "external_dictionary_exact"
+  | "spelling_auto_correct";
+
+export type SpellingDecisionKind =
+  | "auto_correct"
+  | "clarify_candidates"
+  | "no_reliable_candidate";
 
 export type ConfusionClusterLabel =
   | "shape_like"
@@ -114,6 +136,8 @@ export type AnswerGrounding = {
   followUpPrompt: string;
   comparisonView: ComparisonView | null;
   rootFamilyView: RootFamilyView | null;
+  spellingDecision?: SpellingDecisionKind | null;
+  candidates?: ChatGroundingCandidate[];
   spellingCorrection?: {
     input: string;
     lemma: string;

@@ -1,0 +1,193 @@
+{
+  "schemaVersion": "enggo-spelling-recovery-report-evidence-v1",
+  "benchmarkId": "enggo-spelling-recovery-v1",
+  "materializationNote": "Tracked compact evidence copied from hash-pinned local canonical artifacts. Large case JSONL files remain ignored and are identified by path, byte size, and SHA-256.",
+  "dataset": {
+    "name": "TOEFL-Spell",
+    "repository": "https://github.com/EducationalTestingService/TOEFL-Spell",
+    "commit": "252ee893b75dbf6186facf9ffda5fc4bc5dc9eca",
+    "annotationsSha256": "2efdf7a3c0d0a73d6550a1fbb40e8bec27dd6c004d417950c4571f80a6f85795",
+    "pairCount": 2405,
+    "uniqueTypoCount": 2384,
+    "collisionGroupCount": 17,
+    "pairSetSha256": "fbf50802a5a55ff59d9364fd3aa5c3706e84c80f7d39defa150c310334e14e00",
+    "splitSeed": 20260717,
+    "calibrationCount": 481,
+    "heldOutCount": 1924
+  },
+  "baseline": {
+    "runMode": "provider-off-null-repository",
+    "structuredRuntime": false,
+    "allCaseOutcomes": {
+      "totalCases": 2405,
+      "resolved": 217,
+      "noMatch": 2188,
+      "providerCalledCount": 0,
+      "runnerErrorCount": 0
+    },
+    "heldOutSlice": {
+      "totalCases": 1924,
+      "routeAccuracy": 1.0,
+      "slotExactAccuracy": 1.0,
+      "slotTokenF1": 1.0,
+      "candidateRecallAt1": 0.0,
+      "candidateRecallAt3": 0.0,
+      "candidateRecallAt5": 0.0,
+      "candidateMRR": 0.0
+    },
+    "latencyMs": {
+      "nullCandidateP95": 0.002,
+      "totalP95": 97.229,
+      "comparisonCaveat": "Null candidate latency performs no candidate search and is not comparable to current warm candidate generation."
+    },
+    "localCanonicalArtifacts": {
+      "ignoredByGit": true,
+      "cases": {
+        "path": ".runlogs/spelling-recovery-v1/baseline/baseline-cases.jsonl",
+        "bytes": 2781443,
+        "sha256": "55f6db99fe2e0be28c148c78ce00522ed4e1efe267f6e5237c7e17c4f5a79260"
+      },
+      "metrics": {
+        "path": ".runlogs/spelling-recovery-v1/baseline/baseline-metrics.json",
+        "bytes": 18733,
+        "sha256": "913178e0d96bdf20dbc3d9cbf540236a83dedd1a696681f65a5702e5048e15a3"
+      },
+      "summary": {
+        "path": ".runlogs/spelling-recovery-v1/baseline/baseline-summary.md",
+        "bytes": 1819,
+        "sha256": "fa7e5de35b93c906abff77fb0c50c7f8661bd58373871ced63ff1bc7cd5ea444"
+      }
+    }
+  },
+  "calibrationPolicyReplay": {
+    "mode": "offline-current-policy-over-frozen-round3-candidates",
+    "candidateProviderCalled": false,
+    "input": {
+      "caseCount": 481,
+      "casesSha256": "660698a3f0af5b6a6564df7a10dc2aece39406393e6a225ffc31d6854390d05f",
+      "metricsSha256": "7ed4dd7763e1c28e4efb8e357fc9257782cab51fd96f6c1dad6965b5f18f9d82"
+    },
+    "decisionReplay": {
+      "autoCorrectionCount": 184,
+      "autoCorrectionCorrectCount": 183,
+      "autoCorrectionPrecision": 0.9945652173913043,
+      "autoCorrectionCoverage": 0.38253638253638256,
+      "clarificationCount": 219,
+      "safeNoMatchCount": 78,
+      "changedFromBaseCount": 10,
+      "readinessPassed": true
+    },
+    "inheritedHashPinnedEvidence": {
+      "candidateRecallAt3": 0.8835758835758836,
+      "warmCandidateP95Ms": 89.643,
+      "candidateIndexRssDeltaBytes": 434176
+    },
+    "localCanonicalArtifacts": {
+      "ignoredByGit": true,
+      "json": {
+        "path": ".runlogs/spelling-recovery-v1/policy-replay/round3-current-policy/calibration-policy-replay.json",
+        "bytes": 311677,
+        "sha256": "77322cc1ed24d4d53aac4447327b6d79de1a3a9da3e38c52aeee9e2a86e5fc25"
+      },
+      "summary": {
+        "path": ".runlogs/spelling-recovery-v1/policy-replay/round3-current-policy/calibration-policy-replay.md",
+        "bytes": 2356,
+        "sha256": "ccd4f7aa150c32b798604895034af7c86011bfa0e5a071371da6fc4f2602a3cc"
+      }
+    }
+  },
+  "heldOut": {
+    "runMode": "provider-off-current-policy",
+    "structuredRuntime": false,
+    "oneShotReceipt": {
+      "schemaVersion": "spelling-recovery-heldout-one-shot-v1",
+      "status": "completed",
+      "startedAtUtc": "2026-07-17T15:45:41.961843Z",
+      "completedAtUtc": "2026-07-17T15:48:35.863386Z",
+      "allPassed": true,
+      "finalGatePassed": true
+    },
+    "quality": {
+      "totalCases": 1924,
+      "routeAccuracy": 1.0,
+      "slotExactAccuracy": 1.0,
+      "slotTokenF1": 1.0,
+      "candidateRecallAt1": 0.7723492723492723,
+      "candidateRecallAt3": 0.896049896049896,
+      "candidateRecallAt5": 0.91008316008316,
+      "candidateMRR": 0.8338728838728839,
+      "autoCorrectionCount": 752,
+      "autoCorrectionCorrectCount": 743,
+      "autoCorrectionPrecision": 0.988031914893617,
+      "autoCorrectionCoverage": 0.3908523908523909,
+      "clarificationCount": 914,
+      "safeNoMatchCount": 258,
+      "providerCalledCount": 0,
+      "runnerErrorCount": 0
+    },
+    "negativeAndContractSamples": {
+      "validWordFalseCorrectionCount": 0,
+      "validWordTotal": 12,
+      "ambiguousClarificationCount": 3,
+      "ambiguousTotal": 3,
+      "randomStringAutoCorrectionCount": 0,
+      "randomStringTotal": 4,
+      "routeSlotPassed": 4,
+      "routeSlotTotal": 4
+    },
+    "latencyAndMemory": {
+      "candidateWarmP50Ms": 51.384,
+      "candidateWarmP95Ms": 118.973,
+      "candidateColdPrepareMs": 81.021,
+      "candidateIndexRssDeltaBytes": 0,
+      "ecdictColdLoadMs": 7872.611,
+      "ecdictBaseRssDeltaBytes": 462462976,
+      "totalCaseP95Ms": 167.696
+    },
+    "gates": {
+      "evaluated": 18,
+      "passed": 18,
+      "validWordFalseCorrectionRate": { "actual": 0.0, "threshold": 0.0, "passed": true },
+      "validWordProtectionRate": { "actual": 1.0, "threshold": 1.0, "passed": true },
+      "randomStringAutoCorrectionRate": { "actual": 0.0, "threshold": 0.0, "passed": true },
+      "randomStringProtectionRate": { "actual": 1.0, "threshold": 1.0, "passed": true },
+      "ambiguousClarificationRate": { "actual": 1.0, "threshold": 1.0, "passed": true },
+      "mainSplitRouteAccuracy": { "actual": 1.0, "threshold": 1.0, "passed": true },
+      "mainSplitSlotExactAccuracy": { "actual": 1.0, "threshold": 1.0, "passed": true },
+      "mainSplitSlotTokenF1": { "actual": 1.0, "threshold": 1.0, "passed": true },
+      "fixedFixtureRouteAccuracy": { "actual": 1.0, "threshold": 1.0, "passed": true },
+      "fixedFixtureSlotExactAccuracy": { "actual": 1.0, "threshold": 1.0, "passed": true },
+      "fixedFixtureSlotTokenF1": { "actual": 1.0, "threshold": 1.0, "passed": true },
+      "autoCorrectionPrecision": { "actual": 0.988031914893617, "threshold": 0.98, "passed": true },
+      "candidateRecallAt3": { "actual": 0.896049896049896, "threshold": 0.85, "passed": true },
+      "warmCandidateP95Ms": { "actual": 118.973, "threshold": 150.0, "passed": true },
+      "candidateIndexRssDeltaBytes": { "actual": 0, "threshold": 104857600, "passed": true },
+      "providerCalledCount": { "actual": 0, "threshold": 0, "passed": true },
+      "runnerErrorCount": { "actual": 0, "threshold": 0, "passed": true },
+      "selectedSplitCaseCount": { "actual": 1924, "threshold": 1924, "passed": true }
+    },
+    "localCanonicalArtifacts": {
+      "ignoredByGit": true,
+      "cases": {
+        "path": ".runlogs/spelling-recovery-v1/current/held-out/current-held-out-cases.jsonl",
+        "bytes": 6007055,
+        "sha256": "af450f8e5992f2c0b36040ffc37c54b97a0a2aa65486bb1b9af06b1c5bc07048"
+      },
+      "metrics": {
+        "path": ".runlogs/spelling-recovery-v1/current/held-out/current-held-out-metrics.json",
+        "bytes": 56958,
+        "sha256": "fa622db3bb4518f541b6457f5c3f479f53c8dba256ae7c923d59ee4b8317a0b8"
+      },
+      "summary": {
+        "path": ".runlogs/spelling-recovery-v1/current/held-out/current-held-out-summary.md",
+        "bytes": 4354,
+        "sha256": "a405fbebb11501a520d88ec84ae4c2402fac07f635a70ffe0402f2a7d47272b4"
+      },
+      "receipt": {
+        "path": ".runlogs/spelling-recovery-v1/current/held-out/held-out-one-shot-receipt.json",
+        "bytes": 662,
+        "sha256": "5d49d09266bea9aa0b0ef4db09ac1304273a0c37bc98bde00878602841ede2d6"
+      }
+    }
+  }
+}

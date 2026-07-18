@@ -1,5 +1,18 @@
 # EngGo 已知问题与环境坑
 
+## 2026-07-17 Spelling auto-correct precision 未达硬门（方案 A 已通过 held-out，问题已解决）
+### 症状
+正式 calibration round 3 完整运行 481 条后，candidate Recall@3 为 88.36%、warm p95 为 89.643ms、candidate RSS 增量为 434,176 bytes，正确词 / 随机串保护和 route / slot 均通过；但 auto-correct 只有 183 / 194 正确，precision 为 94.33%，低于 spec 的 98% 硬门。runner 正确给出 `allPassed=false`、`readinessPassed=false`。
+
+### 根因判断
+当前 decision policy 只看编辑距离和第一、第二候选的距离 margin。11 条误纠正中，10 条是范围外 ECDICT 生僻词、变形词或低价值词形以 distance-1 成为唯一 top candidate，压过 distance-2 的考试目标词，例如 `anlize -> alize` 而不是 `analyze`、`repeatly -> repently` 而不是 `repeatedly`；另 1 条是范围内 `yourselve -> yourselves`，而标注目标为 `yourself`。这不是 route、slot、candidate Recall 或性能失败，而是“全局词典存在”被当成了足够强的自动纠正置信度。
+
+### 修复与最终边界
+1. 三轮 calibration 额度已用完；不得继续逐例补规则或重新生成 calibration。唯一一次 held-out 已完成，canonical receipt 和产物必须保留，禁止删除或重跑。
+2. calibration 中 183 条正确 auto 全部属于 active exam scope，10 条范围外 auto 全部错误。用户批准并已实现“top candidate 必须在 active scope 才可 auto”；范围外候选保持原距离排序，改为 clarification / safe no-match。
+3. 对 hash-pinned round 3 候选的离线 replay 得到 183 / 184 = 99.46% precision、38.25% coverage；唯一一次 held-out 得到 743 / 752 = 98.80% precision、39.09% coverage、Recall@3 89.60%、warm p95 118.973ms，18 / 18 最终门通过。held-out 产物位于 `.runlogs/spelling-recovery-v1/current/held-out/`。
+4. 不降低 98% 精度门，不以完全关闭 auto 的 0 coverage 规避验收。
+
 ## 2026-06-12 Next dev 用 `127.0.0.1:3000` 会拦截 dev resources（环境坑）
 ### 症状
 Browser QA 打开 `http://127.0.0.1:3000` 时，Next 16 dev server 返回 200，但页面可能停在 loading fallback 或出现 hydration / RSC 噪声。dev log 会出现：
@@ -369,8 +382,8 @@ NEXT_PUBLIC_ENGGO_FASTAPI_URL=http://127.0.0.1:8000
   - `accordingto`、`oughtto`、`owingto` 已作为 explicit spaced phrase alias 处理；其他 source lemma 脏词或拼写错误，例如 `instalation`，后续扩展 alias 或清洗时必须继续过滤或单独处理。
   - ECDICT 中仍有少量 domain-only 释义，例如 `[计]`、`[医]`、`[化]`；普通查词展示前必须经过清洗和抽检。
 - `root_family_summary` 当前仍是最小原型：
-  - `stitute` / `tempt` 两族可用
-  - 结构化词形过滤可用
+  - seed 中仍保留 `root-stitute` / `root-tempt`，但默认 `NullStructuredLookupRepository` 不消费这些 legacy root family；自然问法 `跟 institute 一样那几个词怎么记` 当前为 bounded no-match。
+  - 这些 root view 只属于可选 structured overlay，不能再写成默认 chat runtime 已支持；默认路径可用的是独立的 ECDICT form / fragment 检索。
   - 泛化语义词根理论仍未定义
 - `re+con 的词根有什么词` 当前按 broad fragment / related prefix 支持，但不要说成稳定词根家族；后续如继续扩展，先写产品定义，不要在 parser 里加硬特例。
 - `postgrad` 缺 entry-level 可机读官方词表，不要为了 scope 完整性补伪造条目。

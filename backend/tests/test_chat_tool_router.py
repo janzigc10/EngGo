@@ -178,6 +178,7 @@ def test_execute_route_plan_calls_selected_tool_first():
 
 
 def test_execute_route_plan_falls_through_on_unsupported_mode():
+    attempted = []
     direct_service = RejectingToolService()
     advanced_service = RecordingToolService(
         answer="advanced fallback",
@@ -203,9 +204,11 @@ def test_execute_route_plan_falls_through_on_unsupported_mode():
         tools=tools,
         request_id="req_tool_2",
         history=[],
+        on_tool_attempt=attempted.append,
     )
 
     assert execution is not None
     assert execution.tool_name == "advanced_lookup"
     assert direct_service.calls
     assert advanced_service.calls
+    assert attempted == ["direct_compare", "advanced_lookup"]

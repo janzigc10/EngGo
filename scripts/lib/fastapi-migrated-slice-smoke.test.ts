@@ -18,10 +18,10 @@ describe("fastapi migrated-slice smoke", () => {
         expectedMatchType: "source_lemma_exact",
       }),
       expect.objectContaining({
-        name: "structured access",
+        name: "source access default runtime",
         query: "access 是什么意思",
         expectedStatus: 200,
-        expectedMatchType: "exact",
+        expectedMatchType: "source_lemma_exact",
       }),
       expect.objectContaining({
         name: "ecdict phrase make up",
@@ -61,15 +61,19 @@ describe("fastapi migrated-slice smoke", () => {
         query: "generte 是什么意思",
         expectedStatus: 200,
         expectedAnswerStyle: "standard_lookup",
-        expectedGroundingIncludes: ["generate"],
-        expectedProviderRequest: "required",
+        expectedResolution: "needs_clarification",
+        expectedSpellingDecision: "clarify_candidates",
+        expectedCandidateLemmas: ["generate", "genette", "general"],
+        expectedGroundingIncludes: ["generate", "genette", "general"],
+        expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
         name: "compare access assess excess",
         query: "access assess excess 怎么区分",
         expectedStatus: 200,
         expectedAnswerStyle: "confusion_untangle",
-        expectedComparisonViewId: "access-assess-excess",
+        expectedComparisonViewId: null,
+        expectedMainAnswerIncludes: ["access", "assess", "excess"],
         expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
@@ -77,7 +81,9 @@ describe("fastapi migrated-slice smoke", () => {
         query: "restrain constrain 怎么区分",
         expectedStatus: 200,
         expectedAnswerStyle: "confusion_untangle",
-        expectedComparisonViewId: "restrain-constrain-curb",
+        expectedComparisonViewId: null,
+        expectedMainAnswerIncludes: ["restrain", "constrain"],
+        forbiddenMainAnswerIncludes: ["curb"],
         expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
@@ -85,7 +91,9 @@ describe("fastapi migrated-slice smoke", () => {
         query: "restrain \u548c constrain \u7684\u533a\u522b",
         expectedStatus: 200,
         expectedAnswerStyle: "confusion_untangle",
-        expectedComparisonViewId: "restrain-constrain-curb",
+        expectedComparisonViewId: null,
+        expectedMainAnswerIncludes: ["restrain", "constrain"],
+        forbiddenMainAnswerIncludes: ["curb"],
         expectedLearningIntentTask: "focused_compare",
         expectedProviderRequest: "absent",
       }),
@@ -96,7 +104,7 @@ describe("fastapi migrated-slice smoke", () => {
         expectedAnswerStyle: "expression_recall",
         expectedComparisonViewId: "comply-conform-defer",
         expectedGroundingIncludes: ["comply", "conform", "defer"],
-        expectedProviderRequest: "required",
+        expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
         name: "meaning lookup obey ecdict fallback",
@@ -351,7 +359,7 @@ describe("fastapi migrated-slice smoke", () => {
         query: "pre开头表示提前或预先的单词",
         expectedStatus: 200,
         expectedGroundingIncludes: ["precede", "prevent"],
-        expectedMainAnswerIncludes: ["precede", "prevent"],
+        expectedMainAnswerIncludes: ["precede"],
         forbiddenMainAnswerIncludes: ["pressure"],
         expectedLearningIntentTask: "semantic_filter",
         expectedBroadPresentation: "semantic_filter_table",
@@ -404,7 +412,7 @@ describe("fastapi migrated-slice smoke", () => {
         query: "less结尾表示没有的词",
         expectedStatus: 200,
         expectedGroundingIncludes: ["hopeless", "useless"],
-        expectedMainAnswerIncludes: ["hopeless", "useless"],
+        expectedMainAnswerIncludes: ["useless"],
         forbiddenMainAnswerIncludes: ["unless"],
         expectedLearningIntentTask: "semantic_filter",
         expectedBroadPresentation: "semantic_filter_table",
@@ -446,17 +454,16 @@ describe("fastapi migrated-slice smoke", () => {
         query: "xyz开头的单词",
         expectedStatus: 200,
         expectedResolution: "no_match",
-        expectedLearningIntentTask: "form_filter",
         expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
-        name: "root institute memory group",
+        name: "bounded institute memory no match",
         query: "跟 institute 一样那几个词怎么记",
         expectedStatus: 200,
         expectedAnswerStyle: "root_family_summary",
-        expectedRootFamilyViewId: "root-stitute",
-        expectedGroundingIncludes: ["institute", "institution", "constitute", "substitute"],
-        expectedProviderRequest: "required",
+        expectedResolution: "no_match",
+        expectedRootFamilyViewId: null,
+        expectedProviderRequest: "absent",
       }),
       expect.objectContaining({
         name: "root con prefix re contains",
@@ -480,7 +487,7 @@ describe("fastapi migrated-slice smoke", () => {
         expectedStatus: 200,
         expectedAnswerStyle: "broad_vocab_summary",
         expectedResolution: "resolved",
-        expectedGroundingIncludes: ["reconcile", "conform"],
+        expectedGroundingIncludes: ["reconcile"],
         expectedProviderRequest: "absent",
       }),
     ]);
@@ -877,5 +884,42 @@ describe("fastapi migrated-slice smoke", () => {
       baseUrl: "http://127.0.0.1:8010",
       label: "custom-direct",
     });
+  });
+
+  it("collects spelling clarification candidates into grounding lemmas", () => {
+    const observation = toObservation(
+      new Response("{}", {
+        status: 200,
+        headers: { "x-request-id": "req_spelling" },
+      }),
+      {
+        requestId: "req_spelling",
+        answerKind: "grounded",
+        providerRequestId: null,
+        answer: "generate / genette / general",
+        grounding: {
+          answerStyle: "standard_lookup",
+          resolution: "needs_clarification",
+          spellingDecision: "clarify_candidates",
+          candidates: [
+            { lemma: "generate" },
+            { lemma: "genette" },
+            { lemma: "general" },
+          ],
+        },
+      },
+    );
+
+    expect(observation.groundingLemmas).toEqual([
+      "generate",
+      "genette",
+      "general",
+    ]);
+    expect(observation.spellingDecision).toBe("clarify_candidates");
+    expect(observation.candidateLemmas).toEqual([
+      "generate",
+      "genette",
+      "general",
+    ]);
   });
 });

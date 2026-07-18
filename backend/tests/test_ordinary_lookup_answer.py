@@ -8,6 +8,11 @@ from backend.app.answering.ordinary_lookup import (
 )
 from backend.app.answering.provider import GenerateAnswerResult
 from backend.app.content.ecdict import EcdictBasicProfile
+from backend.app.retrieval.spelling_candidates import (
+    SpellingCandidate,
+    SpellingCandidateResult,
+)
+from backend.app.retrieval.spelling_decision import SpellingDecisionPolicy
 from backend.app.retrieval.repository import StructuredLookupUnavailable
 from backend.app.retrieval.types import RetrievalCandidate
 
@@ -45,6 +50,65 @@ class FakeProvider:
             answer=self.answer,
             provider_request_id="provider_req_plain",
         )
+
+
+class FakeSpellingCandidateProvider:
+    def __init__(self, result):
+        self.result = result
+        self.calls = []
+
+    def generate(self, **kwargs):
+        self.calls.append(kwargs)
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+
+def spelling_candidate(
+    lemma: str,
+    *,
+    distance: int = 1,
+    in_scope: bool = True,
+) -> SpellingCandidate:
+    return SpellingCandidate(
+        lemma=lemma,
+        edit_distance=distance,
+        in_active_exam_scope=in_scope,
+        scope_codes=("cet4",) if in_scope else (),
+        source_kind="compact_wordbook" if in_scope else "ecdict",
+        reason_codes=(
+            f"edit_distance_{distance}",
+            "active_exam_scope" if in_scope else "global_competitor",
+        ),
+        rank_key=(distance, 0 if in_scope else 1, lemma),
+    )
+
+
+def spelling_result(
+    term: str,
+    candidates: tuple[SpellingCandidate, ...],
+    *,
+    status: str = "ready",
+    complete: bool = True,
+) -> SpellingCandidateResult:
+    return SpellingCandidateResult(
+        term=term,
+        status=status,
+        input_is_known_word=False,
+        global_competition_complete=complete,
+        candidates=candidates,
+        lexicon_version="fixture-v1",
+    )
+
+
+def assert_spelling_trace_latencies(diagnostics: dict[str, object]) -> None:
+    latency_ms = diagnostics["latencyMs"]
+    assert isinstance(latency_ms, dict)
+    assert set(latency_ms) == {"candidateGeneration", "decision"}
+    assert all(
+        isinstance(value, float) and value >= 0.0
+        for value in latency_ms.values()
+    )
 
 
 def source_fixture(base_dir: Path):
@@ -233,6 +297,8 @@ def test_postgrad_single_word_meaning_lookup_uses_ecdict_exact_fallback(tmp_path
         "external_dictionary_basic"
     )
     assert result.payload.grounding["mainAnswer"][0]["scopeCodes"] == ["postgrad"]
+    assert "spellingDecision" not in result.payload.grounding
+    assert "candidates" not in result.payload.grounding
 
 
 def test_ordinary_lookup_keeps_global_ecdict_fallback_for_non_scope_tags(tmp_path):
@@ -621,3 +687,458 @@ def test_root_query_is_not_converted_to_ordinary_no_match(tmp_path):
             query="re+con 的词根有什么词",
             request_id="req_root",
         )
+
+
+def test_local_spelling_auto_correct_is_explicit_and_uses_ecdict_exact(tmp_path):
+    provider = FakeProvider("provider must not rewrite local spelling evidence")
+    spelling_provider = FakeSpellingCandidateProvider(
+        spelling_result(
+            "reqeust",
+            (spelling_candidate("request", in_scope=True),),
+        ),
+    )
+    repository = FakeRepository({})
+    service = OrdinaryLookupService(
+        repository=repository,
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda query: profile(
+            "request",
+            ["v. 请求；要求；n. 请求"],
+            tag="cet4",
+        )
+        if query == "request"
+        else None,
+        provider=provider,
+        spelling_candidate_provider=spelling_provider,
+        spelling_decision_policy=SpellingDecisionPolicy(),
+    )
+
+    result = service.answer(
+        active_exam_target="cet4",
+        query="reqeust 是什么意思",
+        request_id="req_local_auto",
+    )
+
+    assert result.status_code == 200
+    assert "reqeust" in result.payload.answer
+    assert "request" in result.payload.answer
+    assert "v. 请求；要求" in result.payload.answer
+    assert "n. 请求" in result.payload.answer
+    assert result.payload.answerKind == "grounded"
+    assert result.payload.providerRequestId is None
+    assert result.payload.grounding["resolution"] == "resolved"
+    assert result.payload.grounding["spellingDecision"] == "auto_correct"
+    assert result.payload.grounding["matchType"] == "spelling_auto_correct"
+    assert result.payload.grounding["spellingCorrection"] == {
+        "input": "reqeust",
+        "lemma": "request",
+    }
+    assert result.payload.grounding["mainAnswer"][0]["lemma"] == "request"
+    assert result.payload.grounding["mainAnswer"][0]["inScope"] is True
+    assert spelling_provider.calls == [
+        {"term": "reqeust", "active_exam_target": "cet4", "limit": 8},
+    ]
+    assert repository.fuzzy_lookups == []
+    assert provider.calls == []
+    diagnostics = result.trace_diagnostics
+    assert diagnostics is not None
+    assert diagnostics["candidateStatus"] == "ready"
+    assert diagnostics["sourceStatus"] == "ready"
+    assert diagnostics["lexiconVersion"] == "fixture-v1"
+    assert diagnostics["inputIsKnownWord"] is False
+    assert diagnostics["globalCompetitionComplete"] is True
+    assert diagnostics["candidates"] == [
+        {
+            "rank": 1,
+            "lemma": "request",
+            "editDistance": 1,
+            "inActiveExamScope": True,
+            "scopeCodes": ["cet4"],
+            "sourceKind": "compact_wordbook",
+            "reasonCodes": ["edit_distance_1", "active_exam_scope"],
+            "rankKey": [1, 0, "request"],
+        },
+    ]
+    assert diagnostics["decision"] == {
+        "kind": "auto_correct",
+        "reasonCode": "high_confidence",
+        "selectedCandidates": ["request"],
+    }
+    assert_spelling_trace_latencies(diagnostics)
+    assert "traceDiagnostics" not in result.payload.model_dump(by_alias=True)
+
+
+def test_local_spelling_auto_correct_also_handles_bare_single_word_lookup(tmp_path):
+    spelling_provider = FakeSpellingCandidateProvider(
+        spelling_result(
+            "reqeust",
+            (spelling_candidate("request", in_scope=True),),
+        ),
+    )
+    service = OrdinaryLookupService(
+        repository=FakeRepository({}),
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda query: profile(
+            "request",
+            ["v. 请求；要求；n. 请求"],
+            tag="cet4",
+        )
+        if query == "request"
+        else None,
+        spelling_candidate_provider=spelling_provider,
+        spelling_decision_policy=SpellingDecisionPolicy(),
+    )
+
+    result = service.answer(
+        active_exam_target="cet4",
+        query="reqeust",
+        request_id="req_local_auto_bare",
+    )
+
+    assert result.status_code == 200
+    assert result.payload.answerKind == "grounded"
+    assert result.payload.grounding["queryMode"] == "direct_lookup"
+    assert result.payload.grounding["spellingDecision"] == "auto_correct"
+    assert result.payload.grounding["spellingCorrection"] == {
+        "input": "reqeust",
+        "lemma": "request",
+    }
+    assert result.payload.grounding["mainAnswer"][0]["lemma"] == "request"
+    assert spelling_provider.calls == [
+        {"term": "reqeust", "active_exam_target": "cet4", "limit": 8},
+    ]
+
+
+def test_local_spelling_single_global_candidate_is_safe_no_match(tmp_path):
+    spelling_provider = FakeSpellingCandidateProvider(
+        spelling_result(
+            "viadcut",
+            (spelling_candidate("viaduct", in_scope=False),),
+        ),
+    )
+    service = OrdinaryLookupService(
+        repository=FakeRepository({}),
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda query: profile(
+            "viaduct",
+            ["n. 高架桥"],
+            tag="gre",
+        )
+        if query == "viaduct"
+        else None,
+        spelling_candidate_provider=spelling_provider,
+        spelling_decision_policy=SpellingDecisionPolicy(),
+    )
+
+    result = service.answer(
+        active_exam_target="gaokao",
+        query="viadcut 是什么意思",
+        request_id="req_local_global_no_match",
+    )
+
+    assert result.status_code == 200
+    assert result.payload.answerKind == "grounded"
+    assert result.payload.providerRequestId is None
+    assert result.payload.grounding["resolution"] == "no_match"
+    assert result.payload.grounding["spellingDecision"] == "no_reliable_candidate"
+    assert result.payload.grounding["noMatchReason"] == "no_reliable_candidate"
+    assert result.payload.grounding["mainAnswer"] == []
+    diagnostics = result.trace_diagnostics
+    assert diagnostics is not None
+    assert [item["lemma"] for item in diagnostics["candidates"]] == ["viaduct"]
+    assert diagnostics["candidates"][0]["inActiveExamScope"] is False
+    assert diagnostics["decision"] == {
+        "kind": "no_reliable_candidate",
+        "reasonCode": "no_reliable_candidate",
+        "selectedCandidates": [],
+    }
+
+
+def test_local_spelling_global_top_degrades_to_clarification_without_reordering(
+    tmp_path,
+):
+    spelling_provider = FakeSpellingCandidateProvider(
+        spelling_result(
+            "anlize",
+            (
+                spelling_candidate("alize", distance=1, in_scope=False),
+                spelling_candidate("analyze", distance=2, in_scope=True),
+            ),
+        ),
+    )
+    profiles = {
+        "alize": profile("alize", ["v. 使成某种状态"], tag="gre"),
+        "analyze": profile("analyze", ["v. 分析"], tag="gk"),
+    }
+    service = OrdinaryLookupService(
+        repository=FakeRepository({}),
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda query: profiles.get(query),
+        spelling_candidate_provider=spelling_provider,
+        spelling_decision_policy=SpellingDecisionPolicy(),
+    )
+
+    result = service.answer(
+        active_exam_target="gaokao",
+        query="anlize 是什么意思",
+        request_id="req_local_global_clarification",
+    )
+
+    grounding = result.payload.grounding
+    assert result.status_code == 200
+    assert result.payload.answerKind == "grounded"
+    assert grounding["resolution"] == "needs_clarification"
+    assert grounding["spellingDecision"] == "clarify_candidates"
+    assert [item["lemma"] for item in grounding["candidates"]] == [
+        "alize",
+        "analyze",
+    ]
+    assert [item["inScope"] for item in grounding["candidates"]] == [False, True]
+    assert grounding["scopeReminder"] == (
+        "候选同时包含当前高考词书内和词书外结果，已按拼写接近度排序。"
+    )
+    diagnostics = result.trace_diagnostics
+    assert diagnostics is not None
+    assert diagnostics["decision"] == {
+        "kind": "clarify_candidates",
+        "reasonCode": "ambiguous_candidates",
+        "selectedCandidates": ["alize", "analyze"],
+    }
+
+
+def test_local_spelling_ambiguity_returns_grounded_candidates_without_llm(tmp_path):
+    provider = FakeProvider("provider must not pick a spelling candidate")
+    candidates = (
+        spelling_candidate("form", in_scope=True),
+        spelling_candidate("farm", in_scope=True),
+        spelling_candidate("firm", in_scope=False),
+        spelling_candidate("foam", distance=2, in_scope=True),
+    )
+    spelling_provider = FakeSpellingCandidateProvider(
+        spelling_result("frorm", candidates),
+    )
+    meanings = {
+        "form": ["n. 形式"],
+        "farm": ["n. 农场"],
+        "firm": ["adj. 坚定的"],
+        "foam": ["n. 泡沫"],
+    }
+    service = OrdinaryLookupService(
+        repository=FakeRepository({}),
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda query: profile(
+            query,
+            meanings[query],
+            tag="cet4" if query != "firm" else "gre",
+        )
+        if query in meanings
+        else None,
+        provider=provider,
+        spelling_candidate_provider=spelling_provider,
+        spelling_decision_policy=SpellingDecisionPolicy(),
+    )
+
+    result = service.answer(
+        active_exam_target="cet4",
+        query="frorm 是什么意思",
+        request_id="req_local_clarify",
+    )
+
+    grounding = result.payload.grounding
+    assert result.status_code == 200
+    assert result.payload.answerKind == "grounded"
+    assert result.payload.providerRequestId is None
+    assert grounding["resolution"] == "needs_clarification"
+    assert grounding["spellingDecision"] == "clarify_candidates"
+    assert grounding["mainAnswer"] == []
+    assert [item["lemma"] for item in grounding["candidates"]] == [
+        "form",
+        "farm",
+        "firm",
+    ]
+    assert [item["inScope"] for item in grounding["candidates"]] == [
+        True,
+        True,
+        False,
+    ]
+    assert provider.calls == []
+    diagnostics = result.trace_diagnostics
+    assert diagnostics is not None
+    assert [item["lemma"] for item in diagnostics["candidates"]] == [
+        "form",
+        "farm",
+        "firm",
+        "foam",
+    ]
+    assert [item["rank"] for item in diagnostics["candidates"]] == [1, 2, 3, 4]
+    assert diagnostics["decision"] == {
+        "kind": "clarify_candidates",
+        "reasonCode": "ambiguous_candidates",
+        "selectedCandidates": ["form", "farm", "firm"],
+    }
+    assert diagnostics["sourceStatus"] == "ready"
+    assert_spelling_trace_latencies(diagnostics)
+
+
+@pytest.mark.parametrize(
+    ("candidate_result", "expected_reason"),
+    [
+        (
+            spelling_result(
+                "xqzplm",
+                (spelling_candidate("example", distance=2),),
+            ),
+            "random_like",
+        ),
+        (
+            spelling_result(
+                "reqeust",
+                (),
+                status="candidate_source_unavailable",
+                complete=False,
+            ),
+            "candidate_source_unavailable",
+        ),
+    ],
+)
+def test_local_spelling_safe_no_match_blocks_internal_and_outer_provider_recovery(
+    tmp_path,
+    candidate_result,
+    expected_reason,
+):
+    from backend.app.answering.chat_orchestrator import (
+        is_recoverable_service_no_match,
+    )
+
+    provider = FakeProvider("provider must not invent a spelling candidate")
+    service = OrdinaryLookupService(
+        repository=FakeRepository({}),
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda _query: None,
+        provider=provider,
+        spelling_candidate_provider=FakeSpellingCandidateProvider(candidate_result),
+        spelling_decision_policy=SpellingDecisionPolicy(),
+    )
+
+    result = service.answer(
+        active_exam_target="cet4",
+        query=f"{candidate_result.term} 是什么意思",
+        request_id="req_local_safe_no_match",
+    )
+
+    assert result.status_code == 200
+    assert result.payload.answerKind == "grounded"
+    assert result.payload.providerRequestId is None
+    assert result.payload.grounding["resolution"] == "no_match"
+    assert result.payload.grounding["spellingDecision"] == "no_reliable_candidate"
+    assert result.payload.grounding["noMatchReason"] == expected_reason
+    assert is_recoverable_service_no_match(result.payload) is False
+    assert provider.calls == []
+    diagnostics = result.trace_diagnostics
+    assert diagnostics is not None
+    assert diagnostics["candidateStatus"] == candidate_result.status
+    assert diagnostics["sourceStatus"] == candidate_result.status
+    assert diagnostics["lexiconVersion"] == "fixture-v1"
+    assert diagnostics["decision"] == {
+        "kind": "no_reliable_candidate",
+        "reasonCode": expected_reason,
+        "selectedCandidates": [],
+    }
+    assert [item["lemma"] for item in diagnostics["candidates"]] == [
+        candidate.lemma for candidate in candidate_result.candidates
+    ]
+    assert_spelling_trace_latencies(diagnostics)
+
+
+def test_local_spelling_provider_exception_is_safe_no_match(tmp_path):
+    provider = FakeProvider("provider must not run after spelling source failure")
+    service = OrdinaryLookupService(
+        repository=FakeRepository({}),
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda _query: None,
+        provider=provider,
+        spelling_candidate_provider=FakeSpellingCandidateProvider(
+            RuntimeError("candidate source exploded"),
+        ),
+        spelling_decision_policy=SpellingDecisionPolicy(),
+    )
+
+    result = service.answer(
+        active_exam_target="cet4",
+        query="reqeust 是什么意思",
+        request_id="req_local_source_error",
+    )
+
+    assert result.status_code == 200
+    assert result.payload.grounding["resolution"] == "no_match"
+    assert result.payload.grounding["noMatchReason"] == "candidate_source_error"
+    assert result.payload.grounding["spellingDecision"] == "no_reliable_candidate"
+    assert provider.calls == []
+    diagnostics = result.trace_diagnostics
+    assert diagnostics is not None
+    assert diagnostics["candidateStatus"] == "candidate_source_error"
+    assert diagnostics["sourceStatus"] == "candidate_source_error"
+    assert diagnostics["lexiconVersion"] == "unavailable"
+    assert diagnostics["globalCompetitionComplete"] is False
+    assert diagnostics["candidates"] == []
+    assert diagnostics["decision"] == {
+        "kind": "no_reliable_candidate",
+        "reasonCode": "candidate_source_error",
+        "selectedCandidates": [],
+    }
+    assert_spelling_trace_latencies(diagnostics)
+    assert diagnostics["latencyMs"]["decision"] == 0.0
+
+
+def test_plain_like_query_uses_the_same_local_spelling_recovery(tmp_path):
+    spelling_provider = FakeSpellingCandidateProvider(
+        spelling_result(
+            "reqeust",
+            (spelling_candidate("request", in_scope=True),),
+        ),
+    )
+    service = OrdinaryLookupService(
+        repository=FakeRepository({}),
+        source_lemma_base_dir=tmp_path,
+        ecdict_lookup=lambda query: profile("request", ["v. 请求"], tag="cet4")
+        if query == "request"
+        else None,
+        spelling_candidate_provider=spelling_provider,
+        spelling_decision_policy=SpellingDecisionPolicy(),
+    )
+
+    result = service.answer(
+        active_exam_target="cet4",
+        query="有个像 reqeust 的词",
+        request_id="req_local_plain_like",
+    )
+
+    assert result.payload.grounding["queryMode"] == "fuzzy_recall"
+    assert result.payload.grounding["spellingDecision"] == "auto_correct"
+    assert result.payload.grounding["spellingCorrection"] == {
+        "input": "reqeust",
+        "lemma": "request",
+    }
+
+
+def test_create_app_wires_default_local_spelling_recovery_without_structured_runtime(
+    tmp_path,
+    monkeypatch,
+):
+    from backend.app.main import create_app
+    from backend.app.retrieval.repository import NullStructuredLookupRepository
+
+    monkeypatch.setenv("ENGGO_USE_STRUCTURED_RUNTIME", "false")
+    monkeypatch.setenv("ENGGO_SOURCE_LEMMA_BASE_DIR", str(tmp_path / "exam-vocab"))
+    monkeypatch.setenv("ENGGO_ECDICT_PATH", str(tmp_path / "ecdict.csv"))
+
+    app = create_app()
+    service = app.state.ordinary_lookup_service
+
+    assert isinstance(service.repository, NullStructuredLookupRepository)
+    assert service.spelling_candidate_provider is app.state.spelling_candidate_provider
+    assert service.spelling_decision_policy is app.state.spelling_decision_policy
+    assert service.spelling_candidate_provider._ecdict_lookup is service.ecdict_lookup
+    assert service.spelling_candidate_provider._compact_wordbook_loader.path == (
+        tmp_path / "exam-vocab" / "ecdict-wordbook" / "entries.json"
+    )

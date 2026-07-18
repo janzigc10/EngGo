@@ -1,0 +1,147 @@
+{
+  "schemaVersion": "spelling-recovery-quality-fixtures-v1",
+  "ecdictSha256": "1a6947e04785db63613a92e14903cdae7954f7e84860b10e68e5c7cbb3f9c3cf",
+  "neighborDensityDefinition": {
+    "distance": "one OSA edit over lowercase ASCII-letter variants",
+    "low": "0-1 ECDICT neighbors",
+    "medium": "2-5 ECDICT neighbors",
+    "high": "6+ ECDICT neighbors"
+  },
+  "validWords": [
+    {
+      "id": "valid-gaokao-short-high",
+      "term": "able",
+      "activeExamTarget": "gaokao",
+      "stratum": {"lengthBand": "<=4", "neighborDensityBand": "high", "distanceOneNeighborCount": 38}
+    },
+    {
+      "id": "valid-gaokao-medium-medium",
+      "term": "abandon",
+      "activeExamTarget": "gaokao",
+      "stratum": {"lengthBand": "5-7", "neighborDensityBand": "medium", "distanceOneNeighborCount": 2}
+    },
+    {
+      "id": "valid-gaokao-long-low",
+      "term": "abnormal",
+      "activeExamTarget": "gaokao",
+      "stratum": {"lengthBand": "8-10", "neighborDensityBand": "low", "distanceOneNeighborCount": 1}
+    },
+    {
+      "id": "valid-cet4-short-high",
+      "term": "auto",
+      "activeExamTarget": "cet4",
+      "stratum": {"lengthBand": "<=4", "neighborDensityBand": "high", "distanceOneNeighborCount": 16}
+    },
+    {
+      "id": "valid-cet4-medium-medium",
+      "term": "accord",
+      "activeExamTarget": "cet4",
+      "stratum": {"lengthBand": "5-7", "neighborDensityBand": "medium", "distanceOneNeighborCount": 3}
+    },
+    {
+      "id": "valid-cet4-long-low",
+      "term": "absolutely",
+      "activeExamTarget": "cet4",
+      "stratum": {"lengthBand": "8-10", "neighborDensityBand": "low", "distanceOneNeighborCount": 0}
+    },
+    {
+      "id": "valid-cet6-short-high",
+      "term": "alas",
+      "activeExamTarget": "cet6",
+      "stratum": {"lengthBand": "<=4", "neighborDensityBand": "high", "distanceOneNeighborCount": 54}
+    },
+    {
+      "id": "valid-cet6-medium-high",
+      "term": "abide",
+      "activeExamTarget": "cet6",
+      "stratum": {"lengthBand": "5-7", "neighborDensityBand": "high", "distanceOneNeighborCount": 14}
+    },
+    {
+      "id": "valid-cet6-long-low",
+      "term": "abbreviation",
+      "activeExamTarget": "cet6",
+      "stratum": {"lengthBand": "11+", "neighborDensityBand": "low", "distanceOneNeighborCount": 1}
+    },
+    {
+      "id": "valid-postgrad-short-high",
+      "term": "awe",
+      "activeExamTarget": "postgrad",
+      "stratum": {"lengthBand": "<=4", "neighborDensityBand": "high", "distanceOneNeighborCount": 54}
+    },
+    {
+      "id": "valid-postgrad-medium-low",
+      "term": "abdomen",
+      "activeExamTarget": "postgrad",
+      "stratum": {"lengthBand": "5-7", "neighborDensityBand": "low", "distanceOneNeighborCount": 1}
+    },
+    {
+      "id": "valid-postgrad-long-medium",
+      "term": "activate",
+      "activeExamTarget": "postgrad",
+      "stratum": {"lengthBand": "8-10", "neighborDensityBand": "medium", "distanceOneNeighborCount": 4}
+    }
+  ],
+  "ambiguousTypos": [
+    {
+      "id": "ambiguous-collision-learnd",
+      "term": "learnd",
+      "activeExamTarget": "gaokao",
+      "acceptableGolds": ["learn", "learned"],
+      "expectedDecision": "clarify_candidates"
+    },
+    {
+      "id": "ambiguous-neighbors-frorm",
+      "term": "frorm",
+      "activeExamTarget": "gaokao",
+      "acceptableGolds": ["form", "from"],
+      "expectedDecision": "clarify_candidates"
+    },
+    {
+      "id": "ambiguous-neighbors-acess",
+      "term": "acess",
+      "activeExamTarget": "cet4",
+      "acceptableGolds": ["access", "assess", "across"],
+      "expectedDecision": "clarify_candidates"
+    }
+  ],
+  "randomStrings": [
+    {"id": "random-01", "term": "xqzplm", "activeExamTarget": "gaokao", "expectedDecision": "no_reliable_candidate"},
+    {"id": "random-02", "term": "qwrtyps", "activeExamTarget": "cet4", "expectedDecision": "no_reliable_candidate"},
+    {"id": "random-03", "term": "zzqvxk", "activeExamTarget": "cet6", "expectedDecision": "no_reliable_candidate"},
+    {"id": "random-04", "term": "bcdffg", "activeExamTarget": "postgrad", "expectedDecision": "no_reliable_candidate"}
+  ],
+  "routeSlotCases": [
+    {
+      "id": "route-meaning-suffix",
+      "query": "access 是什么意思",
+      "activeExamTarget": "cet6",
+      "expectedQueryMode": "fuzzy_recall",
+      "expectedTool": "ordinary_lookup",
+      "expectedEnglishTerms": ["access"]
+    },
+    {
+      "id": "route-direct-compare",
+      "query": "access assess 怎么区分",
+      "activeExamTarget": "cet6",
+      "expectedQueryMode": "direct_compare",
+      "expectedTool": "direct_compare",
+      "expectedEnglishTerms": ["access", "assess"]
+    },
+    {
+      "id": "route-shape-neighbor",
+      "query": "给我几个跟 evaluate 易混的单词",
+      "activeExamTarget": "cet6",
+      "expectedQueryMode": "shape_neighbor_search",
+      "expectedTool": "advanced_lookup",
+      "expectedEnglishTerms": ["evaluate"]
+    },
+    {
+      "id": "route-meaning-lookup",
+      "query": "遵循的英文是什么",
+      "activeExamTarget": "postgrad",
+      "expectedQueryMode": "meaning_lookup",
+      "expectedTool": "advanced_lookup",
+      "expectedEnglishTerms": []
+    }
+  ]
+}

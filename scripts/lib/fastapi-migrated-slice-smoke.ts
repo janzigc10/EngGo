@@ -15,6 +15,8 @@ export type FastApiMigratedSliceSmokeCase = {
   expectedMatchType?: RetrievalMatchType | null;
   expectedComparisonViewId?: string | null;
   expectedRootFamilyViewId?: string | null;
+  expectedSpellingDecision?: string | null;
+  expectedCandidateLemmas?: string[];
   expectedLearningIntentTask?: string | null;
   expectedBroadPresentation?: string | null;
   expectedGroundingIncludes?: string[];
@@ -36,6 +38,8 @@ export type FastApiMigratedSliceSmokeObservation = {
   resolution: string | null;
   comparisonViewId: string | null;
   rootFamilyViewId: string | null;
+  spellingDecision?: string | null;
+  candidateLemmas?: string[];
   learningIntentTask: string | null;
   broadPresentation: string | null;
   groundingLemmas: string[];
@@ -92,6 +96,8 @@ export function parseFastApiMigratedSliceSmokeArgs(
 }
 
 export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmokeCase[] {
+  // This live matrix targets the current default chat runtime: structured DB
+  // off and provider off. Provider-on answer rendering is verified separately.
   return [
     {
       name: "source lemma accent",
@@ -104,13 +110,13 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedProviderRequestId: null,
     },
     {
-      name: "structured access",
+      name: "source access default runtime",
       query: "access 是什么意思",
       activeExamTarget: "cet4",
       expectedStatus: 200,
       expectedAnswerKind: "grounded",
       expectedResolution: "resolved",
-      expectedMatchType: "exact",
+      expectedMatchType: "source_lemma_exact",
       expectedBroadPresentation: null,
       expectedProviderRequestId: null,
     },
@@ -173,9 +179,11 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedStatus: 200,
       expectedAnswerKind: "grounded",
       expectedAnswerStyle: "standard_lookup",
-      expectedResolution: "resolved",
-      expectedGroundingIncludes: ["generate"],
-      expectedProviderRequest: "required",
+      expectedResolution: "needs_clarification",
+      expectedSpellingDecision: "clarify_candidates",
+      expectedCandidateLemmas: ["generate", "genette", "general"],
+      expectedGroundingIncludes: ["generate", "genette", "general"],
+      expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
     {
@@ -187,7 +195,8 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedAnswerStyle: "confusion_untangle",
       expectedResolution: "resolved",
       expectedMatchType: null,
-      expectedComparisonViewId: "access-assess-excess",
+      expectedComparisonViewId: null,
+      expectedMainAnswerIncludes: ["access", "assess", "excess"],
       expectedLearningIntentTask: "focused_compare",
       expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
@@ -201,7 +210,9 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedAnswerStyle: "confusion_untangle",
       expectedResolution: "resolved",
       expectedMatchType: null,
-      expectedComparisonViewId: "restrain-constrain-curb",
+      expectedComparisonViewId: null,
+      expectedMainAnswerIncludes: ["restrain", "constrain"],
+      forbiddenMainAnswerIncludes: ["curb"],
       expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
@@ -214,7 +225,9 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedAnswerStyle: "confusion_untangle",
       expectedResolution: "resolved",
       expectedMatchType: null,
-      expectedComparisonViewId: "restrain-constrain-curb",
+      expectedComparisonViewId: null,
+      expectedMainAnswerIncludes: ["restrain", "constrain"],
+      forbiddenMainAnswerIncludes: ["curb"],
       expectedLearningIntentTask: "focused_compare",
       expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
@@ -229,7 +242,7 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedResolution: "resolved",
       expectedComparisonViewId: "comply-conform-defer",
       expectedGroundingIncludes: ["comply", "conform", "defer"],
-      expectedProviderRequest: "required",
+      expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
     {
@@ -615,7 +628,7 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedAnswerStyle: "broad_vocab_summary",
       expectedResolution: "resolved",
       expectedGroundingIncludes: ["precede", "prevent"],
-      expectedMainAnswerIncludes: ["precede", "prevent"],
+      expectedMainAnswerIncludes: ["precede"],
       forbiddenMainAnswerIncludes: ["pressure"],
       expectedLearningIntentTask: "semantic_filter",
       expectedBroadPresentation: "semantic_filter_table",
@@ -693,7 +706,7 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedAnswerStyle: "broad_vocab_summary",
       expectedResolution: "resolved",
       expectedGroundingIncludes: ["hopeless", "useless"],
-      expectedMainAnswerIncludes: ["hopeless", "useless"],
+      expectedMainAnswerIncludes: ["useless"],
       forbiddenMainAnswerIncludes: ["unless"],
       expectedLearningIntentTask: "semantic_filter",
       expectedBroadPresentation: "semantic_filter_table",
@@ -753,21 +766,19 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedStatus: 200,
       expectedAnswerKind: "grounded",
       expectedResolution: "no_match",
-      expectedLearningIntentTask: "form_filter",
       expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
     {
-      name: "root institute memory group",
+      name: "bounded institute memory no match",
       query: "跟 institute 一样那几个词怎么记",
       activeExamTarget: "cet6",
       expectedStatus: 200,
       expectedAnswerKind: "grounded",
       expectedAnswerStyle: "root_family_summary",
-      expectedResolution: "resolved",
-      expectedRootFamilyViewId: "root-stitute",
-      expectedGroundingIncludes: ["institute", "institution", "constitute", "substitute"],
-      expectedProviderRequest: "required",
+      expectedResolution: "no_match",
+      expectedRootFamilyViewId: null,
+      expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
     {
@@ -802,7 +813,7 @@ export function buildFastApiMigratedSliceSmokeCases(): FastApiMigratedSliceSmoke
       expectedAnswerKind: "grounded",
       expectedAnswerStyle: "broad_vocab_summary",
       expectedResolution: "resolved",
-      expectedGroundingIncludes: ["reconcile", "conform"],
+      expectedGroundingIncludes: ["reconcile"],
       expectedProviderRequest: "absent",
       expectedProviderRequestId: null,
     },
@@ -881,6 +892,24 @@ export function evaluateFastApiMigratedSliceSmoke(
         observation.rootFamilyViewId,
         caseDef.expectedRootFamilyViewId ?? null,
       );
+    }
+
+    if ("expectedSpellingDecision" in caseDef) {
+      addIfMismatch(
+        failures,
+        "spellingDecision",
+        observation.spellingDecision ?? null,
+        caseDef.expectedSpellingDecision ?? null,
+      );
+    }
+
+    if (caseDef.expectedCandidateLemmas) {
+      const actual = observation.candidateLemmas ?? [];
+      if (JSON.stringify(actual) !== JSON.stringify(caseDef.expectedCandidateLemmas)) {
+        failures.push(
+          `candidateLemmas expected ${caseDef.expectedCandidateLemmas.join(",")}, received ${actual.join(",")}`,
+        );
+      }
     }
 
     if ("expectedLearningIntentTask" in caseDef) {

@@ -79,3 +79,33 @@ def test_load_settings_reads_cors_origins_from_env_file(tmp_path, monkeypatch):
         "http://127.0.0.1:3000",
         "https://enggo.test",
     )
+
+
+def test_load_settings_keeps_retrieval_trace_opt_in(tmp_path, monkeypatch):
+    env_file = tmp_path / ".env"
+    trace_path = tmp_path / "retrieval-trace.jsonl"
+    env_file.write_text(
+        "\n".join(
+            [
+                f"ENGGO_RETRIEVAL_TRACE_JSONL_PATH={trace_path}",
+                "ENGGO_RETRIEVAL_TRACE_INCLUDE_RAW_QUERY=true",
+                "ENGGO_BUILD_VERSION=build-test",
+                "ENGGO_DATA_VERSION=data-test",
+            ],
+        ),
+        encoding="utf-8",
+    )
+    for key in (
+        "ENGGO_RETRIEVAL_TRACE_JSONL_PATH",
+        "ENGGO_RETRIEVAL_TRACE_INCLUDE_RAW_QUERY",
+        "ENGGO_BUILD_VERSION",
+        "ENGGO_DATA_VERSION",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    settings = load_settings(env_file=env_file)
+
+    assert settings.retrieval_trace_jsonl_path == trace_path
+    assert settings.retrieval_trace_include_raw_query is True
+    assert settings.build_version == "build-test"
+    assert settings.data_version == "data-test"

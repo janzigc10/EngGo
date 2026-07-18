@@ -55,6 +55,188 @@ describe("AssistantAnswer Card Density V1", () => {
     expect(screen.getByText("word8")).toBeInTheDocument();
   });
 
+  it("labels out-of-scope candidates and explains mixed scope", () => {
+    const scopeReminder = (
+      "候选同时包含当前高考词书内和词书外结果，已按拼写接近度排序。"
+    );
+
+    render(
+      <AssistantAnswer
+        message={assistantMessage({
+          answerKind: "grounded",
+          answerSurface: {
+            type: "candidate_list",
+            title: "找到 2 个可能的词",
+            subtitle: "高考",
+            items: [
+              { ...candidateItem(1), lemma: "alize", inScope: false },
+              { ...candidateItem(2), lemma: "alike", inScope: true },
+            ],
+          },
+          grounding: {
+            activeExamTarget: "gaokao",
+            activeExamTargetLabel: "高考",
+            query: "anlize是什么意思",
+            queryMode: "fuzzy_recall",
+            answerStyle: "standard_lookup",
+            resolution: "needs_clarification",
+            noMatchReason: null,
+            spellingDecision: "clarify_candidates",
+            candidates: [
+              {
+                entryId: "external-dictionary:alize",
+                lemma: "alize",
+                meaningsZh: ["茜草素"],
+                matchedAlias: null,
+                scopeCodes: [],
+                inScope: false,
+                reason: "local spelling candidate",
+                score: 90,
+                sourceKind: "external_dictionary_basic",
+              },
+              {
+                entryId: "external-dictionary:alike",
+                lemma: "alike",
+                meaningsZh: ["相似的"],
+                matchedAlias: null,
+                scopeCodes: ["gaokao"],
+                inScope: true,
+                reason: "local spelling candidate",
+                score: 80,
+                sourceKind: "external_dictionary_basic",
+              },
+            ],
+            mainAnswer: [],
+            confusionBoundary: [],
+            scopeReminder,
+            followUpPrompt: "请选择一个候选。",
+            comparisonView: null,
+            rootFamilyView: null,
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("当前词书外")).toBeInTheDocument();
+    expect(screen.getByText(scopeReminder)).toBeInTheDocument();
+  });
+
+  it("makes automatic spelling correction explicit", () => {
+    render(
+      <AssistantAnswer
+        message={assistantMessage({
+          answerKind: "grounded",
+          answerSurface: {
+            type: "lookup",
+            title: "request",
+            items: [
+              { ...candidateItem(1), lemma: "request", inScope: true },
+            ],
+          },
+          grounding: {
+            activeExamTarget: "cet6",
+            activeExamTargetLabel: "CET-6",
+            query: "reqeust是什么意思",
+            queryMode: "fuzzy_recall",
+            answerStyle: "standard_lookup",
+            resolution: "resolved",
+            noMatchReason: null,
+            matchType: "spelling_auto_correct",
+            spellingDecision: "auto_correct",
+            mainAnswer: [],
+            confusionBoundary: [],
+            scopeReminder: "这次回答已优先锁定在 CET-6 范围内。",
+            followUpPrompt: "",
+            comparisonView: null,
+            rootFamilyView: null,
+            spellingCorrection: {
+              input: "reqeust",
+              lemma: "request",
+            },
+          },
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByText("已按拼写纠正：reqeust → request"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows scope support after selecting an out-of-scope candidate", () => {
+    const scopeReminder = (
+      "这次命中的词不在当前高考词书范围内，以下按全局 ECDICT 结果说明。"
+    );
+
+    render(
+      <AssistantAnswer
+        message={assistantMessage({
+          answerKind: "grounded",
+          answerSurface: {
+            type: "lookup",
+            title: "alize",
+            items: [
+              { ...candidateItem(1), lemma: "alize", inScope: false },
+            ],
+          },
+          grounding: {
+            activeExamTarget: "gaokao",
+            activeExamTargetLabel: "高考",
+            query: "alize",
+            queryMode: "direct_lookup",
+            answerStyle: "standard_lookup",
+            resolution: "resolved",
+            noMatchReason: null,
+            mainAnswer: [],
+            confusionBoundary: [],
+            scopeReminder,
+            followUpPrompt: "",
+            comparisonView: null,
+            rootFamilyView: null,
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("当前词书外")).toBeInTheDocument();
+    expect(screen.getByText(scopeReminder)).toBeInTheDocument();
+  });
+
+  it("accepts a safe spelling no-match without inventing a correction", () => {
+    render(
+      <AssistantAnswer
+        message={assistantMessage({
+          content: "这次先不硬猜。",
+          answerKind: "grounded",
+          answerSurface: {
+            type: "plain",
+            text: "这次先不硬猜。",
+          },
+          grounding: {
+            activeExamTarget: "gaokao",
+            activeExamTargetLabel: "高考",
+            query: "xqzplm是什么意思",
+            queryMode: "fuzzy_recall",
+            answerStyle: "standard_lookup",
+            resolution: "no_match",
+            noMatchReason: "random_like",
+            spellingDecision: "no_reliable_candidate",
+            candidates: [],
+            mainAnswer: [],
+            confusionBoundary: [],
+            scopeReminder: "",
+            followUpPrompt: "",
+            comparisonView: null,
+            rootFamilyView: null,
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText("这次先不硬猜。")).toBeInTheDocument();
+    expect(screen.queryByText(/已按拼写纠正/)).not.toBeInTheDocument();
+  });
+
   it("keeps compare cards scannable and folds member details", async () => {
     const user = userEvent.setup();
 

@@ -4,7 +4,9 @@
 
 - 设计日期：2026-07-17
 - 用户已批准：最小可见闭环、精度优先、当前考试范围优先后回退全局 ECDICT、trace 仅开发侧
-- 当前阶段：设计已确认，尚未创建 implementation plan，尚未修改运行时代码
+- 2026-07-17 calibration 修订已批准：只有 top candidate 位于当前 active exam scope 时才具备 `auto_correct` 资格；范围外候选继续参与全局竞争和原距离排序，但降级为 clarification / safe no-match。
+- 当前阶段：实现与验收已完成；唯一一次 1,924 条 held-out、全量回归、真实 HTTP、provider 边界和浏览器 smoke 均通过，正式结果见 `docs/superpowers/reports/2026-07-17-retrieval-observability-spelling-recovery-v1-comparison.md`。
+- 实现说明：候选 provider 没有机械执行两次全量扫描，而是对 query-driven edit variants 做一次统一 global membership 检查，再为命中的 canonical lemma 标注 active-scope membership、按“编辑距离优先、同距 scope 优先”排序并去重。它满足本设计的 scope preference 与 complete global competition 不变量；这里的 `scope-first` 是产品排序 / 竞争合同，不是物理循环顺序。
 
 ## 产品决策
 
@@ -129,7 +131,7 @@ User query
 - `auto_correct`：用选中的真实 lemma 继续现有 ECDICT exact lookup，回答中明确展示原输入与纠正词，不能静默替换；
 - `clarify_candidates`：复用现有 candidate list / conversation context，最多展示 3 个候选，并通过下面的窄合同支持用户继续说“第一个”；
 - `no_reliable_candidate`：保留 grounded no-match 和稳定 reason code，不允许后续 LLM 自行发明拼写候选；
-- 范围外纠正：允许继续解释，但 support / scope 信息必须明确说明不在当前考试词书内。
+- 范围外候选：不能直接 `auto_correct`；有至少两个可靠候选时按原距离顺序进入 clarification，只有一个范围外候选时进入 safe no-match。用户在 clarification 中明确选择范围外词后，仍允许按 exact lookup 解释，并明确 support / scope 信息。
 
 第一版尽量复用现有 ChatSuccessResponse、grounding 和 answerSurface。只有当前合同无法表达“原词、纠正词、范围状态”时，才在 implementation plan 中提出最小 schema 扩展，不能借机设计新的 UI surface。
 
@@ -180,7 +182,7 @@ Trace 必须在 chat API 的统一汇合点同时捕获工具执行前后和 rec
 2. 生成当前考试范围候选并得到当前最优距离。
 3. 使用该距离带对全局 ECDICT 做竞争检查；如果范围内没有候选，则使用允许的最大生成距离。
 4. 合并、按 lemma 去重两个候选池，再统一排序。
-5. 一个候选在编辑距离、排序信号和与第二名的 margin 上同时满足高置信条件，进入 `auto_correct`。
+5. 只有 top candidate 位于当前 active exam scope，并且在编辑距离、排序信号和与第二名的 margin 上同时满足高置信条件，才进入 `auto_correct`。范围外 top candidate 不重排、不被更远 scope 词覆盖，只取消自动决断资格。
 6. 多个候选均合理但没有明显领先者，进入 `clarify_candidates`。
 7. 没有可靠候选，进入 `no_reliable_candidate`。
 

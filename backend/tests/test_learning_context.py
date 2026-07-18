@@ -856,3 +856,197 @@ def test_context_capture_returns_none_for_no_match_or_plain_response():
         )
         is None
     )
+
+
+def test_spelling_clarification_reuses_candidate_surface_and_context_order():
+    payload = ChatSuccessResponse(
+        answer="这个拼写有多个合理候选，请选一个。",
+        answerKind="grounded",
+        grounding={
+            "activeExamTarget": "cet4",
+            "activeExamTargetLabel": "四级",
+            "query": "acess 是什么意思",
+            "queryMode": "fuzzy_recall",
+            "answerStyle": "standard_lookup",
+            "resolution": "needs_clarification",
+            "spellingDecision": "clarify_candidates",
+            "mainAnswer": [],
+            "candidates": [
+                {
+                    "entryId": "external-dictionary-basic:access",
+                    "lemma": "access",
+                    "meaningZh": "进入；使用权",
+                    "sourceKind": "external_dictionary_basic",
+                },
+                {
+                    "entryId": "external-dictionary-basic:assess",
+                    "lemma": "assess",
+                    "meaningZh": "评估",
+                    "sourceKind": "external_dictionary_basic",
+                },
+                {
+                    "entryId": "external-dictionary-basic:axes",
+                    "lemma": "axes",
+                    "meaningZh": "轴；斧头（复数）",
+                    "sourceKind": "external_dictionary_basic",
+                },
+                {
+                    "entryId": "external-dictionary-basic:excess",
+                    "lemma": "excess",
+                    "meaningZh": "过量",
+                    "sourceKind": "external_dictionary_basic",
+                },
+            ],
+        },
+        requestId="req_spelling_clarification",
+    )
+
+    assert payload.answerSurface is not None
+    assert payload.answerSurface["type"] == "candidate_list"
+    assert [item["lemma"] for item in payload.answerSurface["items"]] == [
+        "access",
+        "assess",
+        "axes",
+    ]
+
+    context = build_conversation_context(
+        payload=payload,
+        active_exam_target="cet4",
+        source_message_id="assistant_spelling_clarification",
+    )
+
+    assert context is not None
+    assert context.topicKind == "spelling_clarification"
+    assert [item.lemma for item in context.candidates] == [
+        "access",
+        "assess",
+        "axes",
+    ]
+    assert [item.index for item in context.candidates] == [1, 2, 3]
+
+
+def test_candidate_field_does_not_change_non_spelling_clarification_surface():
+    payload = ChatSuccessResponse(
+        answer="需要确认。",
+        answerKind="grounded",
+        grounding={
+            "queryMode": "fuzzy_recall",
+            "resolution": "needs_clarification",
+            "spellingDecision": "no_reliable_candidate",
+            "mainAnswer": [],
+            "candidates": [{"lemma": "access"}, {"lemma": "assess"}],
+        },
+        requestId="req_other_clarification",
+    )
+
+    assert payload.answerSurface == {"type": "plain", "text": "需要确认。"}
+    assert (
+        build_conversation_context(
+            payload=payload,
+            active_exam_target="cet4",
+            source_message_id="assistant_other_clarification",
+        )
+        is None
+    )
+
+
+def test_spelling_auto_correct_uses_lemma_as_plain_lookup_title():
+    answer = "我把 reqeust 理解为 request。\n\nrequest\n\nn. 请求；要求"
+    payload = ChatSuccessResponse(
+        answer=answer,
+        answerKind="grounded",
+        grounding={
+            "queryMode": "fuzzy_recall",
+            "answerStyle": "standard_lookup",
+            "resolution": "resolved",
+            "spellingDecision": "auto_correct",
+            "spellingCorrection": {"input": "reqeust", "lemma": "request"},
+            "mainAnswer": [
+                {
+                    "entryId": "external-dictionary-basic:request",
+                    "lemma": "request",
+                    "partOfSpeech": "n. / v.",
+                    "meaningZh": "请求；要求",
+                    "sourceKind": "external_dictionary_basic",
+                }
+            ],
+        },
+        requestId="req_spelling_auto_correct",
+    )
+
+    assert payload.answerSurface is not None
+    assert payload.answerSurface["type"] == "lookup"
+    assert payload.answerSurface["title"] == "request"
+    assert payload.answerSurface["subtitle"] is None
+    assert payload.answerSurface["text"] == answer
+    assert payload.answerSurface["items"][0]["lemma"] == "request"
+
+
+def test_bare_ordinal_selects_exact_lemma_in_spelling_clarification_context():
+    context = _context(
+        ["access", "assess", "axes"],
+        active_exam_target="cet4",
+        topic_kind="spelling_clarification",
+        source_query="acess 是什么意思",
+    )
+
+    result = resolve_follow_up("  第二个？！ ", context, "cet4")
+
+    assert result["kind"] == "resolved_query"
+    assert result["query"] == "assess"
+    assert result["activeExamTarget"] == "cet4"
+    assert [item["lemma"] for item in result["targetRefs"]] == ["assess"]
+    assert result["reason"] == "spelling_candidate_selection"
+
+
+def test_out_of_range_bare_spelling_ordinal_stays_clarification():
+    context = _context(
+        ["access", "assess"],
+        active_exam_target="cet4",
+        topic_kind="spelling_clarification",
+    )
+
+    result = resolve_follow_up("第三个", context, "cet4")
+
+    assert result["kind"] == "clarification"
+    assert [item["lemma"] for item in result["options"]] == ["access", "assess"]
+
+
+def test_bare_ordinal_is_not_expanded_for_normal_or_missing_context():
+    assert resolve_follow_up(
+        "第一个",
+        _context(["access", "assess"], topic_kind="meaning_lookup"),
+        "cet6",
+    ) == {"kind": "not_follow_up"}
+    assert resolve_follow_up("第一个", None, "cet6") == {"kind": "not_follow_up"}
+
+
+def test_bare_spelling_ordinal_keeps_stale_and_exam_mismatch_behavior():
+    stale = _context(
+        ["access", "assess"],
+        active_exam_target="cet4",
+        topic_kind="spelling_clarification",
+        expires_after_turns=0,
+    )
+    mismatched = _context(
+        ["access", "assess"],
+        active_exam_target="cet4",
+        topic_kind="spelling_clarification",
+    )
+
+    assert resolve_follow_up("第一个", stale, "cet4") == {"kind": "not_follow_up"}
+    assert resolve_follow_up("第一个", mismatched, "cet6") == {
+        "kind": "not_follow_up"
+    }
+
+
+def test_spelling_candidate_selection_rejects_extra_text():
+    context = _context(
+        ["access", "assess"],
+        active_exam_target="cet4",
+        topic_kind="spelling_clarification",
+    )
+
+    assert resolve_follow_up("请看第一个", context, "cet4") == {
+        "kind": "not_follow_up"
+    }

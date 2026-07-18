@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass, replace
 from pathlib import Path
+from time import perf_counter
 from typing import Callable
 
 from backend.app.content.ecdict import (
@@ -17,6 +18,11 @@ from backend.app.retrieval.normalize_query import (
     normalize_query,
 )
 from backend.app.retrieval.repository import StructuredLookupUnavailable
+from backend.app.retrieval.spelling_candidates import (
+    SpellingCandidate,
+    SpellingCandidateResult,
+)
+from backend.app.retrieval.spelling_decision import SpellingDecision
 from backend.app.retrieval.types import RetrievalCandidate
 from backend.app.schemas.chat import ChatSuccessResponse
 
@@ -31,6 +37,7 @@ class UnsupportedQueryMode(Exception):
 class OrdinaryLookupResult:
     status_code: int
     payload: ChatSuccessResponse
+    trace_diagnostics: dict[str, object] | None = None
 
 
 exam_target_labels = {
@@ -131,10 +138,21 @@ def build_scope_reminder(
     if resolution == "no_match":
         return f"这次我会继续优先按 {active_exam_target_label} 范围帮你缩小候选，不随意扩到范围外。"
 
+    if selected_candidates and all(
+        not candidate.in_scope for candidate in selected_candidates
+    ):
+        return (
+            f"这次命中的词不在当前{active_exam_target_label}词书范围内，"
+            "以下按全局 ECDICT 结果说明。"
+        )
+
     if all(candidate.in_scope for candidate in selected_candidates):
         return f"这次回答已优先锁定在 {active_exam_target_label} 范围内，后续我也会继续按这个范围帮你筛词。"
 
-    return f"这次先以 {active_exam_target_label} 范围内答案为主。"
+    return (
+        f"候选同时包含当前{active_exam_target_label}词书内和词书外结果，"
+        "已按拼写接近度排序。"
+    )
 
 
 def build_follow_up_prompt(
@@ -190,13 +208,15 @@ def build_grounding(
     comparison_view: dict[str, object] | None = None,
     root_family_view: dict[str, object] | None = None,
     candidates: list[RetrievalCandidate] | None = None,
+    spelling_decision: str | None = None,
 ) -> dict[str, object]:
     confusion_boundary = confusion_boundary or []
-    selected_candidates = [*main_answer, *confusion_boundary]
+    candidates = candidates or []
+    selected_candidates = [*main_answer, *confusion_boundary] or candidates
     spelling_correction = None
 
     if (
-        normalized_query.query_mode == "fuzzy_recall"
+        (normalized_query.query_mode == "fuzzy_recall" or spelling_decision == "auto_correct")
         and resolution == "resolved"
         and len(main_answer) == 1
         and len(set(normalized_query.english_terms)) == 1
@@ -210,7 +230,7 @@ def build_grounding(
                 "lemma": lemma,
             }
 
-    return {
+    grounding: dict[str, object] = {
         "activeExamTarget": active_exam_target,
         "activeExamTargetLabel": exam_target_labels[active_exam_target],
         "query": query,
@@ -236,6 +256,17 @@ def build_grounding(
         "spellingCorrection": spelling_correction,
     }
 
+    # Keep the public grounding shape stable for every non-spelling path.  The
+    # dedicated fields only exist when local spelling recovery actually ran;
+    # ambiguity needs the ordered candidate list for the existing surface and
+    # short-lived conversation context.
+    if spelling_decision is not None:
+        grounding["spellingDecision"] = spelling_decision
+    if spelling_decision == "clarify_candidates":
+        grounding["candidates"] = [candidate.to_json() for candidate in candidates]
+
+    return grounding
+
 
 def build_no_match_answer() -> str:
     return "当前词库暂未稳定定位到你说的词，为避免答错对象，这次先不硬猜。你可以再告诉我它的中文意思、词首或词尾，或者你容易把它和哪个词搞混。"
@@ -246,6 +277,51 @@ def build_spelling_correction_prompt() -> str:
         "你是 EngGo 的拼写纠错查词助手。请严格根据 grounding 回答。"
         "第一句必须说明用户可能想查的是 grounding.spellingCorrection.lemma，"
         "然后再解释主答案核心义。"
+    )
+
+
+def build_local_spelling_correction_answer(
+    *,
+    input_term: str,
+    candidate: RetrievalCandidate,
+    profile: EcdictBasicProfile,
+    active_exam_target: str,
+) -> str:
+    parts = [
+        build_ecdict_basic_profile_answer(profile),
+        f"你输入的是 {input_term}，这里按 {candidate.lemma} 查询。",
+    ]
+    if not candidate.in_scope:
+        parts.append(
+            f"{candidate.lemma} 不在当前"
+            f"{exam_target_labels[active_exam_target]}词书范围内。",
+        )
+    return "\n\n".join(parts)
+
+
+def build_spelling_clarification_answer(
+    input_term: str,
+    candidates: list[RetrievalCandidate],
+) -> str:
+    lemmas = " / ".join(candidate.lemma for candidate in candidates)
+    return f"{input_term} 有多个合理拼写候选：{lemmas}。请选择你想查的一个。"
+
+
+def spelling_retrieval_candidate(
+    spelling_candidate: SpellingCandidate,
+    profile: EcdictBasicProfile,
+    *,
+    active_exam_target: str,
+) -> RetrievalCandidate:
+    candidate = dictionary_candidate(
+        profile,
+        active_exam_target=active_exam_target,
+    )
+    return replace(
+        candidate,
+        reason="local spelling candidate: "
+        + ",".join(spelling_candidate.reason_codes),
+        score=max(0, 100 - spelling_candidate.edit_distance * 10),
     )
 
 
@@ -516,6 +592,75 @@ def select_typo_fallback_candidate(
     return typo_candidates[0] if len(typo_candidates) == 1 else None
 
 
+def _elapsed_ms(started_at: float) -> float:
+    return round(max(0.0, (perf_counter() - started_at) * 1000), 3)
+
+
+def _serialize_spelling_candidate_diagnostic(
+    candidate: SpellingCandidate,
+    *,
+    rank: int,
+) -> dict[str, object]:
+    return {
+        "rank": rank,
+        "lemma": candidate.lemma,
+        "editDistance": candidate.edit_distance,
+        "inActiveExamScope": candidate.in_active_exam_scope,
+        "scopeCodes": list(candidate.scope_codes),
+        "sourceKind": candidate.source_kind,
+        "reasonCodes": list(candidate.reason_codes),
+        "rankKey": list(candidate.rank_key),
+    }
+
+
+def _build_spelling_trace_diagnostics(
+    *,
+    candidate_result: SpellingCandidateResult | None,
+    candidate_status: str,
+    source_status: str,
+    decision_kind: str,
+    decision_reason_code: str,
+    selected_candidates: tuple[SpellingCandidate, ...] = (),
+    candidate_generation_latency_ms: float,
+    decision_latency_ms: float,
+) -> dict[str, object]:
+    raw_candidates = candidate_result.candidates if candidate_result is not None else ()
+    return {
+        "candidateStatus": candidate_status,
+        "sourceStatus": source_status,
+        "lexiconVersion": (
+            candidate_result.lexicon_version
+            if candidate_result is not None
+            else "unavailable"
+        ),
+        "inputIsKnownWord": (
+            candidate_result.input_is_known_word
+            if candidate_result is not None
+            else False
+        ),
+        "globalCompetitionComplete": (
+            candidate_result.global_competition_complete
+            if candidate_result is not None
+            else False
+        ),
+        "candidates": [
+            _serialize_spelling_candidate_diagnostic(candidate, rank=rank)
+            for rank, candidate in enumerate(raw_candidates, start=1)
+        ],
+        "decision": {
+            "kind": decision_kind,
+            "reasonCode": decision_reason_code,
+            "selectedCandidates": [
+                candidate.lemma for candidate in selected_candidates
+            ],
+        },
+        "latencyMs": {
+            "candidateGeneration": candidate_generation_latency_ms,
+            "decision": decision_latency_ms,
+        },
+    }
+
+
 class OrdinaryLookupService:
     def __init__(
         self,
@@ -524,11 +669,251 @@ class OrdinaryLookupService:
         source_lemma_base_dir: Path | str,
         ecdict_lookup: Callable[[str], EcdictBasicProfile | None],
         provider=None,
+        spelling_candidate_provider=None,
+        spelling_decision_policy=None,
     ):
         self.repository = repository
         self.source_lemma_base_dir = Path(source_lemma_base_dir)
         self.ecdict_lookup = ecdict_lookup
         self.provider = provider
+        self.spelling_candidate_provider = spelling_candidate_provider
+        self.spelling_decision_policy = spelling_decision_policy
+
+    @property
+    def has_local_spelling_recovery(self) -> bool:
+        return (
+            self.spelling_candidate_provider is not None
+            and self.spelling_decision_policy is not None
+        )
+
+    def safe_ecdict_lookup(self, lookup: str) -> EcdictBasicProfile | None:
+        try:
+            return self.ecdict_lookup(lookup)
+        except (OSError, UnicodeError, ValueError):
+            return None
+
+    def local_spelling_no_match(
+        self,
+        *,
+        active_exam_target: str,
+        query: str,
+        request_id: str,
+        history: list[dict[str, str]] | None,
+        normalized_query: NormalizedQuery,
+        no_match_reason: str,
+        trace_diagnostics: dict[str, object],
+    ) -> OrdinaryLookupResult:
+        result = self.no_match(
+            active_exam_target=active_exam_target,
+            query=query,
+            request_id=request_id,
+            normalized_query=normalized_query,
+            history=history,
+            no_match_reason=no_match_reason,
+            spelling_decision="no_reliable_candidate",
+            allow_provider_fallback=False,
+        )
+        return replace(result, trace_diagnostics=trace_diagnostics)
+
+    def answer_with_local_spelling_recovery(
+        self,
+        *,
+        active_exam_target: str,
+        query: str,
+        request_id: str,
+        history: list[dict[str, str]] | None,
+        normalized_query: NormalizedQuery,
+        needle: str,
+    ) -> OrdinaryLookupResult | None:
+        if not self.has_local_spelling_recovery:
+            return None
+
+        candidate_started_at = perf_counter()
+        try:
+            candidate_result = self.spelling_candidate_provider.generate(
+                term=needle,
+                active_exam_target=active_exam_target,
+                limit=8,
+            )
+        except Exception:
+            candidate_latency_ms = _elapsed_ms(candidate_started_at)
+            trace_diagnostics = _build_spelling_trace_diagnostics(
+                candidate_result=None,
+                candidate_status="candidate_source_error",
+                source_status="candidate_source_error",
+                decision_kind="no_reliable_candidate",
+                decision_reason_code="candidate_source_error",
+                candidate_generation_latency_ms=candidate_latency_ms,
+                decision_latency_ms=0.0,
+            )
+            return self.local_spelling_no_match(
+                active_exam_target=active_exam_target,
+                query=query,
+                request_id=request_id,
+                history=history,
+                normalized_query=normalized_query,
+                no_match_reason="candidate_source_error",
+                trace_diagnostics=trace_diagnostics,
+            )
+        candidate_latency_ms = _elapsed_ms(candidate_started_at)
+
+        decision_started_at = perf_counter()
+        try:
+            decision: SpellingDecision = self.spelling_decision_policy.decide(
+                term=needle,
+                result=candidate_result,
+            )
+        except Exception:
+            decision_latency_ms = _elapsed_ms(decision_started_at)
+            trace_diagnostics = _build_spelling_trace_diagnostics(
+                candidate_result=candidate_result,
+                candidate_status=candidate_result.status,
+                source_status=candidate_result.status,
+                decision_kind="no_reliable_candidate",
+                decision_reason_code="candidate_policy_error",
+                candidate_generation_latency_ms=candidate_latency_ms,
+                decision_latency_ms=decision_latency_ms,
+            )
+            return self.local_spelling_no_match(
+                active_exam_target=active_exam_target,
+                query=query,
+                request_id=request_id,
+                history=history,
+                normalized_query=normalized_query,
+                no_match_reason="candidate_policy_error",
+                trace_diagnostics=trace_diagnostics,
+            )
+        decision_latency_ms = _elapsed_ms(decision_started_at)
+        trace_diagnostics = _build_spelling_trace_diagnostics(
+            candidate_result=candidate_result,
+            candidate_status=candidate_result.status,
+            source_status=candidate_result.status,
+            decision_kind=decision.kind,
+            decision_reason_code=decision.reason_code,
+            selected_candidates=decision.candidates,
+            candidate_generation_latency_ms=candidate_latency_ms,
+            decision_latency_ms=decision_latency_ms,
+        )
+
+        if decision.kind == "auto_correct" and len(decision.candidates) == 1:
+            spelling_candidate = decision.candidates[0]
+            profile = self.safe_ecdict_lookup(spelling_candidate.lemma)
+            if profile is None:
+                trace_diagnostics = {
+                    **trace_diagnostics,
+                    "sourceStatus": "candidate_source_unavailable",
+                }
+                return self.local_spelling_no_match(
+                    active_exam_target=active_exam_target,
+                    query=query,
+                    request_id=request_id,
+                    history=history,
+                    normalized_query=normalized_query,
+                    no_match_reason="candidate_source_unavailable",
+                    trace_diagnostics=trace_diagnostics,
+                )
+
+            candidate = spelling_retrieval_candidate(
+                spelling_candidate,
+                profile,
+                active_exam_target=active_exam_target,
+            )
+            grounding = build_grounding(
+                active_exam_target=active_exam_target,
+                query=query,
+                normalized_query=normalized_query,
+                resolution="resolved",
+                no_match_reason=None,
+                match_type="spelling_auto_correct",
+                main_answer=[candidate],
+                candidates=[candidate],
+                spelling_decision="auto_correct",
+            )
+            return OrdinaryLookupResult(
+                status_code=200,
+                payload=ChatSuccessResponse(
+                    answer=build_local_spelling_correction_answer(
+                        input_term=needle,
+                        candidate=candidate,
+                        profile=profile,
+                        active_exam_target=active_exam_target,
+                    ),
+                    answerKind="grounded",
+                    grounding=grounding,
+                    requestId=request_id,
+                    providerRequestId=None,
+                ),
+                trace_diagnostics=trace_diagnostics,
+            )
+
+        if decision.kind == "clarify_candidates":
+            candidates: list[RetrievalCandidate] = []
+            for spelling_candidate in decision.candidates[:3]:
+                profile = self.safe_ecdict_lookup(spelling_candidate.lemma)
+                if profile is None:
+                    continue
+                candidates.append(
+                    spelling_retrieval_candidate(
+                        spelling_candidate,
+                        profile,
+                        active_exam_target=active_exam_target,
+                    ),
+                )
+
+            # A partial ECDICT read cannot safely preserve an ambiguity decision.
+            if len(candidates) < 2:
+                trace_diagnostics = {
+                    **trace_diagnostics,
+                    "sourceStatus": "candidate_source_unavailable",
+                }
+                return self.local_spelling_no_match(
+                    active_exam_target=active_exam_target,
+                    query=query,
+                    request_id=request_id,
+                    history=history,
+                    normalized_query=normalized_query,
+                    no_match_reason="candidate_source_unavailable",
+                    trace_diagnostics=trace_diagnostics,
+                )
+
+            grounding = build_grounding(
+                active_exam_target=active_exam_target,
+                query=query,
+                normalized_query=normalized_query,
+                resolution="needs_clarification",
+                no_match_reason=None,
+                match_type=None,
+                main_answer=[],
+                candidates=candidates,
+                spelling_decision="clarify_candidates",
+            )
+            return OrdinaryLookupResult(
+                status_code=200,
+                payload=ChatSuccessResponse(
+                    answer=build_spelling_clarification_answer(needle, candidates),
+                    answerKind="grounded",
+                    grounding=grounding,
+                    requestId=request_id,
+                    providerRequestId=None,
+                ),
+                trace_diagnostics=trace_diagnostics,
+            )
+
+        no_match_reason = decision.reason_code
+        if candidate_result.status in {
+            "candidate_source_unavailable",
+            "candidate_source_error",
+        }:
+            no_match_reason = candidate_result.status
+        return self.local_spelling_no_match(
+            active_exam_target=active_exam_target,
+            query=query,
+            request_id=request_id,
+            history=history,
+            normalized_query=normalized_query,
+            no_match_reason=no_match_reason,
+            trace_diagnostics=trace_diagnostics,
+        )
 
     def answer(
         self,
@@ -600,7 +985,9 @@ class OrdinaryLookupService:
         )
 
         if source_candidate:
-            profile = self.ecdict_lookup(needle) or self.ecdict_lookup(source_candidate.lemma)
+            profile = self.safe_ecdict_lookup(needle) or self.safe_ecdict_lookup(
+                source_candidate.lemma,
+            )
             grounding = build_grounding(
                 active_exam_target=active_exam_target,
                 query=query,
@@ -628,7 +1015,7 @@ class OrdinaryLookupService:
             )
 
         if normalized_query.query_mode == "direct_lookup" and len(normalized_query.english_terms) > 1:
-            profile = self.ecdict_lookup(needle)
+            profile = self.safe_ecdict_lookup(needle)
 
             if profile and profile.entry_kind == "phrase":
                 candidate = dictionary_candidate(
@@ -658,7 +1045,7 @@ class OrdinaryLookupService:
                 )
 
         if should_use_ecdict_exact_fallback(normalized_query):
-            profile = self.ecdict_lookup(needle)
+            profile = self.safe_ecdict_lookup(needle)
 
             if profile:
                 candidate = dictionary_candidate(
@@ -686,6 +1073,21 @@ class OrdinaryLookupService:
                         providerRequestId=None,
                     ),
                 )
+
+        if (
+            normalized_query.query_mode in {"direct_lookup", "fuzzy_recall"}
+            and len(normalized_query.english_terms) == 1
+        ):
+            spelling_result = self.answer_with_local_spelling_recovery(
+                active_exam_target=active_exam_target,
+                query=query,
+                request_id=request_id,
+                history=history,
+                normalized_query=normalized_query,
+                needle=needle,
+            )
+            if spelling_result is not None:
+                return spelling_result
 
         if hasattr(self.repository, "find_english_candidates"):
             if structured_lookup_unavailable:
@@ -784,7 +1186,10 @@ class OrdinaryLookupService:
         if (
             normalized_query.query_mode != "shape_neighbor_search"
             or not is_plain_like_single_word_query(normalized_query)
-            or not hasattr(self.repository, "find_english_candidates")
+            or (
+                not self.has_local_spelling_recovery
+                and not hasattr(self.repository, "find_english_candidates")
+            )
         ):
             return None
 
@@ -793,7 +1198,7 @@ class OrdinaryLookupService:
         try:
             structured_candidate = self.repository.find_exact_entry(active_exam_target, needle)
         except StructuredLookupUnavailable:
-            return None
+            structured_candidate = None
 
         if structured_candidate:
             return None
@@ -805,8 +1210,28 @@ class OrdinaryLookupService:
         ):
             return None
 
-        if self.ecdict_lookup(needle):
+        if self.safe_ecdict_lookup(needle):
             return None
+
+        fuzzy_query = replace(
+            normalized_query,
+            query_mode="fuzzy_recall",
+            is_supported_ordinary_lookup=True,
+        )
+        fuzzy_query = replace(
+            fuzzy_query,
+            intent_plan=build_learning_intent_plan(fuzzy_query),
+        )
+        spelling_result = self.answer_with_local_spelling_recovery(
+            active_exam_target=active_exam_target,
+            query=query,
+            request_id=request_id,
+            history=history,
+            normalized_query=fuzzy_query,
+            needle=needle,
+        )
+        if spelling_result is not None:
+            return spelling_result
 
         try:
             ranked_candidates = self.repository.find_english_candidates(
@@ -820,15 +1245,6 @@ class OrdinaryLookupService:
         if not selection:
             return None
 
-        fuzzy_query = replace(
-            normalized_query,
-            query_mode="fuzzy_recall",
-            is_supported_ordinary_lookup=True,
-        )
-        fuzzy_query = replace(
-            fuzzy_query,
-            intent_plan=build_learning_intent_plan(fuzzy_query),
-        )
         grounding = build_grounding(
             active_exam_target=active_exam_target,
             query=query,
@@ -881,8 +1297,10 @@ class OrdinaryLookupService:
         history: list[dict[str, str]] | None = None,
         no_match_reason: str = "out_of_kb",
         candidates: list[RetrievalCandidate] | None = None,
+        spelling_decision: str | None = None,
+        allow_provider_fallback: bool = True,
     ) -> OrdinaryLookupResult:
-        if self.provider:
+        if self.provider and allow_provider_fallback:
             plain_payload = maybe_plain_no_match_response(
                 provider=self.provider,
                 active_exam_target=active_exam_target,
@@ -909,6 +1327,7 @@ class OrdinaryLookupService:
             match_type=None,
             main_answer=[],
             candidates=candidates or [],
+            spelling_decision=spelling_decision,
         )
 
         return OrdinaryLookupResult(

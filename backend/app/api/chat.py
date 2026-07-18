@@ -1,5 +1,6 @@
 import json
 import re
+from time import perf_counter
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -32,6 +33,10 @@ from backend.app.schemas.chat import (
     ChatSuccessResponse,
     ExamTarget,
     LearningCandidateRef,
+)
+from backend.app.retrieval.retrieval_trace import (
+    NullRetrievalTraceSink,
+    RetrievalTraceRecorder,
 )
 
 router = APIRouter()
@@ -222,6 +227,67 @@ def bounded_plain_response(answer: str, request_id: str) -> JSONResponse:
     )
 
 
+def elapsed_ms(started_at: float) -> float:
+    return round(max(0.0, (perf_counter() - started_at) * 1000), 3)
+
+
+def normalized_trace_slots(normalized_query: dict[str, object]) -> dict[str, object]:
+    # Deliberately exclude raw/normalizedText; raw query has a separate opt-in.
+    return {
+        key: normalized_query[key]
+        for key in (
+            "englishTerms",
+            "meaningHint",
+            "compareTerms",
+            "groupSeedTerm",
+            "learningIntentPlan",
+        )
+        if key in normalized_query
+    }
+
+
+def grounding_trace_candidates(grounding: dict[str, object]) -> list[dict[str, object]]:
+    candidate_values: list[object] = []
+    for key in ("mainAnswer", "confusionBoundary", "candidates"):
+        value = grounding.get(key)
+        if isinstance(value, list):
+            candidate_values.extend(value)
+
+    for view_key in ("comparisonView", "rootFamilyView"):
+        view = grounding.get(view_key)
+        if isinstance(view, dict) and isinstance(view.get("members"), list):
+            candidate_values.extend(view["members"])
+
+    result: list[dict[str, object]] = []
+    seen: set[str] = set()
+    for value in candidate_values:
+        if not isinstance(value, dict):
+            continue
+        lemma = value.get("lemma")
+        if not isinstance(lemma, str) or not lemma or lemma in seen:
+            continue
+        seen.add(lemma)
+        candidate: dict[str, object] = {
+            "rank": len(result) + 1,
+            "lemma": lemma,
+        }
+        for source_key, target_key in (
+            ("score", "score"),
+            ("sourceKind", "sourceKind"),
+            ("inScope", "inActiveExamScope"),
+            ("scopeCodes", "scopeCodes"),
+            ("editDistance", "editDistance"),
+            ("rankKey", "rankKey"),
+            ("reasonCodes", "reasonCodes"),
+        ):
+            if value.get(source_key) is not None:
+                candidate[target_key] = value[source_key]
+        if "reasonCodes" not in candidate and isinstance(value.get("reason"), str):
+            candidate["reasonCodes"] = [value["reason"]]
+        result.append(candidate)
+    return result
+
+
 def answer_with_tools(
     *,
     request: Request,
@@ -230,8 +296,10 @@ def answer_with_tools(
     query: str,
     active_exam_target: ExamTarget,
     resolved_follow_up: dict,
+    trace_recorder: RetrievalTraceRecorder,
 ) -> JSONResponse:
     history = [message.model_dump() for message in payload.history]
+    route_started_at = perf_counter()
     route_plan = plan_chat_tool_route(
         query=query,
         active_exam_target=active_exam_target,
@@ -242,6 +310,14 @@ def answer_with_tools(
         history=history,
         request_id=request_id,
         context=payload.conversationContext,
+    )
+    trace_recorder.record_latency("route", elapsed_ms(route_started_at))
+    trace_recorder.record_route(
+        source=route_plan.source,
+        confidence=route_plan.confidence,
+        ambiguity_reasons=route_plan.ambiguity_reasons,
+        query_mode=route_plan.query_mode,
+        normalized_slots=normalized_trace_slots(route_plan.normalized_query),
     )
     tools = build_chat_tools(
         ordinary_lookup_service=getattr(
@@ -261,32 +337,70 @@ def answer_with_tools(
         ),
     )
 
+    tool_started_at = perf_counter()
     try:
         execution = execute_chat_tool_route(
             route_plan=route_plan,
             tools=tools,
             request_id=request_id,
             history=history,
+            on_tool_attempt=trace_recorder.record_tool_attempt,
         )
     except ChatProviderError as error:
+        trace_recorder.record_latency("tool", elapsed_ms(tool_started_at))
+        trace_recorder.record_tool_selected(None)
         return provider_error_response(error, request_id)
+    trace_recorder.record_latency("tool", elapsed_ms(tool_started_at))
 
     if execution is None:
+        trace_recorder.record_tool_selected(None)
         return bounded_plain_response(
             unhandled_bounded_fallback_answer(query),
             request_id,
         )
 
-    recovered_payload = recover_no_match(
-        query=query,
-        history=history,
-        request_id=request_id,
-        active_exam_target=active_exam_target,
-        service_payload=execution.payload,
-        context=payload.conversationContext,
-        provider=getattr(request.app.state, "provider", None),
-        resolved_follow_up=resolved_follow_up,
+    trace_recorder.record_tool_selected(execution.tool_name)
+    grounding = (
+        execution.payload.grounding
+        if isinstance(execution.payload.grounding, dict)
+        else {}
     )
+    trace_recorder.record_candidates(grounding_trace_candidates(grounding))
+    trace_recorder.record_spelling_diagnostics(execution.trace_diagnostics)
+    trace_recorder.record_pre_recovery(
+        resolution=str(grounding.get("resolution") or "not_observed"),
+        no_match_reason=(
+            str(grounding["noMatchReason"])
+            if grounding.get("noMatchReason") is not None
+            else None
+        ),
+        spelling_decision=(
+            str(grounding["spellingDecision"])
+            if grounding.get("spellingDecision") is not None
+            else None
+        ),
+    )
+
+    recovery_started_at = perf_counter()
+    try:
+        recovered_payload = recover_no_match(
+            query=query,
+            history=history,
+            request_id=request_id,
+            active_exam_target=active_exam_target,
+            service_payload=execution.payload,
+            context=payload.conversationContext,
+            provider=getattr(request.app.state, "provider", None),
+            resolved_follow_up=resolved_follow_up,
+            on_recovery_outcome=lambda kind, provider_outcome: (
+                trace_recorder.record_recovery(
+                    kind=kind,
+                    provider_outcome=provider_outcome,
+                )
+            ),
+        )
+    finally:
+        trace_recorder.record_latency("recovery", elapsed_ms(recovery_started_at))
     if recovered_payload:
         return response_json(recovered_payload, 200)
 
@@ -643,8 +757,11 @@ def handle_resolved_action(
     )
 
 
-@router.post("/api/chat")
-async def post_chat(request: Request, payload: ChatRequest) -> JSONResponse:
+async def dispatch_chat(
+    request: Request,
+    payload: ChatRequest,
+    trace_recorder: RetrievalTraceRecorder,
+) -> JSONResponse:
     request_id = request.state.request_id
 
     direct_answer = direct_bounded_chat_answer(payload.query)
@@ -697,18 +814,63 @@ async def post_chat(request: Request, payload: ChatRequest) -> JSONResponse:
         query=query,
         active_exam_target=active_exam_target,
         resolved_follow_up=resolved,
+        trace_recorder=trace_recorder,
     )
+
+
+@router.post("/api/chat")
+async def post_chat(request: Request, payload: ChatRequest) -> JSONResponse:
+    sink = getattr(
+        request.app.state,
+        "retrieval_trace_sink",
+        NullRetrievalTraceSink(),
+    )
+    trace_recorder = RetrievalTraceRecorder(
+        request_id=request.state.request_id,
+        active_exam_target=payload.activeExamTarget,
+        sink=sink,
+        environment=getattr(
+            request.app.state,
+            "retrieval_trace_environment",
+            {},
+        ),
+        include_raw_query=getattr(
+            request.app.state,
+            "retrieval_trace_include_raw_query",
+            False,
+        ),
+        raw_query=payload.query,
+    )
+    response: JSONResponse | None = None
+
+    try:
+        response = await dispatch_chat(request, payload, trace_recorder)
+        return response
+    finally:
+        status_code = response.status_code if response is not None else 500
+        answer_kind = "error"
+        if response is not None:
+            try:
+                content = json.loads(response.body.decode("utf-8"))
+                answer_kind = str(content.get("answerKind") or "error")
+            except (AttributeError, UnicodeDecodeError, json.JSONDecodeError):
+                answer_kind = "error"
+        trace_recorder.finalize(
+            status_code=status_code,
+            answer_kind=answer_kind,
+        )
 
 
 @router.post("/api/chat/stream")
 async def post_chat_stream(request: Request, payload: ChatRequest) -> StreamingResponse:
     request_id = request.state.request_id
+    # Resolve the shared chat path before emitting the first SSE event.  This
+    # guarantees one finalized trace even if the client disconnects after meta.
+    response = await post_chat(request, payload)
+    content = json.loads(response.body.decode("utf-8"))
 
     async def generate_events():
         yield sse_event("meta", {"requestId": request_id})
-
-        response = await post_chat(request, payload)
-        content = json.loads(response.body.decode("utf-8"))
 
         if response.status_code < 200 or response.status_code >= 300:
             yield sse_event(

@@ -1,5 +1,5 @@
 import re
-from typing import Any
+from typing import Any, Callable
 
 from backend.app.answering.no_match_policy import (
     get_unique_english_tokens,
@@ -316,6 +316,9 @@ def is_recoverable_service_no_match(payload: ChatSuccessResponse) -> bool:
         return False
 
     assert isinstance(payload.grounding, dict)
+    if payload.grounding.get("spellingDecision") == "no_reliable_candidate":
+        return False
+
     query_mode = payload.grounding.get("queryMode")
     answer_style = payload.grounding.get("answerStyle")
 
@@ -339,14 +342,22 @@ def recover_no_match(
     context: ConversationalLearningContext | None,
     provider,
     resolved_follow_up: dict,
+    on_recovery_outcome: Callable[[str, str], None] | None = None,
 ) -> ChatSuccessResponse | None:
+    def record(kind: str, provider_outcome: str) -> None:
+        if on_recovery_outcome is not None:
+            on_recovery_outcome(kind, provider_outcome)
+
     if not is_recoverable_service_no_match(service_payload):
+        record("none", "not_attempted")
         return None
 
     if is_random_like_query(query):
+        record("none", "not_attempted")
         return None
 
     if not is_learning_adjacent_query(query):
+        record("deterministic_fallback", "not_attempted")
         return ChatSuccessResponse(
             answer=deterministic_recovery_answer(query=query, context=context),
             answerKind="plain",
@@ -390,6 +401,7 @@ def recover_no_match(
     }
 
     if provider is None:
+        record("deterministic_fallback", "unavailable")
         return ChatSuccessResponse(
             answer=deterministic_recovery_answer(query=query, context=context),
             answerKind="plain",
@@ -403,6 +415,7 @@ def recover_no_match(
             ),
         )
 
+    record("provider_generated", "attempted")
     try:
         provider_result = provider.generate_answer(
             query=query,
@@ -412,6 +425,7 @@ def recover_no_match(
             grounding=grounding,
         )
     except ChatProviderError as error:
+        record("deterministic_fallback", "error_fallback")
         return ChatSuccessResponse(
             answer=deterministic_recovery_answer(query=query, context=context),
             answerKind="plain",
@@ -424,7 +438,11 @@ def recover_no_match(
                 clears_context=not targets,
             ),
         )
+    except Exception:
+        record("provider_generated", "error")
+        raise
 
+    record("provider_generated", "success")
     return ChatSuccessResponse(
         answer=provider_result.answer,
         answerKind="plain",

@@ -74,6 +74,7 @@ export function toObservation(
   const learningIntentPlan = asRecord(grounding.learningIntentPlan);
   const broadAnswerPlan = asRecord(grounding.broadAnswerPlan);
   const mainAnswerLemmas = collectLemmasFromRecords(grounding.mainAnswer);
+  const candidateLemmas = collectLemmasFromRecords(grounding.candidates);
 
   return {
     status: response.status,
@@ -87,10 +88,13 @@ export function toObservation(
     resolution: getString(grounding.resolution),
     comparisonViewId: getString(comparisonView.id),
     rootFamilyViewId: getString(rootFamilyView.id),
+    spellingDecision: getString(grounding.spellingDecision),
+    candidateLemmas,
     learningIntentTask: getString(learningIntentPlan.task),
     broadPresentation: getString(broadAnswerPlan.presentation),
     groundingLemmas: uniqueValues([
       ...mainAnswerLemmas,
+      ...candidateLemmas,
       ...collectLemmasFromRecords(grounding.confusionBoundary),
       ...collectLemmasFromRecords(grounding.lightCandidates),
       ...collectLemmasFromRecords(comparisonView.members),

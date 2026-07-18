@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "enggo-spelling-recovery-task6-evidence-v1",
+  "materializationNote": "Tracked compact evidence for the final Task 6 run. The local trace has 186 rows from multiple probes; only rows 182-186 are the isolated final five-case provider-off HTTP evidence set.",
+  "environment": {
+    "fastApiBaseUrl": "http://127.0.0.1:8000",
+    "browserUrl": "http://localhost:3000/chat",
+    "structuredRuntime": false,
+    "providerMode": "off",
+    "traceRawQueryEnabled": false
+  },
+  "providerOffHttp": {
+    "trace": {
+      "localIgnoredPath": ".runlogs/task6-provider-off-trace.jsonl",
+      "totalRows": 186,
+      "evidenceRowRangeOneBasedInclusive": [182, 186],
+      "sha256": "b248bddfb023948370111204591efcf2a901c71fda42c2cc8eeb4c3196fa705a"
+    },
+    "cases": [
+      {
+        "label": "exact lookup",
+        "requestId": "req_7027c2551c724cbab4afcd449fc2f333",
+        "activeExamTarget": "cet6",
+        "queryMode": "fuzzy_recall",
+        "resolution": "resolved",
+        "spellingDecision": null,
+        "selectedTool": "ordinary_lookup",
+        "topCandidates": ["request"],
+        "statusCode": 200,
+        "providerRequestId": null
+      },
+      {
+        "label": "high-confidence auto correction",
+        "requestId": "req_1c5a6c6b939a4ea9a13c75e9fac1790f",
+        "activeExamTarget": "cet6",
+        "queryMode": "fuzzy_recall",
+        "resolution": "resolved",
+        "spellingDecision": "auto_correct",
+        "selectedTool": "ordinary_lookup",
+        "topCandidates": ["request", "bequest", "reest"],
+        "statusCode": 200,
+        "providerRequestId": null
+      },
+      {
+        "label": "mixed-scope clarification",
+        "requestId": "req_70de48043a06432d83db874eccc9d9e7",
+        "activeExamTarget": "gaokao",
+        "queryMode": "fuzzy_recall",
+        "resolution": "needs_clarification",
+        "spellingDecision": "clarify_candidates",
+        "selectedTool": "ordinary_lookup",
+        "topCandidates": ["alize", "alike", "alive"],
+        "statusCode": 200,
+        "providerRequestId": null
+      },
+      {
+        "label": "out-of-scope candidate follow-up exact lookup",
+        "requestId": "req_176335ab5acd4ba3ad44caeb36e44aab",
+        "activeExamTarget": "gaokao",
+        "queryMode": "direct_lookup",
+        "resolution": "resolved",
+        "spellingDecision": null,
+        "selectedTool": "ordinary_lookup",
+        "topCandidates": ["alize"],
+        "topCandidateInActiveExamScope": false,
+        "statusCode": 200,
+        "providerRequestId": null
+      },
+      {
+        "label": "random-like safe no-match",
+        "requestId": "req_36a44c39a4cd4dff9858bf3bb2f52e03",
+        "activeExamTarget": "gaokao",
+        "queryMode": "fuzzy_recall",
+        "resolution": "no_match",
+        "noMatchReason": "random_like",
+        "spellingDecision": "no_reliable_candidate",
+        "selectedTool": "ordinary_lookup",
+        "topCandidates": [],
+        "statusCode": 200,
+        "providerRequestId": null
+      }
+    ],
+    "assertions": {
+      "caseCount": 5,
+      "allStatus200": true,
+      "allProviderModeOff": true,
+      "allStructuredRuntimeFalse": true,
+      "allProviderRequestIdNull": true,
+      "allRawQueryFieldAbsent": true
+    }
+  },
+  "browser": {
+    "tool": "Playwright CLI",
+    "observed": [
+      "standard lookup remains visible",
+      "automatic correction explicitly shows the input and corrected lemma",
+      "mixed-scope candidates preserve distance order and show the out-of-scope badge and reminder",
+      "selecting the first candidate resolves the out-of-scope exact lookup with scope support",
+      "random-like input remains a safe no-match"
+    ],
+    "console": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "network": {
+      "observedPostPath": "/api/chat",
+      "allObservedStatuses": [200],
+      "failedRequestCount": 0
+    },
+    "screenshot": {
+      "localIgnoredPath": "output/playwright/retrieval-spelling-task6.png",
+      "trackedInGit": false,
+      "bytes": 113412,
+      "width": 1249,
+      "height": 1277,
+      "sha256": "591be73d1aac2ddd8815731f078da08ba946436784b357bbc43fcf9eee2ef223",
+      "deliveryNote": "The image remains in the plan-approved ignored output directory; the visual observations and immutable image identity are materialized in this tracked evidence file."
+    }
+  },
+  "regression": {
+    "backendPytest": { "passed": 489, "failed": 0 },
+    "migratedFastApiSmoke": {
+      "passed": 51,
+      "total": 51,
+      "matrix": "current DB-free/provider-off contract",
+      "legacyMatrixRealigned": true,
+      "caveat": "This proves the current default runtime matrix; it is not an apples-to-apples result against stale structured/provider-on expectations."
+    },
+    "dbUnavailableSmoke": { "passed": 19, "total": 19 },
+    "conversationContextProviderOnSmoke": {
+      "passed": 13,
+      "total": 13,
+      "countedAsRetrievalMetric": false
+    },
+    "controlledRouterFocused": { "passed": 14, "failed": 0 },
+    "relatedVitest": { "files": 5, "passed": 65, "failed": 0 },
+    "assistantAnswerContractAudit": { "passed": 9, "failed": 0 },
+    "directedEslint": "passed",
+    "nextProductionBuild": "passed",
+    "gitDiffCheck": "passed"
+  }
+}

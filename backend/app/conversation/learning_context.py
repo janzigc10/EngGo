@@ -106,6 +106,26 @@ def resolve_follow_up(
             target_exam=scope_target,
         )
 
+    spelling_candidate_index = _bare_spelling_candidate_index(text)
+    if (
+        spelling_candidate_index is not None
+        and context is not None
+        and context.topicKind == "spelling_clarification"
+        and _usable_context(context)
+        and context.activeExamTarget == active_exam_target
+    ):
+        targets = _resolve_targets(spelling_candidate_index, context)
+        if not targets:
+            return _clarification(context)
+
+        return {
+            "kind": "resolved_query",
+            "query": targets[0].lemma,
+            "activeExamTarget": active_exam_target,
+            "targetRefs": [_candidate_payload(targets[0])],
+            "reason": "spelling_candidate_selection",
+        }
+
     if _is_semantic_style_follow_up(text):
         if _contains_explicit_seed(text):
             return {"kind": "not_follow_up"}
@@ -181,6 +201,12 @@ def resolve_follow_up(
 def _candidate_refs_from_grounding(
     grounding: dict[str, Any],
 ) -> list[LearningCandidateRef]:
+    if _is_spelling_clarification_grounding(grounding):
+        raw_candidates = grounding.get("candidates")
+        if not isinstance(raw_candidates, list):
+            return []
+        return _candidate_refs_from_items(raw_candidates)[:3]
+
     for raw_candidates in _candidate_sources(grounding):
         refs = _candidate_refs_from_items(raw_candidates)
         if refs:
@@ -277,6 +303,8 @@ def _topic_kind(grounding: dict[str, Any]) -> str:
     query_mode = grounding.get("queryMode")
     learning_task = _learning_task(grounding)
 
+    if _is_spelling_clarification_grounding(grounding):
+        return "spelling_clarification"
     if query_mode == "direct_compare" or grounding.get("comparisonView"):
         return "direct_compare"
     if query_mode == "shape_neighbor_search":
@@ -297,6 +325,13 @@ def _learning_task(grounding: dict[str, Any]) -> str | None:
         if isinstance(task, str):
             return task
     return None
+
+
+def _is_spelling_clarification_grounding(grounding: dict[str, Any]) -> bool:
+    return (
+        grounding.get("resolution") == "needs_clarification"
+        and grounding.get("spellingDecision") == "clarify_candidates"
+    )
 
 
 def _is_broad_vocab_grounding(grounding: dict[str, Any]) -> bool:
@@ -553,6 +588,18 @@ def _ordinal_refs_in_query(query: str) -> list[int | None]:
         index = _parse_ordinal_number(match.group(1))
         refs.append(index if index in {1, 2, 3, 4, 5} else None)
     return refs
+
+
+def _bare_spelling_candidate_index(query: str) -> int | None:
+    match = re.fullmatch(
+        r"[\s？?!！。.,，、]*第([0-9]+|[零〇一二两三四五六七八九十]+)[个個][\s？?!！。.,，、]*",
+        query,
+    )
+    if not match:
+        return None
+
+    index = _parse_ordinal_number(match.group(1))
+    return index if index in {1, 2, 3, 4, 5} else None
 
 
 def _parse_ordinal_number(value: str) -> int | None:

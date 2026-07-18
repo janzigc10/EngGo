@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import inspect
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 from backend.app.answering.intent_classifier import (
     ClassifiedIntent,
@@ -48,6 +48,7 @@ class ChatToolExecution:
     tool_name: ChatToolName
     status_code: int
     payload: ChatSuccessResponse
+    trace_diagnostics: dict[str, object] | None = None
 
 
 def unique_tool_order(
@@ -240,6 +241,7 @@ def execute_chat_tool_route(
     tools: dict[ChatToolName, ChatTool],
     request_id: str,
     history: list[dict[str, str]],
+    on_tool_attempt: Callable[[ChatToolName], None] | None = None,
 ) -> ChatToolExecution | None:
     for tool_name in route_plan.tool_names:
         tool = tools.get(tool_name)
@@ -260,6 +262,8 @@ def execute_chat_tool_route(
             ):
                 kwargs["route_decision"] = route_plan.classified_intent
 
+            if on_tool_attempt is not None:
+                on_tool_attempt(tool_name)
             result = tool.service.answer(**kwargs)
         except UnsupportedQueryMode:
             continue
@@ -268,6 +272,7 @@ def execute_chat_tool_route(
             tool_name=tool_name,
             status_code=result.status_code,
             payload=result.payload,
+            trace_diagnostics=getattr(result, "trace_diagnostics", None),
         )
 
     return None

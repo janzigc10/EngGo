@@ -27,6 +27,10 @@ class Settings:
     openai_api_key: str | None = None
     openai_base_url: str | None = None
     openai_model: str | None = None
+    build_version: str | None = None
+    data_version: str | None = None
+    retrieval_trace_jsonl_path: Path | None = None
+    retrieval_trace_include_raw_query: bool = False
     source_lemma_base_dir: Path = Path.cwd() / "data" / "exam-vocab"
     ecdict_dictionary_path: Path = (
         Path.cwd() / "output" / "external-dictionaries" / "ecdict.csv"
@@ -44,6 +48,8 @@ def load_settings(env_file: Path | str | None = None) -> Settings:
         encoding="utf-8-sig",
     )
 
+    retrieval_trace_jsonl_path = os.getenv("ENGGO_RETRIEVAL_TRACE_JSONL_PATH")
+
     return Settings(
         environment=os.getenv("ENGGO_BACKEND_ENV", "development"),
         database_url=os.getenv("DATABASE_URL"),
@@ -51,6 +57,16 @@ def load_settings(env_file: Path | str | None = None) -> Settings:
         openai_api_key=os.getenv("OPENAI_API_KEY"),
         openai_base_url=os.getenv("OPENAI_BASE_URL"),
         openai_model=os.getenv("OPENAI_MODEL"),
+        build_version=os.getenv("ENGGO_BUILD_VERSION"),
+        data_version=os.getenv("ENGGO_DATA_VERSION"),
+        retrieval_trace_jsonl_path=(
+            Path(retrieval_trace_jsonl_path)
+            if retrieval_trace_jsonl_path
+            else None
+        ),
+        retrieval_trace_include_raw_query=parse_bool(
+            os.getenv("ENGGO_RETRIEVAL_TRACE_INCLUDE_RAW_QUERY"),
+        ),
         source_lemma_base_dir=Path(
             os.getenv("ENGGO_SOURCE_LEMMA_BASE_DIR", str(Settings.source_lemma_base_dir)),
         ),
